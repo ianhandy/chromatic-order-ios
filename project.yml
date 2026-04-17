@@ -13,7 +13,11 @@ settings:
     # if iPad is included with portrait-only.
     TARGETED_DEVICE_FAMILY: "1"
     INFOPLIST_KEY_UILaunchScreen_Generation: true
-    INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone: "UIInterfaceOrientationPortrait"
+    # Universal orientations key (no ~iphone variant) — Apple's upload
+    # validator won't accept a bundle whose Info.plist only has the
+    # device-specific UISupportedInterfaceOrientations~iphone. Providing
+    # the base key + iPhone-only TARGETED_DEVICE_FAMILY satisfies both.
+    INFOPLIST_KEY_UISupportedInterfaceOrientations: "UIInterfaceOrientationPortrait"
     # Apple Developer team (Ian Handy). Kept here so xcodegen
     # preserves it across regenerations — without this it gets reset
     # and archives fail with "Signing requires a development team."
@@ -33,7 +37,7 @@ targets:
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
         MARKETING_VERSION: "1.0.0"
-        CURRENT_PROJECT_VERSION: "2"
+        CURRENT_PROJECT_VERSION: "3"
         SUPPORTED_PLATFORMS: "iphoneos iphonesimulator"
         SUPPORTS_MACCATALYST: NO
         SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD: NO
