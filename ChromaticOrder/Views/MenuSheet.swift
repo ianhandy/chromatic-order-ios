@@ -46,9 +46,12 @@ struct MenuSheet: View {
                     }
                     menuButton(label: "Color Blindness: \(game.cbMode.shortLabel)") {
                         // Cycle: None → Protan → Deutan → Tritan → Achro → None.
-                        // Regenerates the current puzzle under the new vision
-                        // so step magnitudes feel right immediately.
-                        game.cycleCBMode(); menuOpen = false
+                        // Intentionally does NOT close the menu — lets
+                        // the player keep tapping to cycle until they
+                        // find the right mode. Regeneration is
+                        // deferred to menu close (see ContentView's
+                        // onChange hook that calls applyDeferredCBModeChange).
+                        game.cycleCBMode()
                     }
 
                     Divider().padding(.vertical, 4)

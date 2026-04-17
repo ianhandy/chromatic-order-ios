@@ -89,6 +89,10 @@ final class GameState {
     // correlate puzzle metrics with actual play experience.
     var puzzleStartTime: Date = Date()
     var mistakeCount: Int = 0
+    /// Did the player vote on the quick-feedback widget this puzzle?
+    /// nil = hasn't voted, true = liked, false = disliked. One vote
+    /// per puzzle (widget disables after submit). Reset on startLevel.
+    var liked: Bool? = nil
 
     // How far above the finger the drag ghost floats. Purely visual —
     // placement still uses the raw finger position via effectivePoint
@@ -164,13 +168,30 @@ final class GameState {
         UserDefaults.standard.set(cbMode.rawValue, forKey: cbModeKey)
     }
 
-    /// Advance to the next CB mode (wraps). Called by the menu toggle.
-    /// Regenerates the current puzzle so the step math runs under the
-    /// new vision — the player sees puzzles tuned for their eyes.
+    /// CB mode the current puzzle was generated under. Used to detect
+    /// whether a regeneration is needed when the settings menu closes.
+    /// Set in startLevel's detached task.
+    var cbModeAtGeneration: CBMode = .none
+
+    /// Advance to the next CB mode (wraps). Saves the new mode so
+    /// it persists, but does NOT regenerate the current puzzle yet —
+    /// the player may be cycling through several options to find the
+    /// right one, and regenerating on every tap would be jarring.
+    /// applyDeferredCBModeChange() is what actually kicks off the
+    /// regeneration, and the menu calls it when it closes.
     func cycleCBMode() {
         cbMode = cbMode.next()
         saveCBMode()
-        startLevel(level)
+    }
+
+    /// Called when the settings menu closes. If the player landed on
+    /// a different CB mode than the one the puzzle was generated
+    /// under, regenerate now so subsequent play happens under the
+    /// chosen vision. No-op when nothing changed.
+    func applyDeferredCBModeChange() {
+        if cbMode != cbModeAtGeneration {
+            startLevel(level)
+        }
     }
 
     /// Toggle the grid-zoom double-tap state. Exits pan too — the two
@@ -247,9 +268,11 @@ final class GameState {
         // Diagnostics reset — fresh puzzle = fresh timer + mistake count.
         puzzleStartTime = Date()
         mistakeCount = 0
+        liked = nil
         // Capture the current CB mode at dispatch time — the detached
         // task runs off the main actor and can't read properties.
         let activeCBMode = cbMode
+        cbModeAtGeneration = activeCBMode
         Task.detached(priority: .userInitiated) { [weak self] in
             var cfg = GenConfig()
             cfg.cbMode = activeCBMode

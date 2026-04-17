@@ -33,6 +33,16 @@ struct ContentView: View {
                     // puzzle. Gentle spring matches the .solved transition
                     // applied to the whole ZStack below.
                     if !game.solved {
+                        // Quick like/dislike widget, right-aligned just
+                        // above the bank. "Bottom right corner" for the
+                        // play area without overlapping swatches — the
+                        // bank itself lives below it. Hidden on solve.
+                        HStack {
+                            Spacer()
+                            LikeFeedbackWidget(game: game)
+                        }
+                        .padding(.horizontal, 22)
+                        .padding(.bottom, 4)
                         BankView(game: game)
                             .padding(.horizontal, 22)
                             .transition(.asymmetric(
@@ -119,6 +129,15 @@ struct ContentView: View {
             else if game.selection != nil { game.clearSelection() }
         }
         .animation(.spring(response: 0.55, dampingFraction: 0.85), value: game.solved)
+        .onChange(of: menuOpen) { _, isOpen in
+            // Deferred CB regeneration: cycling the CB mode inside
+            // the menu updates game.cbMode but doesn't rebuild the
+            // puzzle — that'd thrash the board mid-cycle. When the
+            // menu closes, check whether the chosen mode differs
+            // from what the current puzzle was generated under and
+            // rebuild only if so.
+            if !isOpen { game.applyDeferredCBModeChange() }
+        }
         .fullScreenCover(isPresented: $creatorOpen) {
             CreatorView(game: game)
         }
