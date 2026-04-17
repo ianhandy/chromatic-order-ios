@@ -85,12 +85,21 @@ final class GameState {
     var cellFrames: [CellIndex: CGRect] = [:]
     var bankSlotFrames: [Int: CGRect] = [:]
 
-    // Zoom + pan state. Zoom is toggled by double-tapping the grid.
-    // When `zoomed` is true the grid scales up to fill the viewport
-    // (computed by GridView from the container size) and pan is
-    // enabled; toggling back zeros the pan offset.
-    var zoomed: Bool = false
+    // Zoom + pan state.
+    //   zoomScale = 1.0 is the default/fit-to-screen view; cannot zoom
+    //   further OUT than that (no empty space around the grid).
+    //   >1.0 scales the grid up. GridView clamps the upper bound to
+    //   whatever makes 3 cells span the short viewport axis — the max
+    //   "zoom into the grid" that's still useful for single-cell
+    //   targeting.
+    //   Pinch gesture updates zoomScale live; double-tap toggles
+    //   between 1.0 and the max. Pan enabled whenever zoomScale > 1.
+    var zoomScale: CGFloat = 1.0
     var panOffset: CGSize = .zero
+
+    /// Convenience — "am I in any zoomed state" for call sites that
+    /// just need to disable cell drags while zoomed.
+    var zoomed: Bool { zoomScale > 1.0001 }
 
     // Diagnostics for the feedback form — reset each startLevel and
     // bumped by action callbacks as the player plays. All of these are
@@ -289,11 +298,26 @@ final class GameState {
         applyAccessibilityIfChanged()
     }
 
-    /// Toggle the grid-zoom double-tap state. Exits pan too — the two
-    /// always live and die together.
-    func toggleZoom() {
-        zoomed.toggle()
-        if !zoomed { panOffset = .zero }
+    /// Double-tap jumps between the default fit-view (1.0) and the
+    /// player's max zoom. Caller passes the current maxZoom since
+    /// GridView computes it from the container size.
+    func toggleZoom(max: CGFloat) {
+        if zoomScale > 1.0001 {
+            zoomScale = 1.0
+            panOffset = .zero
+        } else {
+            zoomScale = max
+        }
+    }
+
+    /// Set zoom directly — used by the pinch gesture. `max` is the
+    /// current maxZoom so we never allow zooming past "3 cells fill
+    /// the screen." Clamped below at 1.0 (can't zoom out past
+    /// fit-view; there's no purpose to empty space around the grid).
+    func setZoom(_ value: CGFloat, max: CGFloat) {
+        let clamped = min(max, Swift.max(1.0, value))
+        zoomScale = clamped
+        if clamped <= 1.0001 { panOffset = .zero }
     }
 
     /// Apply a pan delta while zoomed; no-op when not zoomed so the

@@ -13,6 +13,10 @@ import SwiftUI
 struct GridView: View {
     @Bindable var game: GameState
     @State private var panStartOffset: CGSize = .zero
+    /// Snapshot of game.zoomScale at pinch gesture start — used to
+    /// resolve MagnificationGesture's relative magnitude into an
+    /// absolute new zoom value.
+    @State private var zoomAtGestureStart: CGFloat = 1.0
 
     var body: some View {
         GeometryReader { geo in
@@ -35,16 +39,16 @@ struct GridView: View {
             let perH = (availH / CGFloat(rows)) - margin * 2
             let cellPx = max(10, min(64, min(perW, perH)))
 
-            // Zoom scale — pick whatever makes the grid fit the limiting
-            // axis of the container exactly. Caps at 2.5× so tiny puzzles
-            // (single-gradient Trivial) don't bloat past usefulness.
-            let gridTotalW = CGFloat(cols) * (cellPx + margin * 2)
-            let gridTotalH = CGFloat(rows) * (cellPx + margin * 2)
-            let fillScale = min(
-                size.width  / max(gridTotalW, 1),
-                size.height / max(gridTotalH, 1)
-            )
-            let zoom: CGFloat = game.zoomed ? min(2.5, max(1.5, fillScale)) : 1.0
+            // Max zoom — stop at "3 cells span the short viewport axis."
+            // Beyond that, each cell is bigger than a thumb and the
+            // player is no longer seeing context. Cell pitch = cellPx
+            // + 2*margin; short-axis / pitch gives how many cells are
+            // currently visible at 1.0x, so (current / 3) is the
+            // multiplier that drops the visible count to 3.
+            let cellPitch = cellPx + margin * 2
+            let shortAxis = min(size.width, size.height)
+            let maxZoom: CGFloat = max(1.2, shortAxis / (3 * cellPitch))
+            let zoom: CGFloat = game.zoomScale
 
             VStack(spacing: 0) {
                 ForEach(b.minR...b.maxR, id: \.self) { r in
@@ -66,7 +70,6 @@ struct GridView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .scaleEffect(zoom, anchor: .center)
             .offset(game.panOffset)
-            .animation(.spring(response: 0.5, dampingFraction: 0.85), value: game.zoomed)
             .animation(.interactiveSpring(response: 0.2, dampingFraction: 0.95),
                        value: game.panOffset)
             .onPreferenceChange(CellFramesKey.self) { frames in
@@ -76,8 +79,22 @@ struct GridView: View {
                 Task { @MainActor in game.cellFrames = frames }
             }
             .onTapGesture(count: 2) {
-                game.toggleZoom()
+                game.toggleZoom(max: maxZoom)
+                zoomAtGestureStart = game.zoomScale
             }
+            // Pinch to zoom — clamped between 1x (default view) and
+            // maxZoom (3 cells span the short axis). MagnificationGesture
+            // reports a relative multiplier, so we resolve against the
+            // snapshot taken at gesture start.
+            .simultaneousGesture(
+                MagnificationGesture()
+                    .onChanged { value in
+                        game.setZoom(zoomAtGestureStart * value, max: maxZoom)
+                    }
+                    .onEnded { _ in
+                        zoomAtGestureStart = game.zoomScale
+                    }
+            )
             // Pan gesture — only wired up while zoomed. CellView's own
             // drag gesture is suppressed by `game.zoomed` (see CellView)
             // so they don't fight. Translation is added to the offset
@@ -100,6 +117,7 @@ struct GridView: View {
                 // Reset pan bookkeeping whenever zoom toggles so the
                 // next pan starts from the new (possibly-zero) offset.
                 panStartOffset = isZoomed ? game.panOffset : .zero
+                zoomAtGestureStart = game.zoomScale
             }
         }
     }
