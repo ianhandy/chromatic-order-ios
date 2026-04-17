@@ -18,9 +18,11 @@ targets:
       - path: ChromaticOrder
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.ianhandy.chromatic-order
+        PRODUCT_BUNDLE_IDENTIFIER: com.ianhandy.kroma
         GENERATE_INFOPLIST_FILE: true
-        INFOPLIST_KEY_CFBundleDisplayName: Chromatic
+        INFOPLIST_KEY_CFBundleDisplayName: Kroma
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
         MARKETING_VERSION: "1.0.0"
         CURRENT_PROJECT_VERSION: "1"
         SUPPORTED_PLATFORMS: "iphoneos iphonesimulator"
