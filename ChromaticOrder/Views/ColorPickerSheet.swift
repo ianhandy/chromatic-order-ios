@@ -2,6 +2,11 @@
 //  h (hue) — with a big live preview swatch at top. Values clamp to
 //  the game's usable band so the picked colors stay visually coherent
 //  with generator output.
+//
+//  When `isNilled` is true (shift mode on the End chip), the absolute-
+//  color sliders are replaced by ΔL / Δc / Δh sliders that edit the
+//  per-step shift directly. Ranges span both signs so the player can
+//  set "hue north" (-) or "hue south" (+) without a separate control.
 
 import SwiftUI
 
@@ -12,6 +17,9 @@ struct ColorPickerSheet: View {
     /// color chip so the creator can drop the endpoint entirely.
     var allowNil: Bool = false
     @Binding var isNilled: Bool
+    @Binding var deltaL: Double
+    @Binding var deltaC: Double
+    @Binding var deltaH: Double
     var title: String = "Color"
     @Environment(\.dismiss) private var dismiss
 
@@ -20,11 +28,24 @@ struct ColorPickerSheet: View {
         self.title = title
         self.allowNil = false
         self._isNilled = .constant(false)
+        self._deltaL = .constant(0)
+        self._deltaC = .constant(0)
+        self._deltaH = .constant(0)
     }
 
-    init(color: Binding<OKLCh>, isNilled: Binding<Bool>, title: String = "End color") {
+    init(
+        color: Binding<OKLCh>,
+        isNilled: Binding<Bool>,
+        deltaL: Binding<Double>,
+        deltaC: Binding<Double>,
+        deltaH: Binding<Double>,
+        title: String = "End color"
+    ) {
         self._color = color
         self._isNilled = isNilled
+        self._deltaL = deltaL
+        self._deltaC = deltaC
+        self._deltaH = deltaH
         self.allowNil = true
         self.title = title
     }
@@ -34,7 +55,9 @@ struct ColorPickerSheet: View {
             VStack(spacing: 18) {
                 // Preview strip — full hue/chroma/lightness at once so
                 // the player sees the color they're building, not just
-                // three numeric sliders.
+                // three numeric sliders. In shift mode the swatch falls
+                // back to the striped placeholder since there's no
+                // single "endpoint color" to preview.
                 RoundedRectangle(cornerRadius: 20, style: .continuous)
                     .fill(isNilled ? AnyShapeStyle(stripePattern) : AnyShapeStyle(OK.toColor(color)))
                     .frame(height: 140)
@@ -83,6 +106,32 @@ struct ColorPickerSheet: View {
                                   format: { String(format: "%.0f°", $0) })
                     }
                     .padding(.horizontal, 20)
+                } else {
+                    // Shift-mode sliders — signed so you can set 'one
+                    // direction' or 'the other' directly with the
+                    // slider thumb. +hue cycles through the color
+                    // wheel one way, −hue the other; +L brightens,
+                    // −L darkens; +c saturates, −c desaturates.
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("Per-step shift")
+                            .font(.system(size: 13, weight: .bold))
+                            .padding(.horizontal, 20)
+                        VStack(spacing: 14) {
+                            LCHSlider(label: "ΔLightness",
+                                      value: $deltaL,
+                                      range: -0.15...0.15,
+                                      format: { String(format: "%+.2f", $0) })
+                            LCHSlider(label: "ΔChroma",
+                                      value: $deltaC,
+                                      range: -0.15...0.15,
+                                      format: { String(format: "%+.2f", $0) })
+                            LCHSlider(label: "ΔHue",
+                                      value: $deltaH,
+                                      range: -90...90,
+                                      format: { String(format: "%+.0f°", $0) })
+                        }
+                        .padding(.horizontal, 20)
+                    }
                 }
                 Spacer()
             }

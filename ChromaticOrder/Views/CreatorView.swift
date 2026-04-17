@@ -60,6 +60,9 @@ struct CreatorView: View {
                             state.endColor = newVal ? nil : (state.endColor ?? state.startColor)
                         }
                     ),
+                    deltaL: $state.deltaL,
+                    deltaC: $state.deltaC,
+                    deltaH: $state.deltaH,
                     title: "End color"
                 )
             }
