@@ -18,6 +18,11 @@ struct CellView: View {
     let cellPx: CGFloat
     @Bindable var game: GameState
     @State private var shakePhase: CGFloat = 0
+    /// Drives the wrong-cell complement-color blink. Oscillates
+    /// between 0 and 1 on a loop while `isWrong`; stays at 0.5
+    /// (mid-opacity) when reduce-motion is on so the border is still
+    /// visible without pulsing.
+    @State private var wrongPhase: CGFloat = 0
 
     var body: some View {
         let filled = cell.kind == .cell && cell.placed != nil
@@ -81,10 +86,16 @@ struct CellView: View {
                         .frame(width: cellPx * 0.22, height: cellPx * 0.22)
                 }
 
-                // Red-outline wrong indicator
-                if isWrong {
+                // Wrong-answer border: gentle blink in the placed
+                // color's perceptual complement (OK.opposite = hue
+                // flipped, luminance inverted). High contrast against
+                // the cell's own color without the aggressive red
+                // alarm signal the previous version leaned on.
+                if isWrong, let placedColor = placed {
+                    let borderColor = OK.opposite(placedColor)
+                    let alpha = 0.35 + Double(wrongPhase) * 0.55
                     RoundedRectangle(cornerRadius: radius, style: .continuous)
-                        .stroke(Color(red: 0.8, green: 0.2, blue: 0.2), lineWidth: 3)
+                        .stroke(OK.toColor(borderColor, opacity: alpha), lineWidth: 3)
                         .frame(width: cellPx, height: cellPx)
                 }
             }
@@ -152,8 +163,21 @@ struct CellView: View {
                               .delay(Double((r * 13 + c * 29) % 200) / 1000)) {
                     shakePhase = 1
                 }
+                // Gentle ~1.4s cycle for the complement-color border
+                // pulse — slow enough to read as "breathing," not an
+                // alarm. Per-cell delay staggers the blink field so
+                // it doesn't strobe in unison.
+                withAnimation(.easeInOut(duration: 1.4)
+                              .repeatForever(autoreverses: true)
+                              .delay(Double((r * 17 + c * 23) % 400) / 1000)) {
+                    wrongPhase = 1
+                }
             } else {
                 shakePhase = 0
+                // Mid-alpha when reduce motion is on or when the cell
+                // becomes correct — no animation, just a static
+                // resting state.
+                wrongPhase = game.reduceMotion && newValue ? 0.5 : 0
             }
         }
     }
