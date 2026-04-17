@@ -36,16 +36,6 @@ struct ContentView: View {
                     // puzzle. Gentle spring matches the .solved transition
                     // applied to the whole ZStack below.
                     if !game.solved {
-                        // Quick like/dislike widget, right-aligned just
-                        // above the bank. "Bottom right corner" for the
-                        // play area without overlapping swatches — the
-                        // bank itself lives below it. Hidden on solve.
-                        HStack {
-                            Spacer()
-                            LikeFeedbackWidget(game: game)
-                        }
-                        .padding(.horizontal, 22)
-                        .padding(.bottom, 4)
                         BankView(game: game)
                             .padding(.horizontal, 22)
                             .transition(.asymmetric(
@@ -69,24 +59,30 @@ struct ContentView: View {
                           feedbackOpen: $feedbackOpen)
             }
 
-            // Floating Next Level button on solved.
+            // Solved overlay: Like widget + Next Level button, stacked
+            // bottom-right. The widget only shows after a solve —
+            // asking "did you like THIS level?" is only meaningful
+            // once the player has actually finished it.
             if game.solved, let _ = game.puzzle {
                 VStack {
                     Spacer()
                     HStack {
                         Spacer()
-                        Button {
-                            game.handleNext()
-                        } label: {
-                            Text("Next Level \u{2192}")
-                                .font(.system(size: 14, weight: .bold, design: .rounded))
-                                .padding(.horizontal, 22)
-                                .frame(height: 48)
-                                .background(Color(red: 42 / 255, green: 157 / 255, blue: 78 / 255))
-                                .foregroundStyle(.white)
-                                .clipShape(Capsule())
-                                .shadow(color: Color(red: 42 / 255, green: 157 / 255, blue: 78 / 255).opacity(0.38),
-                                        radius: 20, y: 6)
+                        VStack(alignment: .trailing, spacing: 12) {
+                            LikeFeedbackWidget(game: game)
+                            Button {
+                                game.handleNext()
+                            } label: {
+                                Text("Next Level \u{2192}")
+                                    .font(.system(size: 14, weight: .bold, design: .rounded))
+                                    .padding(.horizontal, 22)
+                                    .frame(height: 48)
+                                    .background(Color(red: 42 / 255, green: 157 / 255, blue: 78 / 255))
+                                    .foregroundStyle(.white)
+                                    .clipShape(Capsule())
+                                    .shadow(color: Color(red: 42 / 255, green: 157 / 255, blue: 78 / 255).opacity(0.38),
+                                            radius: 20, y: 6)
+                            }
                         }
                         .padding(.trailing, 20)
                         .padding(.bottom, 20)
