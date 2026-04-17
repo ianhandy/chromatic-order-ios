@@ -23,11 +23,7 @@ enum LikeFeedbackSubmitter {
 
     private enum F {
         static let liked = "entry.1322490510"
-        /// Placeholder — populated once the dev adds a single Paragraph
-        /// field to the Like form and sends a fresh pre-filled URL.
-        /// Empty string = skip in POST body (the Like/Dislike choice
-        /// submits successfully on its own in the meantime).
-        static let json = ""
+        static let json  = "entry.1732838532"
     }
 
     static func submit(_ payload: LikePayload) async {
