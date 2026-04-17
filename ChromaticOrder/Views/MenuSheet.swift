@@ -6,6 +6,7 @@ import SwiftUI
 struct MenuSheet: View {
     @Bindable var game: GameState
     @Binding var menuOpen: Bool
+    @Binding var creatorOpen: Bool
     @State private var showResetConfirm = false
 
     var body: some View {
@@ -30,6 +31,10 @@ struct MenuSheet: View {
                         ) {
                             game.toggleShowIncorrect(); menuOpen = false
                         }
+                    }
+                    menuButton(label: "Create Puzzle…") {
+                        menuOpen = false
+                        creatorOpen = true
                     }
                     menuButton(label: "Reduce Motion: \(game.reduceMotion ? "On" : "Off")") {
                         game.toggleReduceMotion(); menuOpen = false

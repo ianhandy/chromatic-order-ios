@@ -6,6 +6,7 @@ import SwiftUI
 struct ContentView: View {
     @State private var game = GameState()
     @State private var menuOpen: Bool = false
+    @State private var creatorOpen: Bool = false
 
     var body: some View {
         ZStack {
@@ -38,7 +39,7 @@ struct ContentView: View {
 
             // Hamburger menu dropdown.
             if menuOpen {
-                MenuSheet(game: game, menuOpen: $menuOpen)
+                MenuSheet(game: game, menuOpen: $menuOpen, creatorOpen: $creatorOpen)
             }
 
             // Floating Next Level button on solved.
@@ -103,6 +104,9 @@ struct ContentView: View {
             else if game.selection != nil { game.clearSelection() }
         }
         .animation(.easeOut(duration: 0.38), value: game.solved)
+        .fullScreenCover(isPresented: $creatorOpen) {
+            CreatorView(game: game)
+        }
     }
 }
 

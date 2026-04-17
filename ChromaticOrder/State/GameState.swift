@@ -278,6 +278,24 @@ final class GameState {
         saveProgress()
     }
 
+    /// Jump into a player-authored puzzle. Bypasses the generator and
+    /// level progression — treated as a one-off "custom" session. We
+    /// keep `level` and progress untouched so dismissing the custom
+    /// puzzle returns the player to where they were.
+    func loadCustomPuzzle(_ p: Puzzle) {
+        generating = false
+        solved = false
+        selection = nil
+        dragSource = nil
+        dragLocation = nil
+        dropTarget = nil
+        activeColor = nil
+        showIncorrect = false
+        showedIncorrect = false
+        engagedThisLevel = false
+        puzzle = p
+    }
+
     func resetProgress() {
         UserDefaults.standard.removeObject(forKey: progressKey)
         level = 1
