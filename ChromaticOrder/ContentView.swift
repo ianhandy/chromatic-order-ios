@@ -67,20 +67,23 @@ struct ContentView: View {
                 .transition(.opacity)
             }
 
-            // Dragged swatch ghost. If magnetism has snapped to a cell,
-            // pull the ghost halfway toward that cell's center so the
-            // user sees a noticeable tug — confirms "release here and
-            // it lands in that cell."
+            // Dragged swatch ghost. Floats ABOVE the finger (not under)
+            // so the dragged tile stays visible and isn't occluded by
+            // the player's thumb. If magnetism has snapped to a cell,
+            // pull toward that cell's center so the tug is visible
+            // before release.
             if let src = game.dragSource, let loc = game.dragLocation {
+                let ghostLift: CGFloat = 48  // keep the ghost above the finger
+                let lifted = CGPoint(x: loc.x, y: loc.y - ghostLift)
                 let magnetized: CGPoint = {
                     if let t = game.dropTarget, let rect = game.cellFrames[t] {
                         let target = CGPoint(x: rect.midX, y: rect.midY)
                         return CGPoint(
-                            x: loc.x + (target.x - loc.x) * 0.45,
-                            y: loc.y + (target.y - loc.y) * 0.45
+                            x: lifted.x + (target.x - lifted.x) * 0.45,
+                            y: lifted.y + (target.y - lifted.y) * 0.45
                         )
                     }
-                    return loc
+                    return lifted
                 }()
                 DragGhost(color: src.color, location: magnetized)
                     .allowsHitTesting(false)
