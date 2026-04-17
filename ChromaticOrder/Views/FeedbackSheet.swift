@@ -1,7 +1,13 @@
-//  Feedback sheet. Lets the player write notes + copy a bundled
-//  payload (their message plus an auto-generated diagnostic block
-//  with app build, current level, mode, score, reduce-motion flag)
-//  to the clipboard. Also offers a Share action for Mail / iMessage.
+//  Dev-oriented feedback sheet.
+//
+//  Primary input is two 1-10 sliders (difficulty + quality) so each
+//  report lets me correlate the player's perceived difficulty / polish
+//  with the generator's metrics (pairProx, extrapProx, per-gradient
+//  stepΔE, etc., appended as a diagnostic block below).
+//
+//  Notes are optional — used for anything the sliders don't capture.
+//  Copy to Clipboard is the expected send mechanism; ShareLink is a
+//  fallback for Mail / Messages.
 
 import SwiftUI
 import UIKit
@@ -9,77 +15,87 @@ import UIKit
 struct FeedbackSheet: View {
     @Bindable var game: GameState
     @Environment(\.dismiss) private var dismiss
+
+    // Sliders default to the middle of the scale (5) — an explicit
+    // "no rating" state would force the player through a three-state
+    // selector that reads as fussier than this screen deserves.
+    @State private var difficultyRating: Double = 5
+    @State private var qualityRating: Double = 5
     @State private var note: String = ""
     @State private var copyConfirmed = false
 
     var body: some View {
         NavigationStack {
-            VStack(alignment: .leading, spacing: 12) {
-                Text("Tell us what worked, what didn't, or what you'd like to see. The block below is appended automatically — it only contains app + progress info (no personal data).")
-                    .font(.system(size: 12))
-                    .foregroundStyle(.secondary)
-                    .padding(.horizontal, 16)
-                    .padding(.top, 8)
+            ScrollView {
+                VStack(alignment: .leading, spacing: 16) {
+                    ratingRow(
+                        title: "Difficulty",
+                        help: "1 = trivial, 10 = brutal",
+                        value: $difficultyRating,
+                        tint: Color(red: 0.85, green: 0.47, blue: 0))
+                    ratingRow(
+                        title: "Quality",
+                        help: "1 = bad puzzle, 10 = great puzzle",
+                        value: $qualityRating,
+                        tint: Color(red: 0.16, green: 0.62, blue: 0.31))
 
-                TextEditor(text: $note)
-                    .font(.system(size: 14))
-                    .padding(8)
-                    .frame(minHeight: 160)
-                    .background(Color(uiColor: .secondarySystemBackground),
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("Notes")
+                            .font(.system(size: 13, weight: .bold))
+                        Text("Anything the sliders don't capture")
+                            .font(.system(size: 11))
+                            .foregroundStyle(.secondary)
+                        TextEditor(text: $note)
+                            .font(.system(size: 14))
+                            .padding(6)
+                            .frame(minHeight: 120)
+                            .background(
+                                Color(uiColor: .secondarySystemBackground),
                                 in: RoundedRectangle(cornerRadius: 10))
-                    .padding(.horizontal, 16)
-                    .overlay(alignment: .topLeading) {
-                        if note.isEmpty {
-                            Text("Your feedback…")
-                                .font(.system(size: 14))
-                                .foregroundStyle(.tertiary)
-                                .padding(.horizontal, 24)
-                                .padding(.top, 18)
-                                .allowsHitTesting(false)
-                        }
                     }
 
-                // Diagnostic preview — read-only, identical to what
-                // gets appended on copy. Shows the player exactly what
-                // they'll be pasting, which is the right way to handle
-                // "we auto-attach this data."
-                ScrollView {
-                    Text(diagnostic)
-                        .font(.system(size: 11, design: .monospaced))
-                        .foregroundStyle(.secondary)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(10)
-                }
-                .frame(maxHeight: 120)
-                .background(Color(uiColor: .secondarySystemBackground),
-                            in: RoundedRectangle(cornerRadius: 8))
-                .padding(.horizontal, 16)
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("Auto-attached diagnostic")
+                            .font(.system(size: 13, weight: .bold))
+                        Text("Included so the dev can correlate your ratings with the generator's output. No personal data.")
+                            .font(.system(size: 11))
+                            .foregroundStyle(.secondary)
+                        Text(diagnostic)
+                            .font(.system(size: 10, design: .monospaced))
+                            .foregroundStyle(.secondary)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(10)
+                            .background(
+                                Color(uiColor: .secondarySystemBackground),
+                                in: RoundedRectangle(cornerRadius: 8))
+                    }
 
-                HStack(spacing: 10) {
-                    Button {
-                        UIPasteboard.general.string = payload
-                        copyConfirmed = true
-                        UINotificationFeedbackGenerator().notificationOccurred(.success)
-                    } label: {
-                        Label(copyConfirmed ? "Copied" : "Copy to Clipboard",
-                              systemImage: copyConfirmed ? "checkmark" : "doc.on.doc")
+                    HStack(spacing: 10) {
+                        Button {
+                            UIPasteboard.general.string = payload
+                            copyConfirmed = true
+                            UINotificationFeedbackGenerator().notificationOccurred(.success)
+                        } label: {
+                            Label(
+                                copyConfirmed ? "Copied" : "Copy to Clipboard",
+                                systemImage: copyConfirmed ? "checkmark" : "doc.on.doc"
+                            )
                             .font(.system(size: 14, weight: .semibold))
                             .frame(maxWidth: .infinity)
-                            .frame(height: 42)
-                    }
-                    .buttonStyle(.borderedProminent)
+                            .frame(height: 44)
+                        }
+                        .buttonStyle(.borderedProminent)
 
-                    ShareLink(item: payload) {
-                        Label("Share", systemImage: "square.and.arrow.up")
-                            .font(.system(size: 14, weight: .semibold))
-                            .frame(height: 42)
-                            .padding(.horizontal, 16)
+                        ShareLink(item: payload) {
+                            Label("Share", systemImage: "square.and.arrow.up")
+                                .labelStyle(.iconOnly)
+                                .font(.system(size: 16, weight: .semibold))
+                                .frame(width: 48, height: 44)
+                        }
+                        .buttonStyle(.bordered)
                     }
-                    .buttonStyle(.bordered)
                 }
-                .padding(.horizontal, 16)
-
-                Spacer()
+                .padding(16)
             }
             .navigationTitle("Feedback")
             .navigationBarTitleDisplayMode(.inline)
@@ -92,6 +108,38 @@ struct FeedbackSheet: View {
         .presentationDetents([.large])
     }
 
+    // Slider row factored out so the two ratings look and behave
+    // identically — large readout on the right, label+help on the left.
+    @ViewBuilder
+    private func ratingRow(
+        title: String,
+        help: String,
+        value: Binding<Double>,
+        tint: Color
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title)
+                        .font(.system(size: 13, weight: .bold))
+                    Text(help)
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
+                Text("\(Int(value.wrappedValue))")
+                    .font(.system(size: 22, weight: .heavy, design: .rounded))
+                    .foregroundStyle(tint)
+                    .frame(minWidth: 40)
+                    .monospacedDigit()
+            }
+            Slider(value: value, in: 1...10, step: 1)
+                .tint(tint)
+        }
+    }
+
+    // MARK: - Diagnostic + payload
+
     private var diagnostic: String {
         let versionInfo = Bundle.main.infoDictionary.flatMap { info -> String? in
             let short = info["CFBundleShortVersionString"] as? String ?? "?"
@@ -100,6 +148,10 @@ struct FeedbackSheet: View {
         } ?? "unknown"
 
         var out = """
+        — ratings —
+        difficulty: \(Int(difficultyRating))/10
+        quality: \(Int(qualityRating))/10
+
         — diagnostic —
         app: ChromaticOrder \(versionInfo)
         level: \(game.level)
@@ -110,47 +162,32 @@ struct FeedbackSheet: View {
         device: \(UIDevice.current.systemName) \(UIDevice.current.systemVersion)
         """
 
-        // Append per-puzzle metrics when there's a live puzzle.
-        // Generator-tuning data: difficulty, cross-gradient similarity
-        // (pairProx), line-overlap similarity (extrapProx, interDist),
-        // and per-gradient step magnitudes — lets me (the dev) see
-        // "this puzzle rated X but step ΔE was tiny" on a given report.
         if let p = game.puzzle {
             let activeChannels = p.activeChannels
                 .map { $0.rawValue.uppercased() }
                 .joined(separator: "+")
             out += "\n\n— puzzle —\n"
-            out += "difficulty: \(p.difficulty)/10\n"
+            out += "difficulty(gen): \(p.difficulty)/10\n"
             out += "channels: \(activeChannels) (primary: \(p.primaryChannel.rawValue.uppercased()))\n"
             out += "grid: \(p.gridW)x\(p.gridH)\n"
             out += "gradients: \(p.gradients.count)\n"
             out += "bankInitial: \(p.initialBankCount)\n"
-            // Cross-gradient color similarity. High pairProx = close
-            // colors across gradients (likely to confuse the player).
             out += String(format: "pairProx: %.2f  (close cells across grads, lower is easier)\n", p.pairProx)
-            // "Would the plotted lines overlap?" — extrapProx scores
-            // cells that sit on the extended line of another gradient.
-            // High = ambiguous direction cues across gradients.
             out += String(format: "extrapProx: %.2f  (on-extended-line score)\n", p.extrapProx)
             out += String(format: "interDist: %.1f  (min line-to-polyline ΔE between grads)\n", p.interDist)
 
-            // Per-gradient in-line similarity — the step ΔE the player
-            // has to distinguish. Lower = harder to tell steps apart.
             out += "\ngrads:\n"
             for g in p.gradients {
-                var totalStep = 0.0
-                var stepN = 0
-                for i in 1..<g.colors.count {
-                    totalStep += OK.dist(g.colors[i - 1], g.colors[i])
-                    stepN += 1
-                }
-                let avgStep = stepN > 0 ? totalStep / Double(stepN) : 0
+                var totalStep = 0.0, stepN = 0
                 var minStep = Double.infinity, maxStep = 0.0
                 for i in 1..<g.colors.count {
                     let d = OK.dist(g.colors[i - 1], g.colors[i])
+                    totalStep += d
+                    stepN += 1
                     if d < minStep { minStep = d }
                     if d > maxStep { maxStep = d }
                 }
+                let avgStep = stepN > 0 ? totalStep / Double(stepN) : 0
                 if minStep == .infinity { minStep = 0 }
                 out += String(
                     format: "  - %@ len=%d stepΔE avg=%.2f min=%.2f max=%.2f\n",
@@ -163,7 +200,6 @@ struct FeedbackSheet: View {
 
     private var payload: String {
         let body = note.trimmingCharacters(in: .whitespacesAndNewlines)
-        if body.isEmpty { return diagnostic }
-        return body + "\n\n" + diagnostic
+        return body.isEmpty ? diagnostic : body + "\n\n" + diagnostic
     }
 }

@@ -307,6 +307,11 @@ private struct CanvasView: View {
                 state.previewCells().map { ($0.idx, $0.color) })
             let radius = cellPx * 0.22
 
+            // Total grid dimensions with cell spacing baked in — used
+            // both for laying out the tiles and for drawing the outer
+            // bounds outline right at the edge of the playable area.
+            let totalW = CGFloat(cols) * (cellPx + spacing * 2)
+            let totalH = CGFloat(rows) * (cellPx + spacing * 2)
             VStack(spacing: 0) {
                 Spacer(minLength: 0)
                 VStack(spacing: 0) {
@@ -329,6 +334,17 @@ private struct CanvasView: View {
                         }
                     }
                 }
+                .frame(width: totalW, height: totalH)
+                .background(
+                    // Outer-bounds outline around the whole canvas so
+                    // the editable area is visually defined — the
+                    // tiles themselves get light when empty, which
+                    // left the playfield edge feeling ambiguous.
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .stroke(Color.black.opacity(0.18),
+                                style: StrokeStyle(lineWidth: 1.5, dash: [4, 4]))
+                        .padding(-2)
+                )
                 Spacer(minLength: 0)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
