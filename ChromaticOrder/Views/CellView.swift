@@ -29,11 +29,12 @@ struct CellView: View {
                 Color.clear
             } else {
                 // Empty-cell tint — light-on-dark now that the backdrop
-                // is black. Translucent white keeps the empty slots
-                // visible without pulling focus from filled cells.
+                // is black. Bumped from 0.08 → 0.14 alpha so the empty
+                // slots are clearly visible as drop targets without
+                // pulling focus from filled cells.
                 if !filled {
                     RoundedRectangle(cornerRadius: radius, style: .continuous)
-                        .fill(Color.white.opacity(0.08))
+                        .fill(Color.white.opacity(0.14))
                         .frame(width: cellPx, height: cellPx)
                 }
                 // Solved-burst glow behind color (z-order wise)

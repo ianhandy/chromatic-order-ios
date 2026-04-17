@@ -26,6 +26,11 @@ struct CreatorView: View {
     @State private var endDisabled = false
 
     @Bindable var game: GameState
+    /// When true, the Play button also writes the puzzle to the
+    /// gallery before loading it. Set by callers coming from the
+    /// Gallery view; the top-level menu's "Create Puzzle…" entry
+    /// leaves it false (one-off play, not a keep-forever save).
+    var saveOnPlay: Bool = false
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
@@ -173,6 +178,12 @@ struct CreatorView: View {
 
                 Button {
                     if let b = built, b.validation.playable {
+                        if saveOnPlay {
+                            // Persist to the gallery before handing
+                            // to the game, so the player can come
+                            // back to this layout later.
+                            _ = try? GalleryStore.save(b.puzzle)
+                        }
                         game.loadCustomPuzzle(b.puzzle)
                         dismiss()
                     }

@@ -4,7 +4,11 @@
 import SwiftUI
 
 struct ContentView: View {
-    @State private var game = GameState()
+    /// Shared GameState instance — owned by ChromaticOrderApp so the
+    /// MenuView and ContentView play against the same state (so mode
+    /// picks made on the menu land on the same game). Declared as
+    /// @Bindable because @State would make a private copy.
+    @Bindable var game: GameState
     @State private var menuOpen: Bool = false
     @State private var creatorOpen: Bool = false
     @State private var feedbackOpen: Bool = false
@@ -212,5 +216,5 @@ private struct DragGhost: View {
 }
 
 #Preview {
-    ContentView(incomingPuzzle: .constant(nil))
+    ContentView(game: GameState(), incomingPuzzle: .constant(nil))
 }
