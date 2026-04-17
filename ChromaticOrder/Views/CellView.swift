@@ -188,20 +188,43 @@ private struct ColorFace: View {
 private struct SolvedBurstGlow: View {
     let color: OKLCh
     let cellPx: CGFloat
-    let phase: Double
-    @State private var animate = false
+    let phase: Double          // 0..1 per-cell stagger input
+    @State private var burst = false  // sharp initial flash
+    @State private var settled = false // gentle easing back
 
     var body: some View {
-        let big = cellPx * 2.0
+        // Color + blur instead of .shadow — SwiftUI's shadow requires
+        // opaque pixels to cast from, and a Color.clear fill casts no
+        // shadow. A filled translucent RRect with .blur produces the
+        // halo directly, plays well with scaleEffect, and actually
+        // animates (animatable modifiers compose, opaque-shape shadow
+        // does not animate radius reliably).
+        let stagger = phase * 0.08
+        let peakAlpha: Double = 0.85
+        let restAlpha: Double = 0.55
+        let alpha = burst ? (settled ? restAlpha : peakAlpha) : 0
+        let blurR: CGFloat = burst
+            ? (settled ? cellPx * 1.0 : cellPx * 1.9)
+            : 0
+        let scale: CGFloat = burst
+            ? (settled ? 1.0 : 1.28)
+            : 0.85
         RoundedRectangle(cornerRadius: cellPx * 0.26, style: .continuous)
-            .fill(Color.clear)
+            .fill(OK.toColor(color, opacity: alpha))
+            .blur(radius: blurR)
+            .scaleEffect(scale)
             .frame(width: cellPx, height: cellPx)
-            .shadow(color: OK.toColor(color, opacity: animate ? 0.78 : 0.95),
-                    radius: animate ? big : big * 1.35, x: 0, y: 0)
-            .scaleEffect(animate ? 1 : 1.22)
             .onAppear {
-                withAnimation(.easeOut(duration: 1.3).delay(phase * 0.22)) {
-                    animate = true
+                // Phase 1 — sudden flash. Short, punchy ease-out so
+                // every cell pops to its peak glow almost instantly.
+                withAnimation(.easeOut(duration: 0.22).delay(stagger)) {
+                    burst = true
+                }
+                // Phase 2 — gentle easing to a sustained afterglow.
+                // Longer duration + soft ease so the frame reads as a
+                // held celebration rather than a flicker.
+                withAnimation(.easeOut(duration: 1.2).delay(stagger + 0.22)) {
+                    settled = true
                 }
             }
     }

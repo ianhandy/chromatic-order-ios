@@ -53,8 +53,17 @@ struct EdgeVignetteView: View {
                         startPoint: .leading, endPoint: .trailing)
                 }
                 .blendMode(.normal)
-                .animation(reduceMotion ? nil : .easeOut(duration: 0.38), value: c)
-                .transition(.opacity)
+                // Bounce in / bounce out — a spring with low damping so
+                // the vignette slightly overshoots on appear and settles,
+                // same on dismiss. Response controls duration; damping
+                // controls how much it oscillates before resting.
+                .animation(reduceMotion
+                           ? nil
+                           : .spring(response: 0.45, dampingFraction: 0.62),
+                           value: c)
+                .transition(.opacity.animation(reduceMotion
+                    ? .linear(duration: 0)
+                    : .spring(response: 0.45, dampingFraction: 0.62)))
             }
         }
         .ignoresSafeArea()
