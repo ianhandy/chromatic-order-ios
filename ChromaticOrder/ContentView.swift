@@ -7,6 +7,7 @@ struct ContentView: View {
     @State private var game = GameState()
     @State private var menuOpen: Bool = false
     @State private var creatorOpen: Bool = false
+    @State private var feedbackOpen: Bool = false
 
     var body: some View {
         ZStack {
@@ -39,7 +40,10 @@ struct ContentView: View {
 
             // Hamburger menu dropdown.
             if menuOpen {
-                MenuSheet(game: game, menuOpen: $menuOpen, creatorOpen: $creatorOpen)
+                MenuSheet(game: game,
+                          menuOpen: $menuOpen,
+                          creatorOpen: $creatorOpen,
+                          feedbackOpen: $feedbackOpen)
             }
 
             // Floating Next Level button on solved.
@@ -88,8 +92,8 @@ struct ContentView: View {
                     if let rect {
                         let target = CGPoint(x: rect.midX, y: rect.midY)
                         return CGPoint(
-                            x: lifted.x + (target.x - lifted.x) * 0.45,
-                            y: lifted.y + (target.y - lifted.y) * 0.45
+                            x: lifted.x + (target.x - lifted.x) * 0.65,
+                            y: lifted.y + (target.y - lifted.y) * 0.65
                         )
                     }
                     return lifted
@@ -106,6 +110,9 @@ struct ContentView: View {
         .animation(.easeOut(duration: 0.38), value: game.solved)
         .fullScreenCover(isPresented: $creatorOpen) {
             CreatorView(game: game)
+        }
+        .sheet(isPresented: $feedbackOpen) {
+            FeedbackSheet(game: game)
         }
     }
 }

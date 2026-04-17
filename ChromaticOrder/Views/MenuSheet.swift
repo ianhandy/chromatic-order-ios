@@ -7,6 +7,7 @@ struct MenuSheet: View {
     @Bindable var game: GameState
     @Binding var menuOpen: Bool
     @Binding var creatorOpen: Bool
+    @Binding var feedbackOpen: Bool
     @State private var showResetConfirm = false
 
     var body: some View {
@@ -35,6 +36,10 @@ struct MenuSheet: View {
                     menuButton(label: "Create Puzzle…") {
                         menuOpen = false
                         creatorOpen = true
+                    }
+                    menuButton(label: "Send Feedback…") {
+                        menuOpen = false
+                        feedbackOpen = true
                     }
                     menuButton(label: "Reduce Motion: \(game.reduceMotion ? "On" : "Off")") {
                         game.toggleReduceMotion(); menuOpen = false

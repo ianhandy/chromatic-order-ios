@@ -57,10 +57,13 @@ struct CellView: View {
                 // before they release. No outline; the tint itself is the
                 // cue. Removed on the next frame when magnetism moves on.
                 if isDropTarget, !cell.locked, let held = game.heldColor {
+                    // Gradual fade-in so the tint swells into view as
+                    // the ghost snaps — 220ms feels like the cell is
+                    // *becoming* the placed color, not flashing.
                     RoundedRectangle(cornerRadius: radius, style: .continuous)
                         .fill(OK.toColor(held, opacity: 0.9))
                         .frame(width: cellPx, height: cellPx)
-                        .transition(.opacity.animation(.easeOut(duration: 0.06)))
+                        .transition(.opacity.animation(.easeInOut(duration: 0.22)))
                 }
 
                 // Locked-cell dot

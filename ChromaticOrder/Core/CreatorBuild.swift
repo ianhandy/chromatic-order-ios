@@ -50,11 +50,25 @@ enum CreatorBuilder {
             }
         }
 
-        // Pre-lock intersections.
+        // Lock set. If the player has chosen specific cells to reveal
+        // at start via manualLocks, those — and only those — count as
+        // clues. Otherwise auto-lock the intersections (plus the
+        // uniqueness-guard pass below) so fresh puzzles still work
+        // without any manual tagging.
         var lockedSet: Set<CellIndex> = []
-        for (idx, owners) in ownersByCell where owners.count >= 2 {
-            let local = CellIndex(r: idx.r - minR, c: idx.c - minC)
-            lockedSet.insert(local)
+        let usingManual = !creator.manualLocks.isEmpty
+        if usingManual {
+            for world in creator.manualLocks {
+                // Manual locks can only apply to cells that are
+                // actually painted; ignore stale entries after undo.
+                guard ownersByCell[world] != nil else { continue }
+                lockedSet.insert(CellIndex(r: world.r - minR, c: world.c - minC))
+            }
+        } else {
+            for (idx, owners) in ownersByCell where owners.count >= 2 {
+                let local = CellIndex(r: idx.r - minR, c: idx.c - minC)
+                lockedSet.insert(local)
+            }
         }
 
         // Build puzzle gradients with per-cell specs in local coords.
@@ -76,21 +90,24 @@ enum CreatorBuilder {
                 cells: specs, colors: g.colors))
         }
 
-        // Uniqueness guard — see web comments. A gradient whose only
-        // lock sits at the exact center of an odd-length line has two
-        // valid orderings; lock pos-0 too.
-        for gi in 0..<outGrads.count {
-            var g = outGrads[gi]
-            let center = g.len % 2 == 1 ? (g.len - 1) / 2 : -1
-            let hasAnchoringLock = g.cells.contains(where: { $0.locked && $0.pos != center })
-            if hasAnchoringLock { continue }
-            var endpoint = g.cells[0]
-            if !endpoint.locked {
-                endpoint.locked = true
-                g.cells[0] = endpoint
-                lockedSet.insert(CellIndex(r: endpoint.r, c: endpoint.c))
+        // Uniqueness guard — applies only when we're auto-locking
+        // (no manual locks). When the player chose locks manually,
+        // trust their choice — the warnings collected further down
+        // will flag direction ambiguity if it sneaks through.
+        if !usingManual {
+            for gi in 0..<outGrads.count {
+                var g = outGrads[gi]
+                let center = g.len % 2 == 1 ? (g.len - 1) / 2 : -1
+                let hasAnchoringLock = g.cells.contains(where: { $0.locked && $0.pos != center })
+                if hasAnchoringLock { continue }
+                var endpoint = g.cells[0]
+                if !endpoint.locked {
+                    endpoint.locked = true
+                    g.cells[0] = endpoint
+                    lockedSet.insert(CellIndex(r: endpoint.r, c: endpoint.c))
+                }
+                outGrads[gi] = g
             }
-            outGrads[gi] = g
         }
 
         // Build the board grid (dead everywhere except the gradient cells).
@@ -145,24 +162,45 @@ enum CreatorBuilder {
             pairProx: pairProx,
             extrapProx: extrapProx)
 
-        // Validation — collect warnings.
+        // Validation — collect warnings (most→least severe). Warnings
+        // are surfaced in the creator UI; empty list means "ready."
         var warnings: [String] = []
-        // Multiple-solutions check: any two free bank colors within ΔE 2
-        // are interchangeable at solve time → player can't deduce order.
+
+        // 1. Zero clues at all — the player can't start solving.
+        if lockedSet.isEmpty {
+            warnings.append("No starter cells — tap a cell to reveal it at the start.")
+        }
+
+        // 2. Multiple solutions — two free cells share a color (within
+        // perceptual ΔE). Player can't deduce which swatch goes where.
         let free = outGrads.flatMap { g in g.cells.filter { !$0.locked } }
         for i in 0..<free.count {
+            var conflict = false
             for j in (i + 1)..<free.count {
                 if OK.equal(free[i].color, free[j].color) {
-                    warnings.append("Multiple solutions: two cells share a color — add a clue to disambiguate")
-                    break
+                    warnings.append("Multiple solutions: two free cells share a color — lock one as a clue.")
+                    conflict = true; break
                 }
             }
-            if !warnings.isEmpty { break }
+            if conflict { break }
         }
-        // Every gradient must have at least one free cell, otherwise
-        // there's nothing for the player to do.
+
+        // 3. Direction ambiguity — a gradient with only one lock at
+        // the exact center of an odd-length line has two valid
+        // orderings. Auto-lock path handles this, but manual-lock
+        // users can hit it.
+        for g in outGrads {
+            let center = g.len % 2 == 1 ? (g.len - 1) / 2 : -1
+            let locks = g.cells.filter { $0.locked }
+            if locks.count == 1, locks[0].pos == center {
+                warnings.append("A gradient has only a center clue — either direction works. Lock a second cell.")
+                break
+            }
+        }
+
+        // 4. Fully-locked board — nothing to solve.
         if outGrads.allSatisfy({ g in g.cells.allSatisfy { $0.locked } }) {
-            warnings.append("Every cell is already locked — no cells to solve")
+            warnings.append("Every cell is locked — nothing for the player to solve.")
         }
 
         let puzzle = Puzzle(

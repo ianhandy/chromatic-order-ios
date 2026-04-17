@@ -94,8 +94,10 @@ final class GameState {
         }
         // Magnetism: only snap when the finger is inside a cell's
         // inflated rect — so the pull is local to each cell, not a
-        // grid-wide Euclidean radius.
-        let catchInset: CGFloat = -18
+        // grid-wide Euclidean radius. Inflated a lot because thumb
+        // targets want a generous catch; the per-cell gating keeps
+        // the gaps between cells from pulling.
+        let catchInset: CGFloat = -32
         var bestIdx: CellIndex? = nil
         var bestDist = CGFloat.infinity
         for (idx, rect) in cellFrames {

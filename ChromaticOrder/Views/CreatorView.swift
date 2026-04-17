@@ -178,6 +178,12 @@ struct CreatorView: View {
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 14)
+            } else {
+                Text("Tap a painted cell to reveal it at the start")
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 14)
             }
         }
     }
@@ -314,7 +320,8 @@ private struct CanvasView: View {
                                     radius: radius,
                                     committed: committed[idx],
                                     preview: preview[idx],
-                                    isConflict: state.dragInvalid && preview[idx] != nil
+                                    isConflict: state.dragInvalid && preview[idx] != nil,
+                                    isLocked: state.manualLocks.contains(idx)
                                 )
                                 .frame(width: cellPx + spacing * 2,
                                        height: cellPx + spacing * 2)
@@ -330,7 +337,6 @@ private struct CanvasView: View {
                 DragGesture(minimumDistance: 0, coordinateSpace: .global)
                     .onChanged { v in
                         if state.dragStart == nil {
-                            // First touch — hit-test the start cell.
                             if let hit = state.cellFrames.first(where: {
                                 $0.value.contains(v.location)
                             })?.key {
@@ -341,7 +347,19 @@ private struct CanvasView: View {
                         }
                     }
                     .onEnded { _ in
-                        _ = state.commitDrag()
+                        // A gesture that never moved (dragAxis never
+                        // locked) is treated as a tap. On a committed
+                        // cell, tap toggles the revealed-at-start lock;
+                        // on an empty cell it's a no-op. Anything with
+                        // a locked axis is a drag and goes to commit.
+                        if state.dragAxis == nil,
+                           let start = state.dragStart,
+                           state.committedCells[start] != nil {
+                            state.toggleLock(at: start)
+                            state.cancelDrag()
+                        } else {
+                            _ = state.commitDrag()
+                        }
                     }
             )
             .onPreferenceChange(CanvasCellFramesKey.self) { frames in
@@ -359,11 +377,10 @@ private struct CreatorCell: View {
     let committed: OKLCh?
     let preview: OKLCh?
     let isConflict: Bool
+    let isLocked: Bool
 
     var body: some View {
         ZStack {
-            // Base tile — gray-tint "empty slot" look when nothing lives
-            // here yet, matching the bank's vacant-slot styling.
             RoundedRectangle(cornerRadius: radius, style: .continuous)
                 .fill(Color.black.opacity(committed == nil && preview == nil ? 0.04 : 0))
                 .frame(width: cellPx, height: cellPx)
@@ -378,12 +395,23 @@ private struct CreatorCell: View {
                     .fill(OK.toColor(p, opacity: 0.85))
                     .frame(width: cellPx, height: cellPx)
             }
-            // Red tint on conflict so the player sees immediately why
-            // the commit won't land.
             if isConflict {
                 RoundedRectangle(cornerRadius: radius, style: .continuous)
                     .stroke(Color(red: 0.9, green: 0.2, blue: 0.2), lineWidth: 2)
                     .frame(width: cellPx, height: cellPx)
+            }
+            // Manual-lock badge — small white dot in the corner,
+            // mirrors the play-mode "this is a starter cell" style.
+            if isLocked, let c = committed {
+                let L = c.L
+                let dotColor: Color = L > 0.55
+                    ? Color.black.opacity(0.38)
+                    : Color.white.opacity(0.78)
+                Circle()
+                    .fill(dotColor)
+                    .frame(width: cellPx * 0.18, height: cellPx * 0.18)
+                    .frame(width: cellPx, height: cellPx, alignment: .bottomTrailing)
+                    .padding(cellPx * 0.14)
             }
         }
         .background(

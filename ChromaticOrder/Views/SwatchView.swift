@@ -41,7 +41,7 @@ struct BankSlotView: View {
                 RoundedRectangle(cornerRadius: radius, style: .continuous)
                     .fill(OK.toColor(held, opacity: 0.9))
                     .frame(width: size, height: size)
-                    .transition(.opacity.animation(.easeOut(duration: 0.06)))
+                    .transition(.opacity.animation(.easeInOut(duration: 0.22)))
             }
 
             // Live swatch (when this slot holds one)

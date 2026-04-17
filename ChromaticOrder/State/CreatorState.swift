@@ -37,11 +37,31 @@ final class CreatorState {
     // dragAxis: h or v — locked on the second cell to avoid diagonal
     //   gradients. If nil, the player hasn't moved far enough yet.
     // dragInvalid: true when the current line would conflict with an
-    //   existing gradient (cell occupied by a different color).
+    //   existing gradient (cell occupied by a different color, or
+    //   edge-adjacent to a different gradient without sharing an
+    //   intersection — the crossword-sparsity rule).
+    // dragStartOverride / dragEndOverride: when the drag began OR
+    //   currently ends on an already-committed cell, these hold those
+    //   cells' colors. Either/both can be set:
+    //     - start committed → anchor pos 0 at that color
+    //     - end committed   → anchor pos (len-1) at that color
+    //     - both committed  → lerp between them (startColor / endColor
+    //                         inputs are ignored for this drag)
+    //   Makes it trivial to extend a gradient, join two segments, or
+    //   build a new strip that terminates on an existing palette.
     var dragStart: CellIndex? = nil
     var dragCurrent: CellIndex? = nil
     var dragAxis: Direction? = nil
     var dragInvalid: Bool = false
+    var dragStartOverride: OKLCh? = nil
+    var dragEndOverride: OKLCh? = nil
+
+    // ─── Player-chosen revealed-at-start cells ──────────────────────
+    // When non-empty, the builder uses THIS set as the locked cells
+    // instead of auto-locking intersections. Empty → auto-lock as
+    // before (intersections + uniqueness guard), so brand-new puzzles
+    // still work without touching this.
+    var manualLocks: Set<CellIndex> = []
 
     // Frame of each canvas cell in global coords (same pattern as
     // GameState.cellFrames). Populated by the canvas view.
@@ -69,18 +89,39 @@ final class CreatorState {
         guard let start = dragStart, let end = dragCurrent, let axis = dragAxis
         else { return [] }
         let cells = lineCells(from: start, to: end, axis: axis)
-        let colors = interpolatedColors(count: cells.count)
+        let colors = interpolatedColors(along: cells)
         return zip(cells, colors).map { ($0, $1) }
     }
 
-    /// Does the preview conflict with committed cells? Conflict = the
-    /// preview paints a different-enough color (ΔE > 2) over an already-
-    /// committed cell.
+    /// Does the preview conflict with committed cells?
+    ///   1. Intersection mismatch — painting a different color over
+    ///      an already-committed cell.
+    ///   2. Crossword-sparsity violation — a new (non-intersection)
+    ///      preview cell is edge-adjacent to an existing gradient's
+    ///      cell that *isn't* part of this drag. That creates the
+    ///      illusion of a single gradient where colors don't actually
+    ///      step like one.
     func previewConflicts() -> Bool {
         let committed = committedCells
-        for (idx, color) in previewCells() {
+        let preview = previewCells()
+        let previewSet = Set(preview.map { $0.idx })
+        for (idx, color) in preview {
+            // (1) Intersection mismatch.
             if let existing = committed[idx], !OK.equal(existing, color) {
                 return true
+            }
+            // (2) Sparsity — only check NEW cells (not intersections).
+            if committed[idx] != nil { continue }
+            let neighbors = [
+                CellIndex(r: idx.r - 1, c: idx.c),
+                CellIndex(r: idx.r + 1, c: idx.c),
+                CellIndex(r: idx.r, c: idx.c - 1),
+                CellIndex(r: idx.r, c: idx.c + 1),
+            ]
+            for n in neighbors {
+                if committed[n] != nil && !previewSet.contains(n) {
+                    return true
+                }
             }
         }
         return false
@@ -93,6 +134,10 @@ final class CreatorState {
         dragCurrent = idx
         dragAxis = nil
         dragInvalid = false
+        // If the player grabbed an already-committed cell, anchor the
+        // new gradient at that cell's color — lets them extend or
+        // branch without re-selecting the start chip.
+        dragStartOverride = committedCells[idx]
     }
 
     func updateDrag(to loc: CGPoint) {
@@ -124,6 +169,9 @@ final class CreatorState {
                 : CellIndex(r: cur.r,   c: start.c)
         }()
         dragCurrent = snapped
+        // Re-check end override every tick — the current cell changes
+        // as the finger moves.
+        dragEndOverride = committedCells[snapped]
         dragInvalid = previewConflicts()
     }
 
@@ -149,6 +197,16 @@ final class CreatorState {
         dragCurrent = nil
         dragAxis = nil
         dragInvalid = false
+        dragStartOverride = nil
+        dragEndOverride = nil
+    }
+
+    /// Toggle whether a cell is revealed at start. Only meaningful for
+    /// committed cells — calling it on an empty cell is a no-op.
+    func toggleLock(at idx: CellIndex) {
+        guard committedCells[idx] != nil else { return }
+        if manualLocks.contains(idx) { manualLocks.remove(idx) }
+        else { manualLocks.insert(idx) }
     }
 
     func undo() {
@@ -162,41 +220,95 @@ final class CreatorState {
 
     // ─── Color interpolation ────────────────────────────────────────
 
-    /// Interpolate (or shift-step) `count` colors along this gradient.
-    /// If endColor is set, lerps startColor → endColor in OKLab space
-    /// and maps back to OKLCh so the perceptual steps are even. If
-    /// endColor is nil, applies the shift delta per cell.
-    private func interpolatedColors(count: Int) -> [OKLCh] {
+    /// Piecewise-anchored interpolation.
+    ///
+    /// Every committed cell along the drag path is a fixed anchor —
+    /// the preview's color at that index MUST equal the committed
+    /// color (otherwise the preview would visually disagree with the
+    /// canvas, which the conflict check catches).
+    ///
+    /// The implicit ends are anchored too:
+    ///   pos 0         → dragStartOverride ?? startColor
+    ///   pos count-1   → dragEndOverride   ?? endColor (when set)
+    ///
+    /// Between adjacent anchors we lerp in OKLab. BEYOND the last
+    /// anchor — which happens when the player drags past a committed
+    /// cell without picking an end — the gradient continues in the
+    /// direction inferred from the last two anchors. This is the
+    /// "drag through and past a cell continues the gradient" behavior:
+    /// with no endColor set, the committed segment itself defines the
+    /// step direction, and new cells beyond it extrapolate linearly
+    /// through OKLab. Falls back to {ΔL, Δc, Δh} shift mode only when
+    /// there's a single anchor (nothing to infer a direction from).
+    private func interpolatedColors(along cells: [CellIndex]) -> [OKLCh] {
+        let count = cells.count
         guard count > 0 else { return [] }
-        if let end = endColor, count >= 2 {
-            return lerpLab(from: startColor, to: end, count: count)
+        let committed = committedCells
+
+        // Real anchors: every committed cell along the path, in order.
+        var anchors: [(pos: Int, color: OKLCh)] = []
+        for (i, idx) in cells.enumerated() {
+            if let c = committed[idx] { anchors.append((i, c)) }
         }
+        // Add implicit anchors for the drag endpoints if the committed
+        // anchors don't already cover those positions.
+        let s = dragStartOverride ?? startColor
+        let e = dragEndOverride ?? endColor
+        if !anchors.contains(where: { $0.pos == 0 }) {
+            anchors.insert((0, s), at: 0)
+        }
+        if let e, !anchors.contains(where: { $0.pos == count - 1 }) {
+            anchors.append((count - 1, e))
+        }
+
+        // Single anchor → shift mode from that anchor (no direction
+        // yet to infer).
+        if anchors.count == 1 {
+            let base = anchors[0]
+            return (0..<count).map { i in
+                let t = Double(i - base.pos)
+                return OKLCh(
+                    L: base.color.L + deltaL * t,
+                    c: base.color.c + deltaC * t,
+                    h: OK.normH(base.color.h + deltaH * t)
+                )
+            }
+        }
+
+        // Two or more anchors → piecewise lerp between bracketing
+        // anchors, extrapolate beyond the last using the direction of
+        // its preceding neighbor.
         return (0..<count).map { i in
-            let t = Double(i)
-            return OKLCh(
-                L: startColor.L + deltaL * t,
-                c: startColor.c + deltaC * t,
-                h: OK.normH(startColor.h + deltaH * t)
-            )
+            if i <= anchors.last!.pos {
+                for k in 0..<(anchors.count - 1) {
+                    let a = anchors[k], b = anchors[k + 1]
+                    if i >= a.pos && i <= b.pos {
+                        let t = Double(i - a.pos) / Double(max(1, b.pos - a.pos))
+                        return lerpLabT(a: a.color, b: b.color, t: t)
+                    }
+                }
+            }
+            // Past the last anchor — extrapolate forward.
+            let n = anchors.count
+            let a = anchors[n - 2], b = anchors[n - 1]
+            let t = Double(i - a.pos) / Double(max(1, b.pos - a.pos))
+            return lerpLabT(a: a.color, b: b.color, t: t)
         }
     }
 
-    /// Straight line in OKLab from a to b, remapped to OKLCh. Matches
-    /// how the web version's gradient builder steps through color
-    /// space — perceptually uniform, handles hue-wrap naturally.
-    private func lerpLab(from a: OKLCh, to b: OKLCh, count: Int) -> [OKLCh] {
+    /// Single-t OKLab lerp between two OKLCh points. t is unclamped so
+    /// callers can extrapolate beyond an anchor pair by passing t > 1.
+    /// Remapped back to OKLCh via (c = hypot, h = atan2) which handles
+    /// hue wrap naturally.
+    private func lerpLabT(a: OKLCh, b: OKLCh, t: Double) -> OKLCh {
         let la = OK.toLab(a), lb = OK.toLab(b)
-        return (0..<count).map { i in
-            let t = Double(i) / Double(count - 1)
-            let L = la.L + (lb.L - la.L) * t
-            let A = la.a + (lb.a - la.a) * t
-            let B = la.b + (lb.b - la.b) * t
-            // Back from (L, a, b) to OKLCh: c = hypot(a, b); h = atan2.
-            let c = (A * A + B * B).squareRoot()
-            var h = atan2(B, A) * 180 / .pi
-            if h < 0 { h += 360 }
-            return OKLCh(L: L, c: c, h: h)
-        }
+        let L = la.L + (lb.L - la.L) * t
+        let A = la.a + (lb.a - la.a) * t
+        let B = la.b + (lb.b - la.b) * t
+        let c = (A * A + B * B).squareRoot()
+        var h = atan2(B, A) * 180 / .pi
+        if h < 0 { h += 360 }
+        return OKLCh(L: L, c: c, h: h)
     }
 
     /// Cells along the line from `start` to `end`, orthogonal only.
