@@ -13,11 +13,17 @@ settings:
     # if iPad is included with portrait-only.
     TARGETED_DEVICE_FAMILY: "1"
     INFOPLIST_KEY_UILaunchScreen_Generation: true
-    # Universal orientations key (no ~iphone variant) — Apple's upload
-    # validator won't accept a bundle whose Info.plist only has the
-    # device-specific UISupportedInterfaceOrientations~iphone. Providing
-    # the base key + iPhone-only TARGETED_DEVICE_FAMILY satisfies both.
-    INFOPLIST_KEY_UISupportedInterfaceOrientations: "UIInterfaceOrientationPortrait"
+    # Orientation dance. Apple's validator demands the base
+    # UISupportedInterfaceOrientations key list ALL four orientations
+    # even on iPhone-only apps (their message says "for iPad
+    # multitasking" regardless of TARGETED_DEVICE_FAMILY). But iPhone
+    # at runtime reads UISupportedInterfaceOrientations~iphone FIRST
+    # and falls through to the base — so we keep the iPhone-specific
+    # portrait-only list, and the base as all four. iPhone stays
+    # locked to portrait; validator sees all four in the base key and
+    # is satisfied.
+    INFOPLIST_KEY_UISupportedInterfaceOrientations: "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight"
+    INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone: "UIInterfaceOrientationPortrait"
     # Apple Developer team (Ian Handy). Kept here so xcodegen
     # preserves it across regenerations — without this it gets reset
     # and archives fail with "Signing requires a development team."
@@ -37,7 +43,7 @@ targets:
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
         MARKETING_VERSION: "1.0.0"
-        CURRENT_PROJECT_VERSION: "3"
+        CURRENT_PROJECT_VERSION: "4"
         SUPPORTED_PLATFORMS: "iphoneos iphonesimulator"
         SUPPORTS_MACCATALYST: NO
         SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD: NO
