@@ -58,7 +58,7 @@
 		8A5B6723BA4A89C9505169E0 /* EdgeVignetteView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EdgeVignetteView.swift; sourceTree = "<group>"; };
 		8B77B6DBA462A78886EC80CC /* GridView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GridView.swift; sourceTree = "<group>"; };
 		A94584BA3E06A4F9638A8D59 /* BankView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BankView.swift; sourceTree = "<group>"; };
-		AC6078D359BD9914E161E080 /* ChromaticOrder.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = ChromaticOrder.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		AC6078D359BD9914E161E080 /* ChromaticOrder.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ChromaticOrder.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		B8CEB7C4FA945BCDC6CEF225 /* OKLCh.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OKLCh.swift; sourceTree = "<group>"; };
 		BFF309508A73C7B4221B54D7 /* CreatorCodable.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CreatorCodable.swift; sourceTree = "<group>"; };
 		CD4FE96C27D84EA8D88D1A78 /* ChromaticOrderApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChromaticOrderApp.swift; sourceTree = "<group>"; };
@@ -178,9 +178,7 @@
 			isa = PBXProject;
 			attributes = {
 				BuildIndependentTargetsInParallel = YES;
-				LastUpgradeCheck = 1630;
-				TargetAttributes = {
-				};
+				LastUpgradeCheck = 2640;
 			};
 			buildConfigurationList = 55266205AC207DB6CFC295F6 /* Build configuration list for PBXProject "ChromaticOrder" */;
 			developmentRegion = en;
@@ -286,6 +284,7 @@
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu11;
 				GCC_DYNAMIC_NO_PIC = NO;
 				GCC_NO_COMMON_BLOCKS = YES;
@@ -308,6 +307,7 @@
 				ONLY_ACTIVE_ARCH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 5.9;
@@ -322,8 +322,13 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = X5BKD97T2F;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = Kroma;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.puzzle-games";
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = UIInterfaceOrientationPortrait;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -346,8 +351,13 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = X5BKD97T2F;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = Kroma;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.puzzle-games";
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = UIInterfaceOrientationPortrait;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -400,6 +410,7 @@
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu11;
 				GCC_NO_COMMON_BLOCKS = YES;
 				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
@@ -415,6 +426,7 @@
 				MTL_FAST_MATH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_COMPILATION_MODE = wholemodule;
 				SWIFT_OPTIMIZATION_LEVEL = "-O";
 				SWIFT_VERSION = 5.9;
