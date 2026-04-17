@@ -104,14 +104,11 @@ enum FeedbackSubmitter {
         static let interDist         = "entry.128656299"
         static let gradientMetrics   = "entry.255574131"
         static let reduceMotion      = "entry.4622635"
-        // Placeholder IDs — filled in once the dev adds Completed /
-        // Time spent (s) / Mistakes / CB mode to the form and sends
-        // over a fresh pre-filled URL. Empty string means "don't POST
-        // this field" and the build stays green.
-        static let completed         = ""
-        static let timeSpentSec      = ""
-        static let mistakes          = ""
-        static let cbMode            = ""
+        // Round 2 additions — session diagnostics.
+        static let completed         = "entry.1604771878"
+        static let timeSpentSec      = "entry.1739449127"
+        static let mistakes          = "entry.2119369008"
+        static let cbMode            = "entry.1145736608"
     }
 
     private static func encodedBody(_ p: FeedbackPayload) -> String {
