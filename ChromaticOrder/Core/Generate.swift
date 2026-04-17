@@ -461,11 +461,22 @@ private func finalize(cells: [String: GrowCell],
 
     // Uniqueness guard 1: odd-length gradient whose only lock sits at
     // the exact center has two valid orderings; lock pos-0 too.
+    //
+    // Exception — intersection disambiguation. A non-center cell that
+    // crosses another gradient is pinned by that gradient's solution
+    // once the solver works through it, so the direction is resolved
+    // by process of elimination. No need to force-lock an anchor; the
+    // puzzle is still uniquely solvable. Matches the creator's
+    // warning-relaxation (CreatorBuild.swift guard 3).
     for gi in 0..<outGrads.count {
         var g = outGrads[gi]
         let center = g.len % 2 == 1 ? (g.len - 1) / 2 : -1
         let hasAnchoringLock = g.cells.contains(where: { $0.locked && $0.pos != center })
         if hasAnchoringLock { continue }
+        let hasNonCenterIntersection = g.cells.contains { spec in
+            spec.pos != center && spec.isIntersection
+        }
+        if hasNonCenterIntersection { continue }
         var endpoint = g.cells[0]
         if !endpoint.locked {
             endpoint.locked = true

@@ -222,7 +222,12 @@ private struct ColorFace: View {
     let shakePhase: CGFloat
 
     var body: some View {
-        let offset: CGFloat = reduceMotion ? 0 : (wrong ? (shakePhase - 0.5) * 2.5 : 0)
+        // Gentle gyration for wrong cells — small rotation oscillation
+        // around the cell's center. Replaces the previous horizontal
+        // shake (which read as "alarmed") with something that nudges
+        // the eye without shouting. Stops the moment the placement is
+        // corrected because `wrong` flips to false.
+        let rotation: Double = reduceMotion ? 0 : (wrong ? (Double(shakePhase) - 0.5) * 3.0 : 0)
         RoundedRectangle(cornerRadius: radius, style: .continuous)
             .fill(OK.toColor(color))
             .overlay(
@@ -234,7 +239,8 @@ private struct ColorFace: View {
                     radius: selected ? 9 : 0, y: selected ? 4 : 0)
             .frame(width: cellPx, height: cellPx)
             .scaleEffect(selected ? 1.08 : 1)
-            .offset(x: offset, y: selected ? -4 : 0)
+            .rotationEffect(.degrees(rotation))
+            .offset(y: selected ? -4 : 0)
             .animation(.easeOut(duration: 0.38), value: selected)
     }
 }

@@ -62,6 +62,12 @@ final class GameState {
     var lClampMax: Double
     var cClampMin: Double
     var cClampMax: Double
+    /// Max seconds between two taps that still register as a double-
+    /// tap zoom toggle. Lower = tighter (demands quicker successive
+    /// taps); higher = more forgiving for slower fingers. Lives in
+    /// the accessibility bundle so it roundtrips with the other
+    /// assist settings.
+    var doubleTapInterval: Double
 
     // Live puzzle
     var puzzle: Puzzle?
@@ -180,6 +186,7 @@ final class GameState {
         self.lClampMax = a11y.lClampMax
         self.cClampMin = a11y.cClampMin
         self.cClampMax = a11y.cClampMax
+        self.doubleTapInterval = a11y.doubleTapInterval
         startLevel(level)
     }
 
@@ -191,11 +198,13 @@ final class GameState {
         var lClampMax: Double
         var cClampMin: Double
         var cClampMax: Double
+        var doubleTapInterval: Double
 
         static let defaults = AccessibilityBundle(
             contrastScale: 1.0,
             lClampMin: OK.lMin, lClampMax: OK.lMax,
-            cClampMin: OK.cMin, cClampMax: OK.cMax
+            cClampMin: OK.cMin, cClampMax: OK.cMax,
+            doubleTapInterval: 0.28
         )
     }
 
@@ -208,7 +217,8 @@ final class GameState {
             lClampMin: (dict["lClampMin"] as? Double) ?? OK.lMin,
             lClampMax: (dict["lClampMax"] as? Double) ?? OK.lMax,
             cClampMin: (dict["cClampMin"] as? Double) ?? OK.cMin,
-            cClampMax: (dict["cClampMax"] as? Double) ?? OK.cMax
+            cClampMax: (dict["cClampMax"] as? Double) ?? OK.cMax,
+            doubleTapInterval: (dict["doubleTapInterval"] as? Double) ?? 0.28
         )
         return b
     }
@@ -220,6 +230,7 @@ final class GameState {
             "lClampMax": lClampMax,
             "cClampMin": cClampMin,
             "cClampMax": cClampMax,
+            "doubleTapInterval": doubleTapInterval,
         ]
         if let data = try? JSONSerialization.data(withJSONObject: dict) {
             UserDefaults.standard.set(data, forKey: a11yKey)
@@ -266,6 +277,7 @@ final class GameState {
         lClampMax = d.lClampMax
         cClampMin = d.cClampMin
         cClampMax = d.cClampMax
+        doubleTapInterval = d.doubleTapInterval
         cbMode = .none
         saveAccessibility()
         saveCBMode()

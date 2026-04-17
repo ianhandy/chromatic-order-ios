@@ -68,6 +68,20 @@ struct AccessibilitySheet: View {
                 }
 
                 Section {
+                    labeledSlider(
+                        label: "Max gap",
+                        value: $game.doubleTapInterval,
+                        range: 0.15...0.60,
+                        step: 0.01,
+                        format: { String(format: "%.2fs", $0) }
+                    )
+                } header: {
+                    Text("Double-tap zoom")
+                } footer: {
+                    Text("Max time between taps that still counts as a double-tap. Lower = tighter; raise it if taps feel missed.")
+                }
+
+                Section {
                     Button(role: .destructive) {
                         game.resetAccessibility()
                     } label: {

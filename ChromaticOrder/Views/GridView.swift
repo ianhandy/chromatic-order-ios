@@ -94,11 +94,13 @@ struct GridView: View {
                             event.location.x - lastTapLoc.x,
                             event.location.y - lastTapLoc.y
                         )
-                        // Tight double-tap: <280ms between taps AND
-                        // <24pt apart. Both conditions together cut
-                        // out accidental double-tap triggers from
-                        // two deliberate separate taps.
-                        if dt < 0.28, dist < 24 {
+                        // Both time and distance must match. The time
+                        // window is player-configurable (Accessibility
+                        // sheet) so slow-fingered players can loosen
+                        // it without needing code changes. Distance
+                        // stays tight (24pt) regardless — that's about
+                        // filtering spurious re-taps, not ergonomics.
+                        if dt < game.doubleTapInterval, dist < 24 {
                             withAnimation(.spring(response: 0.28, dampingFraction: 0.82)) {
                                 game.toggleZoom(max: maxZoom)
                             }
