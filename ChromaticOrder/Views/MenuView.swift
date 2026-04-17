@@ -1,13 +1,10 @@
-//  Main menu — black backdrop with muted gradient "snakes" sliding
-//  slowly across the screen. Each snake enters from one edge, paints a
-//  trailing row / column of low-saturation OKLCh tiles as its head
-//  advances, and exits the opposite edge. A regeneration loop spawns
-//  new snakes as old ones finish so the backdrop stays alive.
-//
-//  Snakes are decorative — each is a line of small rounded tiles whose
-//  colors step through OKLCh using the same seed+delta rhythm the
-//  generator uses for puzzle gradients, so the menu visually previews
-//  what the game is about.
+//  Main menu — black backdrop with a full-coverage grid of muted
+//  color tiles. Each tile's hue/luminance/opacity is a sum-of-sines
+//  function of (x, y, time), so the field undulates as overlapping
+//  waves: color ripples diagonally across the grid, opacity breathes
+//  in and out so whole regions gently fade into view and drift away.
+//  The wordmark + menu buttons sit above with radial dims so the
+//  letterforms stay readable over whatever wave is passing underneath.
 
 import SwiftUI
 
@@ -17,19 +14,18 @@ struct MenuView: View {
     /// hides the menu and shows ContentView when this flips.
     @Binding var started: Bool
 
-    @State private var snakes: [MenuSnake] = []
     @State private var accessibilityOpen = false
     @State private var galleryOpen = false
+    /// Random hue anchor chosen on first appear — lets the wave field
+    /// look different across cold launches without per-frame jitter.
+    @State private var hueSeed: Double = Double.random(in: 0..<360)
 
     var body: some View {
         ZStack {
             Color.black.ignoresSafeArea()
 
             GeometryReader { geo in
-                // Snake backdrop — sized from the geometry so tiles
-                // scale on iPad (if we ever re-enable) without
-                // hand-tuning. Placed behind the menu buttons.
-                SnakeField(snakes: snakes, size: geo.size)
+                WaveGridField(hueSeed: hueSeed, size: geo.size)
             }
             .ignoresSafeArea()
             .allowsHitTesting(false)
@@ -42,10 +38,10 @@ struct MenuView: View {
                     .tracking(-1)
                     .padding(.horizontal, 28)
                     .padding(.vertical, 12)
-                    // Soft radial dim behind the wordmark so the
-                    // snake tiles don't chop the letterforms — black
-                    // core with a feathered edge keeps it feeling
-                    // like part of the composition, not a box.
+                    // Soft radial dim behind the wordmark so whatever
+                    // wave is passing through doesn't chop the
+                    // letterforms. Feathered edge keeps it feeling
+                    // part of the composition, not a box.
                     .background(
                         RadialGradient(
                             colors: [Color.black.opacity(0.78), Color.black.opacity(0)],
@@ -73,7 +69,6 @@ struct MenuView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .padding(.horizontal, 40)
         }
-        .task { await runSnakeLoop() }
         .sheet(isPresented: $accessibilityOpen, onDismiss: {
             // Persist + regen-if-changed. Without this, settings
             // adjusted from the main menu live only in memory and
@@ -105,7 +100,7 @@ struct MenuView: View {
                 .foregroundStyle(Color.white.opacity(0.78))
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 18)
-                // Semi-opaque black backdrop so the snake tiles don't
+                // Semi-opaque black backdrop so the tile waves don't
                 // chew through button text. No outline — the label
                 // reads cleanly against the dim alone.
                 .background(
@@ -115,172 +110,100 @@ struct MenuView: View {
         }
         .buttonStyle(.plain)
     }
-
-    /// Regeneration loop — seeds snakes on first run, then wakes every
-    /// ~750ms to respawn any snake whose lifecycle has ended. Driven
-    /// from `.task` so it cancels cleanly when the view goes away.
-    @MainActor
-    private func runSnakeLoop() async {
-        if snakes.isEmpty {
-            snakes = (0..<6).map { _ in
-                // Stagger births so the initial field has snakes at
-                // different lifecycle phases instead of all entering
-                // in lockstep.
-                let offset = Double.random(in: -15...0)
-                return MenuSnake.random(born: Date().addingTimeInterval(offset))
-            }
-        }
-        while !Task.isCancelled {
-            try? await Task.sleep(for: .milliseconds(750))
-            let now = Date()
-            for i in snakes.indices {
-                if now.timeIntervalSince(snakes[i].birth) > snakes[i].lifespan {
-                    snakes[i] = MenuSnake.random(born: now)
-                }
-            }
-        }
-    }
-}
-
-// ─── Snake model ─────────────────────────────────────────────────────
-
-struct MenuSnake: Identifiable {
-    let id = UUID()
-    enum Axis { case horizontal, vertical }
-    let axis: Axis
-    /// +1 = moves in the axis's positive direction (left→right or
-    /// top→bottom); -1 reverses. Randomized per spawn.
-    let direction: Int
-    /// Perpendicular position as a 0…1 fraction of the canvas's other
-    /// axis. A horizontal snake at 0.3 runs at y = 0.3 * height.
-    let positionFraction: CGFloat
-    let tilePx: CGFloat
-    /// OKLCh gradient params. Colors are computed on demand from these
-    /// — low L / low c / randomized starting hue for a muted, smoky
-    /// backdrop that doesn't fight the menu text.
-    let baseHue: Double
-    let stepH: Double
-    let baseL: Double
-    let stepL: Double
-    let baseC: Double
-    let stepC: Double
-    let birth: Date
-    /// Seconds for the head to travel from the origin edge across the
-    /// canvas. "Slowly" means this is long — the snake spends most of
-    /// its life crawling.
-    let drawDuration: Double
-    let holdDuration: Double
-    let fadeDuration: Double
-    var lifespan: Double { drawDuration + holdDuration + fadeDuration }
-
-    func color(at index: Int) -> OKLCh {
-        OKLCh(
-            L: max(OK.lMin + 0.02, min(OK.lMax - 0.04, baseL + stepL * Double(index))),
-            c: max(OK.cMin + 0.005, min(OK.cMax - 0.02, baseC + stepC * Double(index))),
-            h: OK.normH(baseHue + stepH * Double(index))
-        )
-    }
-
-    static func random(born: Date) -> MenuSnake {
-        MenuSnake(
-            axis: Bool.random() ? .horizontal : .vertical,
-            direction: Bool.random() ? 1 : -1,
-            positionFraction: CGFloat.random(in: 0.08...0.92),
-            tilePx: CGFloat.random(in: 20...32),
-            baseHue: Double.random(in: 0..<360),
-            stepH: Double.random(in: 6...20) * (Bool.random() ? 1 : -1),
-            // Low brightness — lMin is 0.24, clamp near that range so
-            // the snakes read as shadowy trails, not loud stripes.
-            baseL: 0.26 + Double.random(in: 0..<0.12),
-            stepL: Double.random(in: -0.006...0.006),
-            // Low saturation — stays under 0.1 chroma so colors feel
-            // muted / washed, not poster-bright.
-            baseC: 0.04 + Double.random(in: 0..<0.05),
-            stepC: Double.random(in: -0.004...0.004),
-            birth: born,
-            // Long draw time — ~20 seconds for a head to cross the
-            // screen feels "slow, drifting" rather than urgent.
-            drawDuration: Double.random(in: 18...28),
-            holdDuration: Double.random(in: 2...4),
-            fadeDuration: Double.random(in: 3...5)
-        )
-    }
 }
 
 // ─── Rendering ───────────────────────────────────────────────────────
 
-private struct SnakeField: View {
-    let snakes: [MenuSnake]
+private struct WaveGridField: View {
+    let hueSeed: Double
     let size: CGSize
 
     var body: some View {
-        // TimelineView drives per-frame redraws from a single place —
-        // Canvas draws all tiles in one pass, much cheaper than
-        // ForEach(RoundedRectangle) when we have 100+ cells on screen.
+        // TimelineView drives per-frame redraws. Canvas renders all
+        // grid tiles in one pass — ForEach(Rectangle) with 500+ cells
+        // would choke the diff; Canvas stays smooth.
         TimelineView(.animation(minimumInterval: 1.0 / 30.0)) { timeline in
             Canvas { context, canvasSize in
-                let now = timeline.date
-                for snake in snakes {
-                    draw(snake: snake, at: now, in: context, size: canvasSize)
-                }
+                drawField(context: context, size: canvasSize, time: timeline.date)
             }
             .allowsHitTesting(false)
         }
         .frame(width: size.width, height: size.height)
     }
 
-    private func draw(snake: MenuSnake, at now: Date, in context: GraphicsContext, size: CGSize) {
-        let elapsed = now.timeIntervalSince(snake.birth)
-        guard elapsed >= 0 else { return }
+    /// Fixed grid — tile size is constant so the layout doesn't
+    /// reshape when the canvas does. Tiles pad outside the visible
+    /// bounds so waves entering/leaving the edges don't pop.
+    private let tilePx: CGFloat = 26
+    private let gap: CGFloat = 2
 
-        let step = snake.tilePx + 2
-        let axisExtent: CGFloat = snake.axis == .horizontal ? size.width : size.height
-        // Virtual length — number of tile positions spanning the
-        // canvas plus a buffer on each side so the head enters from
-        // off-screen and exits off-screen.
-        let buffer = 6
-        let spanTiles = max(1, Int(ceil(axisExtent / step)))
-        let totalTiles = spanTiles + buffer * 2
+    private func drawField(context: GraphicsContext, size: CGSize, time: Date) {
+        let step = tilePx + gap
+        let cols = Int(ceil(size.width / step)) + 2
+        let rows = Int(ceil(size.height / step)) + 2
+        // Time in seconds — use a very small multiplier so the field
+        // moves like drifting tides, not a spinning disco floor.
+        let t = time.timeIntervalSinceReferenceDate * 0.22
 
-        let drawProgress = max(0, min(1, elapsed / snake.drawDuration))
-        let visible = Int(floor(drawProgress * Double(totalTiles)))
-        guard visible > 0 else { return }
-
-        let fadePhase = max(0, elapsed - snake.drawDuration - snake.holdDuration)
-        let alpha = fadePhase > 0 ? max(0, 1 - fadePhase / snake.fadeDuration) : 1
-        let radius = snake.tilePx * 0.26
-        let perpPos: CGFloat = snake.axis == .horizontal
-            ? size.height * snake.positionFraction
-            : size.width * snake.positionFraction
-
-        // Each tile's along-axis position is `step * i` measured from
-        // the origin edge minus the buffer (so i=0 sits just outside
-        // the origin edge, entering the frame as drawProgress grows).
-        for i in 0..<visible {
-            let alongAxis = step * CGFloat(i - buffer) + snake.tilePx / 2
-            let pos: CGPoint
-            switch snake.axis {
-            case .horizontal:
-                let x = snake.direction > 0 ? alongAxis : (size.width - alongAxis)
-                pos = CGPoint(x: x, y: perpPos)
-            case .vertical:
-                let y = snake.direction > 0 ? alongAxis : (size.height - alongAxis)
-                pos = CGPoint(x: perpPos, y: y)
+        let radius = tilePx * 0.26
+        for iy in 0..<rows {
+            for ix in 0..<cols {
+                let pos = tilePosition(ix: ix, iy: iy, step: step)
+                // Cheap viewport cull — tiles fully outside the
+                // canvas contribute nothing visible.
+                if pos.x < -tilePx || pos.x > size.width + tilePx { continue }
+                if pos.y < -tilePx || pos.y > size.height + tilePx { continue }
+                let (color, alpha) = waveSample(ix: ix, iy: iy, t: t)
+                guard alpha > 0.02 else { continue }
+                let rect = CGRect(
+                    x: pos.x - tilePx / 2,
+                    y: pos.y - tilePx / 2,
+                    width: tilePx, height: tilePx
+                )
+                let path = Path(roundedRect: rect, cornerRadius: radius)
+                context.fill(path, with: .color(OK.toColor(color, opacity: alpha)))
             }
-            let rect = CGRect(
-                x: pos.x - snake.tilePx / 2,
-                y: pos.y - snake.tilePx / 2,
-                width: snake.tilePx,
-                height: snake.tilePx
-            )
-            // Skip tiles fully outside the canvas — Canvas clips them
-            // anyway but avoiding the fill call keeps GPU work down.
-            guard rect.maxX > -snake.tilePx, rect.minX < size.width + snake.tilePx,
-                  rect.maxY > -snake.tilePx, rect.minY < size.height + snake.tilePx
-            else { continue }
-            let path = Path(roundedRect: rect, cornerRadius: radius)
-            let color = snake.color(at: i)
-            context.fill(path, with: .color(OK.toColor(color, opacity: 0.82 * alpha)))
         }
+    }
+
+    private func tilePosition(ix: Int, iy: Int, step: CGFloat) -> CGPoint {
+        // Shift by one step so the padded tiles tile around the edges
+        // without a visible seam.
+        CGPoint(
+            x: step * CGFloat(ix - 1) + tilePx / 2,
+            y: step * CGFloat(iy - 1) + tilePx / 2
+        )
+    }
+
+    /// Sum-of-sines wave field. Three layers at different scales and
+    /// angles produce smooth diagonal ripples that don't repeat
+    /// visibly. Output is a low-L / low-c OKLCh color plus an
+    /// opacity that also undulates so regions breathe in and out.
+    private func waveSample(ix: Int, iy: Int, t: Double) -> (OKLCh, Double) {
+        let x = Double(ix), y = Double(iy)
+
+        // Three orthogonal-ish wave systems for the color field.
+        let wA = sin(0.26 * x + 0.38 * y + t * 0.85)
+        let wB = sin(0.19 * x - 0.30 * y + t * 0.55)
+        let wC = sin(0.11 * x + 0.12 * y + t * 0.32)
+
+        // Hue drifts around the seed anchor. Large amplitude so the
+        // field spans real color variety, but the seed keeps each
+        // launch visually distinct.
+        let hue = OK.normH(hueSeed + 90 * wA + 55 * wB + 25 * wC)
+        // Luminance stays low — "muted, smoky" band used before.
+        let L = max(OK.lMin + 0.02, min(OK.lMax - 0.02, 0.30 + 0.06 * wC))
+        // Chroma also stays low; tiny wobble adds texture without
+        // pushing into loud territory.
+        let c = max(OK.cMin + 0.005, min(OK.cMax - 0.01, 0.06 + 0.03 * wA))
+
+        // Separate opacity wave — different angle + phase so the
+        // breathing doesn't sync with the color motion. Range
+        // [0.08, 0.78] so areas fully fade out yet never quite
+        // vanish — keeps the backdrop alive.
+        let wO = sin(0.18 * x + 0.24 * y + t * 0.40 + 1.7)
+        let alpha = 0.08 + 0.35 * (wO * 0.5 + 0.5)
+
+        return (OKLCh(L: L, c: c, h: hue), alpha)
     }
 }
