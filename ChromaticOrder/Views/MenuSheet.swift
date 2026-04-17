@@ -12,6 +12,7 @@ struct MenuSheet: View {
     @Binding var creatorOpen: Bool
     @Binding var feedbackOpen: Bool
     @Binding var accessibilityOpen: Bool
+    @Binding var started: Bool
     @State private var showResetConfirm = false
 
     var body: some View {
@@ -48,6 +49,10 @@ struct MenuSheet: View {
                     menuButton(label: "Accessibility…") {
                         menuOpen = false
                         accessibilityOpen = true
+                    }
+                    menuButton(label: "Back to Menu") {
+                        menuOpen = false
+                        started = false
                     }
 
                     Divider().padding(.vertical, 10)

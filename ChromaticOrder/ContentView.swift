@@ -16,6 +16,9 @@ struct ContentView: View {
     /// Set by ChromaticOrderApp.onOpenURL when a .kroma file is tapped.
     /// We watch it and pipe the Puzzle into the game when it changes.
     @Binding var incomingPuzzle: Puzzle?
+    /// Flipped back to false by the hamburger "Back to Menu" action so
+    /// the app returns to MenuView without unloading GameState.
+    @Binding var started: Bool
 
     var body: some View {
         ZStack {
@@ -62,7 +65,8 @@ struct ContentView: View {
                           menuOpen: $menuOpen,
                           creatorOpen: $creatorOpen,
                           feedbackOpen: $feedbackOpen,
-                          accessibilityOpen: $accessibilityOpen)
+                          accessibilityOpen: $accessibilityOpen,
+                          started: $started)
             }
 
             // Solved overlay: Like widget + Next Level button, stacked
@@ -216,5 +220,7 @@ private struct DragGhost: View {
 }
 
 #Preview {
-    ContentView(game: GameState(), incomingPuzzle: .constant(nil))
+    ContentView(game: GameState(),
+                incomingPuzzle: .constant(nil),
+                started: .constant(true))
 }

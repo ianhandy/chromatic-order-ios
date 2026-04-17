@@ -1,12 +1,13 @@
-//  Main menu — black backdrop with colored gradient "snakes" drifting
-//  horizontally and vertically across the screen, plus three lowercase
-//  options (zen / challenge / options). Shown on app launch before
-//  any puzzle is active; dismisses once the player picks a mode.
+//  Main menu — black backdrop with muted gradient "snakes" sliding
+//  slowly across the screen. Each snake enters from one edge, paints a
+//  trailing row / column of low-saturation OKLCh tiles as its head
+//  advances, and exits the opposite edge. A regeneration loop spawns
+//  new snakes as old ones finish so the backdrop stays alive.
 //
-//  Snakes are decorative — each is a line of small rounded tiles
-//  whose colors step through OKLCh using the same seed+delta rhythm
-//  the generator uses for puzzle gradients, so the menu visually
-//  previews what the game is about.
+//  Snakes are decorative — each is a line of small rounded tiles whose
+//  colors step through OKLCh using the same seed+delta rhythm the
+//  generator uses for puzzle gradients, so the menu visually previews
+//  what the game is about.
 
 import SwiftUI
 
@@ -17,7 +18,6 @@ struct MenuView: View {
     @Binding var started: Bool
 
     @State private var snakes: [MenuSnake] = []
-    @State private var hueDrift: Double = 0
     @State private var accessibilityOpen = false
     @State private var galleryOpen = false
 
@@ -29,7 +29,7 @@ struct MenuView: View {
                 // Snake backdrop — sized from the geometry so tiles
                 // scale on iPad (if we ever re-enable) without
                 // hand-tuning. Placed behind the menu buttons.
-                SnakeField(snakes: snakes, hueDrift: hueDrift, size: geo.size)
+                SnakeField(snakes: snakes, size: geo.size)
             }
             .ignoresSafeArea()
             .allowsHitTesting(false)
@@ -38,7 +38,7 @@ struct MenuView: View {
                 Spacer()
                 Text("kroma")
                     .font(.system(size: 44, weight: .heavy, design: .rounded))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(Color.white.opacity(0.78))
                     .tracking(-1)
                     .padding(.horizontal, 28)
                     .padding(.vertical, 12)
@@ -73,19 +73,7 @@ struct MenuView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .padding(.horizontal, 40)
         }
-        .onAppear {
-            // Generate snakes once per view lifecycle so they don't
-            // thrash on view rebuilds. Fresh set on each cold launch.
-            if snakes.isEmpty {
-                snakes = MenuSnake.generateField()
-            }
-            // Slow continuous hue drift — every snake cycles the same
-            // offset so the field breathes as a whole, not as a bunch
-            // of independent streams.
-            withAnimation(.linear(duration: 45).repeatForever(autoreverses: false)) {
-                hueDrift = 360
-            }
-        }
+        .task { await runSnakeLoop() }
         .sheet(isPresented: $accessibilityOpen) {
             AccessibilitySheet(game: game)
         }
@@ -109,76 +97,108 @@ struct MenuView: View {
         Button(action: action) {
             Text(label)
                 .font(.system(size: 28, weight: .semibold, design: .rounded))
-                .foregroundStyle(Color.white.opacity(0.92))
+                .foregroundStyle(Color.white.opacity(0.78))
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 18)
                 // Semi-opaque black backdrop so the snake tiles don't
-                // chew through button text. Ultra-thin material gave a
-                // blurry frost that fought the snakes' sharp edges;
-                // flat dark + white stroke reads cleaner.
+                // chew through button text. No outline — the label
+                // reads cleanly against the dim alone.
                 .background(
                     Color.black.opacity(0.55),
                     in: RoundedRectangle(cornerRadius: 14)
                 )
-                .overlay(
-                    RoundedRectangle(cornerRadius: 14)
-                        .stroke(Color.white.opacity(0.18), lineWidth: 1)
-                )
         }
         .buttonStyle(.plain)
+    }
+
+    /// Regeneration loop — seeds snakes on first run, then wakes every
+    /// ~750ms to respawn any snake whose lifecycle has ended. Driven
+    /// from `.task` so it cancels cleanly when the view goes away.
+    @MainActor
+    private func runSnakeLoop() async {
+        if snakes.isEmpty {
+            snakes = (0..<6).map { _ in
+                // Stagger births so the initial field has snakes at
+                // different lifecycle phases instead of all entering
+                // in lockstep.
+                let offset = Double.random(in: -15...0)
+                return MenuSnake.random(born: Date().addingTimeInterval(offset))
+            }
+        }
+        while !Task.isCancelled {
+            try? await Task.sleep(for: .milliseconds(750))
+            let now = Date()
+            for i in snakes.indices {
+                if now.timeIntervalSince(snakes[i].birth) > snakes[i].lifespan {
+                    snakes[i] = MenuSnake.random(born: now)
+                }
+            }
+        }
     }
 }
 
 // ─── Snake model ─────────────────────────────────────────────────────
 
-private struct MenuSnake: Identifiable {
+struct MenuSnake: Identifiable {
     let id = UUID()
     enum Axis { case horizontal, vertical }
     let axis: Axis
-    /// Position perpendicular to the snake's run, as a 0…1 fraction
-    /// of the screen's short axis. Horizontal snake at 0.3 lives at
-    /// y = 0.3 * screenHeight; vertical snake at 0.7 lives at
-    /// x = 0.7 * screenWidth.
+    /// +1 = moves in the axis's positive direction (left→right or
+    /// top→bottom); -1 reverses. Randomized per spawn.
+    let direction: Int
+    /// Perpendicular position as a 0…1 fraction of the canvas's other
+    /// axis. A horizontal snake at 0.3 runs at y = 0.3 * height.
     let positionFraction: CGFloat
-    /// Tile size — smaller than game cells so the snakes read as
-    /// decor, not a real grid.
     let tilePx: CGFloat
-    /// Base OKLCh colors; rendering applies hueDrift on top.
-    let colors: [OKLCh]
+    /// OKLCh gradient params. Colors are computed on demand from these
+    /// — low L / low c / randomized starting hue for a muted, smoky
+    /// backdrop that doesn't fight the menu text.
+    let baseHue: Double
+    let stepH: Double
+    let baseL: Double
+    let stepL: Double
+    let baseC: Double
+    let stepC: Double
+    let birth: Date
+    /// Seconds for the head to travel from the origin edge across the
+    /// canvas. "Slowly" means this is long — the snake spends most of
+    /// its life crawling.
+    let drawDuration: Double
+    let holdDuration: Double
+    let fadeDuration: Double
+    var lifespan: Double { drawDuration + holdDuration + fadeDuration }
 
-    static func generateField() -> [MenuSnake] {
-        // 4-6 snakes: mix of axes, positions spread so they don't
-        // clump. Seed color picked from the usable band; step delta
-        // signs + magnitudes vary so the field has both short-hop and
-        // long-hop gradients in view.
-        var snakes: [MenuSnake] = []
-        for i in 0..<5 {
-            let axis: Axis = i.isMultiple(of: 2) ? .horizontal : .vertical
-            let length = Int.random(in: 12...22)
-            let tilePx: CGFloat = CGFloat.random(in: 22...36)
-            let seedL = 0.4 + Double.random(in: 0..<0.3)
-            let seedC = 0.1 + Double.random(in: 0..<0.15)
-            let seedH = Double.random(in: 0..<360)
-            let dH = Double.random(in: 12...35) * (Bool.random() ? 1 : -1)
-            let dL = Double.random(in: -0.015...0.015)
-            let dC = Double.random(in: -0.012...0.012)
-            let colors: [OKLCh] = (0..<length).map { idx in
-                OKLCh(
-                    L: max(OK.lMin + 0.02, min(OK.lMax - 0.02, seedL + dL * Double(idx))),
-                    c: max(OK.cMin + 0.01, min(OK.cMax - 0.02, seedC + dC * Double(idx))),
-                    h: OK.normH(seedH + dH * Double(idx))
-                )
-            }
-            // Spread positions across the short axis.
-            let frac = CGFloat(i + 1) / 6.0 + CGFloat.random(in: -0.06...0.06)
-            snakes.append(MenuSnake(
-                axis: axis,
-                positionFraction: max(0.08, min(0.92, frac)),
-                tilePx: tilePx,
-                colors: colors
-            ))
-        }
-        return snakes
+    func color(at index: Int) -> OKLCh {
+        OKLCh(
+            L: max(OK.lMin + 0.02, min(OK.lMax - 0.04, baseL + stepL * Double(index))),
+            c: max(OK.cMin + 0.005, min(OK.cMax - 0.02, baseC + stepC * Double(index))),
+            h: OK.normH(baseHue + stepH * Double(index))
+        )
+    }
+
+    static func random(born: Date) -> MenuSnake {
+        MenuSnake(
+            axis: Bool.random() ? .horizontal : .vertical,
+            direction: Bool.random() ? 1 : -1,
+            positionFraction: CGFloat.random(in: 0.08...0.92),
+            tilePx: CGFloat.random(in: 20...32),
+            baseHue: Double.random(in: 0..<360),
+            stepH: Double.random(in: 6...20) * (Bool.random() ? 1 : -1),
+            // Low brightness — lMin is 0.24, clamp near that range so
+            // the snakes read as shadowy trails, not loud stripes.
+            baseL: 0.26 + Double.random(in: 0..<0.12),
+            stepL: Double.random(in: -0.006...0.006),
+            // Low saturation — stays under 0.1 chroma so colors feel
+            // muted / washed, not poster-bright.
+            baseC: 0.04 + Double.random(in: 0..<0.05),
+            stepC: Double.random(in: -0.004...0.004),
+            birth: born,
+            // Long draw time — ~20 seconds for a head to cross the
+            // screen feels "slow, drifting" rather than urgent.
+            drawDuration: Double.random(in: 18...28),
+            holdDuration: Double.random(in: 2...4),
+            fadeDuration: Double.random(in: 3...5)
+        )
     }
 }
 
@@ -186,63 +206,76 @@ private struct MenuSnake: Identifiable {
 
 private struct SnakeField: View {
     let snakes: [MenuSnake]
-    let hueDrift: Double
     let size: CGSize
 
     var body: some View {
-        ForEach(snakes) { snake in
-            SnakeRow(snake: snake, hueDrift: hueDrift, canvas: size)
-        }
-    }
-}
-
-private struct SnakeRow: View {
-    let snake: MenuSnake
-    let hueDrift: Double
-    let canvas: CGSize
-
-    var body: some View {
-        // Lay out each tile manually so horizontal + vertical share
-        // one code path. Spacing is a fraction of tilePx; tiles have
-        // the same rounded-corner signature as the puzzle cells.
-        let gap: CGFloat = 2
-        let radius = snake.tilePx * 0.26
-        ZStack(alignment: .topLeading) {
-            ForEach(Array(snake.colors.enumerated()), id: \.offset) { (i, color) in
-                RoundedRectangle(cornerRadius: radius, style: .continuous)
-                    .fill(OK.toColor(driftedColor(color), opacity: 0.85))
-                    .frame(width: snake.tilePx, height: snake.tilePx)
-                    .position(tilePosition(index: i, gap: gap))
+        // TimelineView drives per-frame redraws from a single place —
+        // Canvas draws all tiles in one pass, much cheaper than
+        // ForEach(RoundedRectangle) when we have 100+ cells on screen.
+        TimelineView(.animation(minimumInterval: 1.0 / 30.0)) { timeline in
+            Canvas { context, canvasSize in
+                let now = timeline.date
+                for snake in snakes {
+                    draw(snake: snake, at: now, in: context, size: canvasSize)
+                }
             }
+            .allowsHitTesting(false)
         }
-        .frame(width: canvas.width, height: canvas.height, alignment: .topLeading)
+        .frame(width: size.width, height: size.height)
     }
 
-    /// Shift the snake's hue by the global drift so the whole field
-    /// cycles in unison. Drift is already in degrees (0…360) on a
-    /// repeating animation, so modular add is enough.
-    private func driftedColor(_ c: OKLCh) -> OKLCh {
-        OKLCh(L: c.L, c: c.c, h: OK.normH(c.h + hueDrift))
-    }
+    private func draw(snake: MenuSnake, at now: Date, in context: GraphicsContext, size: CGSize) {
+        let elapsed = now.timeIntervalSince(snake.birth)
+        guard elapsed >= 0 else { return }
 
-    private func tilePosition(index: Int, gap: CGFloat) -> CGPoint {
-        let step = snake.tilePx + gap
-        switch snake.axis {
-        case .horizontal:
-            // Start off-screen-left by half the snake's length so it
-            // spans with some extending past the right edge — reads
-            // as "continues beyond the frame."
-            let totalLen = CGFloat(snake.colors.count) * step
-            let startX = (canvas.width - totalLen) / 2
-            let x = startX + step * CGFloat(index) + snake.tilePx / 2
-            let y = canvas.height * snake.positionFraction
-            return CGPoint(x: x, y: y)
-        case .vertical:
-            let totalLen = CGFloat(snake.colors.count) * step
-            let startY = (canvas.height - totalLen) / 2
-            let y = startY + step * CGFloat(index) + snake.tilePx / 2
-            let x = canvas.width * snake.positionFraction
-            return CGPoint(x: x, y: y)
+        let step = snake.tilePx + 2
+        let axisExtent: CGFloat = snake.axis == .horizontal ? size.width : size.height
+        // Virtual length — number of tile positions spanning the
+        // canvas plus a buffer on each side so the head enters from
+        // off-screen and exits off-screen.
+        let buffer = 6
+        let spanTiles = max(1, Int(ceil(axisExtent / step)))
+        let totalTiles = spanTiles + buffer * 2
+
+        let drawProgress = max(0, min(1, elapsed / snake.drawDuration))
+        let visible = Int(floor(drawProgress * Double(totalTiles)))
+        guard visible > 0 else { return }
+
+        let fadePhase = max(0, elapsed - snake.drawDuration - snake.holdDuration)
+        let alpha = fadePhase > 0 ? max(0, 1 - fadePhase / snake.fadeDuration) : 1
+        let radius = snake.tilePx * 0.26
+        let perpPos: CGFloat = snake.axis == .horizontal
+            ? size.height * snake.positionFraction
+            : size.width * snake.positionFraction
+
+        // Each tile's along-axis position is `step * i` measured from
+        // the origin edge minus the buffer (so i=0 sits just outside
+        // the origin edge, entering the frame as drawProgress grows).
+        for i in 0..<visible {
+            let alongAxis = step * CGFloat(i - buffer) + snake.tilePx / 2
+            let pos: CGPoint
+            switch snake.axis {
+            case .horizontal:
+                let x = snake.direction > 0 ? alongAxis : (size.width - alongAxis)
+                pos = CGPoint(x: x, y: perpPos)
+            case .vertical:
+                let y = snake.direction > 0 ? alongAxis : (size.height - alongAxis)
+                pos = CGPoint(x: perpPos, y: y)
+            }
+            let rect = CGRect(
+                x: pos.x - snake.tilePx / 2,
+                y: pos.y - snake.tilePx / 2,
+                width: snake.tilePx,
+                height: snake.tilePx
+            )
+            // Skip tiles fully outside the canvas — Canvas clips them
+            // anyway but avoiding the fill call keeps GPU work down.
+            guard rect.maxX > -snake.tilePx, rect.minX < size.width + snake.tilePx,
+                  rect.maxY > -snake.tilePx, rect.minY < size.height + snake.tilePx
+            else { continue }
+            let path = Path(roundedRect: rect, cornerRadius: radius)
+            let color = snake.color(at: i)
+            context.fill(path, with: .color(OK.toColor(color, opacity: 0.82 * alpha)))
         }
     }
 }

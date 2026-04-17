@@ -8,6 +8,7 @@
 //  the puzzle saves to the gallery AND loads into the game.
 
 import SwiftUI
+import UniformTypeIdentifiers
 
 struct GalleryView: View {
     @Bindable var game: GameState
@@ -18,6 +19,8 @@ struct GalleryView: View {
     @State private var editingPuzzle: GalleryPuzzle? = nil
     @State private var renameTarget: GalleryPuzzle? = nil
     @State private var renameText: String = ""
+    @State private var importing = false
+    @State private var importError: String? = nil
 
     var body: some View {
         NavigationStack {
@@ -35,10 +38,19 @@ struct GalleryView: View {
                     Button("Close") { dismiss() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button {
-                        creatorOpen = true
+                    Menu {
+                        Button {
+                            creatorOpen = true
+                        } label: {
+                            Label("Create New", systemImage: "square.and.pencil")
+                        }
+                        Button {
+                            importing = true
+                        } label: {
+                            Label("Import…", systemImage: "tray.and.arrow.down")
+                        }
                     } label: {
-                        Label("Create New", systemImage: "plus")
+                        Image(systemName: "plus")
                     }
                 }
             }
@@ -59,7 +71,57 @@ struct GalleryView: View {
         } message: {
             Text("Give this puzzle a memorable name.")
         }
+        .alert("Import failed", isPresented: Binding(
+            get: { importError != nil },
+            set: { if !$0 { importError = nil } }
+        )) {
+            Button("OK", role: .cancel) { importError = nil }
+        } message: {
+            Text(importError ?? "")
+        }
+        .fileImporter(
+            isPresented: $importing,
+            // Accept the app's custom UTI plus plain JSON so a .kroma
+            // exported without the UTI (e.g. renamed by a mail client)
+            // still imports cleanly.
+            allowedContentTypes: [
+                UTType(filenameExtension: "kroma") ?? .json,
+                .json,
+            ],
+            allowsMultipleSelection: true
+        ) { result in
+            handleImport(result)
+        }
         .onAppear(perform: reload)
+    }
+
+    private func handleImport(_ result: Result<[URL], Error>) {
+        switch result {
+        case .failure(let err):
+            importError = err.localizedDescription
+        case .success(let urls):
+            var failures = 0
+            for url in urls {
+                // Security-scoped resources — iOS hands us a sandboxed
+                // URL that only grants access inside a start/stop
+                // bracket. Missing it makes reads fail silently.
+                let gotAccess = url.startAccessingSecurityScopedResource()
+                defer { if gotAccess { url.stopAccessingSecurityScopedResource() } }
+                guard let data = try? Data(contentsOf: url),
+                      let json = String(data: data, encoding: .utf8),
+                      (try? GalleryStore.saveJSON(json)) != nil
+                else {
+                    failures += 1
+                    continue
+                }
+            }
+            if failures == urls.count, !urls.isEmpty {
+                importError = "Couldn't read any of the selected files — are they valid .kroma puzzles?"
+            } else if failures > 0 {
+                importError = "\(failures) of \(urls.count) files couldn't be imported."
+            }
+            reload()
+        }
     }
 
     private func commitRename() {

@@ -13,7 +13,9 @@ struct ChromaticOrderApp: App {
         WindowGroup {
             Group {
                 if started {
-                    ContentView(game: game, incomingPuzzle: $incomingPuzzle)
+                    ContentView(game: game,
+                                incomingPuzzle: $incomingPuzzle,
+                                started: $started)
                 } else {
                     MenuView(game: game, started: $started)
                 }
