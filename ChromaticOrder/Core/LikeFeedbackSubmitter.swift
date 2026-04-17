@@ -11,14 +11,14 @@
 import Foundation
 
 enum LikeFeedbackSubmitter {
-    /// The form's public POST endpoint. Empty string = placeholder;
-    /// the submit() call short-circuits when this isn't set, so the
-    /// build stays green and the widget's local state still updates.
-    private static let formID: String = ""
+    /// The Kroma Level Like form (separate from the main feedback form
+    /// so reactions live in their own sheet, no joins needed).
+    private static let formID: String =
+        "1FAIpQLScmNYufpNOx0bXveICuyYm6vp1daOax9aA-zpKGg6RkHBH86Q"
 
-    /// Entry ID for the Like/Dislike field. Values we send:
-    /// "Like" / "Dislike" (match the form's multiple-choice options).
-    private static let fieldID: String = ""
+    /// Entry ID for the one-choice question. Values must match the
+    /// form's Multiple choice options exactly: "Like" or "Dislike".
+    private static let fieldID: String = "entry.1322490510"
 
     static func submit(_ liked: Bool) async {
         guard !formID.isEmpty, !fieldID.isEmpty else {
