@@ -13,7 +13,12 @@ struct LevelTierInfo {
 }
 
 enum Tiers {
-    static let labels = ["Trivial", "Easy", "Mild", "Medium", "Hard", "Expert"]
+    // Tier labels shifted up one slot to match player perception —
+    // the old "Mild" (lv 7-9) consistently got rated as a Medium feel
+    // by playtesters, so the whole scale moves: Mild → Medium,
+    // Medium → Hard, Hard → Expert, Expert → Master. Generator config
+    // per level untouched; only the label the player sees changes.
+    static let labels = ["Trivial", "Easy", "Medium", "Hard", "Expert", "Master"]
     static let hexes  = ["#2a9d4e", "#38a832", "#b8a400", "#d97700", "#cc3333", "#900"]
 }
 
