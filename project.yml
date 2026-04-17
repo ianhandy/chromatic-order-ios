@@ -94,6 +94,16 @@ targets:
             LSItemContentTypes:
               - com.ianhandy.kroma.puzzle
             CFBundleTypeRole: Viewer
+        # Custom URL scheme — `kroma://play?data=<base64-url-json>`
+        # opens the app and loads the embedded puzzle. Lets a shared
+        # link (in Messages, Slack, etc.) drop the recipient straight
+        # into the puzzle without needing to tap through a file
+        # attachment. Encoded inline so no server is required.
+        CFBundleURLTypes:
+          - CFBundleURLName: com.ianhandy.kroma.url
+            CFBundleTypeRole: Viewer
+            CFBundleURLSchemes:
+              - kroma
 schemes:
   ChromaticOrder:
     build:

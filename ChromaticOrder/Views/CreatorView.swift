@@ -104,6 +104,16 @@ struct CreatorView: View {
         endDisabled = state.endColor == nil
     }
 
+    /// Build a `kroma://play?data=<base64url>` link that embeds the
+    /// puzzle JSON inline. Tapping the URL opens the app's onOpenURL
+    /// handler and lands the player in the puzzle immediately — no
+    /// file attachment dance.
+    private func kromaPlayURL(json: String) -> URL {
+        let data = Data(json.utf8)
+        let payload = ChromaticOrderApp.encodeBase64URL(data)
+        return URL(string: "kroma://play?data=\(payload)")!
+    }
+
     /// Write-back helper for the Play button. When editing, overwrite
     /// the original gallery entry with the current layout + name.
     /// When creating + saveOnPlay, save a new entry. Otherwise no-op
@@ -248,12 +258,14 @@ struct CreatorView: View {
 
                 Spacer()
 
-                // Share: attaches a .json file (KromaPuzzleFile) so the
-                // recipient gets a real file attachment — save to
-                // Files, preview in Mail, forward via AirDrop — instead
-                // of a wall of text pasted into the message body. The
-                // App Store link rides in the `message` slot so
-                // non-installers still get pointed to the app.
+                // Share: attaches a .kroma file AND puts a clickable
+                // `kroma://play?data=…` URL in the message body. The
+                // file path covers AirDrop / Files; the link path lets
+                // the recipient open the puzzle directly from Messages,
+                // Slack, etc. with one tap (the app's URL scheme
+                // decodes the inline payload and drops them into the
+                // puzzle). Both ship so the channel with the best UX
+                // wins per conversation.
                 if let b = built,
                    let json = try? CreatorCodec.encodeString(
                         state,
@@ -262,13 +274,15 @@ struct CreatorView: View {
                         json: json,
                         difficulty: b.validation.difficulty
                     )
+                    let shareURL = kromaPlayURL(json: json)
+                    let previewImage = PuzzlePreviewRenderer.render(b.puzzle)
                     ShareLink(
                         item: file,
                         subject: Text("A Kroma puzzle"),
-                        message: Text("difficulty \(b.validation.difficulty)/10 — https://apps.apple.com/app/kroma"),
+                        message: Text("difficulty \(b.validation.difficulty)/10 — tap to play: \(shareURL)"),
                         preview: SharePreview(
                             "Kroma puzzle (\(b.validation.difficulty)/10)",
-                            image: Image(systemName: "paintpalette.fill")
+                            image: previewImage ?? Image(systemName: "paintpalette.fill")
                         )
                     ) {
                         Label("Share", systemImage: "square.and.arrow.up")

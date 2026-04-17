@@ -17,6 +17,13 @@ struct GridView: View {
     /// resolve MagnificationGesture's relative magnitude into an
     /// absolute new zoom value.
     @State private var zoomAtGestureStart: CGFloat = 1.0
+    /// Manual double-tap tracking — SwiftUI's onTapGesture(count:) has
+    /// no distance threshold, so two taps on different cells could
+    /// register as a double-tap. We enforce both a time window and a
+    /// distance window so only genuine double-taps on the same spot
+    /// toggle the zoom.
+    @State private var lastTapAt: Date = .distantPast
+    @State private var lastTapLoc: CGPoint = .zero
 
     var body: some View {
         GeometryReader { geo in
@@ -78,15 +85,32 @@ struct GridView: View {
                 // touches correctly in zoomed + unzoomed states.
                 Task { @MainActor in game.cellFrames = frames }
             }
-            .onTapGesture(count: 2) {
-                // Quick spring rather than an immediate jump — ~0.28s
-                // feels snappy but gives the player a visual anchor
-                // so the camera doesn't teleport.
-                withAnimation(.spring(response: 0.28, dampingFraction: 0.82)) {
-                    game.toggleZoom(max: maxZoom)
-                }
-                zoomAtGestureStart = game.zoomScale
-            }
+            .simultaneousGesture(
+                SpatialTapGesture(count: 1, coordinateSpace: .local)
+                    .onEnded { event in
+                        let now = Date()
+                        let dt = now.timeIntervalSince(lastTapAt)
+                        let dist = hypot(
+                            event.location.x - lastTapLoc.x,
+                            event.location.y - lastTapLoc.y
+                        )
+                        // Tight double-tap: <280ms between taps AND
+                        // <24pt apart. Both conditions together cut
+                        // out accidental double-tap triggers from
+                        // two deliberate separate taps.
+                        if dt < 0.28, dist < 24 {
+                            withAnimation(.spring(response: 0.28, dampingFraction: 0.82)) {
+                                game.toggleZoom(max: maxZoom)
+                            }
+                            zoomAtGestureStart = game.zoomScale
+                            lastTapAt = .distantPast
+                            lastTapLoc = .zero
+                        } else {
+                            lastTapAt = now
+                            lastTapLoc = event.location
+                        }
+                    }
+            )
             // Pinch to zoom — clamped between 1x (default view) and
             // maxZoom (3 cells span the short axis). MagnificationGesture
             // reports a relative multiplier, so we resolve against the
