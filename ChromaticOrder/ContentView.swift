@@ -92,8 +92,8 @@ struct ContentView: View {
                     if let rect {
                         let target = CGPoint(x: rect.midX, y: rect.midY)
                         return CGPoint(
-                            x: lifted.x + (target.x - lifted.x) * 0.65,
-                            y: lifted.y + (target.y - lifted.y) * 0.65
+                            x: lifted.x + (target.x - lifted.x) * 0.30,
+                            y: lifted.y + (target.y - lifted.y) * 0.30
                         )
                     }
                     return lifted

@@ -71,11 +71,18 @@ final class GameState {
     var cellFrames: [CellIndex: CGRect] = [:]
     var bankSlotFrames: [Int: CGRect] = [:]
 
-    static let ghostLift: CGFloat = 48
+    // How far above the finger the drag ghost floats. Purely visual —
+    // placement still uses the raw finger position via effectivePoint
+    // below. That's the intuitive mapping: the cell you point at is
+    // the cell the color lands in; the ghost just gets out of the
+    // thumb's way so you can see what you're targeting.
+    static let ghostLift: CGFloat = 64
 
-    func effectivePoint(_ raw: CGPoint) -> CGPoint {
-        CGPoint(x: raw.x, y: raw.y - Self.ghostLift)
-    }
+    /// Effective drop point for hit-testing. Pass-through now — the
+    /// finger's position IS the placement position. (An earlier pass
+    /// used the ghost's lifted position for placement, which let the
+    /// ghost visually drift from the cell it would actually land in.)
+    func effectivePoint(_ raw: CGPoint) -> CGPoint { raw }
 
     func hitTest(_ point: CGPoint) -> DropTarget? {
         // Bank slots first — they're bigger drop targets and the player
@@ -93,11 +100,11 @@ final class GameState {
             return .cell(idx)
         }
         // Magnetism: only snap when the finger is inside a cell's
-        // inflated rect — so the pull is local to each cell, not a
-        // grid-wide Euclidean radius. Inflated a lot because thumb
-        // targets want a generous catch; the per-cell gating keeps
-        // the gaps between cells from pulling.
-        let catchInset: CGFloat = -32
+        // inflated rect. Kept small so the magnet grabs a cell when
+        // the finger is genuinely near it, and lets go once the
+        // finger moves into a gap — dialled back from the earlier
+        // -32pt which pulled too aggressively across gaps.
+        let catchInset: CGFloat = -12
         var bestIdx: CellIndex? = nil
         var bestDist = CGFloat.infinity
         for (idx, rect) in cellFrames {
