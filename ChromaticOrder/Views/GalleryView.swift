@@ -180,12 +180,12 @@ private struct GalleryRow: View {
             // Palette swatch — first 6 colors of the first gradient,
             // laid out as a horizontal strip. Gives a visual at-a-
             // glance so the list isn't 40 identical text rows.
-            HStack(spacing: 1) {
-                let cells = puzzle.doc.gradients.first?.cells.prefix(6) ?? []
+            HStack(spacing: 2) {
+                let cells = puzzle.doc.gradients.first?.cells.prefix(5) ?? []
                 ForEach(Array(cells.enumerated()), id: \.offset) { (_, cell) in
-                    RoundedRectangle(cornerRadius: 3, style: .continuous)
+                    RoundedRectangle(cornerRadius: 4, style: .continuous)
                         .fill(OK.toColor(OKLCh(L: cell.L, c: cell.C, h: cell.h)))
-                        .frame(width: 10, height: 26)
+                        .frame(width: 14, height: 30)
                 }
             }
 
@@ -201,7 +201,7 @@ private struct GalleryRow: View {
                 .font(.system(size: 12))
                 .foregroundStyle(.tertiary)
         }
-        .padding(.vertical, 2)
+        .padding(.vertical, 8)
     }
 
     private func relativeDate(_ d: Date) -> String {

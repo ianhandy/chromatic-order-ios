@@ -17,7 +17,7 @@ struct MenuSheet: View {
     var body: some View {
         GeometryReader { _ in
             VStack(alignment: .trailing, spacing: 6) {
-                VStack(alignment: .leading, spacing: 3) {
+                VStack(alignment: .leading, spacing: 6) {
                     menuButton(label: "Switch to \(game.mode == .zen ? "Challenge" : "Zen") Mode") {
                         game.switchMode(); menuOpen = false
                     }
@@ -50,7 +50,7 @@ struct MenuSheet: View {
                         accessibilityOpen = true
                     }
 
-                    Divider().padding(.vertical, 4)
+                    Divider().padding(.vertical, 10)
 
                     Button {
                         showResetConfirm = true

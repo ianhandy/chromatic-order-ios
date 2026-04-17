@@ -135,7 +135,7 @@ struct CreatorView: View {
                 .font(.system(size: 14, weight: .semibold))
                 .submitLabel(.done)
         }
-        .padding(.horizontal, 10)
+        .padding(.horizontal, 12)
         .padding(.vertical, 8)
         .background(
             RoundedRectangle(cornerRadius: 10, style: .continuous)
@@ -173,16 +173,16 @@ struct CreatorView: View {
                 Text(label)
                     .font(.system(size: 12, weight: .semibold))
             }
-            .foregroundStyle(selected ? Color.white : Color.white.opacity(0.6))
+            .foregroundStyle(selected ? Color.black : Color.white.opacity(0.55))
             .padding(.horizontal, 12)
             .padding(.vertical, 8)
             .background(
                 RoundedRectangle(cornerRadius: 10, style: .continuous)
-                    .fill(selected ? Color.white.opacity(0.18) : Color.white.opacity(0.06))
+                    .fill(selected ? Color.white : Color.white.opacity(0.05))
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 10, style: .continuous)
-                    .stroke(Color.white.opacity(selected ? 0.35 : 0.12), lineWidth: 1)
+                    .stroke(selected ? Color.clear : Color.white.opacity(0.12), lineWidth: 1)
             )
         }
         .buttonStyle(.plain)

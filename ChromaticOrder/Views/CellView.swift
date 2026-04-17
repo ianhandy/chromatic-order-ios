@@ -103,12 +103,18 @@ struct CellView: View {
             }
         )
         .contentShape(Rectangle())
-        .onTapGesture {
-            game.tapCell(at: r, c)
-        }
-        .simultaneousGesture(
-            DragGesture(minimumDistance: 5, coordinateSpace: .global)
+        // One unified gesture so tap and drag can't both fire off the
+        // same release (the previous `onTapGesture + simultaneous
+        // DragGesture` pair let a brief drag re-register as a tap on
+        // liftoff, placing an unintended color). Translation magnitude
+        // disambiguates tap from drag on end.
+        .gesture(
+            DragGesture(minimumDistance: 0, coordinateSpace: .global)
                 .onChanged { v in
+                    let moved = hypot(v.translation.width, v.translation.height)
+                    // Below 5pt we're still in tap territory — don't
+                    // start a drag yet.
+                    guard moved >= 5 else { return }
                     // No drags on locked cells, and nothing once the
                     // puzzle is solved — the board is frozen after
                     // completion. Cell-level drags also yield to the
@@ -125,9 +131,15 @@ struct CellView: View {
                         game.updateDrag(to: v.location)
                     }
                 }
-                .onEnded { _ in
-                    if case .cell(let idx) = game.dragSource?.kind, idx == CellIndex(r: r, c: c) {
+                .onEnded { v in
+                    let moved = hypot(v.translation.width, v.translation.height)
+                    if case .cell(let idx) = game.dragSource?.kind,
+                       idx == CellIndex(r: r, c: c) {
                         game.endDrag(moved: true)
+                    } else if moved < 5, game.dragSource == nil {
+                        // Real tap — no drag ever started from here
+                        // and the finger never left the cell.
+                        game.tapCell(at: r, c)
                     }
                 }
         )

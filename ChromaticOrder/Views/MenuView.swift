@@ -40,6 +40,21 @@ struct MenuView: View {
                     .font(.system(size: 44, weight: .heavy, design: .rounded))
                     .foregroundStyle(.white)
                     .tracking(-1)
+                    .padding(.horizontal, 28)
+                    .padding(.vertical, 12)
+                    // Soft radial dim behind the wordmark so the
+                    // snake tiles don't chop the letterforms — black
+                    // core with a feathered edge keeps it feeling
+                    // like part of the composition, not a box.
+                    .background(
+                        RadialGradient(
+                            colors: [Color.black.opacity(0.78), Color.black.opacity(0)],
+                            center: .center,
+                            startRadius: 20,
+                            endRadius: 140
+                        )
+                        .blendMode(.plusDarker)
+                    )
                     .padding(.bottom, 40)
                 menuButton("zen") {
                     pick(mode: .zen)
@@ -97,13 +112,17 @@ struct MenuView: View {
                 .foregroundStyle(Color.white.opacity(0.92))
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 18)
+                // Semi-opaque black backdrop so the snake tiles don't
+                // chew through button text. Ultra-thin material gave a
+                // blurry frost that fought the snakes' sharp edges;
+                // flat dark + white stroke reads cleaner.
                 .background(
-                    Color.white.opacity(0.06),
+                    Color.black.opacity(0.55),
                     in: RoundedRectangle(cornerRadius: 14)
                 )
                 .overlay(
                     RoundedRectangle(cornerRadius: 14)
-                        .stroke(Color.white.opacity(0.15), lineWidth: 1)
+                        .stroke(Color.white.opacity(0.18), lineWidth: 1)
                 )
         }
         .buttonStyle(.plain)

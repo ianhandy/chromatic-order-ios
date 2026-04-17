@@ -67,12 +67,14 @@ struct BankSlotView: View {
             }
         )
         .contentShape(Rectangle())
-        .onTapGesture {
-            game.tapSlot(slot)
-        }
+        // Unified gesture — tap vs drag decided by translation so a
+        // drag release doesn't also fire tapSlot (which caused stray
+        // swatch-picks on liftoff).
         .gesture(
-            DragGesture(minimumDistance: 5, coordinateSpace: .global)
+            DragGesture(minimumDistance: 0, coordinateSpace: .global)
                 .onChanged { v in
+                    let moved = hypot(v.translation.width, v.translation.height)
+                    guard moved >= 5 else { return }
                     // Nothing picks up once the puzzle is solved — the
                     // board is frozen for the completion animation.
                     if let item, game.dragSource == nil, !game.solved {
@@ -85,9 +87,12 @@ struct BankSlotView: View {
                         game.updateDrag(to: v.location)
                     }
                 }
-                .onEnded { _ in
+                .onEnded { v in
+                    let moved = hypot(v.translation.width, v.translation.height)
                     if case .bank(let s) = game.dragSource?.kind, s == slot {
                         game.endDrag(moved: true)
+                    } else if moved < 5, game.dragSource == nil {
+                        game.tapSlot(slot)
                     }
                 }
         )
