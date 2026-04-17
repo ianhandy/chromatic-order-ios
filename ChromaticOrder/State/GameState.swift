@@ -76,6 +76,13 @@ final class GameState {
     var cellFrames: [CellIndex: CGRect] = [:]
     var bankSlotFrames: [Int: CGRect] = [:]
 
+    // Zoom + pan state. Zoom is toggled by double-tapping the grid.
+    // When `zoomed` is true the grid scales up to fill the viewport
+    // (computed by GridView from the container size) and pan is
+    // enabled; toggling back zeros the pan offset.
+    var zoomed: Bool = false
+    var panOffset: CGSize = .zero
+
     // How far above the finger the drag ghost floats. Purely visual —
     // placement still uses the raw finger position via effectivePoint
     // below. That's the intuitive mapping: the cell you point at is
@@ -157,6 +164,23 @@ final class GameState {
         cbMode = cbMode.next()
         saveCBMode()
         startLevel(level)
+    }
+
+    /// Toggle the grid-zoom double-tap state. Exits pan too — the two
+    /// always live and die together.
+    func toggleZoom() {
+        zoomed.toggle()
+        if !zoomed { panOffset = .zero }
+    }
+
+    /// Apply a pan delta while zoomed; no-op when not zoomed so the
+    /// grid can't drift on its own.
+    func pan(by delta: CGSize) {
+        guard zoomed else { return }
+        panOffset = CGSize(
+            width: panOffset.width + delta.width,
+            height: panOffset.height + delta.height
+        )
     }
 
     // ─── persistence ────────────────────────────────────────────────

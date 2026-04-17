@@ -112,8 +112,10 @@ struct CellView: View {
                 .onChanged { v in
                     // No drags on locked cells, and nothing once the
                     // puzzle is solved — the board is frozen after
-                    // completion so the finished gradient can breathe.
-                    if filled, !cell.locked, !game.solved,
+                    // completion. Cell-level drags also yield to the
+                    // grid's pan gesture while zoomed so the two can't
+                    // fight.
+                    if filled, !cell.locked, !game.solved, !game.zoomed,
                        game.dragSource == nil, let placedColor = placed {
                         game.beginDrag(
                             DragSource(kind: .cell(CellIndex(r: r, c: c)), color: placedColor),

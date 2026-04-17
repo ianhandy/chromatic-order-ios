@@ -91,24 +91,25 @@ struct ContentView: View {
                 // Same lift constant used by GameState's hit-test — the
                 // visible ghost and the effective drop point stay in sync.
                 let lifted = CGPoint(x: loc.x, y: loc.y - GameState.ghostLift)
-                let magnetized: CGPoint = {
-                    let rect: CGRect? = {
-                        switch game.dropTarget {
-                        case .cell(let idx): return game.cellFrames[idx]
-                        case .slot(let s):   return game.bankSlotFrames[s]
-                        case .none:          return nil
-                        }
-                    }()
-                    if let rect {
-                        let target = CGPoint(x: rect.midX, y: rect.midY)
-                        return CGPoint(
-                            x: lifted.x + (target.x - lifted.x) * 0.30,
-                            y: lifted.y + (target.y - lifted.y) * 0.30
-                        )
+                let targetRect: CGRect? = {
+                    switch game.dropTarget {
+                    case .cell(let idx): return game.cellFrames[idx]
+                    case .slot(let s):   return game.bankSlotFrames[s]
+                    case .none:          return nil
                     }
-                    return lifted
                 }()
-                DragGhost(color: src.color, location: magnetized)
+                // Suck-in: when a drop target is locked, the ghost
+                // snaps to that cell's position AND size — it becomes
+                // the cell visually. On release, the placement lands
+                // in the cell the ghost is sitting on, matching what
+                // the player sees. When magnetism drops (finger moves
+                // off), the ghost springs back to floating-above-finger
+                // size — the "spit out" feeling.
+                let magnetized = targetRect.map {
+                    CGPoint(x: $0.midX, y: $0.midY)
+                } ?? lifted
+                let targetSize = targetRect?.size
+                DragGhost(color: src.color, location: magnetized, snapSize: targetSize)
                     .allowsHitTesting(false)
             }
         }
@@ -130,19 +131,32 @@ struct ContentView: View {
 private struct DragGhost: View {
     let color: OKLCh
     let location: CGPoint
+    /// When set, the ghost shrinks to this cell size and sits at
+    /// `location` — the "sucked into the cell" visual. When nil,
+    /// it expands back to its floating-above-finger default.
+    let snapSize: CGSize?
     var body: some View {
-        let px: CGFloat = 56
-        RoundedRectangle(cornerRadius: px * 0.28, style: .continuous)
+        let defaultPx: CGFloat = 56
+        let size = snapSize ?? CGSize(width: defaultPx, height: defaultPx)
+        let radius = min(size.width, size.height) * 0.28
+        // Scale up a touch while floating (1.15x) — and back to 1.0
+        // when snapped so the ghost matches the cell exactly.
+        let scale: CGFloat = snapSize == nil ? 1.15 : 1.0
+        RoundedRectangle(cornerRadius: radius, style: .continuous)
             .fill(OK.toColor(color))
-            .frame(width: px, height: px)
-            .scaleEffect(1.15)
-            .shadow(color: .black.opacity(0.22), radius: 12, y: 6)
+            .frame(width: size.width, height: size.height)
+            .scaleEffect(scale)
+            .shadow(color: .black.opacity(snapSize == nil ? 0.22 : 0.0),
+                    radius: snapSize == nil ? 12 : 0,
+                    y: snapSize == nil ? 6 : 0)
             .position(location)
-            // Smooth spring when the magnetism kicks in so the pull
-            // toward the target cell reads as a subtle tug rather than
-            // a teleport. Duration is short so rapid finger motion
-            // still tracks.
-            .animation(.spring(response: 0.15, dampingFraction: 0.85), value: location)
+            // Snappy spring so the suck-in feels decisive (not sluggish)
+            // but dampens enough to avoid a jittery bounce when the
+            // finger hovers right at the edge of a cell's catch rect.
+            .animation(.spring(response: 0.20, dampingFraction: 0.78), value: location)
+            .animation(.spring(response: 0.20, dampingFraction: 0.78), value: size.width)
+            .animation(.spring(response: 0.20, dampingFraction: 0.78), value: size.height)
+            .animation(.easeOut(duration: 0.18), value: scale)
     }
 }
 
