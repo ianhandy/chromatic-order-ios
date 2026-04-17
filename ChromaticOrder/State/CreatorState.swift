@@ -227,27 +227,36 @@ final class CreatorState {
         // anchored end color defines the gradient's range and the
         // clamp below should respect that.
         dragEndOverride = committedCells[snapped]
-        // Extrapolation clamp — when the preview would extend past the
-        // usable L/C band (shift mode or past-anchor extrapolation),
-        // truncate dragCurrent to the furthest cell whose interpolated
-        // color still lives inside the band. Gives the drag a natural
-        // "wall" at the palette's edge instead of letting colors march
-        // off into clipped / oversaturated territory.
         dragCurrent = snapped
+        // Extrapolation clamp — ONLY fires on cells past the last
+        // anchor. Between anchors the lerpLabT path can legitimately
+        // dip through low-chroma neutrals (hues 180° apart pass
+        // through the grey axis mid-interpolation); clamping those
+        // breaks normal drags. Past the last anchor is the only
+        // place colors march off into oversaturated / out-of-band
+        // territory, which is what this guard is for.
         if let axis = dragAxis {
             let trial = lineCells(from: start, to: snapped, axis: axis)
-            let colors = interpolatedColors(along: trial)
-            var lastValid = 0
-            for i in 0..<trial.count {
-                if OK.inUsableBand(colors[i]) {
-                    lastValid = i
-                } else {
+            let committed = committedCells
+            let finalPos = trial.count - 1
+            var lastAnchorPos = 0
+            for (i, idx) in trial.enumerated() where committed[idx] != nil {
+                lastAnchorPos = i
+            }
+            // state.endColor provides an implicit final anchor when
+            // bound (non-shift mode) → no extrapolation, no clamp.
+            if endColor != nil { lastAnchorPos = finalPos }
+            if lastAnchorPos < finalPos {
+                let colors = interpolatedColors(along: trial)
+                var cutoff = finalPos
+                for i in (lastAnchorPos + 1)...finalPos where !OK.inUsableBand(colors[i]) {
+                    cutoff = i - 1
                     break
                 }
-            }
-            if lastValid < trial.count - 1 {
-                dragCurrent = trial[lastValid]
-                dragEndOverride = committedCells[trial[lastValid]]
+                if cutoff < finalPos {
+                    dragCurrent = trial[max(cutoff, 0)]
+                    dragEndOverride = committedCells[trial[max(cutoff, 0)]]
+                }
             }
         }
         dragInvalid = previewConflicts()
