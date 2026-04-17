@@ -11,6 +11,7 @@
 		23AC0EF292446C08D74F9CF3 /* FeedbackSubmitter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 60C1AF3FAF10C86541EE9315 /* FeedbackSubmitter.swift */; };
 		363E7F73AB69D84CC6E1566A /* BankView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A94584BA3E06A4F9638A8D59 /* BankView.swift */; };
 		3AA6725A8165FA3DD3500EBC /* CreatorCodable.swift in Sources */ = {isa = PBXBuildFile; fileRef = BFF309508A73C7B4221B54D7 /* CreatorCodable.swift */; };
+		3AF75278F96975EA09CB0350 /* CBTransform.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A10E148A8D22F8B5896E7A3 /* CBTransform.swift */; };
 		4064609A726FF8CADA1E484B /* FeedbackSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 856A5842C2329B56B733CFD4 /* FeedbackSheet.swift */; };
 		43E6C6041EEAD1A70F99CC72 /* EdgeVignetteView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A5B6723BA4A89C9505169E0 /* EdgeVignetteView.swift */; };
 		5804866B3346FC6D94A5EF3A /* Util.swift in Sources */ = {isa = PBXBuildFile; fileRef = 243168329AAF6072275CFCA1 /* Util.swift */; };
@@ -25,6 +26,7 @@
 		C7E3BA4DE4BB174ABFF5AC39 /* Puzzle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 263ABFFC5637F9AF2B6417BE /* Puzzle.swift */; };
 		CB77DFAEA6869AD239FD2B6A /* TopBarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 029160E99C0E462B98B311F7 /* TopBarView.swift */; };
 		D46A6ECE05CF84DCDA8160B6 /* ColorPickerSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = EFD96AAE98A2EF5AD111E041 /* ColorPickerSheet.swift */; };
+		E2B88FAF9FF065FFFD5B8F56 /* CBMode.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7ABE78F55223134DDFDF9698 /* CBMode.swift */; };
 		E4850BB725F2BE42A0C12A07 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F262C030387A14E5C1C7155C /* ContentView.swift */; };
 		E8458471BE15521BFEA1FC85 /* Level.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC9ABFAAC13A3EC91209CAC7 /* Level.swift */; };
 		F1B6C9E60B37940C24BA6647 /* GameState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16B2A28DD1B02DC86849A896 /* GameState.swift */; };
@@ -42,17 +44,19 @@
 		243168329AAF6072275CFCA1 /* Util.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Util.swift; sourceTree = "<group>"; };
 		243AC22FA234D5D50BF52A0D /* CreatorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CreatorView.swift; sourceTree = "<group>"; };
 		263ABFFC5637F9AF2B6417BE /* Puzzle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Puzzle.swift; sourceTree = "<group>"; };
+		2A10E148A8D22F8B5896E7A3 /* CBTransform.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CBTransform.swift; sourceTree = "<group>"; };
 		41500A18A21C00DF321D45C7 /* Proximity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Proximity.swift; sourceTree = "<group>"; };
 		43B82FAB2C24A6433D8AA423 /* CreatorBuild.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CreatorBuild.swift; sourceTree = "<group>"; };
 		60C1AF3FAF10C86541EE9315 /* FeedbackSubmitter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FeedbackSubmitter.swift; sourceTree = "<group>"; };
 		618A23A276B3DEE750B5FCD2 /* Generate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Generate.swift; sourceTree = "<group>"; };
 		6575560348AFC2F3872179B2 /* MenuSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuSheet.swift; sourceTree = "<group>"; };
+		7ABE78F55223134DDFDF9698 /* CBMode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CBMode.swift; sourceTree = "<group>"; };
 		7E6FF556ED0F7EDA72FF5966 /* CellView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CellView.swift; sourceTree = "<group>"; };
 		856A5842C2329B56B733CFD4 /* FeedbackSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FeedbackSheet.swift; sourceTree = "<group>"; };
 		8A5B6723BA4A89C9505169E0 /* EdgeVignetteView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EdgeVignetteView.swift; sourceTree = "<group>"; };
 		8B77B6DBA462A78886EC80CC /* GridView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GridView.swift; sourceTree = "<group>"; };
 		A94584BA3E06A4F9638A8D59 /* BankView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BankView.swift; sourceTree = "<group>"; };
-		AC6078D359BD9914E161E080 /* ChromaticOrder.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ChromaticOrder.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		AC6078D359BD9914E161E080 /* ChromaticOrder.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = ChromaticOrder.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		B8CEB7C4FA945BCDC6CEF225 /* OKLCh.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OKLCh.swift; sourceTree = "<group>"; };
 		BFF309508A73C7B4221B54D7 /* CreatorCodable.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CreatorCodable.swift; sourceTree = "<group>"; };
 		CD4FE96C27D84EA8D88D1A78 /* ChromaticOrderApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChromaticOrderApp.swift; sourceTree = "<group>"; };
@@ -115,6 +119,8 @@
 		A83551F9C349D7A37B43D61F /* Core */ = {
 			isa = PBXGroup;
 			children = (
+				7ABE78F55223134DDFDF9698 /* CBMode.swift */,
+				2A10E148A8D22F8B5896E7A3 /* CBTransform.swift */,
 				43B82FAB2C24A6433D8AA423 /* CreatorBuild.swift */,
 				BFF309508A73C7B4221B54D7 /* CreatorCodable.swift */,
 				60C1AF3FAF10C86541EE9315 /* FeedbackSubmitter.swift */,
@@ -169,6 +175,8 @@
 			attributes = {
 				BuildIndependentTargetsInParallel = YES;
 				LastUpgradeCheck = 1630;
+				TargetAttributes = {
+				};
 			};
 			buildConfigurationList = 55266205AC207DB6CFC295F6 /* Build configuration list for PBXProject "ChromaticOrder" */;
 			developmentRegion = en;
@@ -195,6 +203,8 @@
 			buildActionMask = 2147483647;
 			files = (
 				363E7F73AB69D84CC6E1566A /* BankView.swift in Sources */,
+				E2B88FAF9FF065FFFD5B8F56 /* CBMode.swift in Sources */,
+				3AF75278F96975EA09CB0350 /* CBTransform.swift in Sources */,
 				B35978D976478DF1888F7DA5 /* CellView.swift in Sources */,
 				F81552EFC0827F10451266EA /* ChromaticOrderApp.swift in Sources */,
 				D46A6ECE05CF84DCDA8160B6 /* ColorPickerSheet.swift in Sources */,
@@ -296,7 +306,6 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = X5BKD97T2F;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = Chromatic;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -320,7 +329,6 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = X5BKD97T2F;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = Chromatic;
 				LD_RUNPATH_SEARCH_PATHS = (

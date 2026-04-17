@@ -38,6 +38,7 @@ struct DragSource: Equatable {
 
 private let progressKey = "chromaticOrderProgress"
 private let motionKey   = "chromaticOrderReduceMotion"
+private let cbModeKey   = "chromaticOrderCBMode"
 
 @MainActor
 @Observable
@@ -48,6 +49,10 @@ final class GameState {
     var checks: Int
     var score: Int
     var reduceMotion: Bool
+    /// Color-blindness mode the generator and scorer build under. Saved
+    /// alongside reduce-motion so Reset Progress doesn't stomp it —
+    /// it's an accessibility setting, not game state.
+    var cbMode: CBMode
 
     // Live puzzle
     var puzzle: Puzzle?
@@ -132,6 +137,25 @@ final class GameState {
         self.checks = savedChecks
         self.score = savedScore
         self.reduceMotion = Self.loadReduceMotion()
+        self.cbMode = Self.loadCBMode()
+        startLevel(level)
+    }
+
+    private static func loadCBMode() -> CBMode {
+        let raw = UserDefaults.standard.string(forKey: cbModeKey) ?? ""
+        return CBMode(rawValue: raw) ?? .none
+    }
+
+    private func saveCBMode() {
+        UserDefaults.standard.set(cbMode.rawValue, forKey: cbModeKey)
+    }
+
+    /// Advance to the next CB mode (wraps). Called by the menu toggle.
+    /// Regenerates the current puzzle so the step math runs under the
+    /// new vision — the player sees puzzles tuned for their eyes.
+    func cycleCBMode() {
+        cbMode = cbMode.next()
+        saveCBMode()
         startLevel(level)
     }
 
@@ -189,8 +213,13 @@ final class GameState {
         activeColor = nil
         showIncorrect = false
         engagedThisLevel = false
+        // Capture the current CB mode at dispatch time — the detached
+        // task runs off the main actor and can't read properties.
+        let activeCBMode = cbMode
         Task.detached(priority: .userInitiated) { [weak self] in
-            let puz = generatePuzzle(level: lv)
+            var cfg = GenConfig()
+            cfg.cbMode = activeCBMode
+            let puz = generatePuzzle(level: lv, config: cfg)
             await MainActor.run { [weak self] in
                 guard let self else { return }
                 self.puzzle = puz

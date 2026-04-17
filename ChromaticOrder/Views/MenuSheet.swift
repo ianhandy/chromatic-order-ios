@@ -44,6 +44,12 @@ struct MenuSheet: View {
                     menuButton(label: "Reduce Motion: \(game.reduceMotion ? "On" : "Off")") {
                         game.toggleReduceMotion(); menuOpen = false
                     }
+                    menuButton(label: "Color Blindness: \(game.cbMode.shortLabel)") {
+                        // Cycle: None → Protan → Deutan → Tritan → Achro → None.
+                        // Regenerates the current puzzle under the new vision
+                        // so step magnitudes feel right immediately.
+                        game.cycleCBMode(); menuOpen = false
+                    }
 
                     Divider().padding(.vertical, 4)
 

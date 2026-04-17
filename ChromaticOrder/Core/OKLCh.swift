@@ -46,8 +46,15 @@ enum OK {
 
     // Perceptual distance, scaled ×100 so magnitudes match CIELAB ΔE
     // conventions (JND ≈ 2, distinct ≈ 10).
-    static func dist(_ a: OKLCh, _ b: OKLCh) -> Double {
-        let p = toLab(a), q = toLab(b)
+    //
+    // The optional `mode` routes each color through the player's
+    // color-blindness transform first, so the returned ΔE reflects
+    // THEIR perception of the pair. Default .none = legacy behavior;
+    // display code that doesn't care (cell rendering etc.) needs no
+    // change.
+    static func dist(_ a: OKLCh, _ b: OKLCh, mode: CBMode = .none) -> Double {
+        let p = labUnderMode(a, mode: mode)
+        let q = labUnderMode(b, mode: mode)
         let dL = (p.L - q.L) * 100
         let da = (p.a - q.a) * 100
         let db = (p.b - q.b) * 100
@@ -56,11 +63,24 @@ enum OK {
 
     // Cells with ΔE < 2 cannot be visually distinguished — treat them as
     // the same color for duplicate checks and fixed-point matching.
-    static func equal(_ a: OKLCh, _ b: OKLCh) -> Bool { dist(a, b) < 2 }
+    static func equal(_ a: OKLCh, _ b: OKLCh, mode: CBMode = .none) -> Bool {
+        dist(a, b, mode: mode) < 2
+    }
 
-    // OKLCh → linear sRGB (gamut check only; rendering uses SwiftUI's
-    // native Color(.displayP3...) via toColor below).
-    private static func toLinearRGB(_ color: OKLCh) -> (r: Double, g: Double, b: Double) {
+    /// OKLab coordinates of a color as perceived under the given CB
+    /// mode. For `.none` this is the plain OKLCh → OKLab conversion.
+    /// For a dichromatic mode, the color is projected through the
+    /// Machado matrix in linear sRGB first; the resulting (possibly
+    /// out-of-gamut) linear RGB is converted back to OKLab.
+    private static func labUnderMode(_ color: OKLCh, mode: CBMode) -> (L: Double, a: Double, b: Double) {
+        if mode == .none { return toLab(color) }
+        let rgb = CBTransform.applyRGB(toLinearRGB(color), mode: mode)
+        return linearRGBToLab(rgb)
+    }
+
+    // OKLCh → linear sRGB. Package-internal so CBTransform and the
+    // Color(.sRGB, ...) renderer can share one implementation.
+    static func toLinearRGB(_ color: OKLCh) -> (r: Double, g: Double, b: Double) {
         let hr = color.h * .pi / 180
         let a = color.c * cos(hr)
         let b = color.c * sin(hr)
@@ -75,6 +95,37 @@ enum OK {
             -1.2684380046 * ll + 2.6097574011 * mm - 0.3413193965 * ss,
             -0.0041960863 * ll - 0.7034186147 * mm + 1.7076147010 * ss
         )
+    }
+
+    /// Linear sRGB → OKLab (Björn Ottosson's forward matrix, cbrt on
+    /// LMS, then the LMS → Lab coefficients). Used by CB distance —
+    /// after we transform a color through the Machado matrix we end
+    /// up with linear-sRGB-like coordinates outside the original
+    /// gamut; this lets us measure ΔE on the transformed pair.
+    static func linearRGBToLab(_ rgb: (r: Double, g: Double, b: Double)) -> (L: Double, a: Double, b: Double) {
+        let l = 0.4122214708 * rgb.r + 0.5363325363 * rgb.g + 0.0514459929 * rgb.b
+        let m = 0.2119034982 * rgb.r + 0.6806995451 * rgb.g + 0.1073969566 * rgb.b
+        let s = 0.0883024619 * rgb.r + 0.2817188376 * rgb.g + 0.6299787005 * rgb.b
+        // cbrt handles negatives cleanly (cbrt(-8) = -2) so we don't
+        // need sign gymnastics for out-of-gamut transformed colors.
+        let l_ = Foundation.cbrt(l)
+        let m_ = Foundation.cbrt(m)
+        let s_ = Foundation.cbrt(s)
+        let L = 0.2104542553 * l_ + 0.7936177850 * m_ - 0.0040720468 * s_
+        let A = 1.9779984951 * l_ - 2.4285922050 * m_ + 0.4505937099 * s_
+        let B = 0.0259040371 * l_ + 0.7827717662 * m_ - 0.8086757660 * s_
+        return (L, A, B)
+    }
+
+    /// Linear sRGB → OKLCh. Inverse of toLinearRGB. Used mostly by
+    /// CBTransform.simulate when callers want the OKLCh form of a
+    /// transformed color (e.g., for rendering a simulated preview).
+    static func fromLinearRGB(_ rgb: (r: Double, g: Double, b: Double)) -> OKLCh {
+        let lab = linearRGBToLab(rgb)
+        let c = (lab.a * lab.a + lab.b * lab.b).squareRoot()
+        var h = atan2(lab.b, lab.a) * 180 / .pi
+        if h < 0 { h += 360 }
+        return OKLCh(L: lab.L, c: c, h: h)
     }
 
     static func inGamut(_ color: OKLCh) -> Bool {

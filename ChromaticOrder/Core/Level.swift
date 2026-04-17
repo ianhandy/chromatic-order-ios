@@ -128,7 +128,8 @@ func scoreDifficulty(
     channelCount: Int,
     primary: Channel,
     pairProx: Double = 0,
-    extrapProx: Double = 0
+    extrapProx: Double = 0,
+    mode: CBMode = .none
 ) -> Int {
     let totalCells = gradients.reduce(0) { $0 + $1.len }
     let freeRatio = Double(bankCount) / Double(max(totalCells, 1))
@@ -138,7 +139,9 @@ func scoreDifficulty(
     var stepN = 0
     for g in gradients {
         for i in 1..<g.colors.count {
-            totalStep += OK.dist(g.colors[i - 1], g.colors[i])
+            // Use CB-aware distance so CB players' step magnitudes
+            // reflect what they can actually see.
+            totalStep += OK.dist(g.colors[i - 1], g.colors[i], mode: mode)
             stepN += 1
         }
     }

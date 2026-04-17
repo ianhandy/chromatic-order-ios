@@ -20,6 +20,12 @@ struct GenConfig {
     var channelCountOverride: Int? = nil
     var anchorEndpointsOverride: Int? = nil
     var gradientCountOverride: Int? = nil
+    /// Color-blindness model to build the puzzle under. All distance
+    /// math (canExtend duplicate check, pairProx / extrapProx / stepΔE,
+    /// uniqueness sweep) runs in this model's color space, so the
+    /// puzzle it produces has perceivable step separation FOR THIS
+    /// PLAYER. .none = default, normal-vision tuning.
+    var cbMode: CBMode = .none
 }
 
 private func applyConfig(_ cfg: LevelConfig, _ dev: GenConfig) -> LevelConfig {
@@ -145,7 +151,8 @@ private struct GrowCell {
 private func canExtend(_ g: GrowGrad,
                        dir: String,          // "forward" | "backward"
                        gridW: Int, gridH: Int,
-                       cells: [String: GrowCell]) -> Bool {
+                       cells: [String: GrowCell],
+                       mode: CBMode) -> Bool {
     let nextPos = dir == "forward" ? g.maxPos + 1 : g.minPos - 1
     let (r, c) = g.cellOf(nextPos)
     if r < 0 || r >= gridH || c < 0 || c >= gridW { return false }
@@ -163,10 +170,13 @@ private func canExtend(_ g: GrowGrad,
             if !nCell.gradIds.contains(g.id) { return false }
         }
     }
-    // No cross-gradient color duplicates (ΔE < 2 == unsolvable).
+    // No cross-gradient color duplicates (ΔE < 2 == unsolvable). Under
+    // a CB mode, this equality test runs in the player's perception,
+    // so colors that happen to collapse only under their vision are
+    // also rejected.
     for (_, cell) in cells {
         if cell.gradIds.contains(g.id) { continue }
-        if OK.equal(cell.color, nextColor) { return false }
+        if OK.equal(cell.color, nextColor, mode: mode) { return false }
     }
     return true
 }
@@ -252,8 +262,8 @@ private func tryBranch(cells: inout [String: GrowCell],
     if var sc = cells[seed.key] {
         sc.gradIds.append(newId); cells[seed.key] = sc
     }
-    let canF = canExtend(newGrad, dir: "forward", gridW: gridW, gridH: gridH, cells: cells)
-    let canB = canExtend(newGrad, dir: "backward", gridW: gridW, gridH: gridH, cells: cells)
+    let canF = canExtend(newGrad, dir: "forward", gridW: gridW, gridH: gridH, cells: cells, mode: dev.cbMode)
+    let canB = canExtend(newGrad, dir: "backward", gridW: gridW, gridH: gridH, cells: cells, mode: dev.cbMode)
     if !canF && !canB {
         if var sc = cells[seed.key] {
             sc.gradIds.removeAll { $0 == newId }
@@ -326,8 +336,8 @@ private func tryGrow(level: Int, cfg: LevelConfig, dev: GenConfig) -> Puzzle? {
 
         let pool = preferBelowMin ? belowMin : growing
         guard let g = pool.randomElement() else { return nil }
-        let canF = canExtend(g, dir: "forward", gridW: gridW, gridH: gridH, cells: cells)
-        let canB = canExtend(g, dir: "backward", gridW: gridW, gridH: gridH, cells: cells)
+        let canF = canExtend(g, dir: "forward", gridW: gridW, gridH: gridH, cells: cells, mode: dev.cbMode)
+        let canB = canExtend(g, dir: "backward", gridW: gridW, gridH: gridH, cells: cells, mode: dev.cbMode)
         if !canF && !canB {
             if g.length >= minLen { g.status = "closed"; continue }
             return nil
@@ -360,7 +370,8 @@ private func tryGrow(level: Int, cfg: LevelConfig, dev: GenConfig) -> Puzzle? {
     if gradients.count < targetN { return nil }
 
     return finalize(cells: cells, gradients: gradients,
-                    level: level, cfg: cfg, assign: assign)
+                    level: level, cfg: cfg, assign: assign,
+                    mode: dev.cbMode)
 }
 
 // ─── finalize: trim + assemble output ───────────────────────────────
@@ -368,7 +379,8 @@ private func tryGrow(level: Int, cfg: LevelConfig, dev: GenConfig) -> Puzzle? {
 private func finalize(cells: [String: GrowCell],
                       gradients: [Int: GrowGrad],
                       level: Int, cfg: LevelConfig,
-                      assign: ChannelAssignment) -> Puzzle? {
+                      assign: ChannelAssignment,
+                      mode: CBMode) -> Puzzle? {
     var minR = Int.max, maxR = Int.min, minC = Int.max, maxC = Int.min
     for key in cells.keys {
         let parts = key.split(separator: ",").map { Int($0)! }
@@ -460,7 +472,7 @@ private func finalize(cells: [String: GrowCell],
         var flagged: (r: Int, c: Int)? = nil
         outer: for i in 0..<freePositions.count {
             for j in (i + 1)..<freePositions.count {
-                if OK.dist(freePositions[i].color, freePositions[j].color) < ambiguityThreshold {
+                if OK.dist(freePositions[i].color, freePositions[j].color, mode: mode) < ambiguityThreshold {
                     flagged = (freePositions[i].r, freePositions[i].c)
                     break outer
                 }
@@ -521,9 +533,9 @@ private func finalize(cells: [String: GrowCell],
     }
 
     // Proximity metrics + low-level gate.
-    let lineProx = minInterGradientLineDist(outGrads.map { $0.colors })
-    let pairProx = cellPairProximityScore(outGrads)
-    let extrapProx = extrapolationProximityScore(outGrads)
+    let lineProx = minInterGradientLineDist(outGrads.map { $0.colors }, mode: mode)
+    let pairProx = cellPairProximityScore(outGrads, mode: mode)
+    let extrapProx = extrapolationProximityScore(outGrads, mode: mode)
     if let cap = pairProxCap(level), pairProx > cap { return nil }
     let difficulty = scoreDifficulty(
         gradients: outGrads,
@@ -531,7 +543,8 @@ private func finalize(cells: [String: GrowCell],
         channelCount: cfg.channelCount,
         primary: assign.primary,
         pairProx: pairProx,
-        extrapProx: extrapProx)
+        extrapProx: extrapProx,
+        mode: mode)
 
     let shuffled = bank.shuffled()
     return Puzzle(
