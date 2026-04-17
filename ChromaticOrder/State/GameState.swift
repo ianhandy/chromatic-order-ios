@@ -39,6 +39,7 @@ struct DragSource: Equatable {
 private let progressKey = "chromaticOrderProgress"
 private let motionKey   = "chromaticOrderReduceMotion"
 private let cbModeKey   = "chromaticOrderCBMode"
+private let a11yKey     = "chromaticOrderAccessibility"
 
 @MainActor
 @Observable
@@ -53,6 +54,14 @@ final class GameState {
     /// alongside reduce-motion so Reset Progress doesn't stomp it —
     /// it's an accessibility setting, not game state.
     var cbMode: CBMode
+    /// Accessibility bundle — contrast (multiplier on step ranges) and
+    /// L / c clamps (tighter than OK's default usable band). Persisted
+    /// under its own key; Reset Progress leaves these alone.
+    var contrastScale: Double
+    var lClampMin: Double
+    var lClampMax: Double
+    var cClampMin: Double
+    var cClampMax: Double
 
     // Live puzzle
     var puzzle: Puzzle?
@@ -156,7 +165,96 @@ final class GameState {
         self.score = savedScore
         self.reduceMotion = Self.loadReduceMotion()
         self.cbMode = Self.loadCBMode()
+        let a11y = Self.loadAccessibility()
+        self.contrastScale = a11y.contrastScale
+        self.lClampMin = a11y.lClampMin
+        self.lClampMax = a11y.lClampMax
+        self.cClampMin = a11y.cClampMin
+        self.cClampMax = a11y.cClampMax
         startLevel(level)
+    }
+
+    // ─── Accessibility ──────────────────────────────────────────────
+
+    private struct AccessibilityBundle {
+        var contrastScale: Double
+        var lClampMin: Double
+        var lClampMax: Double
+        var cClampMin: Double
+        var cClampMax: Double
+
+        static let defaults = AccessibilityBundle(
+            contrastScale: 1.0,
+            lClampMin: OK.lMin, lClampMax: OK.lMax,
+            cClampMin: OK.cMin, cClampMax: OK.cMax
+        )
+    }
+
+    private static func loadAccessibility() -> AccessibilityBundle {
+        guard let data = UserDefaults.standard.data(forKey: a11yKey),
+              let dict = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
+        else { return .defaults }
+        let b = AccessibilityBundle(
+            contrastScale: (dict["contrastScale"] as? Double) ?? 1.0,
+            lClampMin: (dict["lClampMin"] as? Double) ?? OK.lMin,
+            lClampMax: (dict["lClampMax"] as? Double) ?? OK.lMax,
+            cClampMin: (dict["cClampMin"] as? Double) ?? OK.cMin,
+            cClampMax: (dict["cClampMax"] as? Double) ?? OK.cMax
+        )
+        return b
+    }
+
+    private func saveAccessibility() {
+        let dict: [String: Any] = [
+            "contrastScale": contrastScale,
+            "lClampMin": lClampMin,
+            "lClampMax": lClampMax,
+            "cClampMin": cClampMin,
+            "cClampMax": cClampMax,
+        ]
+        if let data = try? JSONSerialization.data(withJSONObject: dict) {
+            UserDefaults.standard.set(data, forKey: a11yKey)
+        }
+    }
+
+    /// Snapshot of the accessibility values at the current puzzle's
+    /// generation time — used to tell whether the sheet's slider
+    /// changes actually altered anything worth regenerating for.
+    private var contrastAtGeneration: Double = 1.0
+    private var lClampMinAtGeneration: Double = OK.lMin
+    private var lClampMaxAtGeneration: Double = OK.lMax
+    private var cClampMinAtGeneration: Double = OK.cMin
+    private var cClampMaxAtGeneration: Double = OK.cMax
+
+    /// Called when the Accessibility sheet closes. If any of the
+    /// generator-affecting values moved since the current puzzle was
+    /// built, regenerate — otherwise no-op so rapid re-opens of the
+    /// sheet don't thrash the board.
+    func applyAccessibilityIfChanged() {
+        saveAccessibility()
+        let changed = contrastScale != contrastAtGeneration
+            || lClampMin != lClampMinAtGeneration
+            || lClampMax != lClampMaxAtGeneration
+            || cClampMin != cClampMinAtGeneration
+            || cClampMax != cClampMaxAtGeneration
+            || cbMode != cbModeAtGeneration
+        if changed {
+            startLevel(level)
+        }
+    }
+
+    /// Restore every accessibility setting to its default. Convenience
+    /// for the sheet's "Reset" button.
+    func resetAccessibility() {
+        let d = AccessibilityBundle.defaults
+        contrastScale = d.contrastScale
+        lClampMin = d.lClampMin
+        lClampMax = d.lClampMax
+        cClampMin = d.cClampMin
+        cClampMax = d.cClampMax
+        cbMode = .none
+        saveAccessibility()
+        saveCBMode()
     }
 
     private static func loadCBMode() -> CBMode {
@@ -184,14 +282,11 @@ final class GameState {
         saveCBMode()
     }
 
-    /// Called when the settings menu closes. If the player landed on
-    /// a different CB mode than the one the puzzle was generated
-    /// under, regenerate now so subsequent play happens under the
-    /// chosen vision. No-op when nothing changed.
+    /// Called when the settings menu closes. Kept for backward compat —
+    /// `applyAccessibilityIfChanged` covers CB + clamps + contrast in
+    /// one pass. Routes to it so the menu's onChange hook still works.
     func applyDeferredCBModeChange() {
-        if cbMode != cbModeAtGeneration {
-            startLevel(level)
-        }
+        applyAccessibilityIfChanged()
     }
 
     /// Toggle the grid-zoom double-tap state. Exits pan too — the two
@@ -269,13 +364,27 @@ final class GameState {
         puzzleStartTime = Date()
         mistakeCount = 0
         liked = nil
-        // Capture the current CB mode at dispatch time — the detached
-        // task runs off the main actor and can't read properties.
+        // Capture state at dispatch time — the detached task runs off
+        // the main actor and can't read properties. Snapshot everything
+        // the generator needs so the call-through is self-contained.
         let activeCBMode = cbMode
+        let activeContrast = contrastScale
+        let activeL = (min: lClampMin, max: lClampMax)
+        let activeC = (min: cClampMin, max: cClampMax)
         cbModeAtGeneration = activeCBMode
+        contrastAtGeneration = activeContrast
+        lClampMinAtGeneration = activeL.min
+        lClampMaxAtGeneration = activeL.max
+        cClampMinAtGeneration = activeC.min
+        cClampMaxAtGeneration = activeC.max
         Task.detached(priority: .userInitiated) { [weak self] in
             var cfg = GenConfig()
             cfg.cbMode = activeCBMode
+            cfg.rangeScale = activeContrast
+            cfg.lClampMin = activeL.min
+            cfg.lClampMax = activeL.max
+            cfg.cClampMin = activeC.min
+            cfg.cClampMax = activeC.max
             let puz = generatePuzzle(level: lv, config: cfg)
             await MainActor.run { [weak self] in
                 guard let self else { return }

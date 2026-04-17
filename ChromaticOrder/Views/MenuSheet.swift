@@ -1,5 +1,8 @@
 //  Hamburger dropdown. Renders at the top-right, passes through
-//  game actions via the shared GameState.
+//  game actions via the shared GameState. Accessibility-specific
+//  controls (Reduce Motion, Color Blindness, contrast, L/c clamps)
+//  live in a dedicated sheet so the top-level menu stays focused on
+//  game actions.
 
 import SwiftUI
 
@@ -8,12 +11,13 @@ struct MenuSheet: View {
     @Binding var menuOpen: Bool
     @Binding var creatorOpen: Bool
     @Binding var feedbackOpen: Bool
+    @Binding var accessibilityOpen: Bool
     @State private var showResetConfirm = false
 
     var body: some View {
         GeometryReader { _ in
             VStack(alignment: .trailing, spacing: 6) {
-                VStack(alignment: .leading, spacing: 2) {
+                VStack(alignment: .leading, spacing: 3) {
                     menuButton(label: "Switch to \(game.mode == .zen ? "Challenge" : "Zen") Mode") {
                         game.switchMode(); menuOpen = false
                     }
@@ -41,17 +45,9 @@ struct MenuSheet: View {
                         menuOpen = false
                         feedbackOpen = true
                     }
-                    menuButton(label: "Reduce Motion: \(game.reduceMotion ? "On" : "Off")") {
-                        game.toggleReduceMotion(); menuOpen = false
-                    }
-                    menuButton(label: "Color Blindness: \(game.cbMode.shortLabel)") {
-                        // Cycle: None → Protan → Deutan → Tritan → Achro → None.
-                        // Intentionally does NOT close the menu — lets
-                        // the player keep tapping to cycle until they
-                        // find the right mode. Regeneration is
-                        // deferred to menu close (see ContentView's
-                        // onChange hook that calls applyDeferredCBModeChange).
-                        game.cycleCBMode()
+                    menuButton(label: "Accessibility…") {
+                        menuOpen = false
+                        accessibilityOpen = true
                     }
 
                     Divider().padding(.vertical, 4)
@@ -60,21 +56,21 @@ struct MenuSheet: View {
                         showResetConfirm = true
                     } label: {
                         Text("Reset Progress")
-                            .font(.system(size: 12, weight: .bold, design: .rounded))
+                            .font(.system(size: 14, weight: .bold, design: .rounded))
                             .foregroundStyle(Color(red: 0.8, green: 0.2, blue: 0.2))
                             .frame(maxWidth: .infinity)
-                            .padding(.vertical, 9)
+                            .padding(.vertical, 12)
                             .overlay(
-                                RoundedRectangle(cornerRadius: 6)
+                                RoundedRectangle(cornerRadius: 8)
                                     .stroke(Color(red: 0.8, green: 0.2, blue: 0.2), lineWidth: 1.5)
                             )
                     }
                 }
-                .padding(6)
-                .frame(minWidth: 240)
-                .background(.white, in: RoundedRectangle(cornerRadius: 10))
+                .padding(8)
+                .frame(minWidth: 260)
+                .background(.white, in: RoundedRectangle(cornerRadius: 12))
                 .overlay(
-                    RoundedRectangle(cornerRadius: 10)
+                    RoundedRectangle(cornerRadius: 12)
                         .stroke(Color(red: 0.82, green: 0.80, blue: 0.78), lineWidth: 1.5)
                 )
                 .shadow(color: .black.opacity(0.12), radius: 24, y: 8)
@@ -100,15 +96,19 @@ struct MenuSheet: View {
 
     @ViewBuilder
     private func menuButton(label: String, danger: Bool = false, _ action: @escaping () -> Void) -> some View {
+        // Bigger tap targets than the pre-accessibility-sheet version:
+        // 14pt font, 13pt vertical padding, 14pt horizontal. More
+        // comfortable on larger phones and easier to hit with your
+        // thumb mid-drag-cancellation.
         Button(action: action) {
             Text(label)
-                .font(.system(size: 12, weight: .semibold, design: .rounded))
+                .font(.system(size: 14, weight: .semibold, design: .rounded))
                 .foregroundStyle(danger
                     ? Color(red: 0.8, green: 0.2, blue: 0.2)
                     : Color(red: 0.2, green: 0.2, blue: 0.2))
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.vertical, 9)
-                .padding(.horizontal, 12)
+                .padding(.vertical, 13)
+                .padding(.horizontal, 14)
         }
         .buttonStyle(.plain)
     }

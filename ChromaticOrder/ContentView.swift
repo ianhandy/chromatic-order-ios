@@ -8,6 +8,7 @@ struct ContentView: View {
     @State private var menuOpen: Bool = false
     @State private var creatorOpen: Bool = false
     @State private var feedbackOpen: Bool = false
+    @State private var accessibilityOpen: Bool = false
     /// Set by ChromaticOrderApp.onOpenURL when a .kroma file is tapped.
     /// We watch it and pipe the Puzzle into the game when it changes.
     @Binding var incomingPuzzle: Puzzle?
@@ -56,7 +57,8 @@ struct ContentView: View {
                 MenuSheet(game: game,
                           menuOpen: $menuOpen,
                           creatorOpen: $creatorOpen,
-                          feedbackOpen: $feedbackOpen)
+                          feedbackOpen: $feedbackOpen,
+                          accessibilityOpen: $accessibilityOpen)
             }
 
             // Solved overlay: Like widget + Next Level button, stacked
@@ -158,6 +160,16 @@ struct ContentView: View {
         }
         .sheet(isPresented: $feedbackOpen) {
             FeedbackSheet(game: game)
+        }
+        .sheet(isPresented: $accessibilityOpen, onDismiss: {
+            // Deferred regeneration: contrast + clamp sliders move
+            // during the sheet but the board doesn't rebuild until
+            // the player closes the sheet — applyAccessibilityIfChanged
+            // compares current values to those-at-last-generation and
+            // triggers startLevel only when needed.
+            game.applyAccessibilityIfChanged()
+        }) {
+            AccessibilitySheet(game: game)
         }
     }
 }

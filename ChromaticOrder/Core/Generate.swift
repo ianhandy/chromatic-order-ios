@@ -26,6 +26,22 @@ struct GenConfig {
     /// puzzle it produces has perceivable step separation FOR THIS
     /// PLAYER. .none = default, normal-vision tuning.
     var cbMode: CBMode = .none
+    /// Accessibility clamps — tighter than OK's default usable band.
+    /// Seed + extension checks reject any color that leaves the
+    /// player's chosen L/c window, so the resulting puzzle stays in
+    /// a contrast-friendly space.
+    var lClampMin: Double = OK.lMin
+    var lClampMax: Double = OK.lMax
+    var cClampMin: Double = OK.cMin
+    var cClampMax: Double = OK.cMax
+}
+
+/// Per-config usable-band check. Supersedes OK.inUsableBand's static
+/// defaults when the generator runs — lets the player shrink the
+/// allowed L / c window (Accessibility → clamp luminance / saturation).
+private func inBandForConfig(_ color: OKLCh, _ cfg: GenConfig) -> Bool {
+    color.L >= cfg.lClampMin && color.L <= cfg.lClampMax
+        && color.c >= cfg.cClampMin && color.c <= cfg.cClampMax
 }
 
 private func applyConfig(_ cfg: LevelConfig, _ dev: GenConfig) -> LevelConfig {
@@ -77,10 +93,20 @@ private func pairProxCap(_ level: Int) -> Double? {
     }
 }
 
-private func pickSeedColor() -> OKLCh {
-    OKLCh(L: 0.40 + Double.random(in: 0..<0.25),
-          c: 0.10 + Double.random(in: 0..<0.16),
-          h: Double.random(in: 0..<360))
+private func pickSeedColor(cfg: GenConfig) -> OKLCh {
+    // Stay central within the player's clamped band so the gradient
+    // has room to drift in both directions before hitting a wall. A
+    // 40%-70% band inside the clamp range works for both default and
+    // narrow setups.
+    let lMid = cfg.lClampMin + (cfg.lClampMax - cfg.lClampMin) * 0.4
+    let lSpan = (cfg.lClampMax - cfg.lClampMin) * 0.3
+    let cMid = cfg.cClampMin + (cfg.cClampMax - cfg.cClampMin) * 0.4
+    let cSpan = (cfg.cClampMax - cfg.cClampMin) * 0.45
+    return OKLCh(
+        L: lMid + Double.random(in: 0..<lSpan),
+        c: cMid + Double.random(in: 0..<cSpan),
+        h: Double.random(in: 0..<360)
+    )
 }
 
 private func pickStepDeltas(_ assign: ChannelAssignment, _ ranges: LevelRanges) -> [Channel: Double] {
@@ -152,12 +178,15 @@ private func canExtend(_ g: GrowGrad,
                        dir: String,          // "forward" | "backward"
                        gridW: Int, gridH: Int,
                        cells: [String: GrowCell],
-                       mode: CBMode) -> Bool {
+                       mode: CBMode,
+                       cfg: GenConfig) -> Bool {
     let nextPos = dir == "forward" ? g.maxPos + 1 : g.minPos - 1
     let (r, c) = g.cellOf(nextPos)
     if r < 0 || r >= gridH || c < 0 || c >= gridW { return false }
     let nextColor = g.colorAt(nextPos)
-    if !OK.inUsableBand(nextColor) { return false }
+    // Accessibility clamps — check against the player's narrowed
+    // band, not the fixed OK defaults.
+    if !inBandForConfig(nextColor, cfg) { return false }
     let key = "\(r),\(c)"
     if cells[key] != nil { return false }
     // Crossword sparsity — reject if any edge-neighbor belongs to a
@@ -262,8 +291,8 @@ private func tryBranch(cells: inout [String: GrowCell],
     if var sc = cells[seed.key] {
         sc.gradIds.append(newId); cells[seed.key] = sc
     }
-    let canF = canExtend(newGrad, dir: "forward", gridW: gridW, gridH: gridH, cells: cells, mode: dev.cbMode)
-    let canB = canExtend(newGrad, dir: "backward", gridW: gridW, gridH: gridH, cells: cells, mode: dev.cbMode)
+    let canF = canExtend(newGrad, dir: "forward", gridW: gridW, gridH: gridH, cells: cells, mode: dev.cbMode, cfg: dev)
+    let canB = canExtend(newGrad, dir: "backward", gridW: gridW, gridH: gridH, cells: cells, mode: dev.cbMode, cfg: dev)
     if !canF && !canB {
         if var sc = cells[seed.key] {
             sc.gradIds.removeAll { $0 == newId }
@@ -291,7 +320,7 @@ private func tryGrow(level: Int, cfg: LevelConfig, dev: GenConfig) -> Puzzle? {
 
     let seedR = gridH / 2 + Util.randInt(-1, 1)
     let seedC = gridW / 2 + Util.randInt(-1, 1)
-    let seedColor = pickSeedColor()
+    let seedColor = pickSeedColor(cfg: dev)
     let seedDir: Direction = Util.chance(0.5) ? .h : .v
     let seedStep = pickStepDeltas(assign, cfg.ranges)
     let seedGrad = GrowGrad(id: nextId, dir: seedDir,
@@ -336,8 +365,8 @@ private func tryGrow(level: Int, cfg: LevelConfig, dev: GenConfig) -> Puzzle? {
 
         let pool = preferBelowMin ? belowMin : growing
         guard let g = pool.randomElement() else { return nil }
-        let canF = canExtend(g, dir: "forward", gridW: gridW, gridH: gridH, cells: cells, mode: dev.cbMode)
-        let canB = canExtend(g, dir: "backward", gridW: gridW, gridH: gridH, cells: cells, mode: dev.cbMode)
+        let canF = canExtend(g, dir: "forward", gridW: gridW, gridH: gridH, cells: cells, mode: dev.cbMode, cfg: dev)
+        let canB = canExtend(g, dir: "backward", gridW: gridW, gridH: gridH, cells: cells, mode: dev.cbMode, cfg: dev)
         if !canF && !canB {
             if g.length >= minLen { g.status = "closed"; continue }
             return nil
