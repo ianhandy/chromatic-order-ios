@@ -23,6 +23,12 @@ struct CreatorPuzzleDoc: Codable {
         let L: Double
         let C: Double         // renamed field so JSON stays readable
         let h: Double
+        // Optional so pre-v1 documents (creator exports) still decode
+        // cleanly. When present, preserves the exact lock config the
+        // generator produced — matters when we replay a liked puzzle
+        // to another player and want them to see the SAME layout, not
+        // a re-derived auto-locked version.
+        var locked: Bool?
     }
 
     static let currentVersion = 1
@@ -75,5 +81,42 @@ enum CreatorCodec {
                 userInfo: [NSLocalizedDescriptionKey: "Puzzle version \(doc.version) not supported — update the app."])
         }
         return doc
+    }
+
+    /// Serialize a live `Puzzle` (generator or creator output) into the
+    /// same JSON schema. Preserves per-cell lock state so we can replay
+    /// a liked layout to other players without re-deriving locks via
+    /// the auto-lock rules. Compact JSON (no pretty-print) keeps the
+    /// payload small for the "Kroma Level Like" Paragraph field.
+    static func encodePuzzle(_ p: Puzzle) throws -> String {
+        // Deduplicate gradient cells by (r, c): intersections appear in
+        // multiple gradients' cell arrays. The sharer's intent is
+        // "this layout" not "this traversal order" — so we emit one
+        // entry per grid cell across all gradients.
+        let doc = CreatorPuzzleDoc(
+            version: CreatorPuzzleDoc.currentVersion,
+            gridW: p.gridW,
+            gridH: p.gridH,
+            gradients: p.gradients.map { g in
+                CreatorPuzzleDoc.Grad(
+                    dir: g.dir == .h ? "h" : "v",
+                    cells: g.cells.map { spec in
+                        CreatorPuzzleDoc.Cell(
+                            r: spec.r, c: spec.c,
+                            L: spec.color.L, C: spec.color.c, h: spec.color.h,
+                            locked: spec.locked
+                        )
+                    }
+                )
+            },
+            difficulty: p.difficulty
+        )
+        let enc = JSONEncoder()
+        // Compact — every char counts when this has to fit in a
+        // Google Forms Paragraph field along with the widget's own
+        // POST body budget.
+        enc.outputFormatting = [.sortedKeys]
+        let data = try enc.encode(doc)
+        return String(data: data, encoding: .utf8) ?? ""
     }
 }
