@@ -1,7 +1,18 @@
 //  Bottom strip: instruction text, Check button (challenge mode), and
-//  the bank of swatches with Balatro-style sway.
+//  the bank of swatches. The bank is a fixed-size grid of drop-
+//  targetable slots — slots are empty when their swatch has been
+//  placed on the board, and they accept swatches back (drag-off-grid
+//  fallback, or explicit drag into a slot). Swatches can also be
+//  rearranged between slots.
 
 import SwiftUI
+
+struct BankSlotFramesKey: PreferenceKey {
+    static var defaultValue: [Int: CGRect] = [:]
+    static func reduce(value: inout [Int: CGRect], nextValue: () -> [Int: CGRect]) {
+        value.merge(nextValue(), uniquingKeysWith: { _, new in new })
+    }
+}
 
 struct BankView: View {
     @Bindable var game: GameState
@@ -41,36 +52,37 @@ struct BankView: View {
                 .disabled(game.checks <= 0)
             }
 
-            // Bank layout that GUARANTEES every swatch is visible without
-            // scrolling: pick a column count that keeps rows ≤ maxRows,
-            // then shrink the swatches to fit the available width. As
-            // the bank grows (Expert levels can have 30-50 swatches),
-            // swatches get smaller rather than wrapping to more rows.
-            if let p = game.puzzle, !p.bank.isEmpty {
+            // Fixed toolbox layout. Column count + swatch size come from
+            // the puzzle's initialBankCount, not the live bank contents —
+            // placed swatches leave their slot empty; the grid shape
+            // stays constant so the player can drop a returned swatch
+            // into whichever slot they want.
+            if let p = game.puzzle, p.initialBankCount > 0 {
                 GeometryReader { geo in
-                    let bank = p.bank
+                    let initial = p.initialBankCount
                     let maxRows = 3
                     let spacing: CGFloat = 6
-                    let cols = max(1, Int(ceil(Double(bank.count) / Double(maxRows))))
+                    let cols = max(1, Int(ceil(Double(initial) / Double(maxRows))))
                     let maxSize: CGFloat = 56
                     let availW = max(0, geo.size.width)
                     let fit = (availW - CGFloat(cols - 1) * spacing) / CGFloat(cols)
                     let swatchSize = max(22, min(maxSize, fit))
-                    let rows = Int(ceil(Double(bank.count) / Double(cols)))
+                    let rows = Int(ceil(Double(initial) / Double(cols)))
                     let totalHeight = CGFloat(rows) * swatchSize + CGFloat(rows - 1) * spacing
                     VStack(spacing: spacing) {
                         ForEach(0..<rows, id: \.self) { rIdx in
                             HStack(spacing: spacing) {
                                 ForEach(0..<cols, id: \.self) { cIdx in
-                                    let idx = rIdx * cols + cIdx
-                                    if idx < bank.count {
-                                        SwatchView(
-                                            item: bank[idx],
-                                            index: idx,
-                                            game: game,
-                                            size: swatchSize
+                                    let slot = rIdx * cols + cIdx
+                                    if slot < p.bank.count {
+                                        BankSlotView(
+                                            slot: slot,
+                                            size: swatchSize,
+                                            game: game
                                         )
                                     } else {
+                                        // Pad when cols×rows overflows the
+                                        // logical slot count.
                                         Color.clear
                                             .frame(width: swatchSize, height: swatchSize)
                                     }
@@ -78,37 +90,34 @@ struct BankView: View {
                             }
                         }
                     }
-                    .frame(width: availW, height: totalHeight, alignment: .center)
+                    .frame(width: availW, height: totalHeight, alignment: .top)
                 }
-                .frame(height: bankContentHeight(bankCount: p.bank.count))
+                .frame(height: bankContentHeight(initialBankCount: p.initialBankCount))
+                .onPreferenceChange(BankSlotFramesKey.self) { frames in
+                    Task { @MainActor in game.bankSlotFrames = frames }
+                }
             }
         }
         .padding(.vertical, 12)
     }
 
-    // Height the bank VStack should reserve for its swatches. Matches
-    // the GeometryReader math above so the layout is stable regardless
-    // of how many swatches are in the bank.
-    private func bankContentHeight(bankCount: Int) -> CGFloat {
-        // Mirrors the per-swatch sizing pass above — without a real
-        // width we use a conservative 340pt. Updated once layout runs
-        // and the GeometryReader reports accurate width.
+    private func bankContentHeight(initialBankCount: Int) -> CGFloat {
         let maxRows = 3
         let spacing: CGFloat = 6
-        let cols = max(1, Int(ceil(Double(bankCount) / Double(maxRows))))
+        let cols = max(1, Int(ceil(Double(initialBankCount) / Double(maxRows))))
         let availW: CGFloat = 340
         let fit = (availW - CGFloat(cols - 1) * spacing) / CGFloat(cols)
         let swatchSize = max(22, min(56, fit))
-        let rows = Int(ceil(Double(bankCount) / Double(cols)))
+        let rows = Int(ceil(Double(initialBankCount) / Double(cols)))
         return CGFloat(rows) * swatchSize + CGFloat(rows - 1) * spacing
     }
 
     private var instrText: String {
         guard let p = game.puzzle else { return "" }
         if game.solved { return "\u{1F3A8} Solved!" }
-        if p.bank.isEmpty { return "All placed — check your gradients" }
-        if case .bank = game.selection?.kind { return "Tap any empty cell to place" }
-        if case .cell = game.selection?.kind { return "Tap another cell to swap, or empty to move" }
+        if p.bank.allSatisfy({ $0 == nil }) { return "All placed — check your gradients" }
+        if case .bank = game.selection?.kind { return "Tap a cell or slot to place" }
+        if case .cell = game.selection?.kind { return "Tap another cell, empty cell, or slot" }
         return "Tap or drag a swatch"
     }
 }

@@ -77,7 +77,14 @@ struct ContentView: View {
                 // visible ghost and the effective drop point stay in sync.
                 let lifted = CGPoint(x: loc.x, y: loc.y - GameState.ghostLift)
                 let magnetized: CGPoint = {
-                    if let t = game.dropTarget, let rect = game.cellFrames[t] {
+                    let rect: CGRect? = {
+                        switch game.dropTarget {
+                        case .cell(let idx): return game.cellFrames[idx]
+                        case .slot(let s):   return game.bankSlotFrames[s]
+                        case .none:          return nil
+                        }
+                    }()
+                    if let rect {
                         let target = CGPoint(x: rect.midX, y: rect.midY)
                         return CGPoint(
                             x: lifted.x + (target.x - lifted.x) * 0.45,

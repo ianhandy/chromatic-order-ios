@@ -489,10 +489,12 @@ private func finalize(cells: [String: GrowCell],
         pairProx: pairProx,
         extrapProx: extrapProx)
 
+    let shuffled = bank.shuffled()
     return Puzzle(
         level: level, gridW: gridW, gridH: gridH,
         board: board,
-        bank: bank.shuffled(),
+        bank: shuffled.map { Optional($0) },
+        initialBankCount: shuffled.count,
         gradients: outGrads,
         channelCount: cfg.channelCount,
         activeChannels: assign.active,
@@ -573,9 +575,11 @@ private func makeFallback(level: Int) -> Puzzle {
             uid += 1
         }
     }
+    let shuffled = bank.shuffled()
     return Puzzle(
         level: level, gridW: gridW, gridH: gridH,
-        board: board, bank: bank.shuffled(),
+        board: board, bank: shuffled.map { Optional($0) },
+        initialBankCount: shuffled.count,
         gradients: [g0, g1, g2],
         channelCount: 1,
         activeChannels: [.h],

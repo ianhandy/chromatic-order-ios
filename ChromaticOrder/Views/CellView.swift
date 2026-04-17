@@ -145,7 +145,8 @@ struct CellView: View {
     }
 
     private var isDropTarget: Bool {
-        game.dropTarget == CellIndex(r: r, c: c)
+        if case .cell(let idx) = game.dropTarget { return idx == CellIndex(r: r, c: c) }
+        return false
     }
 
     private var isDragSource: Bool {

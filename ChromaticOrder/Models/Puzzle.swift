@@ -48,7 +48,14 @@ struct Puzzle {
     var gridW: Int
     var gridH: Int
     var board: [[BoardCell]]
-    var bank: [BankItem]
+    // Fixed-size bank array — one slot per unlocked cell at puzzle
+    // start. Slots are `nil` when empty, which preserves the toolbox
+    // grid shape as swatches are placed / moved. Drag-rearranging
+    // works by moving non-nil entries between indices.
+    var bank: [BankItem?]
+    // The bank's size at puzzle start — matches bank.count but kept
+    // as an explicit field for clarity at call sites.
+    var initialBankCount: Int
     var gradients: [PuzzleGradient]
     var channelCount: Int
     var activeChannels: [Channel]

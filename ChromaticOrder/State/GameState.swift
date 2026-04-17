@@ -5,18 +5,33 @@
 
 import Foundation
 import SwiftUI
+import UIKit
 
 enum GameMode: String { case zen, challenge }
 
 struct CellIndex: Hashable { let r: Int; let c: Int }
 
+// Drop targets include both board cells and bank slots now — players
+// can drag swatches between slots or back to the toolbox, just like
+// onto the grid.
+enum DropTarget: Hashable {
+    case cell(CellIndex)
+    case slot(Int)
+}
+
 struct BoardSelection: Equatable {
-    enum Kind: Equatable { case bank(Int), cell(CellIndex) }
+    enum Kind: Equatable {
+        case bank(Int)    // slot index in puzzle.bank
+        case cell(CellIndex)
+    }
     let kind: Kind
 }
 
 struct DragSource: Equatable {
-    enum Kind: Equatable { case bank(Int), cell(CellIndex) }
+    enum Kind: Equatable {
+        case bank(Int)    // slot index in puzzle.bank
+        case cell(CellIndex)
+    }
     let kind: Kind
     let color: OKLCh
 }
@@ -31,10 +46,6 @@ final class GameState {
     var level: Int
     var mode: GameMode
     var checks: Int
-    // Cumulative score in challenge mode. Awarded on solve-advance in
-    // proportion to puzzle.difficulty (1-10) — harder levels pay more.
-    // Not used in zen mode; kept across mode switches so the player
-    // doesn't lose a run by toggling.
     var score: Int
     var reduceMotion: Bool
 
@@ -46,53 +57,45 @@ final class GameState {
     var selection: BoardSelection?
     var dragSource: DragSource?
     var dragLocation: CGPoint?
-    var dropTarget: CellIndex?
+    var dropTarget: DropTarget?
     var activeColor: OKLCh?
     var solved: Bool = false
 
     // Zen-mode penalty: set when the player uses Show Incorrect; on the
-    // next solve advance, drop one level instead of gaining one. Reset
-    // on skip only if the player engaged with the current puzzle.
+    // next solve advance, drop one level instead of gaining one.
     var showIncorrect: Bool = false
     var showedIncorrect: Bool = false
     var engagedThisLevel: Bool = false
 
-    // Fresh uids for bank items returned from the board.
-    private var nextBankUid: Int = 1_000_000
-
-    // Cell frames in global coords, updated by each CellView. Used to
-    // hit-test drag positions across views (SwiftUI gestures don't hand
-    // pointer events across view boundaries on their own).
+    // Frame maps, populated by the views via PreferenceKeys.
     var cellFrames: [CellIndex: CGRect] = [:]
+    var bankSlotFrames: [Int: CGRect] = [:]
 
-    // The drag ghost floats this many points above the finger. Placement
-    // uses the ghost's position too (finger → ghost is a fixed offset),
-    // so the cell the player *sees* getting tinted is the one they drop
-    // into. Shared between the ghost rendering (ContentView) and the
-    // hit-test here so the two can't drift out of sync.
     static let ghostLift: CGFloat = 48
 
-    /// Effective drop point for hit-testing — the ghost's center,
-    /// not the raw finger position.
     func effectivePoint(_ raw: CGPoint) -> CGPoint {
         CGPoint(x: raw.x, y: raw.y - Self.ghostLift)
     }
 
-    func hitTest(_ point: CGPoint) -> CellIndex? {
+    func hitTest(_ point: CGPoint) -> DropTarget? {
+        // Bank slots first — they're bigger drop targets and the player
+        // expects "drag near a slot, drop in slot."
+        for (idx, rect) in bankSlotFrames {
+            if rect.insetBy(dx: -12, dy: -12).contains(point) {
+                return .slot(idx)
+            }
+        }
         guard let puzzle else { return nil }
-        // Direct hit first. Skip dead cells and locked cells so dragging
-        // onto them never registers as a target.
+        // Direct-hit cell
         for (idx, rect) in cellFrames where rect.contains(point) {
             let cell = puzzle.board[idx.r][idx.c]
             guard cell.kind == .cell, !cell.locked else { continue }
-            return idx
+            return .cell(idx)
         }
         // Magnetism: only snap when the finger is inside a cell's
-        // *inflated* rect — so the pull is local to each cell, not a
-        // grid-wide Euclidean radius. The gaps between cells and the
-        // dead-cell spaces stay non-magnetic, matching "color should
-        // only be magnetized to cells, not just anywhere on the grid."
-        let catchInset: CGFloat = -18  // expand rect by 18pt on every side
+        // inflated rect — so the pull is local to each cell, not a
+        // grid-wide Euclidean radius.
+        let catchInset: CGFloat = -18
         var bestIdx: CellIndex? = nil
         var bestDist = CGFloat.infinity
         for (idx, rect) in cellFrames {
@@ -108,8 +111,10 @@ final class GameState {
                 bestIdx = idx
             }
         }
-        return bestIdx
+        return bestIdx.map { .cell($0) }
     }
+
+    private var nextBankUid: Int = 1_000_000
 
     init() {
         let (savedLevel, savedMode, savedChecks, savedScore) = Self.loadProgress()
@@ -132,7 +137,6 @@ final class GameState {
             let mdRaw = (dict["mode"] as? String) ?? "zen"
             let md: GameMode = mdRaw == "challenge" ? .challenge : .zen
             let cks = (dict["checks"] as? Int) ?? 3
-            // Score added after v1 ship — absent on old saves, treat as 0.
             let sc = (dict["score"] as? Int) ?? 0
             return (max(1, lv), md, max(0, cks), max(0, sc))
         }
@@ -176,8 +180,6 @@ final class GameState {
         activeColor = nil
         showIncorrect = false
         engagedThisLevel = false
-        // `showedIncorrect` kept as caller-controlled (handleSkip /
-        // handleNext own the lifecycle).
         Task.detached(priority: .userInitiated) { [weak self] in
             let puz = generatePuzzle(level: lv)
             await MainActor.run { [weak self] in
@@ -190,32 +192,28 @@ final class GameState {
     }
 
     func handleReset() {
-        guard let p = puzzle else { return }
-        // Rewind placements + bank back to the original puzzle state.
-        var b = p.board
-        var bank: [BankItem] = []
+        guard var p = puzzle else { return }
+        // Rebuild bank from the unlocked solution cells, clear placed
+        // colors, keep slot count the same as the puzzle started.
+        var freshBank: [BankItem?] = []
+        var freshBoard = p.board
         var uid = 0
         for r in 0..<p.gridH {
-            for c in 0..<p.gridW where b[r][c].kind == .cell {
-                if b[r][c].locked { continue }
-                if let placed = b[r][c].placed {
-                    bank.append(BankItem(id: uid, color: placed)); uid += 1
-                    _ = placed
-                }
-                b[r][c].placed = nil
-            }
-        }
-        puzzle?.board = b
-        // Rebuild from the puzzle's original bank composition by
-        // returning every non-locked cell's solution color instead.
-        // Simpler: ask the generator result's original bank; since we
-        // kept it on puzzle, reuse it (freshly shuffled).
-        puzzle?.bank = p.bank
-        for r in 0..<p.gridH {
             for c in 0..<p.gridW where p.board[r][c].kind == .cell && !p.board[r][c].locked {
-                puzzle?.board[r][c].placed = nil
+                freshBoard[r][c].placed = nil
+                if let sol = p.board[r][c].solution {
+                    freshBank.append(BankItem(id: uid, color: sol))
+                    uid += 1
+                }
             }
         }
+        freshBank.shuffle()
+        // Pad to initialBankCount with nil slots if the math differs
+        // (shouldn't in practice — belt + suspenders).
+        while freshBank.count < p.initialBankCount { freshBank.append(nil) }
+        p.board = freshBoard
+        p.bank = freshBank
+        puzzle = p
         solved = false
         selection = nil
         activeColor = nil
@@ -226,9 +224,6 @@ final class GameState {
         let justCompleted = level
         let nextLv = showedIncorrect ? max(1, level - 1) : level + 1
         if mode == .challenge {
-            // Points for challenge-mode solves only. Difficulty is
-            // already 1-10 and roughly tracks effort, so it doubles as
-            // a natural points scale.
             if let p = puzzle {
                 score += max(1, p.difficulty)
             }
@@ -255,7 +250,6 @@ final class GameState {
             }
         }
         if allGood {
-            // Correct check is free — hearts budget the wrong guesses.
             solved = true
             showIncorrect = false
         } else {
@@ -310,22 +304,64 @@ final class GameState {
         if allGood { solved = true }
     }
 
-    // ─── actions ────────────────────────────────────────────────────
+    // ─── bank slot helpers ──────────────────────────────────────────
 
     private func newBankUid() -> Int { defer { nextBankUid += 1 }; return nextBankUid }
 
-    func placeBankIntoCell(uid: Int, at r: Int, _ c: Int) {
-        guard var p = puzzle else { return }
-        guard let item = p.bank.first(where: { $0.id == uid }) else { return }
+    private func firstEmptySlot(in p: inout Puzzle) -> Int? {
+        p.bank.firstIndex(where: { $0 == nil })
+    }
+
+    // ─── actions (grid ↔ bank, bank ↔ bank, cell ↔ cell) ───────────
+
+    func placeSlotIntoCell(_ slot: Int, at r: Int, _ c: Int) {
+        guard var p = puzzle,
+              slot >= 0, slot < p.bank.count,
+              let item = p.bank[slot] else { return }
         guard p.board[r][c].kind == .cell, !p.board[r][c].locked else { return }
-        p.bank.removeAll { $0.id == uid }
-        if let displaced = p.board[r][c].placed {
-            p.bank.append(BankItem(id: newBankUid(), color: displaced))
-        }
+        // If cell already has a color, swap it back into the bank slot.
+        let displaced = p.board[r][c].placed
         p.board[r][c].placed = item.color
+        if let d = displaced {
+            p.bank[slot] = BankItem(id: newBankUid(), color: d)
+        } else {
+            p.bank[slot] = nil
+        }
         puzzle = p
         engagedThisLevel = true
         checkAutoSolve()
+    }
+
+    func placeCellIntoSlot(_ from: CellIndex, slot: Int) {
+        guard var p = puzzle,
+              slot >= 0, slot < p.bank.count else { return }
+        guard p.board[from.r][from.c].kind == .cell,
+              !p.board[from.r][from.c].locked,
+              let color = p.board[from.r][from.c].placed else { return }
+        // If target slot is occupied, swap: its color flows to the cell.
+        if let existing = p.bank[slot] {
+            p.board[from.r][from.c].placed = existing.color
+            p.bank[slot] = BankItem(id: newBankUid(), color: color)
+        } else {
+            p.board[from.r][from.c].placed = nil
+            p.bank[slot] = BankItem(id: newBankUid(), color: color)
+        }
+        puzzle = p
+        engagedThisLevel = true
+        checkAutoSolve()
+    }
+
+    func moveSlotToSlot(_ from: Int, _ to: Int) {
+        guard var p = puzzle, from != to,
+              from >= 0, from < p.bank.count,
+              to >= 0, to < p.bank.count else { return }
+        guard p.bank[from] != nil else { return }
+        let f = p.bank[from]
+        let t = p.bank[to]
+        p.bank[from] = t
+        p.bank[to] = f
+        puzzle = p
+        engagedThisLevel = true
     }
 
     func swapCells(_ a: CellIndex, _ b: CellIndex) {
@@ -355,27 +391,44 @@ final class GameState {
         checkAutoSolve()
     }
 
+    // Drag-off-grid fallback — put the removed color into the first
+    // empty slot (or the earliest, to keep the bank packed-ish).
     func cellToBank(_ at: CellIndex) {
-        guard var p = puzzle else { return }
-        guard p.board[at.r][at.c].kind == .cell,
+        guard var p = puzzle,
+              p.board[at.r][at.c].kind == .cell,
               !p.board[at.r][at.c].locked,
-              let color = p.board[at.r][at.c].placed else { return }
+              let color = p.board[at.r][at.c].placed,
+              let slot = firstEmptySlot(in: &p) else { return }
         p.board[at.r][at.c].placed = nil
-        p.bank.append(BankItem(id: newBankUid(), color: color))
+        p.bank[slot] = BankItem(id: newBankUid(), color: color)
         puzzle = p
         engagedThisLevel = true
     }
 
-    // ─── tap / drag ──────────────────────────────────────────────────
+    // ─── tap handling ───────────────────────────────────────────────
 
-    func tapBank(uid: Int) {
-        guard !solved, let p = puzzle else { return }
-        if case .bank(let existing) = selection?.kind, existing == uid {
-            clearSelection(); return
+    func tapSlot(_ slot: Int) {
+        guard !solved, let p = puzzle, slot < p.bank.count else { return }
+
+        // Already-selected-as-source case
+        if let sel = selection {
+            switch sel.kind {
+            case .bank(let from):
+                if from == slot { clearSelection(); return }
+                moveSlotToSlot(from, slot)
+                clearSelection(); return
+            case .cell(let from):
+                placeCellIntoSlot(from, slot: slot)
+                clearSelection(); return
+            }
         }
-        guard let item = p.bank.first(where: { $0.id == uid }) else { return }
-        selection = BoardSelection(kind: .bank(uid))
+
+        // No selection — tapping an empty slot does nothing; tapping a
+        // slot with a swatch selects it.
+        guard let item = p.bank[slot] else { return }
+        selection = BoardSelection(kind: .bank(slot))
         activeColor = item.color
+        _ = item
     }
 
     func tapCell(at r: Int, _ c: Int) {
@@ -386,8 +439,8 @@ final class GameState {
 
         if let sel = selection {
             switch sel.kind {
-            case .bank(let uid):
-                placeBankIntoCell(uid: uid, at: r, c)
+            case .bank(let slot):
+                placeSlotIntoCell(slot, at: r, c)
                 clearSelection(); return
             case .cell(let from):
                 if from == idx { clearSelection(); return }
@@ -406,6 +459,8 @@ final class GameState {
         activeColor = nil
     }
 
+    // ─── drag plumbing ──────────────────────────────────────────────
+
     func beginDrag(_ source: DragSource, at loc: CGPoint) {
         dragSource = source
         dragLocation = loc
@@ -413,14 +468,6 @@ final class GameState {
         activeColor = nil
     }
 
-    func updateDrag(to loc: CGPoint, target: CellIndex?) {
-        dragLocation = loc
-        dropTarget = target
-    }
-
-    /// Convenience: callers pass raw finger position; we apply the
-    /// ghost lift internally so hit-tests and placement align with the
-    /// visible tile, not the hidden fingertip.
     func updateDrag(to loc: CGPoint) {
         dragLocation = loc
         dropTarget = hitTest(effectivePoint(loc))
@@ -432,18 +479,19 @@ final class GameState {
             dragLocation = nil
             dropTarget = nil
         }
-        guard let source = dragSource, let p = puzzle else { return }
-        if let t = dropTarget,
-           p.board[t.r][t.c].kind == .cell,
-           !p.board[t.r][t.c].locked {
-            switch source.kind {
-            case .bank(let uid):
-                placeBankIntoCell(uid: uid, at: t.r, t.c)
-            case .cell(let from):
+        guard let source = dragSource else { return }
+        if let target = dropTarget {
+            switch (source.kind, target) {
+            case (.bank(let slot), .cell(let t)):
+                placeSlotIntoCell(slot, at: t.r, t.c)
+            case (.cell(let from), .cell(let t)):
                 if from != t { moveCellToCell(from, t) }
+            case (.bank(let from), .slot(let to)):
+                if from != to { moveSlotToSlot(from, to) }
+            case (.cell(let from), .slot(let to)):
+                placeCellIntoSlot(from, slot: to)
             }
         } else if moved, case .cell(let from) = source.kind {
-            // Dropped a cell drag outside any cell → back to bank.
             cellToBank(from)
         }
     }
