@@ -11,14 +11,15 @@ struct ContentView: View {
 
     var body: some View {
         ZStack {
-            Color(red: 0xfa / 255, green: 0xf8 / 255, blue: 0xf5 / 255)
+            Color.black
                 .ignoresSafeArea()
 
             if game.generating || game.puzzle == nil {
                 VStack {
                     ProgressView("Building puzzle…")
                         .font(.system(size: 14, weight: .bold, design: .rounded))
-                        .tint(.gray)
+                        .tint(.white)
+                        .foregroundStyle(.white.opacity(0.7))
                 }
             } else {
                 VStack(spacing: 0) {
@@ -27,8 +28,17 @@ struct ContentView: View {
                     GridView(game: game)
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                         .padding(.horizontal, 22)
-                    BankView(game: game)
-                        .padding(.horizontal, 22)
+                    // Bank slides out on solve so the solved grid can
+                    // breathe; returns when handleNext loads a fresh
+                    // puzzle. Gentle spring matches the .solved transition
+                    // applied to the whole ZStack below.
+                    if !game.solved {
+                        BankView(game: game)
+                            .padding(.horizontal, 22)
+                            .transition(.asymmetric(
+                                insertion: .opacity.combined(with: .move(edge: .bottom)),
+                                removal: .opacity.combined(with: .move(edge: .bottom))))
+                    }
                 }
                 .padding(.vertical, 4)
             }
@@ -107,7 +117,7 @@ struct ContentView: View {
             if menuOpen { menuOpen = false }
             else if game.selection != nil { game.clearSelection() }
         }
-        .animation(.easeOut(duration: 0.38), value: game.solved)
+        .animation(.spring(response: 0.55, dampingFraction: 0.85), value: game.solved)
         .fullScreenCover(isPresented: $creatorOpen) {
             CreatorView(game: game)
         }

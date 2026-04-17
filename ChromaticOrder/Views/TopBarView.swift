@@ -7,24 +7,29 @@ struct TopBarView: View {
     @Bindable var game: GameState
     @Binding var menuOpen: Bool
 
+    // Palette for the dark-mode top bar. Primary text is near-white
+    // (full white glares), secondary is a softer gray.
+    private static let primaryText = Color.white.opacity(0.92)
+    private static let secondaryText = Color.white.opacity(0.6)
+
     var body: some View {
         HStack(spacing: 8) {
             // Left: level + tier
             HStack(spacing: 6) {
                 Text("Lv \(game.level)")
                     .font(.system(size: 14, weight: .heavy, design: .rounded))
-                    .foregroundStyle(Color(red: 0.2, green: 0.2, blue: 0.2))
+                    .foregroundStyle(Self.primaryText)
                 let t = game.tier
                 Text(t.label)
                     .font(.system(size: 11, weight: .bold, design: .rounded))
                     .foregroundStyle(hexColor(t.colorHex))
                     .padding(.horizontal, 8)
                     .padding(.vertical, 2)
-                    .background(hexColor(t.colorHex).opacity(0.09), in: Capsule())
+                    .background(hexColor(t.colorHex).opacity(0.18), in: Capsule())
                 if game.showedIncorrect {
                     Text("−1")
                         .font(.system(size: 9, weight: .bold, design: .rounded))
-                        .foregroundStyle(Color(red: 0.8, green: 0.2, blue: 0.2))
+                        .foregroundStyle(Color(red: 1.0, green: 0.4, blue: 0.4))
                 }
                 Spacer(minLength: 0)
             }
@@ -36,7 +41,7 @@ struct TopBarView: View {
                     Text("Zen Mode")
                         .font(.system(size: 12, weight: .heavy, design: .rounded))
                         .tracking(0.5)
-                        .foregroundStyle(Color(red: 0.27, green: 0.27, blue: 0.27))
+                        .foregroundStyle(Self.primaryText)
                 } else {
                     HStack(spacing: 8) {
                         HStack(spacing: 2) {
@@ -44,26 +49,23 @@ struct TopBarView: View {
                                 ForEach(0..<game.checks, id: \.self) { _ in
                                     Image(systemName: "heart.fill")
                                         .font(.system(size: 13))
-                                        .foregroundStyle(Color(red: 0.8, green: 0.2, blue: 0.2))
+                                        .foregroundStyle(Color(red: 1.0, green: 0.4, blue: 0.4))
                                 }
                             } else {
                                 Text("0 \u{2665}")
                                     .font(.system(size: 11, weight: .bold, design: .rounded))
-                                    .foregroundStyle(.secondary)
+                                    .foregroundStyle(Self.secondaryText)
                             }
                         }
-                        // Score lives next to hearts. Awarded on each
-                        // challenge-mode solve in proportion to
-                        // puzzle.difficulty — higher-tier levels pay more.
                         Text("\(game.score)")
                             .font(.system(size: 13, weight: .heavy, design: .rounded))
-                            .foregroundStyle(Color(red: 0.27, green: 0.27, blue: 0.27))
+                            .foregroundStyle(Self.primaryText)
                             .monospacedDigit()
                     }
                 }
             }
 
-            // Right: hamburger
+            // Right: hamburger — light outline capsule on dark bg.
             HStack {
                 Spacer(minLength: 0)
                 Button {
@@ -72,16 +74,18 @@ struct TopBarView: View {
                     Image(systemName: "line.3.horizontal")
                         .font(.system(size: 18, weight: .semibold))
                         .frame(width: 38, height: 34)
-                        .foregroundStyle(Color(red: 0.27, green: 0.27, blue: 0.27))
-                        .background(menuOpen ? Color.gray.opacity(0.15) : Color.white,
+                        .foregroundStyle(Self.primaryText)
+                        .background(menuOpen
+                                    ? Color.white.opacity(0.18)
+                                    : Color.white.opacity(0.08),
                                     in: Capsule())
-                        .overlay(Capsule().stroke(Color(red: 0.82, green: 0.80, blue: 0.78), lineWidth: 1.5))
+                        .overlay(
+                            Capsule().stroke(Color.white.opacity(0.25), lineWidth: 1)
+                        )
                 }
             }
             .frame(maxWidth: .infinity, alignment: .trailing)
         }
-        // No horizontal padding here — ContentView applies the screen
-        // gutter at the root so every row lines up against the same edge.
         .padding(.top, 10)
         .padding(.bottom, 8)
     }

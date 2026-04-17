@@ -28,10 +28,12 @@ struct CellView: View {
             if cell.kind == .dead {
                 Color.clear
             } else {
-                // Empty-cell tint
+                // Empty-cell tint — light-on-dark now that the backdrop
+                // is black. Translucent white keeps the empty slots
+                // visible without pulling focus from filled cells.
                 if !filled {
                     RoundedRectangle(cornerRadius: radius, style: .continuous)
-                        .fill(Color.black.opacity(0.05))
+                        .fill(Color.white.opacity(0.08))
                         .frame(width: cellPx, height: cellPx)
                 }
                 // Solved-burst glow behind color (z-order wise)
@@ -66,17 +68,18 @@ struct CellView: View {
                         .transition(.opacity.animation(.easeInOut(duration: 0.22)))
                 }
 
-                // Locked-cell dot
-                if cell.locked, filled {
-                    let L = placed?.L ?? 0.5
-                    let dotColor = L > 0.55
-                        ? Color.black.opacity(0.25)
-                        : Color.white.opacity(0.5)
-                    Circle()
-                        .fill(dotColor)
-                        .frame(width: 5, height: 5)
-                        .frame(width: cellPx, height: cellPx, alignment: .bottomTrailing)
-                        .padding(5)
+                // Locked-cell marker — interior border stroked in the
+                // cell's complementary color (opposite hue + inverted
+                // lightness, via OK.opposite). High-contrast, reads as
+                // "this cell is fixed." Disappears once the puzzle is
+                // solved so the completed grid shows nothing but color.
+                if cell.locked, filled, !game.solved, let color = placed {
+                    RoundedRectangle(cornerRadius: radius, style: .continuous)
+                        .strokeBorder(
+                            OK.toColor(OK.opposite(color), opacity: 0.85),
+                            lineWidth: max(2, cellPx * 0.08)
+                        )
+                        .frame(width: cellPx, height: cellPx)
                 }
 
                 // Red-outline wrong indicator
@@ -107,7 +110,11 @@ struct CellView: View {
         .simultaneousGesture(
             DragGesture(minimumDistance: 5, coordinateSpace: .global)
                 .onChanged { v in
-                    if filled, !cell.locked, game.dragSource == nil, let placedColor = placed {
+                    // No drags on locked cells, and nothing once the
+                    // puzzle is solved — the board is frozen after
+                    // completion so the finished gradient can breathe.
+                    if filled, !cell.locked, !game.solved,
+                       game.dragSource == nil, let placedColor = placed {
                         game.beginDrag(
                             DragSource(kind: .cell(CellIndex(r: r, c: c)), color: placedColor),
                             at: v.location

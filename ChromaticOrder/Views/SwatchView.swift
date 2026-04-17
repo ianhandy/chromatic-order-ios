@@ -24,11 +24,11 @@ struct BankSlotView: View {
             // the slot accepts drops.
             if item == nil {
                 RoundedRectangle(cornerRadius: radius, style: .continuous)
-                    .fill(Color.black.opacity(isDropTarget ? 0.03 : 0.02))
+                    .fill(Color.white.opacity(isDropTarget ? 0.10 : 0.06))
                     .overlay(
                         RoundedRectangle(cornerRadius: radius, style: .continuous)
                             .strokeBorder(
-                                Color.black.opacity(isDropTarget ? 0.12 : 0.06),
+                                Color.white.opacity(isDropTarget ? 0.35 : 0.18),
                                 style: StrokeStyle(lineWidth: 1.5, dash: [3, 3])
                             )
                     )
@@ -73,11 +73,9 @@ struct BankSlotView: View {
         .gesture(
             DragGesture(minimumDistance: 5, coordinateSpace: .global)
                 .onChanged { v in
-                    // Only empty the slot temporarily while dragging —
-                    // beginDrag stores the color; the actual bank
-                    // mutation happens on endDrag via placeSlotIntoCell
-                    // or moveSlotToSlot.
-                    if let item, game.dragSource == nil {
+                    // Nothing picks up once the puzzle is solved — the
+                    // board is frozen for the completion animation.
+                    if let item, game.dragSource == nil, !game.solved {
                         game.beginDrag(
                             DragSource(kind: .bank(slot), color: item.color),
                             at: v.location

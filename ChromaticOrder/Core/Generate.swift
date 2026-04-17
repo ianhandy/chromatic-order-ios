@@ -418,9 +418,8 @@ private func finalize(cells: [String: GrowCell],
             cells: specs, colors: colors))
     }
 
-    // Uniqueness guard — see web comments. Odd-length gradient whose
-    // only lock is at its exact center has two valid orderings; lock
-    // pos-0 too to remove the ambiguity.
+    // Uniqueness guard 1: odd-length gradient whose only lock sits at
+    // the exact center has two valid orderings; lock pos-0 too.
     for gi in 0..<outGrads.count {
         var g = outGrads[gi]
         let center = g.len % 2 == 1 ? (g.len - 1) / 2 : -1
@@ -433,6 +432,51 @@ private func finalize(cells: [String: GrowCell],
             lockedSet.insert("\(endpoint.r),\(endpoint.c)")
         }
         outGrads[gi] = g
+    }
+
+    // Uniqueness guard 2: scan every pair of free cells and lock one
+    // of any pair that's too close in color. canExtend rejects pairs
+    // below ΔE 2 (OK.equal); anything just past that — distinct to
+    // the math, indistinguishable to the solver — still makes
+    // playtesters flag the puzzle as "multiple solutions." Tighter
+    // threshold (ΔE 4) for the free-cell pool specifically, since
+    // these are the cells the player has to disambiguate.
+    let ambiguityThreshold: Double = 4.0
+    var freePositions: [(r: Int, c: Int, color: OKLCh, gid: Int)] = []
+    var seenPositions: Set<String> = []
+    for g in outGrads {
+        for spec in g.cells where !spec.locked {
+            let key = "\(spec.r),\(spec.c)"
+            if seenPositions.insert(key).inserted {
+                freePositions.append((spec.r, spec.c, spec.color, g.id))
+            }
+        }
+    }
+    // One lock per pass; repeat until no conflicts remain (bounded by
+    // the number of free cells so can't infinite-loop).
+    var guardPasses = 0
+    while guardPasses < freePositions.count {
+        guardPasses += 1
+        var flagged: (r: Int, c: Int)? = nil
+        outer: for i in 0..<freePositions.count {
+            for j in (i + 1)..<freePositions.count {
+                if OK.dist(freePositions[i].color, freePositions[j].color) < ambiguityThreshold {
+                    flagged = (freePositions[i].r, freePositions[i].c)
+                    break outer
+                }
+            }
+        }
+        guard let f = flagged else { break }
+        lockedSet.insert("\(f.r),\(f.c)")
+        for gi in 0..<outGrads.count {
+            var g = outGrads[gi]
+            var dirty = false
+            for k in 0..<g.cells.count where g.cells[k].r == f.r && g.cells[k].c == f.c {
+                if !g.cells[k].locked { g.cells[k].locked = true; dirty = true }
+            }
+            if dirty { outGrads[gi] = g }
+        }
+        freePositions.removeAll { $0.r == f.r && $0.c == f.c }
     }
 
     // Build board grid with solution colors + locks.

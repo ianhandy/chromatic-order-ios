@@ -23,7 +23,7 @@ struct BankView: View {
                 .font(.system(size: 10, weight: .bold, design: .rounded))
                 .tracking(1.2)
                 .textCase(.uppercase)
-                .foregroundStyle(Color(red: 0.69, green: 0.66, blue: 0.61))
+                .foregroundStyle(Color.white.opacity(0.5))
 
             if game.mode == .challenge, !game.solved {
                 Button {
@@ -114,7 +114,10 @@ struct BankView: View {
 
     private var instrText: String {
         guard let p = game.puzzle else { return "" }
-        if game.solved { return "\u{1F3A8} Solved!" }
+        // Solved: text goes silent — the solved grid speaks for itself.
+        // BankView is hidden entirely on solve anyway (ContentView); this
+        // fallback is belt-and-suspenders.
+        if game.solved { return "" }
         if p.bank.allSatisfy({ $0 == nil }) { return "All placed — check your gradients" }
         if case .bank = game.selection?.kind { return "Tap a cell or slot to place" }
         if case .cell = game.selection?.kind { return "Tap another cell, empty cell, or slot" }
