@@ -130,15 +130,27 @@ struct CreatorView: View {
 
                 Spacer()
 
-                // Share: builds an export string + intro + link on the
-                // fly. ShareLink handles the system sheet natively.
-                if let b = built {
+                // Share: attaches a .json file (KromaPuzzleFile) so the
+                // recipient gets a real file attachment — save to
+                // Files, preview in Mail, forward via AirDrop — instead
+                // of a wall of text pasted into the message body. The
+                // App Store link rides in the `message` slot so
+                // non-installers still get pointed to the app.
+                if let b = built,
+                   let json = try? CreatorCodec.encodeString(
+                        state,
+                        difficulty: b.validation.difficulty) {
+                    let file = KromaPuzzleFile(
+                        json: json,
+                        difficulty: b.validation.difficulty
+                    )
                     ShareLink(
-                        item: shareText(for: b),
-                        subject: Text("A puzzle from Chromatic Order"),
-                        message: Text("Try this puzzle I made!"),
+                        item: file,
+                        subject: Text("A Kroma puzzle"),
+                        message: Text("difficulty \(b.validation.difficulty)/10 — https://apps.apple.com/app/kroma"),
                         preview: SharePreview(
-                            "Puzzle · difficulty \(b.validation.difficulty)"
+                            "Kroma puzzle (\(b.validation.difficulty)/10)",
+                            image: Image(systemName: "paintpalette.fill")
                         )
                     ) {
                         Label("Share", systemImage: "square.and.arrow.up")
@@ -218,20 +230,6 @@ struct CreatorView: View {
         }
     }
 
-    /// Text payload for the Share sheet. Contains a short intro + the
-    /// JSON doc + the App Store link so recipients without the app get
-    /// pointed to the install page.
-    private func shareText(for b: (puzzle: Puzzle, validation: CreatorValidation)) -> String {
-        let json = (try? CreatorCodec.encodeString(state, difficulty: b.validation.difficulty)) ?? ""
-        let appStore = "https://apps.apple.com/app/chromatic-order"
-        return """
-        I made a puzzle in Chromatic Order — difficulty \(b.validation.difficulty)/10.
-
-        \(json)
-
-        Don't have the app? \(appStore)
-        """
-    }
 }
 
 // ─── Color chips ─────────────────────────────────────────────────────
