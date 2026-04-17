@@ -21,6 +21,10 @@ struct CreatorPuzzleDoc: Codable {
     var level: Int?
     var mode: String?
     var cbMode: String?
+    /// Player-chosen title. Optional so legacy docs still decode; when
+    /// absent, the gallery falls back to a derived "Puzzle d/10 · …"
+    /// summary. Edits in the gallery populate this.
+    var name: String?
 
     struct Grad: Codable {
         let dir: String       // "h" | "v"
@@ -49,7 +53,7 @@ enum CreatorCodec {
     /// @MainActor because CreatorState is isolated to the main actor
     /// and we read its gradients array here.
     @MainActor
-    static func encode(_ state: CreatorState, difficulty: Int? = nil) throws -> Data {
+    static func encode(_ state: CreatorState, difficulty: Int? = nil, name: String? = nil) throws -> Data {
         let doc = CreatorPuzzleDoc(
             version: CreatorPuzzleDoc.currentVersion,
             gridW: CreatorState.canvasCols,
@@ -65,7 +69,8 @@ enum CreatorCodec {
                     }
                 )
             },
-            difficulty: difficulty
+            difficulty: difficulty,
+            name: name
         )
         let enc = JSONEncoder()
         enc.outputFormatting = [.sortedKeys, .prettyPrinted]
@@ -73,9 +78,31 @@ enum CreatorCodec {
     }
 
     @MainActor
-    static func encodeString(_ state: CreatorState, difficulty: Int? = nil) throws -> String {
-        let data = try encode(state, difficulty: difficulty)
+    static func encodeString(_ state: CreatorState, difficulty: Int? = nil, name: String? = nil) throws -> String {
+        let data = try encode(state, difficulty: difficulty, name: name)
         return String(data: data, encoding: .utf8) ?? ""
+    }
+
+    /// Pre-populate a CreatorState from a saved doc so the gallery's
+    /// "Edit" flow can open the creator with the existing layout.
+    /// Canvas dims come from the state's static constants, so docs
+    /// authored at a different canvas size get clamped silently.
+    @MainActor
+    static func populate(_ state: CreatorState, from doc: CreatorPuzzleDoc) {
+        state.gradients = doc.gradients.map { grad in
+            let dir: Direction = grad.dir == "v" ? .v : .h
+            let cells = grad.cells.map { CellIndex(r: $0.r, c: $0.c) }
+            let colors = grad.cells.map { OKLCh(L: $0.L, c: $0.C, h: $0.h) }
+            return LaidGradient(dir: dir, cells: cells, colors: colors)
+        }
+        state.manualLocks = Set(
+            doc.gradients.flatMap { grad in
+                grad.cells.compactMap { cell in
+                    (cell.locked == true) ? CellIndex(r: cell.r, c: cell.c) : nil
+                }
+            }
+        )
+        state.cancelDrag()
     }
 
     /// Round-trip: rehydrate a CreatorState from a share payload.

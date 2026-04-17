@@ -15,6 +15,9 @@ struct GalleryView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var puzzles: [GalleryPuzzle] = []
     @State private var creatorOpen = false
+    @State private var editingPuzzle: GalleryPuzzle? = nil
+    @State private var renameTarget: GalleryPuzzle? = nil
+    @State private var renameText: String = ""
 
     var body: some View {
         NavigationStack {
@@ -43,7 +46,28 @@ struct GalleryView: View {
         .fullScreenCover(isPresented: $creatorOpen, onDismiss: reload) {
             CreatorView(game: game, saveOnPlay: true)
         }
+        .fullScreenCover(item: $editingPuzzle, onDismiss: reload) { puzzle in
+            CreatorView(game: game, saveOnPlay: false, editing: puzzle)
+        }
+        .alert("Rename puzzle", isPresented: Binding(
+            get: { renameTarget != nil },
+            set: { if !$0 { renameTarget = nil } }
+        )) {
+            TextField("Name", text: $renameText)
+            Button("Save") { commitRename() }
+            Button("Cancel", role: .cancel) { renameTarget = nil }
+        } message: {
+            Text("Give this puzzle a memorable name.")
+        }
         .onAppear(perform: reload)
+    }
+
+    private func commitRename() {
+        guard let target = renameTarget else { return }
+        try? GalleryStore.rename(target, to: renameText)
+        renameTarget = nil
+        renameText = ""
+        reload()
     }
 
     private var emptyState: some View {
@@ -82,12 +106,51 @@ struct GalleryView: View {
                     .onTapGesture {
                         play(puzzle)
                     }
-            }
-            .onDelete { indexSet in
-                for idx in indexSet {
-                    try? GalleryStore.delete(puzzles[idx])
-                }
-                reload()
+                    .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                        Button(role: .destructive) {
+                            try? GalleryStore.delete(puzzle)
+                            reload()
+                        } label: {
+                            Label("Delete", systemImage: "trash")
+                        }
+                        Button {
+                            editingPuzzle = puzzle
+                        } label: {
+                            Label("Edit", systemImage: "pencil")
+                        }
+                        .tint(.blue)
+                        Button {
+                            renameText = puzzle.doc.name ?? ""
+                            renameTarget = puzzle
+                        } label: {
+                            Label("Rename", systemImage: "tag")
+                        }
+                        .tint(.indigo)
+                    }
+                    .contextMenu {
+                        Button {
+                            play(puzzle)
+                        } label: {
+                            Label("Play", systemImage: "play.fill")
+                        }
+                        Button {
+                            editingPuzzle = puzzle
+                        } label: {
+                            Label("Edit", systemImage: "pencil")
+                        }
+                        Button {
+                            renameText = puzzle.doc.name ?? ""
+                            renameTarget = puzzle
+                        } label: {
+                            Label("Rename", systemImage: "tag")
+                        }
+                        Button(role: .destructive) {
+                            try? GalleryStore.delete(puzzle)
+                            reload()
+                        } label: {
+                            Label("Delete", systemImage: "trash")
+                        }
+                    }
             }
         }
     }
@@ -127,9 +190,9 @@ private struct GalleryRow: View {
             }
 
             VStack(alignment: .leading, spacing: 2) {
-                Text(puzzle.displayTitle)
+                Text(puzzle.displayName)
                     .font(.system(size: 13, weight: .semibold))
-                Text(relativeDate(puzzle.createdAt))
+                Text("\(puzzle.subtitle) · \(relativeDate(puzzle.createdAt))")
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
             }

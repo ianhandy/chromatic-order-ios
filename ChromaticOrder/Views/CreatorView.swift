@@ -24,6 +24,9 @@ struct CreatorView: View {
     /// (shift mode). Bound to state.endColor == nil via a two-way
     /// intermediary so the sheet toggle reads/writes naturally.
     @State private var endDisabled = false
+    @State private var name: String = ""
+    @State private var showHelp: Bool = false
+    @State private var didLoadEditing: Bool = false
 
     @Bindable var game: GameState
     /// When true, the Play button also writes the puzzle to the
@@ -31,23 +34,46 @@ struct CreatorView: View {
     /// Gallery view; the top-level menu's "Create Puzzle…" entry
     /// leaves it false (one-off play, not a keep-forever save).
     var saveOnPlay: Bool = false
+    /// Non-nil when opened from a gallery row's "Edit" action. On
+    /// appear we rehydrate `state` from its doc; Save overwrites this
+    /// entry instead of creating a new one.
+    var editing: GalleryPuzzle? = nil
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
         NavigationStack {
             VStack(spacing: 12) {
+                nameField
                 colorBar
+                toolPicker
                 CanvasView(state: state)
                     .padding(.horizontal, 14)
                 toolBar
             }
             .padding(.vertical, 10)
-            .navigationTitle("Create")
+            .navigationTitle(editing == nil ? "Create" : "Edit")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Close") { dismiss() }
                 }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button {
+                        showHelp = true
+                    } label: {
+                        Image(systemName: "questionmark.circle")
+                    }
+                }
+            }
+            .onAppear {
+                if !didLoadEditing, let e = editing {
+                    CreatorCodec.populate(state, from: e.doc)
+                    name = e.doc.name ?? ""
+                    didLoadEditing = true
+                }
+            }
+            .sheet(isPresented: $showHelp) {
+                CreatorHelpSheet()
             }
             .sheet(isPresented: $pickingStart) {
                 ColorPickerSheet(color: $state.startColor, title: "Start color")
@@ -76,6 +102,90 @@ struct CreatorView: View {
 
     private func syncEndToggle() {
         endDisabled = state.endColor == nil
+    }
+
+    /// Write-back helper for the Play button. When editing, overwrite
+    /// the original gallery entry with the current layout + name.
+    /// When creating + saveOnPlay, save a new entry. Otherwise no-op
+    /// (one-off play from the main-menu "Create Puzzle" path).
+    private func persistIfNeeded(puzzle: Puzzle, difficulty: Int) {
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        let chosenName: String? = trimmed.isEmpty ? nil : trimmed
+        if let editing {
+            let json = (try? CreatorCodec.encodePuzzle(puzzle)) ?? ""
+            guard let data = json.data(using: .utf8),
+                  var doc = try? CreatorCodec.decode(data) else { return }
+            doc.name = chosenName
+            doc.difficulty = difficulty
+            try? GalleryStore.overwrite(editing, with: doc)
+        } else if saveOnPlay {
+            _ = try? GalleryStore.saveNamed(puzzle, name: chosenName)
+        }
+    }
+
+    // ─── Name field ─────────────────────────────────────────────────
+
+    private var nameField: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "tag")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(.secondary)
+            TextField("Untitled puzzle", text: $name)
+                .textFieldStyle(.plain)
+                .font(.system(size: 14, weight: .semibold))
+                .submitLabel(.done)
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 8)
+        .background(
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .fill(Color.white.opacity(0.06))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .stroke(Color.white.opacity(0.12), lineWidth: 1)
+        )
+        .padding(.horizontal, 14)
+    }
+
+    // ─── Tool picker ────────────────────────────────────────────────
+
+    private var toolPicker: some View {
+        HStack(spacing: 8) {
+            toolButton(.paint, system: "paintbrush.fill", label: "Paint")
+            toolButton(.erase, system: "eraser.fill", label: "Erase")
+            toolButton(.eyedropper, system: "eyedropper", label: "Pick")
+            Spacer()
+        }
+        .padding(.horizontal, 14)
+    }
+
+    @ViewBuilder
+    private func toolButton(_ t: CreatorState.Tool, system: String, label: String) -> some View {
+        let selected = state.tool == t
+        Button {
+            state.tool = t
+            state.cancelDrag()
+        } label: {
+            HStack(spacing: 6) {
+                Image(systemName: system)
+                    .font(.system(size: 12, weight: .semibold))
+                Text(label)
+                    .font(.system(size: 12, weight: .semibold))
+            }
+            .foregroundStyle(selected ? Color.white : Color.white.opacity(0.6))
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            .background(
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .fill(selected ? Color.white.opacity(0.18) : Color.white.opacity(0.06))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .stroke(Color.white.opacity(selected ? 0.35 : 0.12), lineWidth: 1)
+            )
+        }
+        .buttonStyle(.plain)
     }
 
     // ─── Top: color swatches + Δ readout ────────────────────────────
@@ -178,12 +288,7 @@ struct CreatorView: View {
 
                 Button {
                     if let b = built, b.validation.playable {
-                        if saveOnPlay {
-                            // Persist to the gallery before handing
-                            // to the game, so the player can come
-                            // back to this layout later.
-                            _ = try? GalleryStore.save(b.puzzle)
-                        }
+                        persistIfNeeded(puzzle: b.puzzle, difficulty: b.validation.difficulty)
                         game.loadCustomPuzzle(b.puzzle)
                         dismiss()
                     }
@@ -366,29 +471,44 @@ private struct CanvasView: View {
             .gesture(
                 DragGesture(minimumDistance: 0, coordinateSpace: .global)
                     .onChanged { v in
-                        if state.dragStart == nil {
-                            if let hit = state.cellFrames.first(where: {
-                                $0.value.contains(v.location)
-                            })?.key {
-                                state.beginDrag(at: hit)
+                        let hit = state.cellFrames.first(where: {
+                            $0.value.contains(v.location)
+                        })?.key
+                        switch state.tool {
+                        case .paint:
+                            if state.dragStart == nil {
+                                if let hit { state.beginDrag(at: hit) }
+                            } else {
+                                state.updateDrag(to: v.location)
                             }
-                        } else {
-                            state.updateDrag(to: v.location)
+                        case .erase:
+                            if let hit { state.eraseHits.insert(hit) }
+                        case .eyedropper:
+                            if let hit { state.pickColor(at: hit) }
                         }
                     }
                     .onEnded { _ in
-                        // A gesture that never moved (dragAxis never
-                        // locked) is treated as a tap. On a committed
-                        // cell, tap toggles the revealed-at-start lock;
-                        // on an empty cell it's a no-op. Anything with
-                        // a locked axis is a drag and goes to commit.
-                        if state.dragAxis == nil,
-                           let start = state.dragStart,
-                           state.committedCells[start] != nil {
-                            state.toggleLock(at: start)
-                            state.cancelDrag()
-                        } else {
-                            _ = state.commitDrag()
+                        switch state.tool {
+                        case .paint:
+                            // A gesture that never moved (dragAxis
+                            // never locked) is treated as a tap. On a
+                            // committed cell, tap toggles the
+                            // revealed-at-start lock; on an empty cell
+                            // it's a no-op. Anything with a locked
+                            // axis is a drag and goes to commit.
+                            if state.dragAxis == nil,
+                               let start = state.dragStart,
+                               state.committedCells[start] != nil {
+                                state.toggleLock(at: start)
+                                state.cancelDrag()
+                            } else {
+                                _ = state.commitDrag()
+                            }
+                        case .erase:
+                            state.erase(cells: state.eraseHits)
+                            state.eraseHits.removeAll()
+                        case .eyedropper:
+                            break
                         }
                     }
             )
@@ -397,6 +517,97 @@ private struct CanvasView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+}
+
+// ─── Help sheet ──────────────────────────────────────────────────────
+
+struct CreatorHelpSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 18) {
+                    section(
+                        icon: "paintbrush.fill",
+                        title: "Paint mode",
+                        body: """
+                        Tap the Start chip to pick a color.
+                        Tap the End chip to pick an end color — or switch to Shift \
+                        mode and dial Δh / ΔL / Δc for a stepped gradient.
+
+                        Drag across the canvas to lay the gradient. The preview \
+                        snaps to horizontal or vertical.
+
+                        Tap an empty cell next to an existing gradient to extend \
+                        it by one — continue dragging to keep extending. Tap a \
+                        painted cell to mark it as a starter clue (or clear it).
+                        """
+                    )
+                    section(
+                        icon: "eraser.fill",
+                        title: "Erase mode",
+                        body: """
+                        Tap or drag across painted cells to remove the gradient(s) \
+                        they belong to. Erase works on whole gradients — not \
+                        single cells.
+                        """
+                    )
+                    section(
+                        icon: "eyedropper",
+                        title: "Pick mode",
+                        body: """
+                        Tap any painted cell to copy its color into the Start \
+                        chip. Drag to scrub — the Start color updates live as \
+                        your finger moves.
+                        """
+                    )
+                    section(
+                        icon: "square.grid.3x3",
+                        title: "Intersections",
+                        body: """
+                        Where two gradients cross, the shared cell belongs to \
+                        both. Intersections are auto-locked as starter clues so \
+                        the puzzle has a unique solution.
+                        """
+                    )
+                    section(
+                        icon: "checkmark.seal.fill",
+                        title: "Ready to play",
+                        body: """
+                        Lay at least one gradient with at least one free cell. \
+                        The validation banner flags any issues (no clues, \
+                        repeated colors, direction ambiguity). Press Play when \
+                        it's green.
+                        """
+                    )
+                }
+                .padding(20)
+            }
+            .navigationTitle("How to create")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done") { dismiss() }
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func section(icon: String, title: String, body: String) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 8) {
+                Image(systemName: icon)
+                    .font(.system(size: 15, weight: .semibold))
+                Text(title)
+                    .font(.system(size: 15, weight: .bold))
+            }
+            Text(body)
+                .font(.system(size: 13))
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
     }
 }
 

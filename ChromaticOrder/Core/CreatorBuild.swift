@@ -206,12 +206,17 @@ enum CreatorBuilder {
 
         // 3. Direction ambiguity — a gradient with only one lock at
         // the exact center of an odd-length line has two valid
-        // orderings. Auto-lock path handles this, but manual-lock
-        // users can hit it.
+        // orderings. A non-center intersection also anchors the
+        // gradient via the crossing one's solution, so count those
+        // as disambiguators too — otherwise the warning fires on
+        // perfectly solvable layouts where a cross pins a side.
         for g in outGrads {
             let center = g.len % 2 == 1 ? (g.len - 1) / 2 : -1
             let locks = g.cells.filter { $0.locked }
-            if locks.count == 1, locks[0].pos == center {
+            let nonCenterAnchor = g.cells.contains { spec in
+                spec.pos != center && (spec.locked || spec.isIntersection)
+            }
+            if !nonCenterAnchor, locks.count == 1, locks[0].pos == center {
                 warnings.append("A gradient has only a center clue — either direction works. Lock a second cell.")
                 break
             }

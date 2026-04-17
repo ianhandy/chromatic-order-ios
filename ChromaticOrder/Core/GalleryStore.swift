@@ -12,8 +12,14 @@ struct GalleryPuzzle: Identifiable {
     let url: URL
     let createdAt: Date
     let doc: CreatorPuzzleDoc
-    var displayTitle: String {
+    /// Player-chosen name, or nil if never set. Falls back to
+    /// `autoTitle` in the UI when absent.
+    var displayName: String { doc.name?.isEmpty == false ? doc.name! : autoTitle }
+    var autoTitle: String {
         "Puzzle \(doc.difficulty ?? 0)/10 · \(doc.gradients.count) grads · \(doc.gridW)×\(doc.gridH)"
+    }
+    var subtitle: String {
+        "Difficulty \(doc.difficulty ?? 0)/10 · \(doc.gradients.count) gradients"
     }
 }
 
@@ -38,6 +44,26 @@ enum GalleryStore {
         let filename = "\(ts)-\(UUID().uuidString.prefix(8)).kroma"
         let url = rootDir.appendingPathComponent(filename)
         try json.data(using: .utf8)?.write(to: url, options: .atomic)
+        return url
+    }
+
+    /// Save a live Puzzle with an optional player-chosen name baked
+    /// into the JSON doc. Same timestamp-prefixed filename scheme as
+    /// `save(_:)` so ordering stays stable.
+    static func saveNamed(_ puzzle: Puzzle, name: String?) throws -> URL {
+        let json = try CreatorCodec.encodePuzzle(puzzle)
+        // Decode → set name → re-encode, so the stored file has the
+        // title embedded. One extra round-trip per save — cheap.
+        guard let data = json.data(using: .utf8),
+              var doc = try? CreatorCodec.decode(data) else {
+            throw NSError(domain: "GalleryStore", code: 2,
+                          userInfo: [NSLocalizedDescriptionKey: "Could not re-encode puzzle for save."])
+        }
+        doc.name = name
+        let ts = Int(Date().timeIntervalSince1970)
+        let filename = "\(ts)-\(UUID().uuidString.prefix(8)).kroma"
+        let url = rootDir.appendingPathComponent(filename)
+        try write(doc, to: url)
         return url
     }
 
@@ -80,5 +106,29 @@ enum GalleryStore {
     /// Delete a saved puzzle. No-op if the file is already gone.
     static func delete(_ puzzle: GalleryPuzzle) throws {
         try? FileManager.default.removeItem(at: puzzle.url)
+    }
+
+    /// Rename a puzzle in place — rewrites the file with `doc.name`
+    /// updated. The filename stays timestamped so ordering survives
+    /// the rename; we're only touching the JSON body.
+    static func rename(_ puzzle: GalleryPuzzle, to newName: String) throws {
+        var doc = puzzle.doc
+        let trimmed = newName.trimmingCharacters(in: .whitespacesAndNewlines)
+        doc.name = trimmed.isEmpty ? nil : trimmed
+        try write(doc, to: puzzle.url)
+    }
+
+    /// Overwrite the saved puzzle's contents with a new doc (used by
+    /// the gallery's "Edit" flow). Filename + creation date unchanged
+    /// so the entry stays in place in the list.
+    static func overwrite(_ puzzle: GalleryPuzzle, with doc: CreatorPuzzleDoc) throws {
+        try write(doc, to: puzzle.url)
+    }
+
+    private static func write(_ doc: CreatorPuzzleDoc, to url: URL) throws {
+        let enc = JSONEncoder()
+        enc.outputFormatting = [.sortedKeys, .prettyPrinted]
+        let data = try enc.encode(doc)
+        try data.write(to: url, options: .atomic)
     }
 }

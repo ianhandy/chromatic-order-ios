@@ -15,6 +15,16 @@ final class CreatorState {
     static let canvasCols: Int = 11
     static let canvasRows: Int = 9
 
+    /// Active creator tool. Paint is the default; erase deletes
+    /// gradients the finger touches; eyedropper copies a committed
+    /// cell's color onto `startColor`.
+    enum Tool { case paint, erase, eyedropper }
+    var tool: Tool = .paint
+
+    /// Cells visited while dragging in erase mode. Drained to
+    /// `gradients.removeAll(...)` on drag end.
+    var eraseHits: Set<CellIndex> = []
+
     // Laid gradients. Order matters for undo (last laid = undone first).
     var gradients: [LaidGradient] = []
 
@@ -130,6 +140,31 @@ final class CreatorState {
     // ─── Actions ────────────────────────────────────────────────────
 
     func beginDrag(at idx: CellIndex) {
+        let committed = committedCells
+        // Empty cell adjacent to exactly one committed cell → pre-seed
+        // the drag as if it started from that neighbor, locking the
+        // axis in the neighbor-to-tapped direction. Lets the player
+        // tap-to-extend a palette one cell (onEnded commits the 2-cell
+        // line) and drag to keep extending. Skipped when the tapped
+        // cell has multiple committed neighbors — axis is ambiguous.
+        if committed[idx] == nil {
+            let candidates: [(axis: Direction, neighbor: CellIndex)] = [
+                (.h, CellIndex(r: idx.r, c: idx.c - 1)),
+                (.h, CellIndex(r: idx.r, c: idx.c + 1)),
+                (.v, CellIndex(r: idx.r - 1, c: idx.c)),
+                (.v, CellIndex(r: idx.r + 1, c: idx.c)),
+            ].filter { committed[$0.neighbor] != nil }
+            if candidates.count == 1 {
+                let seed = candidates[0]
+                dragStart = seed.neighbor
+                dragCurrent = idx
+                dragAxis = seed.axis
+                dragStartOverride = committed[seed.neighbor]
+                dragEndOverride = nil
+                dragInvalid = previewConflicts()
+                return
+            }
+        }
         dragStart = idx
         dragCurrent = idx
         dragAxis = nil
@@ -137,7 +172,26 @@ final class CreatorState {
         // If the player grabbed an already-committed cell, anchor the
         // new gradient at that cell's color — lets them extend or
         // branch without re-selecting the start chip.
-        dragStartOverride = committedCells[idx]
+        dragStartOverride = committed[idx]
+    }
+
+    /// Erase the gradient(s) containing any of the tapped cells. Used
+    /// by the erase tool — single-tap erase clears the hit gradient;
+    /// drag-erase accumulates cells and clears everything touched when
+    /// the finger lifts.
+    func erase(cells: Set<CellIndex>) {
+        guard !cells.isEmpty else { return }
+        gradients.removeAll { g in
+            g.cells.contains(where: { cells.contains($0) })
+        }
+        manualLocks.subtract(cells)
+    }
+
+    /// Eyedropper — copy a committed cell's color onto `startColor`.
+    /// Silent no-op on empty cells so the drag-scrub path doesn't
+    /// overwrite with a stale value when the finger leaves the grid.
+    func pickColor(at idx: CellIndex) {
+        if let c = committedCells[idx] { startColor = c }
     }
 
     func updateDrag(to loc: CGPoint) {
@@ -168,10 +222,34 @@ final class CreatorState {
                 ? CellIndex(r: start.r, c: cur.c)
                 : CellIndex(r: cur.r,   c: start.c)
         }()
-        dragCurrent = snapped
-        // Re-check end override every tick — the current cell changes
-        // as the finger moves.
+        // Re-check end override against the snapped cell before we
+        // clamp — if the player is landing ON a committed cell, the
+        // anchored end color defines the gradient's range and the
+        // clamp below should respect that.
         dragEndOverride = committedCells[snapped]
+        // Extrapolation clamp — when the preview would extend past the
+        // usable L/C band (shift mode or past-anchor extrapolation),
+        // truncate dragCurrent to the furthest cell whose interpolated
+        // color still lives inside the band. Gives the drag a natural
+        // "wall" at the palette's edge instead of letting colors march
+        // off into clipped / oversaturated territory.
+        dragCurrent = snapped
+        if let axis = dragAxis {
+            let trial = lineCells(from: start, to: snapped, axis: axis)
+            let colors = interpolatedColors(along: trial)
+            var lastValid = 0
+            for i in 0..<trial.count {
+                if OK.inUsableBand(colors[i]) {
+                    lastValid = i
+                } else {
+                    break
+                }
+            }
+            if lastValid < trial.count - 1 {
+                dragCurrent = trial[lastValid]
+                dragEndOverride = committedCells[trial[lastValid]]
+            }
+        }
         dragInvalid = previewConflicts()
     }
 
