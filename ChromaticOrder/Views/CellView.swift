@@ -68,18 +68,16 @@ struct CellView: View {
                         .transition(.opacity.animation(.easeInOut(duration: 0.22)))
                 }
 
-                // Locked-cell marker — interior border stroked in the
-                // cell's complementary color (opposite hue + inverted
-                // lightness, via OK.opposite). High-contrast, reads as
-                // "this cell is fixed." Disappears once the puzzle is
-                // solved so the completed grid shows nothing but color.
+                // Locked-cell marker — small filled dot at the cell's
+                // center, painted in the cell's complementary color
+                // (opposite hue + inverted lightness via OK.opposite).
+                // High contrast against the cell's own color, reads as
+                // "this cell is fixed." Hidden once the puzzle is
+                // solved so the completed grid is just color.
                 if cell.locked, filled, !game.solved, let color = placed {
-                    RoundedRectangle(cornerRadius: radius, style: .continuous)
-                        .strokeBorder(
-                            OK.toColor(OK.opposite(color), opacity: 0.85),
-                            lineWidth: max(2, cellPx * 0.08)
-                        )
-                        .frame(width: cellPx, height: cellPx)
+                    Circle()
+                        .fill(OK.toColor(OK.opposite(color), opacity: 0.9))
+                        .frame(width: cellPx * 0.22, height: cellPx * 0.22)
                 }
 
                 // Red-outline wrong indicator

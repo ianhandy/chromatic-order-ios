@@ -131,32 +131,37 @@ struct ContentView: View {
 private struct DragGhost: View {
     let color: OKLCh
     let location: CGPoint
-    /// When set, the ghost shrinks to this cell size and sits at
-    /// `location` — the "sucked into the cell" visual. When nil,
-    /// it expands back to its floating-above-finger default.
+    /// When non-nil, magnetism has locked onto a cell. The ghost
+    /// shrinks to that cell's size, drops its shadow, and fades out —
+    /// the target cell's drop-tint takes over as the visual so the
+    /// color doesn't double-render (once in the hand, once in the
+    /// cell). When demagnetized, the ghost fades back in at its
+    /// floating-above-finger size.
     let snapSize: CGSize?
     var body: some View {
         let defaultPx: CGFloat = 56
         let size = snapSize ?? CGSize(width: defaultPx, height: defaultPx)
         let radius = min(size.width, size.height) * 0.28
-        // Scale up a touch while floating (1.15x) — and back to 1.0
-        // when snapped so the ghost matches the cell exactly.
-        let scale: CGFloat = snapSize == nil ? 1.15 : 1.0
+        let isMagnetized = snapSize != nil
+        let scale: CGFloat = isMagnetized ? 1.0 : 1.15
+        let opacity: Double = isMagnetized ? 0.0 : 1.0
         RoundedRectangle(cornerRadius: radius, style: .continuous)
             .fill(OK.toColor(color))
             .frame(width: size.width, height: size.height)
             .scaleEffect(scale)
-            .shadow(color: .black.opacity(snapSize == nil ? 0.22 : 0.0),
-                    radius: snapSize == nil ? 12 : 0,
-                    y: snapSize == nil ? 6 : 0)
+            .shadow(color: .black.opacity(isMagnetized ? 0.0 : 0.22),
+                    radius: isMagnetized ? 0 : 12,
+                    y: isMagnetized ? 0 : 6)
+            .opacity(opacity)
             .position(location)
-            // Snappy spring so the suck-in feels decisive (not sluggish)
-            // but dampens enough to avoid a jittery bounce when the
-            // finger hovers right at the edge of a cell's catch rect.
+            // Snappy spring for position + size; slightly longer
+            // opacity fade so the ghost visibly "sucks into" the cell
+            // before disappearing (shrinks + fades as the cell tint
+            // swells in underneath).
             .animation(.spring(response: 0.20, dampingFraction: 0.78), value: location)
             .animation(.spring(response: 0.20, dampingFraction: 0.78), value: size.width)
             .animation(.spring(response: 0.20, dampingFraction: 0.78), value: size.height)
-            .animation(.easeOut(duration: 0.18), value: scale)
+            .animation(.easeOut(duration: 0.20), value: isMagnetized)
     }
 }
 
