@@ -7,10 +7,11 @@ struct SwatchView: View {
     let item: BankItem
     let index: Int
     @Bindable var game: GameState
+    var size: CGFloat = 48
     @State private var sway: CGFloat = 0
 
     var body: some View {
-        let px: CGFloat = 48
+        let px: CGFloat = size
         let radius: CGFloat = px * 0.28
         let isPicked: Bool = {
             if case .bank(let uid) = game.selection?.kind { return uid == item.id }

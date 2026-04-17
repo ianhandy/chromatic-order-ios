@@ -41,22 +41,66 @@ struct BankView: View {
                 .disabled(game.checks <= 0)
             }
 
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 8) {
-                    if let p = game.puzzle {
-                        ForEach(Array(p.bank.enumerated()), id: \.element.id) { pair in
-                            SwatchView(
-                                item: pair.element,
-                                index: pair.offset,
-                                game: game
-                            )
+            // Bank layout that GUARANTEES every swatch is visible without
+            // scrolling: pick a column count that keeps rows ≤ maxRows,
+            // then shrink the swatches to fit the available width. As
+            // the bank grows (Expert levels can have 30-50 swatches),
+            // swatches get smaller rather than wrapping to more rows.
+            if let p = game.puzzle, !p.bank.isEmpty {
+                GeometryReader { geo in
+                    let bank = p.bank
+                    let maxRows = 3
+                    let spacing: CGFloat = 6
+                    let cols = max(1, Int(ceil(Double(bank.count) / Double(maxRows))))
+                    let maxSize: CGFloat = 56
+                    let availW = max(0, geo.size.width)
+                    let fit = (availW - CGFloat(cols - 1) * spacing) / CGFloat(cols)
+                    let swatchSize = max(22, min(maxSize, fit))
+                    let rows = Int(ceil(Double(bank.count) / Double(cols)))
+                    let totalHeight = CGFloat(rows) * swatchSize + CGFloat(rows - 1) * spacing
+                    VStack(spacing: spacing) {
+                        ForEach(0..<rows, id: \.self) { rIdx in
+                            HStack(spacing: spacing) {
+                                ForEach(0..<cols, id: \.self) { cIdx in
+                                    let idx = rIdx * cols + cIdx
+                                    if idx < bank.count {
+                                        SwatchView(
+                                            item: bank[idx],
+                                            index: idx,
+                                            game: game,
+                                            size: swatchSize
+                                        )
+                                    } else {
+                                        Color.clear
+                                            .frame(width: swatchSize, height: swatchSize)
+                                    }
+                                }
+                            }
                         }
                     }
+                    .frame(width: availW, height: totalHeight, alignment: .center)
                 }
-                .padding(.horizontal, 14)
+                .frame(height: bankContentHeight(bankCount: p.bank.count))
             }
         }
         .padding(.vertical, 12)
+    }
+
+    // Height the bank VStack should reserve for its swatches. Matches
+    // the GeometryReader math above so the layout is stable regardless
+    // of how many swatches are in the bank.
+    private func bankContentHeight(bankCount: Int) -> CGFloat {
+        // Mirrors the per-swatch sizing pass above — without a real
+        // width we use a conservative 340pt. Updated once layout runs
+        // and the GeometryReader reports accurate width.
+        let maxRows = 3
+        let spacing: CGFloat = 6
+        let cols = max(1, Int(ceil(Double(bankCount) / Double(maxRows))))
+        let availW: CGFloat = 340
+        let fit = (availW - CGFloat(cols - 1) * spacing) / CGFloat(cols)
+        let swatchSize = max(22, min(56, fit))
+        let rows = Int(ceil(Double(bankCount) / Double(cols)))
+        return CGFloat(rows) * swatchSize + CGFloat(rows - 1) * spacing
     }
 
     private var instrText: String {

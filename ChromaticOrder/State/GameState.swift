@@ -61,10 +61,32 @@ final class GameState {
     var cellFrames: [CellIndex: CGRect] = [:]
 
     func hitTest(_ point: CGPoint) -> CellIndex? {
+        // Direct hit first — cheap, unambiguous.
         for (idx, rect) in cellFrames where rect.contains(point) {
             return idx
         }
-        return nil
+        // Magnetism: if no direct hit, snap to the nearest empty-cell
+        // center within a radius. Makes drop placement forgiving — the
+        // player sees the target highlight as they approach, so dropping
+        // anywhere near a cell lands in that cell. Filter to unlocked
+        // cells so you can't "snap" onto a locked solution cell.
+        guard let puzzle else { return nil }
+        let snapR: CGFloat = 44
+        var bestIdx: CellIndex? = nil
+        var bestDist = snapR * snapR
+        for (idx, rect) in cellFrames {
+            let r = idx.r, c = idx.c
+            guard puzzle.board[r][c].kind == .cell,
+                  !puzzle.board[r][c].locked else { continue }
+            let dx = rect.midX - point.x
+            let dy = rect.midY - point.y
+            let d2 = dx * dx + dy * dy
+            if d2 < bestDist {
+                bestDist = d2
+                bestIdx = idx
+            }
+        }
+        return bestIdx
     }
 
     init() {

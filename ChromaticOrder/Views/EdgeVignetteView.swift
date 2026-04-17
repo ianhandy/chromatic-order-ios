@@ -1,7 +1,10 @@
-//  Edge glow overlay — inset box-shadow equivalent. Paints the held
-//  color as a soft frame around the viewport, strong at the edges and
-//  fading toward the center. No iOS "inset" shadow primitive, so we
-//  use nested radial/linear gradients in a Canvas-like overlay.
+//  Edge glow overlay — a soft frame around the viewport in the held
+//  color. Implemented as four linear gradients (one from each edge,
+//  fading to clear before the center) stacked in a ZStack. A single
+//  radial gradient is the obvious choice but radially the corners are
+//  ~1.4× farther from the center than the edge midpoints, so the side
+//  edges get clipped off — looks like "glow only at top and bottom."
+//  Per-edge linear gradients give uniform strength at every edge.
 
 import SwiftUI
 
@@ -10,27 +13,48 @@ struct EdgeVignetteView: View {
     let reduceMotion: Bool
 
     var body: some View {
-        GeometryReader { geo in
-            let w = geo.size.width
-            let h = geo.size.height
-            let maxDim = max(w, h)
+        GeometryReader { _ in
             if let c = color {
-                let baseColor = OK.toColor(c, opacity: 0.28)
-                let innerColor = OK.toColor(c, opacity: 0)
-                // Radial gradient from viewport-center fade-to-edge. Max
-                // radius slightly smaller than maxDim/2 so the outer ring
-                // hits full strength right at the corners.
-                Rectangle()
-                    .fill(
-                        RadialGradient(
-                            colors: [innerColor, innerColor, baseColor],
-                            center: .center,
-                            startRadius: maxDim * 0.25,
-                            endRadius: maxDim * 0.58
-                        )
-                    )
-                    .animation(reduceMotion ? nil : .easeOut(duration: 0.38), value: c)
-                    .transition(.opacity)
+                let strong = OK.toColor(c, opacity: 0.28)
+                let faint  = OK.toColor(c, opacity: 0.18)
+                let clear  = OK.toColor(c, opacity: 0)
+                ZStack {
+                    // Top edge
+                    LinearGradient(
+                        stops: [
+                            .init(color: strong, location: 0.0),
+                            .init(color: faint,  location: 0.05),
+                            .init(color: clear,  location: 0.30),
+                        ],
+                        startPoint: .top, endPoint: .bottom)
+                    // Bottom edge
+                    LinearGradient(
+                        stops: [
+                            .init(color: clear,  location: 0.70),
+                            .init(color: faint,  location: 0.95),
+                            .init(color: strong, location: 1.00),
+                        ],
+                        startPoint: .top, endPoint: .bottom)
+                    // Left edge
+                    LinearGradient(
+                        stops: [
+                            .init(color: strong, location: 0.0),
+                            .init(color: faint,  location: 0.05),
+                            .init(color: clear,  location: 0.30),
+                        ],
+                        startPoint: .leading, endPoint: .trailing)
+                    // Right edge
+                    LinearGradient(
+                        stops: [
+                            .init(color: clear,  location: 0.70),
+                            .init(color: faint,  location: 0.95),
+                            .init(color: strong, location: 1.00),
+                        ],
+                        startPoint: .leading, endPoint: .trailing)
+                }
+                .blendMode(.normal)
+                .animation(reduceMotion ? nil : .easeOut(duration: 0.38), value: c)
+                .transition(.opacity)
             }
         }
         .ignoresSafeArea()

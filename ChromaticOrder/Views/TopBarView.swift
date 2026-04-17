@@ -71,7 +71,8 @@ struct TopBarView: View {
             }
             .frame(maxWidth: .infinity, alignment: .trailing)
         }
-        .padding(.horizontal, 14)
+        // No horizontal padding here — ContentView applies the screen
+        // gutter at the root so every row lines up against the same edge.
         .padding(.top, 10)
         .padding(.bottom, 8)
     }

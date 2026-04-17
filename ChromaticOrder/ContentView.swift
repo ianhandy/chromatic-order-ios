@@ -21,10 +21,14 @@ struct ContentView: View {
             } else {
                 VStack(spacing: 0) {
                     TopBarView(game: game, menuOpen: $menuOpen)
+                        .padding(.horizontal, 22)
                     GridView(game: game)
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .padding(.horizontal, 22)
                     BankView(game: game)
+                        .padding(.horizontal, 22)
                 }
+                .padding(.vertical, 4)
             }
 
             // Edge vignette — viewport-level, above content.
@@ -63,9 +67,22 @@ struct ContentView: View {
                 .transition(.opacity)
             }
 
-            // Dragged swatch ghost.
+            // Dragged swatch ghost. If magnetism has snapped to a cell,
+            // pull the ghost halfway toward that cell's center so the
+            // user sees a noticeable tug — confirms "release here and
+            // it lands in that cell."
             if let src = game.dragSource, let loc = game.dragLocation {
-                DragGhost(color: src.color, location: loc)
+                let magnetized: CGPoint = {
+                    if let t = game.dropTarget, let rect = game.cellFrames[t] {
+                        let target = CGPoint(x: rect.midX, y: rect.midY)
+                        return CGPoint(
+                            x: loc.x + (target.x - loc.x) * 0.45,
+                            y: loc.y + (target.y - loc.y) * 0.45
+                        )
+                    }
+                    return loc
+                }()
+                DragGhost(color: src.color, location: magnetized)
                     .allowsHitTesting(false)
             }
         }
@@ -89,6 +106,11 @@ private struct DragGhost: View {
             .scaleEffect(1.15)
             .shadow(color: .black.opacity(0.22), radius: 12, y: 6)
             .position(location)
+            // Smooth spring when the magnetism kicks in so the pull
+            // toward the target cell reads as a subtle tug rather than
+            // a teleport. Duration is short so rapid finger motion
+            // still tracks.
+            .animation(.spring(response: 0.15, dampingFraction: 0.85), value: location)
     }
 }
 

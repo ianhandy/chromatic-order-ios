@@ -40,7 +40,7 @@
 		8A5B6723BA4A89C9505169E0 /* EdgeVignetteView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EdgeVignetteView.swift; sourceTree = "<group>"; };
 		8B77B6DBA462A78886EC80CC /* GridView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GridView.swift; sourceTree = "<group>"; };
 		A94584BA3E06A4F9638A8D59 /* BankView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BankView.swift; sourceTree = "<group>"; };
-		AC6078D359BD9914E161E080 /* ChromaticOrder.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = ChromaticOrder.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		AC6078D359BD9914E161E080 /* ChromaticOrder.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ChromaticOrder.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		B8CEB7C4FA945BCDC6CEF225 /* OKLCh.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OKLCh.swift; sourceTree = "<group>"; };
 		CD4FE96C27D84EA8D88D1A78 /* ChromaticOrderApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChromaticOrderApp.swift; sourceTree = "<group>"; };
 		DC9ABFAAC13A3EC91209CAC7 /* Level.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Level.swift; sourceTree = "<group>"; };
@@ -148,8 +148,6 @@
 			attributes = {
 				BuildIndependentTargetsInParallel = YES;
 				LastUpgradeCheck = 1630;
-				TargetAttributes = {
-				};
 			};
 			buildConfigurationList = 55266205AC207DB6CFC295F6 /* Build configuration list for PBXProject "ChromaticOrder" */;
 			developmentRegion = en;
@@ -270,6 +268,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = X5BKD97T2F;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = Chromatic;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -293,6 +292,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = X5BKD97T2F;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = Chromatic;
 				LD_RUNPATH_SEARCH_PATHS = (
