@@ -83,6 +83,13 @@ final class GameState {
     var zoomed: Bool = false
     var panOffset: CGSize = .zero
 
+    // Diagnostics for the feedback form — reset each startLevel and
+    // bumped by action callbacks as the player plays. All of these are
+    // soft signals (small sample per report); the dev uses them to
+    // correlate puzzle metrics with actual play experience.
+    var puzzleStartTime: Date = Date()
+    var mistakeCount: Int = 0
+
     // How far above the finger the drag ghost floats. Purely visual —
     // placement still uses the raw finger position via effectivePoint
     // below. That's the intuitive mapping: the cell you point at is
@@ -237,6 +244,9 @@ final class GameState {
         activeColor = nil
         showIncorrect = false
         engagedThisLevel = false
+        // Diagnostics reset — fresh puzzle = fresh timer + mistake count.
+        puzzleStartTime = Date()
+        mistakeCount = 0
         // Capture the current CB mode at dispatch time — the detached
         // task runs off the main actor and can't read properties.
         let activeCBMode = cbMode
@@ -392,6 +402,20 @@ final class GameState {
         p.bank.firstIndex(where: { $0 == nil })
     }
 
+    /// A cell just got a new placed color — was it the wrong one? If so,
+    /// bump the mistake counter. Silent when the placement is correct
+    /// or the cell has no solution / is empty. Called after every
+    /// board mutation that puts a color into a cell (not when a color
+    /// is returned to the bank).
+    private func recordPlacementAt(_ r: Int, _ c: Int, from board: [[BoardCell]]) {
+        guard board[r][c].kind == .cell, !board[r][c].locked else { return }
+        guard let placed = board[r][c].placed,
+              let solution = board[r][c].solution else { return }
+        if !OK.equal(placed, solution) {
+            mistakeCount += 1
+        }
+    }
+
     // ─── actions (grid ↔ bank, bank ↔ bank, cell ↔ cell) ───────────
 
     func placeSlotIntoCell(_ slot: Int, at r: Int, _ c: Int) {
@@ -409,6 +433,7 @@ final class GameState {
         }
         puzzle = p
         engagedThisLevel = true
+        recordPlacementAt(r, c, from: p.board)
         checkAutoSolve()
     }
 
@@ -428,6 +453,9 @@ final class GameState {
         }
         puzzle = p
         engagedThisLevel = true
+        // Only the `from` cell got a new color (or went empty); the
+        // empty case is handled by the guard in recordPlacementAt.
+        recordPlacementAt(from.r, from.c, from: p.board)
         checkAutoSolve()
     }
 
@@ -453,6 +481,9 @@ final class GameState {
         p.board[b.r][b.c].placed = tmp
         puzzle = p
         engagedThisLevel = true
+        // Both cells got new colors — each is a potential mistake.
+        recordPlacementAt(a.r, a.c, from: p.board)
+        recordPlacementAt(b.r, b.c, from: p.board)
         checkAutoSolve()
     }
 
@@ -468,6 +499,8 @@ final class GameState {
         p.board[from.r][from.c].placed = nil
         puzzle = p
         engagedThisLevel = true
+        // `to` cell received the color; `from` went empty (no count).
+        recordPlacementAt(to.r, to.c, from: p.board)
         checkAutoSolve()
     }
 
@@ -581,4 +614,9 @@ final class GameState {
     var heldColor: OKLCh? { activeColor ?? dragSource?.color }
 
     var tier: LevelTierInfo { levelTier(level) }
+
+    /// Seconds elapsed since the current puzzle was generated. Used by
+    /// the feedback form to correlate rated difficulty with dwell time
+    /// (longer dwell on a low-tier puzzle = the rating isn't spurious).
+    var timeSpentSec: Int { max(0, Int(Date().timeIntervalSince(puzzleStartTime))) }
 }

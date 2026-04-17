@@ -27,6 +27,12 @@ struct FeedbackPayload {
     let interDist: Double
     let gradientMetrics: String
     let reduceMotion: Bool
+    // Added round 2: play-session diagnostics. All four are per-puzzle,
+    // reset on startLevel.
+    let completed: Bool
+    let timeSpentSec: Int
+    let mistakes: Int
+    let cbMode: String
 }
 
 enum FeedbackSubmitter {
@@ -98,10 +104,18 @@ enum FeedbackSubmitter {
         static let interDist         = "entry.128656299"
         static let gradientMetrics   = "entry.255574131"
         static let reduceMotion      = "entry.4622635"
+        // Placeholder IDs — filled in once the dev adds Completed /
+        // Time spent (s) / Mistakes / CB mode to the form and sends
+        // over a fresh pre-filled URL. Empty string means "don't POST
+        // this field" and the build stays green.
+        static let completed         = ""
+        static let timeSpentSec      = ""
+        static let mistakes          = ""
+        static let cbMode            = ""
     }
 
     private static func encodedBody(_ p: FeedbackPayload) -> String {
-        let items: [URLQueryItem] = [
+        var items: [URLQueryItem] = [
             URLQueryItem(name: F.difficulty, value: "\(p.difficulty)"),
             URLQueryItem(name: F.quality, value: "\(p.quality)"),
             URLQueryItem(name: F.notes, value: p.notes),
@@ -121,6 +135,22 @@ enum FeedbackSubmitter {
             URLQueryItem(name: F.gradientMetrics, value: p.gradientMetrics),
             URLQueryItem(name: F.reduceMotion, value: p.reduceMotion ? "On" : "Off"),
         ]
+        // Optional fields — only included once the form has entry IDs
+        // for them. Skipping when the ID is empty keeps the POST body
+        // clean and avoids a "entry.=value" no-op that Google Forms
+        // would either ignore or error on.
+        if !F.completed.isEmpty {
+            items.append(URLQueryItem(name: F.completed, value: p.completed ? "true" : "false"))
+        }
+        if !F.timeSpentSec.isEmpty {
+            items.append(URLQueryItem(name: F.timeSpentSec, value: "\(p.timeSpentSec)"))
+        }
+        if !F.mistakes.isEmpty {
+            items.append(URLQueryItem(name: F.mistakes, value: "\(p.mistakes)"))
+        }
+        if !F.cbMode.isEmpty {
+            items.append(URLQueryItem(name: F.cbMode, value: p.cbMode))
+        }
         // Rebuild via URLComponents so every value is %-encoded the
         // way form POSTs expect (plus-as-space, special chars encoded).
         var comps = URLComponents()

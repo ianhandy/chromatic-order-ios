@@ -193,7 +193,11 @@ struct FeedbackSheet: View {
             extrapProx: p?.extrapProx ?? 0,
             interDist: p?.interDist ?? 0,
             gradientMetrics: perGradientMetrics(p),
-            reduceMotion: game.reduceMotion
+            reduceMotion: game.reduceMotion,
+            completed: game.solved,
+            timeSpentSec: game.timeSpentSec,
+            mistakes: game.mistakeCount,
+            cbMode: game.cbMode.rawValue
         )
     }
 
@@ -253,6 +257,12 @@ struct FeedbackSheet: View {
         level: \(p.level)
         mode: \(p.mode)
         reduceMotion: \(p.reduceMotion)
+        cbMode: \(p.cbMode)
+
+        — session —
+        completed: \(p.completed)
+        timeSpent: \(p.timeSpentSec)s
+        mistakes: \(p.mistakes)
         """
         if game.puzzle != nil {
             out += """
