@@ -495,6 +495,8 @@ private func finalize(cells: [String: GrowCell],
     }
     // One lock per pass; repeat until no conflicts remain (bounded by
     // the number of free cells so can't infinite-loop).
+    let initialFreeCount = freePositions.count
+    var guardLocks = 0
     var guardPasses = 0
     while guardPasses < freePositions.count {
         guardPasses += 1
@@ -509,6 +511,7 @@ private func finalize(cells: [String: GrowCell],
         }
         guard let f = flagged else { break }
         lockedSet.insert("\(f.r),\(f.c)")
+        guardLocks += 1
         for gi in 0..<outGrads.count {
             var g = outGrads[gi]
             var dirty = false
@@ -518,6 +521,15 @@ private func finalize(cells: [String: GrowCell],
             if dirty { outGrads[gi] = g }
         }
         freePositions.removeAll { $0.r == f.r && $0.c == f.c }
+    }
+    // Lock-budget check — under strong CB modes (or with a tight L/C
+    // clamp) the uniqueness sweep can cascade and lock most of the
+    // free cells to force solvability. A puzzle that starts half-
+    // filled isn't a puzzle; bail so the outer retry loop tries a
+    // fresh seed that actually has enough perceptual spread.
+    if initialFreeCount >= 4,
+       Double(guardLocks) / Double(initialFreeCount) > 0.4 {
+        return nil
     }
 
     // Build board grid with solution colors + locks.

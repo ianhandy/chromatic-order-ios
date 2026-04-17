@@ -241,6 +241,11 @@ final class GameState {
     /// sheet don't thrash the board.
     func applyAccessibilityIfChanged() {
         saveAccessibility()
+        // cbMode lives in its own UserDefaults key; the picker binds
+        // straight to $game.cbMode so we never hit cycleCBMode() from
+        // the sheet path. Persist it here too or the player's choice
+        // reverts on next launch.
+        saveCBMode()
         let changed = contrastScale != contrastAtGeneration
             || lClampMin != lClampMinAtGeneration
             || lClampMax != lClampMaxAtGeneration

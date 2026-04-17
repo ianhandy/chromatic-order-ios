@@ -79,7 +79,12 @@ struct GridView: View {
                 Task { @MainActor in game.cellFrames = frames }
             }
             .onTapGesture(count: 2) {
-                game.toggleZoom(max: maxZoom)
+                // Quick spring rather than an immediate jump — ~0.28s
+                // feels snappy but gives the player a visual anchor
+                // so the camera doesn't teleport.
+                withAnimation(.spring(response: 0.28, dampingFraction: 0.82)) {
+                    game.toggleZoom(max: maxZoom)
+                }
                 zoomAtGestureStart = game.zoomScale
             }
             // Pinch to zoom — clamped between 1x (default view) and

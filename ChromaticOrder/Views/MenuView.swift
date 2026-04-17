@@ -74,7 +74,12 @@ struct MenuView: View {
             .padding(.horizontal, 40)
         }
         .task { await runSnakeLoop() }
-        .sheet(isPresented: $accessibilityOpen) {
+        .sheet(isPresented: $accessibilityOpen, onDismiss: {
+            // Persist + regen-if-changed. Without this, settings
+            // adjusted from the main menu live only in memory and
+            // revert on next launch.
+            game.applyAccessibilityIfChanged()
+        }) {
             AccessibilitySheet(game: game)
         }
         .sheet(isPresented: $galleryOpen) {
