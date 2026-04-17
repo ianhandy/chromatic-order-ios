@@ -12,6 +12,15 @@ struct CreatorPuzzleDoc: Codable {
     /// Embedded difficulty so recipients can preview the score
     /// without running the scorer. Optional — old docs won't have it.
     var difficulty: Int?
+    /// Session context — present when the doc was generated from a
+    /// live play session (like-widget submissions). Absent when the
+    /// doc is a pure puzzle share (creator export). All optional so
+    /// old docs still decode; when populated, lets us attribute a
+    /// report to its play context (what level was it rated at? was
+    /// the player in challenge mode? was CB simulation on?).
+    var level: Int?
+    var mode: String?
+    var cbMode: String?
 
     struct Grad: Codable {
         let dir: String       // "h" | "v"
@@ -219,6 +228,45 @@ enum CreatorCodec {
         let active = Channel.allCases.filter { (avgAbs[$0] ?? 0) > 1e-4 }
         let sorted = active.sorted { (avgAbs[$0] ?? 0) > (avgAbs[$1] ?? 0) }
         return (active.isEmpty ? [.h] : active, sorted.first ?? .h)
+    }
+
+    /// Serialize a live Puzzle + its session context (level the player
+    /// was at, game mode, CB mode) into one JSON blob. Everything the
+    /// Like-widget form needs lives here — no need for a sheet schema
+    /// with nine redundant columns when the structure can be derived
+    /// on read. Pass `level/mode/cbMode` nil for creator-export paths
+    /// that don't have a session.
+    static func encodePuzzleWithSession(
+        _ p: Puzzle,
+        level: Int? = nil,
+        mode: String? = nil,
+        cbMode: String? = nil
+    ) throws -> String {
+        let doc = CreatorPuzzleDoc(
+            version: CreatorPuzzleDoc.currentVersion,
+            gridW: p.gridW,
+            gridH: p.gridH,
+            gradients: p.gradients.map { g in
+                CreatorPuzzleDoc.Grad(
+                    dir: g.dir == .h ? "h" : "v",
+                    cells: g.cells.map { spec in
+                        CreatorPuzzleDoc.Cell(
+                            r: spec.r, c: spec.c,
+                            L: spec.color.L, C: spec.color.c, h: spec.color.h,
+                            locked: spec.locked
+                        )
+                    }
+                )
+            },
+            difficulty: p.difficulty,
+            level: level,
+            mode: mode,
+            cbMode: cbMode
+        )
+        let enc = JSONEncoder()
+        enc.outputFormatting = [.sortedKeys]
+        let data = try enc.encode(doc)
+        return String(data: data, encoding: .utf8) ?? ""
     }
 
     /// Serialize a live `Puzzle` (generator or creator output) into the

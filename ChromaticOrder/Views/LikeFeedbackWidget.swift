@@ -61,21 +61,20 @@ struct LikeFeedbackWidget: View {
     private func tap(liked value: Bool) {
         guard game.liked == nil else { return }
         game.liked = value
-        // Snapshot everything on the main actor BEFORE handing off —
-        // LikeFeedbackSubmitter.submit is detached and can't read
-        // MainActor-isolated state. The puzzle JSON is the bulkiest
-        // piece and the one that matters most for later replay.
-        let payload = LikePayload(
-            liked: value,
-            level: game.level,
-            generatorDifficulty: game.puzzle?.difficulty ?? 0,
-            channels: game.puzzle.map { $0.activeChannels.map { $0.rawValue.uppercased() }.joined(separator: "+") } ?? "",
-            primaryChannel: game.puzzle?.primaryChannel.rawValue.uppercased() ?? "",
-            grid: game.puzzle.map { "\($0.gridW)x\($0.gridH)" } ?? "",
-            mode: game.mode.rawValue,
-            cbMode: game.cbMode.rawValue,
-            puzzleJSON: (try? game.puzzle.flatMap { try CreatorCodec.encodePuzzle($0) }) ?? ""
-        )
+        // One JSON blob carries everything: puzzle structure, per-cell
+        // locks, difficulty, session context (level / mode / cbMode).
+        // Everything else is derivable from it, so no need for a
+        // fistful of flat form columns.
+        let json: String = {
+            guard let p = game.puzzle else { return "" }
+            return (try? CreatorCodec.encodePuzzleWithSession(
+                p,
+                level: game.level,
+                mode: game.mode.rawValue,
+                cbMode: game.cbMode.rawValue
+            )) ?? ""
+        }()
+        let payload = LikePayload(liked: value, json: json)
         Task.detached(priority: .utility) {
             await LikeFeedbackSubmitter.submit(payload)
         }

@@ -334,14 +334,16 @@ private struct CanvasView: View {
                 }
                 .frame(width: totalW, height: totalH)
                 .background(
-                    // Outer-bounds outline around the whole canvas so
-                    // the editable area is visually defined — the
-                    // tiles themselves get light when empty, which
-                    // left the playfield edge feeling ambiguous.
+                    // Outer-bounds outline around the whole canvas —
+                    // the playfield edges get ambiguous otherwise
+                    // because empty-cell tints are low-contrast on
+                    // black. White stroke for visibility against the
+                    // dark theme (the previous black-on-black stroke
+                    // was effectively invisible).
                     RoundedRectangle(cornerRadius: 12, style: .continuous)
-                        .stroke(Color.black.opacity(0.18),
-                                style: StrokeStyle(lineWidth: 1.5, dash: [4, 4]))
-                        .padding(-2)
+                        .stroke(Color.white.opacity(0.28),
+                                style: StrokeStyle(lineWidth: 1.5, dash: [5, 4]))
+                        .padding(-4)
                 )
                 Spacer(minLength: 0)
             }
