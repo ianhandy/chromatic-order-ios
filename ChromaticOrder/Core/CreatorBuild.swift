@@ -137,12 +137,20 @@ enum CreatorBuilder {
             }
         }
 
-        // Bank = every unlocked cell's solution color.
+        // Bank = every DISTINCT unlocked cell's solution color.
+        // Intersections live in two gradients' cells[] arrays; without
+        // the dedupe step they'd land in the bank twice — giving the
+        // player a surplus swatch and making the "two free cells share
+        // a color" check fire on the same cell vs itself.
         var bank: [BankItem] = []
+        var seenBank: Set<CellIndex> = []
         var uid = 0
         for g in outGrads {
             for spec in g.cells where !spec.locked {
-                bank.append(BankItem(id: uid, color: spec.color)); uid += 1
+                let key = CellIndex(r: spec.r, c: spec.c)
+                if seenBank.insert(key).inserted {
+                    bank.append(BankItem(id: uid, color: spec.color)); uid += 1
+                }
             }
         }
         bank.shuffle()
@@ -171,13 +179,24 @@ enum CreatorBuilder {
             warnings.append("No starter cells — tap a cell to reveal it at the start.")
         }
 
-        // 2. Multiple solutions — two free cells share a color (within
-        // perceptual ΔE). Player can't deduce which swatch goes where.
-        let free = outGrads.flatMap { g in g.cells.filter { !$0.locked } }
-        for i in 0..<free.count {
+        // 2. Multiple solutions — two DISTINCT free cells share a
+        // color (within perceptual ΔE). Dedupe by (r, c) so
+        // intersections — present in two gradients' cells[] arrays —
+        // don't match themselves and produce a false warning.
+        var distinctFree: [(idx: CellIndex, color: OKLCh)] = []
+        var seenFree: Set<CellIndex> = []
+        for g in outGrads {
+            for spec in g.cells where !spec.locked {
+                let key = CellIndex(r: spec.r, c: spec.c)
+                if seenFree.insert(key).inserted {
+                    distinctFree.append((key, spec.color))
+                }
+            }
+        }
+        for i in 0..<distinctFree.count {
             var conflict = false
-            for j in (i + 1)..<free.count {
-                if OK.equal(free[i].color, free[j].color) {
+            for j in (i + 1)..<distinctFree.count {
+                if OK.equal(distinctFree[i].color, distinctFree[j].color) {
                     warnings.append("Multiple solutions: two free cells share a color — lock one as a clue.")
                     conflict = true; break
                 }

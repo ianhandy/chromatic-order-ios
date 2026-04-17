@@ -98,7 +98,8 @@ struct FeedbackSheet: View {
             let build = info["CFBundleVersion"] as? String ?? "?"
             return "\(short) (\(build))"
         } ?? "unknown"
-        return """
+
+        var out = """
         — diagnostic —
         app: ChromaticOrder \(versionInfo)
         level: \(game.level)
@@ -108,6 +109,56 @@ struct FeedbackSheet: View {
         reduceMotion: \(game.reduceMotion)
         device: \(UIDevice.current.systemName) \(UIDevice.current.systemVersion)
         """
+
+        // Append per-puzzle metrics when there's a live puzzle.
+        // Generator-tuning data: difficulty, cross-gradient similarity
+        // (pairProx), line-overlap similarity (extrapProx, interDist),
+        // and per-gradient step magnitudes — lets me (the dev) see
+        // "this puzzle rated X but step ΔE was tiny" on a given report.
+        if let p = game.puzzle {
+            let activeChannels = p.activeChannels
+                .map { $0.rawValue.uppercased() }
+                .joined(separator: "+")
+            out += "\n\n— puzzle —\n"
+            out += "difficulty: \(p.difficulty)/10\n"
+            out += "channels: \(activeChannels) (primary: \(p.primaryChannel.rawValue.uppercased()))\n"
+            out += "grid: \(p.gridW)x\(p.gridH)\n"
+            out += "gradients: \(p.gradients.count)\n"
+            out += "bankInitial: \(p.initialBankCount)\n"
+            // Cross-gradient color similarity. High pairProx = close
+            // colors across gradients (likely to confuse the player).
+            out += String(format: "pairProx: %.2f  (close cells across grads, lower is easier)\n", p.pairProx)
+            // "Would the plotted lines overlap?" — extrapProx scores
+            // cells that sit on the extended line of another gradient.
+            // High = ambiguous direction cues across gradients.
+            out += String(format: "extrapProx: %.2f  (on-extended-line score)\n", p.extrapProx)
+            out += String(format: "interDist: %.1f  (min line-to-polyline ΔE between grads)\n", p.interDist)
+
+            // Per-gradient in-line similarity — the step ΔE the player
+            // has to distinguish. Lower = harder to tell steps apart.
+            out += "\ngrads:\n"
+            for g in p.gradients {
+                var totalStep = 0.0
+                var stepN = 0
+                for i in 1..<g.colors.count {
+                    totalStep += OK.dist(g.colors[i - 1], g.colors[i])
+                    stepN += 1
+                }
+                let avgStep = stepN > 0 ? totalStep / Double(stepN) : 0
+                var minStep = Double.infinity, maxStep = 0.0
+                for i in 1..<g.colors.count {
+                    let d = OK.dist(g.colors[i - 1], g.colors[i])
+                    if d < minStep { minStep = d }
+                    if d > maxStep { maxStep = d }
+                }
+                if minStep == .infinity { minStep = 0 }
+                out += String(
+                    format: "  - %@ len=%d stepΔE avg=%.2f min=%.2f max=%.2f\n",
+                    g.dir.rawValue, g.len, avgStep, minStep, maxStep
+                )
+            }
+        }
+        return out
     }
 
     private var payload: String {
