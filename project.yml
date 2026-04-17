@@ -12,21 +12,9 @@ settings:
     # a future iPad rev. Apple's upload validator rejects the bundle
     # if iPad is included with portrait-only.
     TARGETED_DEVICE_FAMILY: "1"
-    INFOPLIST_KEY_UILaunchScreen_Generation: true
-    # Orientation dance. Apple's validator demands the base
-    # UISupportedInterfaceOrientations key list ALL four orientations
-    # even on iPhone-only apps (their message says "for iPad
-    # multitasking" regardless of TARGETED_DEVICE_FAMILY). But iPhone
-    # at runtime reads UISupportedInterfaceOrientations~iphone FIRST
-    # and falls through to the base — so we keep the iPhone-specific
-    # portrait-only list, and the base as all four. iPhone stays
-    # locked to portrait; validator sees all four in the base key and
-    # is satisfied.
-    INFOPLIST_KEY_UISupportedInterfaceOrientations: "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight"
-    INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone: "UIInterfaceOrientationPortrait"
-    # Apple Developer team (Ian Handy). Kept here so xcodegen
-    # preserves it across regenerations — without this it gets reset
-    # and archives fail with "Signing requires a development team."
+    # Apple Developer team (Ian Handy). Kept here so xcodegen preserves
+    # it across regenerations — without this it gets reset and archives
+    # fail with "Signing requires a development team."
     DEVELOPMENT_TEAM: X5BKD97T2F
     CODE_SIGN_STYLE: Automatic
 targets:
@@ -38,8 +26,6 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.ianhandy.kroma
-        GENERATE_INFOPLIST_FILE: true
-        INFOPLIST_KEY_CFBundleDisplayName: Kroma
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
         MARKETING_VERSION: "1.0.0"
@@ -48,6 +34,66 @@ targets:
         SUPPORTS_MACCATALYST: NO
         SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD: NO
         SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD: NO
+    # Full Info.plist — driven by xcodegen instead of
+    # GENERATE_INFOPLIST_FILE because UTExportedTypeDeclarations and
+    # CFBundleDocumentTypes are nested arrays of dictionaries that
+    # don't fit the flat INFOPLIST_KEY_* setting pattern. Custom UTI
+    # (com.ianhandy.kroma.puzzle) registered here, app declared as its
+    # owner/handler so tapping a .kroma file opens Kroma.
+    info:
+      path: ChromaticOrder/Info.plist
+      properties:
+        CFBundleDevelopmentRegion: $(DEVELOPMENT_LANGUAGE)
+        CFBundleDisplayName: Kroma
+        CFBundleExecutable: $(EXECUTABLE_NAME)
+        CFBundleIdentifier: $(PRODUCT_BUNDLE_IDENTIFIER)
+        CFBundleInfoDictionaryVersion: "6.0"
+        CFBundleName: $(PRODUCT_NAME)
+        CFBundlePackageType: $(PRODUCT_BUNDLE_PACKAGE_TYPE)
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        LSRequiresIPhoneOS: true
+        UILaunchScreen:
+          UIColorName: ""
+        UIApplicationSceneManifest:
+          UIApplicationSupportsMultipleScenes: false
+        # Base orientations list — all four, as Apple's validator
+        # demands even on iPhone-only apps. The ~iphone variant
+        # overrides at runtime so the app stays portrait-locked.
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationPortraitUpsideDown
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+        UISupportedInterfaceOrientations~iphone:
+          - UIInterfaceOrientationPortrait
+        # Pre-answer the "uses non-exempt encryption" question App
+        # Store Connect asks on every upload. We don't ship crypto;
+        # false here skips the prompt for all subsequent builds.
+        ITSAppUsesNonExemptEncryption: false
+        # We accept .kroma files for reading only (no in-place edits).
+        # Silences the compile-time warning about file-open semantics.
+        LSSupportsOpeningDocumentsInPlace: false
+        # Custom document type — Kroma Puzzle (.kroma). Exports as a
+        # subtype of public.json so any app that reads JSON can still
+        # open one as text, but tapping a .kroma file offers "Open in
+        # Kroma" because we own the UTI.
+        UTExportedTypeDeclarations:
+          - UTTypeIdentifier: com.ianhandy.kroma.puzzle
+            UTTypeDescription: Kroma Puzzle
+            UTTypeConformsTo:
+              - public.json
+            UTTypeTagSpecification:
+              public.filename-extension:
+                - kroma
+              public.mime-type:
+                - application/vnd.kroma.puzzle+json
+        CFBundleDocumentTypes:
+          - CFBundleTypeName: Kroma Puzzle
+            LSHandlerRank: Owner
+            LSItemContentTypes:
+              - com.ianhandy.kroma.puzzle
+            CFBundleTypeRole: Viewer
 schemes:
   ChromaticOrder:
     build:

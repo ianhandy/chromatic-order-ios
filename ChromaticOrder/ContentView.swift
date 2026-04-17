@@ -8,6 +8,9 @@ struct ContentView: View {
     @State private var menuOpen: Bool = false
     @State private var creatorOpen: Bool = false
     @State private var feedbackOpen: Bool = false
+    /// Set by ChromaticOrderApp.onOpenURL when a .kroma file is tapped.
+    /// We watch it and pipe the Puzzle into the game when it changes.
+    @Binding var incomingPuzzle: Puzzle?
 
     var body: some View {
         ZStack {
@@ -129,6 +132,22 @@ struct ContentView: View {
             else if game.selection != nil { game.clearSelection() }
         }
         .animation(.spring(response: 0.55, dampingFraction: 0.85), value: game.solved)
+        // Observing nil vs non-nil as a Bool — Puzzle isn't Equatable,
+        // which onChange(of:) requires. This is enough: we only care
+        // that something arrived, not that it changed identity.
+        .onChange(of: incomingPuzzle != nil) { _, hasIncoming in
+            guard hasIncoming, let puzzle = incomingPuzzle else { return }
+            // A .kroma file was tapped externally and rebuilt in the
+            // app scene. Hand it to GameState (bypassing the normal
+            // level flow — this is a one-off custom puzzle) and clear
+            // the binding so the SAME puzzle doesn't re-load if the
+            // user later backgrounds + foregrounds the app.
+            game.loadCustomPuzzle(puzzle)
+            creatorOpen = false
+            feedbackOpen = false
+            menuOpen = false
+            incomingPuzzle = nil
+        }
         .onChange(of: menuOpen) { _, isOpen in
             // Deferred CB regeneration: cycling the CB mode inside
             // the menu updates game.cbMode but doesn't rebuild the
@@ -185,5 +204,5 @@ private struct DragGhost: View {
 }
 
 #Preview {
-    ContentView()
+    ContentView(incomingPuzzle: .constant(nil))
 }
