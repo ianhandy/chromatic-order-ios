@@ -62,7 +62,7 @@ struct SwatchView: View {
                                 at: v.location
                             )
                         }
-                        game.updateDrag(to: v.location, target: game.hitTest(v.location))
+                        game.updateDrag(to: v.location)
                     }
                     .onEnded { _ in
                         if case .bank(let uid) = game.dragSource?.kind, uid == item.id {

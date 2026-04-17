@@ -30,7 +30,7 @@ struct TopBarView: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
 
-            // Center: mode label / hearts
+            // Center: mode label / hearts + score
             Group {
                 if game.mode == .zen {
                     Text("Zen Mode")
@@ -38,18 +38,27 @@ struct TopBarView: View {
                         .tracking(0.5)
                         .foregroundStyle(Color(red: 0.27, green: 0.27, blue: 0.27))
                 } else {
-                    HStack(spacing: 3) {
-                        if game.checks > 0 {
-                            ForEach(0..<game.checks, id: \.self) { _ in
-                                Image(systemName: "heart.fill")
-                                    .font(.system(size: 14))
-                                    .foregroundStyle(Color(red: 0.8, green: 0.2, blue: 0.2))
+                    HStack(spacing: 8) {
+                        HStack(spacing: 2) {
+                            if game.checks > 0 {
+                                ForEach(0..<game.checks, id: \.self) { _ in
+                                    Image(systemName: "heart.fill")
+                                        .font(.system(size: 13))
+                                        .foregroundStyle(Color(red: 0.8, green: 0.2, blue: 0.2))
+                                }
+                            } else {
+                                Text("0 \u{2665}")
+                                    .font(.system(size: 11, weight: .bold, design: .rounded))
+                                    .foregroundStyle(.secondary)
                             }
-                        } else {
-                            Text("0 checks")
-                                .font(.system(size: 11, weight: .bold, design: .rounded))
-                                .foregroundStyle(.secondary)
                         }
+                        // Score lives next to hearts. Awarded on each
+                        // challenge-mode solve in proportion to
+                        // puzzle.difficulty — higher-tier levels pay more.
+                        Text("\(game.score)")
+                            .font(.system(size: 13, weight: .heavy, design: .rounded))
+                            .foregroundStyle(Color(red: 0.27, green: 0.27, blue: 0.27))
+                            .monospacedDigit()
                     }
                 }
             }

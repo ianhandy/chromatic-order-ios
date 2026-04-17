@@ -31,6 +31,11 @@ final class GameState {
     var level: Int
     var mode: GameMode
     var checks: Int
+    // Cumulative score in challenge mode. Awarded on solve-advance in
+    // proportion to puzzle.difficulty (1-10) — harder levels pay more.
+    // Not used in zen mode; kept across mode switches so the player
+    // doesn't lose a run by toggling.
+    var score: Int
     var reduceMotion: Bool
 
     // Live puzzle
@@ -60,24 +65,41 @@ final class GameState {
     // pointer events across view boundaries on their own).
     var cellFrames: [CellIndex: CGRect] = [:]
 
+    // The drag ghost floats this many points above the finger. Placement
+    // uses the ghost's position too (finger → ghost is a fixed offset),
+    // so the cell the player *sees* getting tinted is the one they drop
+    // into. Shared between the ghost rendering (ContentView) and the
+    // hit-test here so the two can't drift out of sync.
+    static let ghostLift: CGFloat = 48
+
+    /// Effective drop point for hit-testing — the ghost's center,
+    /// not the raw finger position.
+    func effectivePoint(_ raw: CGPoint) -> CGPoint {
+        CGPoint(x: raw.x, y: raw.y - Self.ghostLift)
+    }
+
     func hitTest(_ point: CGPoint) -> CellIndex? {
-        // Direct hit first — cheap, unambiguous.
+        guard let puzzle else { return nil }
+        // Direct hit first. Skip dead cells and locked cells so dragging
+        // onto them never registers as a target.
         for (idx, rect) in cellFrames where rect.contains(point) {
+            let cell = puzzle.board[idx.r][idx.c]
+            guard cell.kind == .cell, !cell.locked else { continue }
             return idx
         }
-        // Magnetism: if no direct hit, snap to the nearest empty-cell
-        // center within a radius. Makes drop placement forgiving — the
-        // player sees the target highlight as they approach, so dropping
-        // anywhere near a cell lands in that cell. Filter to unlocked
-        // cells so you can't "snap" onto a locked solution cell.
-        guard let puzzle else { return nil }
-        let snapR: CGFloat = 44
+        // Magnetism: only snap when the finger is inside a cell's
+        // *inflated* rect — so the pull is local to each cell, not a
+        // grid-wide Euclidean radius. The gaps between cells and the
+        // dead-cell spaces stay non-magnetic, matching "color should
+        // only be magnetized to cells, not just anywhere on the grid."
+        let catchInset: CGFloat = -18  // expand rect by 18pt on every side
         var bestIdx: CellIndex? = nil
-        var bestDist = snapR * snapR
+        var bestDist = CGFloat.infinity
         for (idx, rect) in cellFrames {
-            let r = idx.r, c = idx.c
-            guard puzzle.board[r][c].kind == .cell,
-                  !puzzle.board[r][c].locked else { continue }
+            let cell = puzzle.board[idx.r][idx.c]
+            guard cell.kind == .cell, !cell.locked else { continue }
+            let catchRect = rect.insetBy(dx: catchInset, dy: catchInset)
+            guard catchRect.contains(point) else { continue }
             let dx = rect.midX - point.x
             let dy = rect.midY - point.y
             let d2 = dx * dx + dy * dy
@@ -90,17 +112,18 @@ final class GameState {
     }
 
     init() {
-        let (savedLevel, savedMode, savedChecks) = Self.loadProgress()
+        let (savedLevel, savedMode, savedChecks, savedScore) = Self.loadProgress()
         self.level = savedLevel
         self.mode = savedMode
         self.checks = savedChecks
+        self.score = savedScore
         self.reduceMotion = Self.loadReduceMotion()
         startLevel(level)
     }
 
     // ─── persistence ────────────────────────────────────────────────
 
-    private static func loadProgress() -> (Int, GameMode, Int) {
+    private static func loadProgress() -> (Int, GameMode, Int, Int) {
         let ud = UserDefaults.standard
         if let data = ud.data(forKey: progressKey),
            let dict = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
@@ -109,9 +132,11 @@ final class GameState {
             let mdRaw = (dict["mode"] as? String) ?? "zen"
             let md: GameMode = mdRaw == "challenge" ? .challenge : .zen
             let cks = (dict["checks"] as? Int) ?? 3
-            return (max(1, lv), md, max(0, cks))
+            // Score added after v1 ship — absent on old saves, treat as 0.
+            let sc = (dict["score"] as? Int) ?? 0
+            return (max(1, lv), md, max(0, cks), max(0, sc))
         }
-        return (1, .zen, 3)
+        return (1, .zen, 3, 0)
     }
 
     private static func loadReduceMotion() -> Bool {
@@ -128,6 +153,7 @@ final class GameState {
             "level": level,
             "mode": mode.rawValue,
             "checks": checks,
+            "score": score,
         ]
         if let data = try? JSONSerialization.data(withJSONObject: dict) {
             UserDefaults.standard.set(data, forKey: progressKey)
@@ -199,8 +225,14 @@ final class GameState {
     func handleNext() {
         let justCompleted = level
         let nextLv = showedIncorrect ? max(1, level - 1) : level + 1
-        if mode == .challenge && justCompleted % 3 == 0 {
-            checks += 1
+        if mode == .challenge {
+            // Points for challenge-mode solves only. Difficulty is
+            // already 1-10 and roughly tracks effort, so it doubles as
+            // a natural points scale.
+            if let p = puzzle {
+                score += max(1, p.difficulty)
+            }
+            if justCompleted % 3 == 0 { checks += 1 }
         }
         showedIncorrect = false
         level = nextLv
@@ -257,6 +289,7 @@ final class GameState {
         level = 1
         mode = .zen
         checks = 3
+        score = 0
         showedIncorrect = false
         showIncorrect = false
         startLevel(1)
@@ -383,6 +416,14 @@ final class GameState {
     func updateDrag(to loc: CGPoint, target: CellIndex?) {
         dragLocation = loc
         dropTarget = target
+    }
+
+    /// Convenience: callers pass raw finger position; we apply the
+    /// ghost lift internally so hit-tests and placement align with the
+    /// visible tile, not the hidden fingertip.
+    func updateDrag(to loc: CGPoint) {
+        dragLocation = loc
+        dropTarget = hitTest(effectivePoint(loc))
     }
 
     func endDrag(moved: Bool) {

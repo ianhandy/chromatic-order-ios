@@ -73,8 +73,9 @@ struct ContentView: View {
             // pull toward that cell's center so the tug is visible
             // before release.
             if let src = game.dragSource, let loc = game.dragLocation {
-                let ghostLift: CGFloat = 48  // keep the ghost above the finger
-                let lifted = CGPoint(x: loc.x, y: loc.y - ghostLift)
+                // Same lift constant used by GameState's hit-test — the
+                // visible ghost and the effective drop point stay in sync.
+                let lifted = CGPoint(x: loc.x, y: loc.y - GameState.ghostLift)
                 let magnetized: CGPoint = {
                     if let t = game.dropTarget, let rect = game.cellFrames[t] {
                         let target = CGPoint(x: rect.midX, y: rect.midY)

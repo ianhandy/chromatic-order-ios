@@ -50,11 +50,17 @@ struct CellView: View {
                               shakePhase: shakePhase)
                 }
 
-                // Drop-target outline
-                if isDropTarget && !cell.locked {
-                    RoundedRectangle(cornerRadius: radius + 2, style: .continuous)
-                        .stroke(Color.accentColor, lineWidth: 3)
-                        .frame(width: cellPx + 4, height: cellPx + 4)
+                // Drop-target TINT. When the player is dragging a swatch
+                // and magnetism has snapped to this cell, fill the cell
+                // with the held color at a moderate opacity — near-instant
+                // fade-in so the player can SEE the placement land here
+                // before they release. No outline; the tint itself is the
+                // cue. Removed on the next frame when magnetism moves on.
+                if isDropTarget, !cell.locked, let held = game.heldColor {
+                    RoundedRectangle(cornerRadius: radius, style: .continuous)
+                        .fill(OK.toColor(held, opacity: 0.9))
+                        .frame(width: cellPx, height: cellPx)
+                        .transition(.opacity.animation(.easeOut(duration: 0.06)))
                 }
 
                 // Locked-cell dot
@@ -105,7 +111,7 @@ struct CellView: View {
                         )
                     }
                     if game.dragSource != nil {
-                        game.updateDrag(to: v.location, target: game.hitTest(v.location))
+                        game.updateDrag(to: v.location)
                     }
                 }
                 .onEnded { _ in
