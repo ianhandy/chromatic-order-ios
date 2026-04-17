@@ -24,11 +24,13 @@ struct MenuView: View {
         ZStack {
             Color.black.ignoresSafeArea()
 
-            GeometryReader { geo in
-                WaveGridField(hueSeed: hueSeed, size: geo.size)
+            if game.menuBackdropEnabled {
+                GeometryReader { geo in
+                    WaveGridField(hueSeed: hueSeed, size: geo.size)
+                }
+                .ignoresSafeArea()
+                .allowsHitTesting(false)
             }
-            .ignoresSafeArea()
-            .allowsHitTesting(false)
 
             VStack(spacing: 6) {
                 Spacer()

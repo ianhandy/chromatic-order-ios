@@ -68,6 +68,18 @@ final class GameState {
     /// the accessibility bundle so it roundtrips with the other
     /// assist settings.
     var doubleTapInterval: Double
+    /// Snap-to-nearest-cell assist during drags. Off = direct-hit
+    /// only (finger must land inside the cell rect). Some players
+    /// prefer that for precision placement.
+    var magnetismEnabled: Bool
+    /// Edge vignette bloom when the player is holding a swatch. Off
+    /// = flat background, no color halo.
+    var edgeVignetteEnabled: Bool
+    /// Wave-grid backdrop on the main menu. Off = pure black menu.
+    var menuBackdropEnabled: Bool
+    /// Radial glow burst behind solved cells. Off = just the color,
+    /// no finale flash.
+    var solvedGlowEnabled: Bool
 
     // Live puzzle
     var puzzle: Puzzle?
@@ -150,8 +162,10 @@ final class GameState {
         // inflated rect. Kept small so the magnet grabs a cell when
         // the finger is genuinely near it, and lets go once the
         // finger moves into a gap — dialled back from the earlier
-        // -32pt which pulled too aggressively across gaps.
-        let catchInset: CGFloat = -12
+        // -32pt which pulled too aggressively across gaps. When the
+        // player has disabled magnetism in Accessibility, drop the
+        // inflation to 0 so only direct-hit cells accept drops.
+        let catchInset: CGFloat = magnetismEnabled ? -12 : 0
         var bestIdx: CellIndex? = nil
         var bestDist = CGFloat.infinity
         for (idx, rect) in cellFrames {
@@ -187,6 +201,10 @@ final class GameState {
         self.cClampMin = a11y.cClampMin
         self.cClampMax = a11y.cClampMax
         self.doubleTapInterval = a11y.doubleTapInterval
+        self.magnetismEnabled = a11y.magnetismEnabled
+        self.edgeVignetteEnabled = a11y.edgeVignetteEnabled
+        self.menuBackdropEnabled = a11y.menuBackdropEnabled
+        self.solvedGlowEnabled = a11y.solvedGlowEnabled
         startLevel(level)
     }
 
@@ -199,12 +217,20 @@ final class GameState {
         var cClampMin: Double
         var cClampMax: Double
         var doubleTapInterval: Double
+        var magnetismEnabled: Bool
+        var edgeVignetteEnabled: Bool
+        var menuBackdropEnabled: Bool
+        var solvedGlowEnabled: Bool
 
         static let defaults = AccessibilityBundle(
             contrastScale: 1.0,
             lClampMin: OK.lMin, lClampMax: OK.lMax,
             cClampMin: OK.cMin, cClampMax: OK.cMax,
-            doubleTapInterval: 0.28
+            doubleTapInterval: 0.28,
+            magnetismEnabled: true,
+            edgeVignetteEnabled: true,
+            menuBackdropEnabled: true,
+            solvedGlowEnabled: true
         )
     }
 
@@ -218,7 +244,11 @@ final class GameState {
             lClampMax: (dict["lClampMax"] as? Double) ?? OK.lMax,
             cClampMin: (dict["cClampMin"] as? Double) ?? OK.cMin,
             cClampMax: (dict["cClampMax"] as? Double) ?? OK.cMax,
-            doubleTapInterval: (dict["doubleTapInterval"] as? Double) ?? 0.28
+            doubleTapInterval: (dict["doubleTapInterval"] as? Double) ?? 0.28,
+            magnetismEnabled: (dict["magnetismEnabled"] as? Bool) ?? true,
+            edgeVignetteEnabled: (dict["edgeVignetteEnabled"] as? Bool) ?? true,
+            menuBackdropEnabled: (dict["menuBackdropEnabled"] as? Bool) ?? true,
+            solvedGlowEnabled: (dict["solvedGlowEnabled"] as? Bool) ?? true
         )
         return b
     }
@@ -231,6 +261,10 @@ final class GameState {
             "cClampMin": cClampMin,
             "cClampMax": cClampMax,
             "doubleTapInterval": doubleTapInterval,
+            "magnetismEnabled": magnetismEnabled,
+            "edgeVignetteEnabled": edgeVignetteEnabled,
+            "menuBackdropEnabled": menuBackdropEnabled,
+            "solvedGlowEnabled": solvedGlowEnabled,
         ]
         if let data = try? JSONSerialization.data(withJSONObject: dict) {
             UserDefaults.standard.set(data, forKey: a11yKey)
@@ -278,6 +312,10 @@ final class GameState {
         cClampMin = d.cClampMin
         cClampMax = d.cClampMax
         doubleTapInterval = d.doubleTapInterval
+        magnetismEnabled = d.magnetismEnabled
+        edgeVignetteEnabled = d.edgeVignetteEnabled
+        menuBackdropEnabled = d.menuBackdropEnabled
+        solvedGlowEnabled = d.solvedGlowEnabled
         cbMode = .none
         saveAccessibility()
         saveCBMode()

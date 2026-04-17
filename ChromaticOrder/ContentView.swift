@@ -54,10 +54,14 @@ struct ContentView: View {
                 .padding(.vertical, 4)
             }
 
-            // Edge vignette — viewport-level, above content.
-            EdgeVignetteView(color: game.heldColor,
-                             reduceMotion: game.reduceMotion)
-                .allowsHitTesting(false)
+            // Edge vignette — viewport-level, above content. Gated
+            // on the Accessibility toggle so players who find the
+            // color halo distracting can disable it.
+            if game.edgeVignetteEnabled {
+                EdgeVignetteView(color: game.heldColor,
+                                 reduceMotion: game.reduceMotion)
+                    .allowsHitTesting(false)
+            }
 
             // Hamburger menu dropdown.
             if menuOpen {

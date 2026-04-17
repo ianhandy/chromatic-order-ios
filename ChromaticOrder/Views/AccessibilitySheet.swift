@@ -82,6 +82,17 @@ struct AccessibilitySheet: View {
                 }
 
                 Section {
+                    Toggle("Magnetism", isOn: $game.magnetismEnabled)
+                    Toggle("Edge vignette", isOn: $game.edgeVignetteEnabled)
+                    Toggle("Solved glow", isOn: $game.solvedGlowEnabled)
+                    Toggle("Menu backdrop", isOn: $game.menuBackdropEnabled)
+                } header: {
+                    Text("Visual effects")
+                } footer: {
+                    Text("Disable individual non-critical effects. Magnetism expands cell drop zones; the other three are purely cosmetic.")
+                }
+
+                Section {
                     Button(role: .destructive) {
                         game.resetAccessibility()
                     } label: {

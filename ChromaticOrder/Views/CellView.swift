@@ -42,8 +42,12 @@ struct CellView: View {
                         .fill(Color.white.opacity(0.14))
                         .frame(width: cellPx, height: cellPx)
                 }
-                // Solved-burst glow behind color (z-order wise)
-                if filled, let color = placed, game.solved, !game.reduceMotion {
+                // Solved-burst glow behind color (z-order wise).
+                // Gated on reduce-motion AND the explicit glow toggle
+                // so players can keep motion on but skip this
+                // specific effect.
+                if filled, let color = placed, game.solved,
+                   !game.reduceMotion, game.solvedGlowEnabled {
                     SolvedBurstGlow(color: color, cellPx: cellPx, phase: Double(r) * 0.17 + Double(c) * 0.31)
                         .frame(width: cellPx, height: cellPx)
                 }
