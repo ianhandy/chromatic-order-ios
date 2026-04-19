@@ -5,20 +5,50 @@ struct ChromaticOrderApp: App {
     @State private var incomingPuzzle: Puzzle?
     /// false on cold launch → show MenuView. Flipped to true when the
     /// player picks zen or challenge from the menu. In-game "Back to
-    /// menu" would flip it back (not wired yet — future work).
+    /// menu" flips it back via Transitioner.
     @State private var started: Bool = false
     @State private var game = GameState()
+    /// Drives the app-level fade-to-black overlay so navigation
+    /// between the menu and the game is a symmetric crossfade.
+    @State private var transitioner = Transitioner()
 
     var body: some Scene {
         WindowGroup {
-            Group {
-                if started {
-                    ContentView(game: game,
-                                incomingPuzzle: $incomingPuzzle,
-                                started: $started)
-                } else {
-                    MenuView(game: game, started: $started)
+            ZStack {
+                Group {
+                    if started {
+                        ContentView(game: game,
+                                    incomingPuzzle: $incomingPuzzle,
+                                    started: $started)
+                    } else {
+                        MenuView(game: game, started: $started)
+                    }
                 }
+                // Force dark color scheme app-wide. The game's menus
+                // and game view paint explicit black backgrounds,
+                // but sheet-based views (CreatorView, AccessibilitySheet,
+                // ColorPickerSheet, GalleryView) rely on system chrome
+                // which in Light Mode renders as a white background —
+                // a tester on a light-mode device reported the creator
+                // screen coming up all-white. Pinning dark mode keeps
+                // the visuals consistent across devices.
+                .preferredColorScheme(.dark)
+                // Black curtain — hoisted above every screen in the
+                // ZStack so the fade reads on top of both menu and
+                // game. Ignores hit testing while clear so it never
+                // eats taps outside of a transition.
+                Color.black
+                    .opacity(transitioner.overlayOpacity)
+                    .ignoresSafeArea()
+                    .allowsHitTesting(transitioner.overlayOpacity > 0.01)
+            }
+            .environment(transitioner)
+            .onAppear {
+                // Kick off Game Center sign-in once per process —
+                // handler resolves to a no-op if GC is unavailable
+                // or the player declines, so everything downstream
+                // (score submit, leaderboard view) simply stays idle.
+                GameCenter.shared.authenticate()
             }
             .onOpenURL { url in
                 if url.scheme == "kroma" {

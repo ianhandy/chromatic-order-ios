@@ -253,8 +253,8 @@ private struct SolvedBurstGlow: View {
     let color: OKLCh
     let cellPx: CGFloat
     let phase: Double          // 0..1 per-cell stagger input
-    @State private var burst = false  // sharp initial flash
-    @State private var settled = false // gentle easing back
+    @State private var appeared = false
+    @State private var pulse = false
 
     var body: some View {
         // Color + blur instead of .shadow — SwiftUI's shadow requires
@@ -263,32 +263,42 @@ private struct SolvedBurstGlow: View {
         // halo directly, plays well with scaleEffect, and actually
         // animates (animatable modifiers compose, opaque-shape shadow
         // does not animate radius reliably).
-        let stagger = phase * 0.08
-        let peakAlpha: Double = 0.85
-        let restAlpha: Double = 0.55
-        let alpha = burst ? (settled ? restAlpha : peakAlpha) : 0
-        let blurR: CGFloat = burst
-            ? (settled ? cellPx * 1.0 : cellPx * 1.9)
-            : 0
-        let scale: CGFloat = burst
-            ? (settled ? 1.0 : 1.28)
-            : 0.85
+        //
+        // Boosted vs. the earlier pass: higher alphas, wider blur
+        // radii, and larger scale swing make the color bleed off
+        // each cell more pronounced, so the solve celebration reads
+        // as "colors bloom and mix" rather than "cells brighten a
+        // little."
+        let stagger = phase * 0.6
+        let lowAlpha: Double = 0.48
+        let highAlpha: Double = 0.90
+        let lowBlur: CGFloat = cellPx * 1.2
+        let highBlur: CGFloat = cellPx * 2.2
+        let lowScale: CGFloat = 1.00
+        let highScale: CGFloat = 1.45
+        let alpha = appeared ? (pulse ? highAlpha : lowAlpha) : 0
+        let blurR: CGFloat = appeared ? (pulse ? highBlur : lowBlur) : 0
+        let scale: CGFloat = appeared ? (pulse ? highScale : lowScale) : 0.9
         RoundedRectangle(cornerRadius: cellPx * 0.26, style: .continuous)
             .fill(OK.toColor(color, opacity: alpha))
             .blur(radius: blurR)
             .scaleEffect(scale)
             .frame(width: cellPx, height: cellPx)
             .onAppear {
-                // Phase 1 — sudden flash. Short, punchy ease-out so
-                // every cell pops to its peak glow almost instantly.
-                withAnimation(.easeOut(duration: 0.22).delay(stagger)) {
-                    burst = true
+                // Fade the glow in gently, then hand off to a slow
+                // repeating pulse that breathes between low and high
+                // alpha/blur/scale. Per-cell stagger on the pulse
+                // phase so adjacent cells aren't strobing in unison —
+                // the field undulates instead.
+                withAnimation(.easeOut(duration: 0.8)) {
+                    appeared = true
                 }
-                // Phase 2 — gentle easing to a sustained afterglow.
-                // Longer duration + soft ease so the frame reads as a
-                // held celebration rather than a flicker.
-                withAnimation(.easeOut(duration: 1.2).delay(stagger + 0.22)) {
-                    settled = true
+                withAnimation(
+                    .easeInOut(duration: 2.2)
+                        .repeatForever(autoreverses: true)
+                        .delay(stagger)
+                ) {
+                    pulse = true
                 }
             }
     }

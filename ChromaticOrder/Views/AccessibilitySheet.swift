@@ -20,6 +20,7 @@ import SwiftUI
 struct AccessibilitySheet: View {
     @Bindable var game: GameState
     @Environment(\.dismiss) private var dismiss
+    @State private var showResetProgress = false
 
     var body: some View {
         NavigationStack {
@@ -93,12 +94,50 @@ struct AccessibilitySheet: View {
                 }
 
                 Section {
+                    Toggle("Background music", isOn: $game.musicEnabled)
+                } header: {
+                    Text("Sound")
+                } footer: {
+                    Text("Loops a quiet F# Ionian phrase over the menu and the game. Turn off for silence in the background.")
+                }
+
+                Section {
+                    Picker("Menu frame rate", selection: $game.menuFps) {
+                        Text("30 fps").tag(30)
+                        Text("60 fps").tag(60)
+                        Text("120 fps").tag(120)
+                    }
+                    .pickerStyle(.menu)
+                } header: {
+                    Text("Performance")
+                } footer: {
+                    Text("Frame rate for the main-menu palette backdrop. 120 fps looks smoothest on ProMotion displays; drop to 30 if the menu feels laggy.")
+                }
+
+                Section {
                     Button(role: .destructive) {
                         game.resetAccessibility()
                     } label: {
                         Text("Reset to defaults")
                             .frame(maxWidth: .infinity, alignment: .center)
                     }
+                }
+
+                // Reset Progress sits at the very bottom of the
+                // settings sheet — destructive, wipes level + hearts.
+                // Moved here from the old hamburger menu so the
+                // dropdown only carries navigation (home / settings /
+                // feedback) and the irreversible action hides behind
+                // an extra tap.
+                Section {
+                    Button(role: .destructive) {
+                        showResetProgress = true
+                    } label: {
+                        Text("Reset progress")
+                            .frame(maxWidth: .infinity, alignment: .center)
+                    }
+                } footer: {
+                    Text("Clears your current level and hearts. Ratings are kept.")
                 }
             }
             .navigationTitle("Accessibility")
@@ -107,6 +146,16 @@ struct AccessibilitySheet: View {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Done") { dismiss() }
                 }
+            }
+            .alert("Reset all progress?",
+                   isPresented: $showResetProgress) {
+                Button("Cancel", role: .cancel) {}
+                Button("Reset", role: .destructive) {
+                    game.resetProgress()
+                    dismiss()
+                }
+            } message: {
+                Text("This clears your current level and hearts. Ratings are kept.")
             }
         }
         .presentationDetents([.large])

@@ -6,6 +6,7 @@ import SwiftUI
 struct TopBarView: View {
     @Bindable var game: GameState
     @Binding var menuOpen: Bool
+    @State private var levelPickerOpen: Bool = false
 
     // Palette for the dark-mode top bar. Primary text is near-white
     // (full white glares), secondary is a softer gray.
@@ -13,29 +14,46 @@ struct TopBarView: View {
     private static let secondaryText = Color.white.opacity(0.6)
 
     var body: some View {
-        HStack(spacing: 8) {
-            // Left: level + tier
-            HStack(spacing: 6) {
-                Text("Lv \(game.level)")
-                    .font(.system(size: 14, weight: .heavy, design: .rounded))
-                    .foregroundStyle(Self.primaryText)
-                let t = game.tier
-                Text(t.label)
-                    .font(.system(size: 11, weight: .bold, design: .rounded))
-                    .foregroundStyle(hexColor(t.colorHex))
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 2)
-                    .background(hexColor(t.colorHex).opacity(0.18), in: Capsule())
-                if game.showedIncorrect {
-                    Text("−1")
-                        .font(.system(size: 9, weight: .bold, design: .rounded))
-                        .foregroundStyle(Color(red: 1.0, green: 0.4, blue: 0.4))
+        HStack(alignment: .top, spacing: 8) {
+            // Left: level + tier (top row), challenge score below.
+            // In zen mode the whole "Lv X + tier" cluster is
+            // tappable and opens the level-picker sheet so the
+            // player can jump to any earlier level they've reached.
+            VStack(alignment: .leading, spacing: 2) {
+                Button {
+                    guard game.mode == .zen else { return }
+                    levelPickerOpen = true
+                } label: {
+                    HStack(spacing: 6) {
+                        Text("Lv \(game.level)")
+                            .font(.system(size: 14, weight: .heavy, design: .rounded))
+                            .foregroundStyle(Self.primaryText)
+                        let t = game.tier
+                        Text(t.label)
+                            .font(.system(size: 11, weight: .bold, design: .rounded))
+                            .foregroundStyle(hexColor(t.colorHex))
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 2)
+                            .background(hexColor(t.colorHex).opacity(0.18), in: Capsule())
+                        if game.mode == .zen {
+                            Image(systemName: "chevron.down.circle")
+                                .font(.system(size: 12, weight: .semibold))
+                                .foregroundStyle(Self.secondaryText)
+                        }
+                    }
                 }
-                Spacer(minLength: 0)
+                .buttonStyle(.plain)
+                .disabled(game.mode != .zen)
+                if game.mode == .challenge {
+                    Text("\(game.score) pts")
+                        .font(.system(size: 11, weight: .bold, design: .rounded))
+                        .foregroundStyle(Self.secondaryText)
+                        .monospacedDigit()
+                }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
 
-            // Center: mode label / hearts + score
+            // Center: mode label (zen) or hearts (challenge).
             Group {
                 if game.mode == .zen {
                     Text("Zen Mode")
@@ -43,32 +61,46 @@ struct TopBarView: View {
                         .tracking(0.5)
                         .foregroundStyle(Self.primaryText)
                 } else {
-                    HStack(spacing: 8) {
-                        HStack(spacing: 2) {
-                            if game.checks > 0 {
-                                ForEach(0..<game.checks, id: \.self) { _ in
-                                    Image(systemName: "heart.fill")
-                                        .font(.system(size: 13))
-                                        .foregroundStyle(Color(red: 1.0, green: 0.4, blue: 0.4))
-                                }
-                            } else {
-                                Text("0 \u{2665}")
-                                    .font(.system(size: 11, weight: .bold, design: .rounded))
-                                    .foregroundStyle(Self.secondaryText)
+                    HStack(spacing: 2) {
+                        if game.checks > 0 {
+                            ForEach(0..<game.checks, id: \.self) { _ in
+                                Image(systemName: "heart.fill")
+                                    .font(.system(size: 13))
+                                    .foregroundStyle(Color(red: 1.0, green: 0.4, blue: 0.4))
                             }
+                        } else {
+                            Text("0 \u{2665}")
+                                .font(.system(size: 11, weight: .bold, design: .rounded))
+                                .foregroundStyle(Self.secondaryText)
                         }
-                        Text("\(game.score)")
-                            .font(.system(size: 13, weight: .heavy, design: .rounded))
-                            .foregroundStyle(Self.primaryText)
-                            .monospacedDigit()
                     }
                 }
             }
 
-            // Right: hamburger — light outline capsule on dark bg.
-            HStack {
+            // Right: favorite star + hamburger. Star saves the
+            // current puzzle to the favorites gallery; tap again to
+            // remove it. Disabled while the generator is still
+            // producing the puzzle so the user can't favorite nil.
+            HStack(spacing: 6) {
                 Spacer(minLength: 0)
+                let favorited = game.currentFavoriteURL != nil
                 Button {
+                    game.toggleFavorite()
+                } label: {
+                    Image(systemName: favorited ? "star.fill" : "star")
+                        .font(.system(size: 16, weight: .semibold))
+                        .frame(width: 38, height: 34)
+                        .foregroundStyle(favorited
+                                          ? Color(red: 1.00, green: 0.83, blue: 0.22)
+                                          : Self.primaryText)
+                        .background(Color.white.opacity(0.08), in: Capsule())
+                        .overlay(
+                            Capsule().stroke(Color.white.opacity(0.25), lineWidth: 1)
+                        )
+                }
+                .disabled(game.puzzle == nil || game.generating)
+                Button {
+                    GlassyAudio.shared.playBloom()
                     menuOpen.toggle()
                 } label: {
                     Image(systemName: "line.3.horizontal")
@@ -88,6 +120,9 @@ struct TopBarView: View {
         }
         .padding(.top, 10)
         .padding(.bottom, 8)
+        .sheet(isPresented: $levelPickerOpen) {
+            LevelPickerSheet(game: game)
+        }
     }
 }
 

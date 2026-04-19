@@ -49,6 +49,15 @@ final class GameState {
     var mode: GameMode
     var checks: Int
     var score: Int
+    /// Persisted zen progression. Live `level` tracks whichever mode
+    /// is active; this variable is the zen-specific counterpart so
+    /// switching into challenge (which always restarts at level 1)
+    /// doesn't nuke the player's zen progress.
+    var zenLevel: Int
+    /// Highest zen level the player has ever reached. Drives the
+    /// top bar's level-picker sheet — the player can jump back to
+    /// any earlier level without losing their max-reached marker.
+    var zenMaxLevel: Int
     var reduceMotion: Bool
     /// Color-blindness mode the generator and scorer build under. Saved
     /// alongside reduce-motion so Reset Progress doesn't stomp it —
@@ -80,10 +89,28 @@ final class GameState {
     /// Radial glow burst behind solved cells. Off = just the color,
     /// no finale flash.
     var solvedGlowEnabled: Bool
+    /// Background-music loop (F# Ionian phrase) plays on both menu
+    /// and in-game. Off = silent background.
+    var musicEnabled: Bool {
+        didSet {
+            GlassyAudio.musicEnabled = musicEnabled
+        }
+    }
+    /// Frame rate cap for the main-menu palette animation. 30 / 60
+    /// / 120 — 120 only pays off on ProMotion displays and can feel
+    /// laggy on older devices. 60 is the default; pick higher for
+    /// ProMotion-smooth motion, lower to reduce CPU load.
+    var menuFps: Int
 
     // Live puzzle
     var puzzle: Puzzle?
     var generating: Bool = true
+    /// Set when the current puzzle has been favorited (or loaded
+    /// from favorites). nil otherwise. Drives the top-bar star's
+    /// filled-vs-outline state and lets `toggleFavorite()` know
+    /// which file to remove on un-favorite. Cleared on every
+    /// `startLevel` so a new generated puzzle starts unfavorited.
+    var currentFavoriteURL: URL?
 
     // Interaction
     var selection: BoardSelection?
@@ -132,10 +159,12 @@ final class GameState {
 
     // How far above the finger the drag ghost floats. Purely visual —
     // placement still uses the raw finger position via effectivePoint
-    // below. That's the intuitive mapping: the cell you point at is
-    // the cell the color lands in; the ghost just gets out of the
-    // thumb's way so you can see what you're targeting.
-    static let ghostLift: CGFloat = 64
+    // below. Was 64pt historically; that lifted the ghost so far up
+    // it read as disconnected from the finger and made placements
+    // feel like they were "pulling" (towards where the ghost was, not
+    // where the finger was). 22pt is enough clearance for the
+    // thumbtip without visually detaching.
+    static let ghostLift: CGFloat = 22
 
     /// Effective drop point for hit-testing. Pass-through now — the
     /// finger's position IS the placement position. (An earlier pass
@@ -187,11 +216,15 @@ final class GameState {
     private var nextBankUid: Int = 1_000_000
 
     init() {
-        let (savedLevel, savedMode, savedChecks, savedScore) = Self.loadProgress()
-        self.level = savedLevel
-        self.mode = savedMode
-        self.checks = savedChecks
-        self.score = savedScore
+        // Only zen progress persists — challenge is a fresh session
+        // every time the player enters it (see `enterMode`).
+        let loaded = Self.loadProgress()
+        self.zenLevel = loaded.zenLevel
+        self.zenMaxLevel = loaded.zenMaxLevel
+        self.level = loaded.zenLevel
+        self.mode = .zen
+        self.checks = 0
+        self.score = 0
         self.reduceMotion = Self.loadReduceMotion()
         self.cbMode = Self.loadCBMode()
         let a11y = Self.loadAccessibility()
@@ -205,6 +238,9 @@ final class GameState {
         self.edgeVignetteEnabled = a11y.edgeVignetteEnabled
         self.menuBackdropEnabled = a11y.menuBackdropEnabled
         self.solvedGlowEnabled = a11y.solvedGlowEnabled
+        self.musicEnabled = a11y.musicEnabled
+        self.menuFps = a11y.menuFps
+        GlassyAudio.musicEnabled = a11y.musicEnabled
         startLevel(level)
     }
 
@@ -221,6 +257,8 @@ final class GameState {
         var edgeVignetteEnabled: Bool
         var menuBackdropEnabled: Bool
         var solvedGlowEnabled: Bool
+        var musicEnabled: Bool
+        var menuFps: Int
 
         static let defaults = AccessibilityBundle(
             contrastScale: 1.0,
@@ -230,7 +268,9 @@ final class GameState {
             magnetismEnabled: true,
             edgeVignetteEnabled: true,
             menuBackdropEnabled: true,
-            solvedGlowEnabled: true
+            solvedGlowEnabled: true,
+            musicEnabled: true,
+            menuFps: 60
         )
     }
 
@@ -248,7 +288,9 @@ final class GameState {
             magnetismEnabled: (dict["magnetismEnabled"] as? Bool) ?? true,
             edgeVignetteEnabled: (dict["edgeVignetteEnabled"] as? Bool) ?? true,
             menuBackdropEnabled: (dict["menuBackdropEnabled"] as? Bool) ?? true,
-            solvedGlowEnabled: (dict["solvedGlowEnabled"] as? Bool) ?? true
+            solvedGlowEnabled: (dict["solvedGlowEnabled"] as? Bool) ?? true,
+            musicEnabled: (dict["musicEnabled"] as? Bool) ?? true,
+            menuFps: (dict["menuFps"] as? Int) ?? 60
         )
         return b
     }
@@ -265,6 +307,8 @@ final class GameState {
             "edgeVignetteEnabled": edgeVignetteEnabled,
             "menuBackdropEnabled": menuBackdropEnabled,
             "solvedGlowEnabled": solvedGlowEnabled,
+            "musicEnabled": musicEnabled,
+            "menuFps": menuFps,
         ]
         if let data = try? JSONSerialization.data(withJSONObject: dict) {
             UserDefaults.standard.set(data, forKey: a11yKey)
@@ -316,6 +360,8 @@ final class GameState {
         edgeVignetteEnabled = d.edgeVignetteEnabled
         menuBackdropEnabled = d.menuBackdropEnabled
         solvedGlowEnabled = d.solvedGlowEnabled
+        musicEnabled = d.musicEnabled
+        menuFps = d.menuFps
         cbMode = .none
         saveAccessibility()
         saveCBMode()
@@ -387,19 +433,28 @@ final class GameState {
 
     // ─── persistence ────────────────────────────────────────────────
 
-    private static func loadProgress() -> (Int, GameMode, Int, Int) {
+    private static func loadProgress() -> (zenLevel: Int, zenMaxLevel: Int) {
         let ud = UserDefaults.standard
-        if let data = ud.data(forKey: progressKey),
-           let dict = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-           (dict["version"] as? Int) == 1 {
-            let lv = (dict["level"] as? Int) ?? 1
-            let mdRaw = (dict["mode"] as? String) ?? "zen"
-            let md: GameMode = mdRaw == "challenge" ? .challenge : .zen
-            let cks = (dict["checks"] as? Int) ?? 3
-            let sc = (dict["score"] as? Int) ?? 0
-            return (max(1, lv), md, max(0, cks), max(0, sc))
+        guard let data = ud.data(forKey: progressKey),
+              let dict = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
+        else { return (1, 1) }
+        let v = dict["version"] as? Int ?? 1
+        if v >= 3 {
+            let zl = max(1, (dict["zenLevel"] as? Int) ?? 1)
+            let zm = max(zl, (dict["zenMaxLevel"] as? Int) ?? zl)
+            return (zl, zm)
         }
-        return (1, .zen, 3, 0)
+        if v == 2 {
+            // v2 had only zenLevel — use it as both current and max.
+            let zl = max(1, (dict["zenLevel"] as? Int) ?? 1)
+            return (zl, zl)
+        }
+        // v1 migration: if the last saved mode was zen, carry its
+        // level forward; otherwise start fresh at 1.
+        let lv = (dict["level"] as? Int) ?? 1
+        let mdRaw = (dict["mode"] as? String) ?? "zen"
+        let zl = mdRaw == "zen" ? max(1, lv) : 1
+        return (zl, zl)
     }
 
     private static func loadReduceMotion() -> Bool {
@@ -411,12 +466,17 @@ final class GameState {
     }
 
     private func saveProgress() {
+        // Keep `zenLevel` in sync whenever we persist from zen, and
+        // ratchet the max-reached marker so jumping back to earlier
+        // levels never lowers it.
+        if mode == .zen {
+            zenLevel = level
+            zenMaxLevel = max(zenMaxLevel, level)
+        }
         let dict: [String: Any] = [
-            "version": 1,
-            "level": level,
-            "mode": mode.rawValue,
-            "checks": checks,
-            "score": score,
+            "version": 3,
+            "zenLevel": zenLevel,
+            "zenMaxLevel": zenMaxLevel,
         ]
         if let data = try? JSONSerialization.data(withJSONObject: dict) {
             UserDefaults.standard.set(data, forKey: progressKey)
@@ -439,6 +499,7 @@ final class GameState {
         activeColor = nil
         showIncorrect = false
         engagedThisLevel = false
+        currentFavoriteURL = nil
         // Diagnostics reset — fresh puzzle = fresh timer + mistake count.
         puzzleStartTime = Date()
         mistakeCount = 0
@@ -505,12 +566,25 @@ final class GameState {
 
     func handleNext() {
         let justCompleted = level
-        let nextLv = showedIncorrect ? max(1, level - 1) : level + 1
+        // If the player used "show incorrect" this puzzle, solving
+        // it doesn't advance them — they stay on the same level and
+        // try again next round. No demotion, no UI copy mentioning
+        // the rule; the button is just silently a "peek that costs
+        // the next-level bump."
+        let nextLv = showedIncorrect ? level : level + 1
         if mode == .challenge {
             if let p = puzzle {
-                score += max(1, p.difficulty)
+                // Level × difficulty — rewards both climbing the
+                // ladder and tackling harder puzzles within a tier.
+                // Level 1 diff 1 = 1 pt; level 10 diff 10 = 100 pts.
+                score += max(1, level) * max(1, p.difficulty)
             }
             if justCompleted % 3 == 0 { checks += 1 }
+            // Push the updated total to Game Center. Only the best
+            // score per player is retained server-side so we can
+            // submit on every solve without needing a local
+            // high-water mark.
+            GameCenter.shared.submitChallengeScore(score)
         }
         showedIncorrect = false
         level = nextLv
@@ -535,6 +609,7 @@ final class GameState {
         if allGood {
             solved = true
             showIncorrect = false
+            playSolveChord()
         } else {
             checks -= 1
             showIncorrect = true
@@ -554,18 +629,50 @@ final class GameState {
     }
 
     func switchMode() {
-        mode = (mode == .zen) ? .challenge : .zen
-        if mode == .challenge { checks = 3 }
+        enterMode((mode == .zen) ? .challenge : .zen)
+    }
+
+    /// Entry point from the main menu. Always resets challenge to a
+    /// fresh run (level 1, score 0, three checks); restores the
+    /// persisted zen level when returning to zen.
+    func enterMode(_ target: GameMode) {
+        // Save zen progress before leaving zen so picking zen again
+        // later lands on the highest level the player has reached.
+        if mode == .zen {
+            zenLevel = level
+            saveProgress()
+        }
+        mode = target
         showIncorrect = false
         showedIncorrect = false
+        switch target {
+        case .zen:
+            level = zenLevel
+            score = 0
+            checks = 0
+        case .challenge:
+            level = 1
+            score = 0
+            checks = 3
+        }
         saveProgress()
+        startLevel(level)
     }
 
     /// Jump into a player-authored puzzle. Bypasses the generator and
-    /// level progression — treated as a one-off "custom" session. We
-    /// keep `level` and progress untouched so dismissing the custom
-    /// puzzle returns the player to where they were.
-    func loadCustomPuzzle(_ p: Puzzle) {
+    /// level progression — treated as a one-off "custom" session.
+    /// Always plays in zen mode: challenge is reserved for the
+    /// generator's level ladder (and its per-puzzle scoring doesn't
+    /// make sense for a one-off), so entering a custom puzzle from
+    /// challenge forces a switch back to zen first.
+    func loadCustomPuzzle(_ p: Puzzle, favoriteURL: URL? = nil) {
+        if mode != .zen {
+            mode = .zen
+            level = zenLevel
+            score = 0
+            checks = 0
+            saveProgress()
+        }
         generating = false
         solved = false
         selection = nil
@@ -576,18 +683,49 @@ final class GameState {
         showIncorrect = false
         showedIncorrect = false
         engagedThisLevel = false
+        currentFavoriteURL = favoriteURL
         puzzle = p
+    }
+
+    /// Toggle the current puzzle's favorite status. Saves a .kroma
+    /// file to the favorites store on favorite; deletes the tracked
+    /// file on un-favorite. No-op if there's no live puzzle.
+    func toggleFavorite() {
+        guard let p = puzzle else { return }
+        if let url = currentFavoriteURL {
+            FavoritesStore.deleteURL(url)
+            currentFavoriteURL = nil
+        } else {
+            currentFavoriteURL = try? FavoritesStore.save(p)
+        }
     }
 
     func resetProgress() {
         UserDefaults.standard.removeObject(forKey: progressKey)
         level = 1
+        zenLevel = 1
+        zenMaxLevel = 1
         mode = .zen
-        checks = 3
+        checks = 0
         score = 0
         showedIncorrect = false
         showIncorrect = false
         startLevel(1)
+    }
+
+    /// Jump directly to an earlier zen level the player has already
+    /// reached. No-op in challenge or out-of-range. Preserves the
+    /// max-reached marker so returning to a higher level later
+    /// won't fight with it.
+    func jumpToLevel(_ lv: Int) {
+        guard mode == .zen else { return }
+        let clamped = min(max(1, lv), zenMaxLevel)
+        level = clamped
+        zenLevel = clamped
+        showIncorrect = false
+        showedIncorrect = false
+        saveProgress()
+        startLevel(clamped)
     }
 
     // ─── auto-check (zen) ───────────────────────────────────────────
@@ -602,7 +740,35 @@ final class GameState {
                 return false
             }
         }
-        if allGood { solved = true }
+        if allGood {
+            // Defer the solve-state flip to the next tick so the
+            // final placement renders first. Otherwise the newly-
+            // placed cell's fill transitions in alongside the
+            // bank-slide-out + grid-recenter spring and visibly
+            // lags behind the already-placed cells.
+            Task { @MainActor [weak self] in
+                guard let self, !self.solved else { return }
+                self.solved = true
+                self.playSolveChord()
+            }
+        }
+    }
+
+    /// Stacks the placed colors (one per unique cell) into a pentatonic
+    /// chord the audio engine plays when the puzzle is solved. Skips
+    /// locked/anchor cells — the "reward" sound should reflect the
+    /// colors the player actually placed, not the starter clues.
+    private func playSolveChord() {
+        guard let p = puzzle else { return }
+        var colors: [OKLCh] = []
+        for r in 0..<p.gridH {
+            for c in 0..<p.gridW where p.board[r][c].kind == .cell {
+                let cell = p.board[r][c]
+                if cell.locked { continue }
+                if let color = cell.placed { colors.append(color) }
+            }
+        }
+        GlassyAudio.shared.playSolveChord(colors: colors)
     }
 
     // ─── bank slot helpers ──────────────────────────────────────────
@@ -644,6 +810,7 @@ final class GameState {
         }
         puzzle = p
         engagedThisLevel = true
+        GlassyAudio.shared.play(item.color, kind: .place)
         recordPlacementAt(r, c, from: p.board)
         checkAutoSolve()
     }
@@ -664,6 +831,7 @@ final class GameState {
         }
         puzzle = p
         engagedThisLevel = true
+        GlassyAudio.shared.play(color, kind: .place)
         // Only the `from` cell got a new color (or went empty); the
         // empty case is handled by the guard in recordPlacementAt.
         recordPlacementAt(from.r, from.c, from: p.board)
@@ -674,13 +842,14 @@ final class GameState {
         guard var p = puzzle, from != to,
               from >= 0, from < p.bank.count,
               to >= 0, to < p.bank.count else { return }
-        guard p.bank[from] != nil else { return }
+        guard let movedItem = p.bank[from] else { return }
         let f = p.bank[from]
         let t = p.bank[to]
         p.bank[from] = t
         p.bank[to] = f
         puzzle = p
         engagedThisLevel = true
+        GlassyAudio.shared.play(movedItem.color, kind: .place)
     }
 
     func swapCells(_ a: CellIndex, _ b: CellIndex) {
@@ -692,6 +861,9 @@ final class GameState {
         p.board[b.r][b.c].placed = tmp
         puzzle = p
         engagedThisLevel = true
+        if let landed = p.board[b.r][b.c].placed {
+            GlassyAudio.shared.play(landed, kind: .place)
+        }
         // Both cells got new colors — each is a potential mistake.
         recordPlacementAt(a.r, a.c, from: p.board)
         recordPlacementAt(b.r, b.c, from: p.board)
@@ -706,10 +878,12 @@ final class GameState {
         if p.board[to.r][to.c].placed != nil {
             swapCells(from, to); return
         }
-        p.board[to.r][to.c].placed = p.board[from.r][from.c].placed
+        let moved = p.board[from.r][from.c].placed
+        p.board[to.r][to.c].placed = moved
         p.board[from.r][from.c].placed = nil
         puzzle = p
         engagedThisLevel = true
+        if let moved { GlassyAudio.shared.play(moved, kind: .place) }
         // `to` cell received the color; `from` went empty (no count).
         recordPlacementAt(to.r, to.c, from: p.board)
         checkAutoSolve()
@@ -727,6 +901,7 @@ final class GameState {
         p.bank[slot] = BankItem(id: newBankUid(), color: color)
         puzzle = p
         engagedThisLevel = true
+        GlassyAudio.shared.play(color, kind: .place)
     }
 
     // ─── tap handling ───────────────────────────────────────────────
@@ -752,7 +927,7 @@ final class GameState {
         guard let item = p.bank[slot] else { return }
         selection = BoardSelection(kind: .bank(slot))
         activeColor = item.color
-        _ = item
+        GlassyAudio.shared.play(item.color, kind: .pickup)
     }
 
     func tapCell(at r: Int, _ c: Int) {
@@ -772,9 +947,10 @@ final class GameState {
                 clearSelection(); return
             }
         }
-        if cell.placed != nil {
+        if let color = cell.placed {
             selection = BoardSelection(kind: .cell(idx))
-            activeColor = cell.placed
+            activeColor = color
+            GlassyAudio.shared.play(color, kind: .pickup)
         }
     }
 
@@ -790,6 +966,7 @@ final class GameState {
         dragLocation = loc
         selection = nil
         activeColor = nil
+        GlassyAudio.shared.play(source.color, kind: .pickup)
     }
 
     func updateDrag(to loc: CGPoint) {

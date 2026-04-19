@@ -30,7 +30,7 @@ struct KromaPuzzleFile: Transferable {
     /// difficulty in the name helps when a player's collected several
     /// shared puzzles — sortable, legible at a glance.
     var suggestedFilename: String {
-        "Kroma puzzle (\(difficulty) of 10).kroma"
+        "Kromatika puzzle (\(difficulty) of 10).kroma"
     }
 
     static var transferRepresentation: some TransferRepresentation {

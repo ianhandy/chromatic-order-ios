@@ -15,6 +15,7 @@ struct GalleryView: View {
     @Binding var started: Bool
     @Environment(\.dismiss) private var dismiss
     @State private var puzzles: [GalleryPuzzle] = []
+    @State private var favorites: [GalleryPuzzle] = []
     @State private var creatorOpen = false
     @State private var editingPuzzle: GalleryPuzzle? = nil
     @State private var renameTarget: GalleryPuzzle? = nil
@@ -25,7 +26,7 @@ struct GalleryView: View {
     var body: some View {
         NavigationStack {
             Group {
-                if puzzles.isEmpty {
+                if puzzles.isEmpty && favorites.isEmpty {
                     emptyState
                 } else {
                     list
@@ -162,68 +163,106 @@ struct GalleryView: View {
 
     private var list: some View {
         List {
-            ForEach(puzzles) { puzzle in
-                GalleryRow(puzzle: puzzle)
-                    .contentShape(Rectangle())
-                    .onTapGesture {
-                        play(puzzle)
+            if !puzzles.isEmpty {
+                Section("Your puzzles") {
+                    ForEach(puzzles) { puzzle in
+                        GalleryRow(puzzle: puzzle)
+                            .contentShape(Rectangle())
+                            .onTapGesture {
+                                play(puzzle)
+                            }
+                            .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                                Button(role: .destructive) {
+                                    try? GalleryStore.delete(puzzle)
+                                    reload()
+                                } label: {
+                                    Label("Delete", systemImage: "trash")
+                                }
+                                Button {
+                                    editingPuzzle = puzzle
+                                } label: {
+                                    Label("Edit", systemImage: "pencil")
+                                }
+                                .tint(.blue)
+                                Button {
+                                    renameText = puzzle.doc.name ?? ""
+                                    renameTarget = puzzle
+                                } label: {
+                                    Label("Rename", systemImage: "tag")
+                                }
+                                .tint(.indigo)
+                            }
+                            .contextMenu {
+                                Button {
+                                    play(puzzle)
+                                } label: {
+                                    Label("Play", systemImage: "play.fill")
+                                }
+                                Button {
+                                    editingPuzzle = puzzle
+                                } label: {
+                                    Label("Edit", systemImage: "pencil")
+                                }
+                                Button {
+                                    renameText = puzzle.doc.name ?? ""
+                                    renameTarget = puzzle
+                                } label: {
+                                    Label("Rename", systemImage: "tag")
+                                }
+                                Button(role: .destructive) {
+                                    try? GalleryStore.delete(puzzle)
+                                    reload()
+                                } label: {
+                                    Label("Delete", systemImage: "trash")
+                                }
+                            }
                     }
-                    .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                        Button(role: .destructive) {
-                            try? GalleryStore.delete(puzzle)
-                            reload()
-                        } label: {
-                            Label("Delete", systemImage: "trash")
-                        }
-                        Button {
-                            editingPuzzle = puzzle
-                        } label: {
-                            Label("Edit", systemImage: "pencil")
-                        }
-                        .tint(.blue)
-                        Button {
-                            renameText = puzzle.doc.name ?? ""
-                            renameTarget = puzzle
-                        } label: {
-                            Label("Rename", systemImage: "tag")
-                        }
-                        .tint(.indigo)
+                }
+            }
+
+            if !favorites.isEmpty {
+                Section("Favorites") {
+                    ForEach(favorites) { puzzle in
+                        GalleryRow(puzzle: puzzle)
+                            .contentShape(Rectangle())
+                            .onTapGesture {
+                                play(puzzle, favoriteURL: puzzle.url)
+                            }
+                            .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                                Button(role: .destructive) {
+                                    try? FavoritesStore.delete(puzzle)
+                                    reload()
+                                } label: {
+                                    Label("Remove", systemImage: "star.slash")
+                                }
+                            }
+                            .contextMenu {
+                                Button {
+                                    play(puzzle, favoriteURL: puzzle.url)
+                                } label: {
+                                    Label("Play", systemImage: "play.fill")
+                                }
+                                Button(role: .destructive) {
+                                    try? FavoritesStore.delete(puzzle)
+                                    reload()
+                                } label: {
+                                    Label("Remove from favorites", systemImage: "star.slash")
+                                }
+                            }
                     }
-                    .contextMenu {
-                        Button {
-                            play(puzzle)
-                        } label: {
-                            Label("Play", systemImage: "play.fill")
-                        }
-                        Button {
-                            editingPuzzle = puzzle
-                        } label: {
-                            Label("Edit", systemImage: "pencil")
-                        }
-                        Button {
-                            renameText = puzzle.doc.name ?? ""
-                            renameTarget = puzzle
-                        } label: {
-                            Label("Rename", systemImage: "tag")
-                        }
-                        Button(role: .destructive) {
-                            try? GalleryStore.delete(puzzle)
-                            reload()
-                        } label: {
-                            Label("Delete", systemImage: "trash")
-                        }
-                    }
+                }
             }
         }
     }
 
     private func reload() {
         puzzles = GalleryStore.all()
+        favorites = FavoritesStore.all()
     }
 
-    private func play(_ puzzle: GalleryPuzzle) {
+    private func play(_ puzzle: GalleryPuzzle, favoriteURL: URL? = nil) {
         guard let built = CreatorCodec.rebuild(puzzle.doc) else { return }
-        game.loadCustomPuzzle(built)
+        game.loadCustomPuzzle(built, favoriteURL: favoriteURL)
         // Close gallery + drop into game. The dismiss chain routes
         // through the parent sheet's onDismiss; MenuView flips
         // `started` to true there.

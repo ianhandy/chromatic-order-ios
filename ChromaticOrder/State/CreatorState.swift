@@ -77,6 +77,24 @@ final class CreatorState {
     // GameState.cellFrames). Populated by the canvas view.
     var cellFrames: [CellIndex: CGRect] = [:]
 
+    /// Is the point inside the axis-aligned union of all cell frames?
+    /// Used during drag to tell "finger is in the 2pt gap between
+    /// cells" (still on the canvas) apart from "finger has left the
+    /// canvas entirely" — only the latter should kill the preview.
+    private func isInsideCanvas(_ loc: CGPoint) -> Bool {
+        guard !cellFrames.isEmpty else { return false }
+        var minX = CGFloat.infinity, minY = CGFloat.infinity
+        var maxX = -CGFloat.infinity, maxY = -CGFloat.infinity
+        for r in cellFrames.values {
+            if r.minX < minX { minX = r.minX }
+            if r.minY < minY { minY = r.minY }
+            if r.maxX > maxX { maxX = r.maxX }
+            if r.maxY > maxY { maxY = r.maxY }
+        }
+        return loc.x >= minX && loc.x <= maxX
+            && loc.y >= minY && loc.y <= maxY
+    }
+
     // ─── Derived ────────────────────────────────────────────────────
 
     /// The committed colors for each cell — flattened from all laid
@@ -200,7 +218,15 @@ final class CreatorState {
         // magnetism here; the creator needs a precise feel.
         let hit = cellFrames.first(where: { $0.value.contains(loc) })?.key
         guard let cur = hit else {
-            // Off-grid → kill the preview (no partial commits).
+            // No direct hit. This fires both when the finger is
+            // OUTSIDE the canvas AND when it's in the 2pt gap
+            // between two adjacent cell frames. Resetting the preview
+            // on every gap crossing makes the in-progress gradient
+            // flicker black for a frame as the finger slides from one
+            // cell to the next, so keep the previous drag state when
+            // the miss is just a gap. Only kill the preview when the
+            // finger is genuinely off the grid.
+            if isInsideCanvas(loc) { return }
             dragCurrent = start
             dragAxis = nil
             dragInvalid = false

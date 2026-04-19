@@ -63,46 +63,71 @@ struct ContentView: View {
                     .allowsHitTesting(false)
             }
 
-            // Hamburger menu dropdown.
-            if menuOpen {
-                MenuSheet(game: game,
-                          menuOpen: $menuOpen,
-                          creatorOpen: $creatorOpen,
-                          feedbackOpen: $feedbackOpen,
-                          accessibilityOpen: $accessibilityOpen,
-                          started: $started)
-            }
+            // Hamburger menu — always mounted so the close animation
+            // (labels fade, icons retract off-screen) can play out.
+            // Internal `menuOpen` state gates hit-testing so the menu
+            // doesn't eat taps on the game while closed.
+            MenuSheet(game: game,
+                      menuOpen: $menuOpen,
+                      creatorOpen: $creatorOpen,
+                      feedbackOpen: $feedbackOpen,
+                      accessibilityOpen: $accessibilityOpen,
+                      started: $started)
 
-            // Solved overlay: Like widget + Next Level button, stacked
-            // bottom-right. The widget only shows after a solve —
-            // asking "did you like THIS level?" is only meaningful
-            // once the player has actually finished it.
+            // Solved overlay: Like widget on the bottom-left, Next
+            // Level button on the bottom-right. The widget only shows
+            // after a solve — asking "did you like THIS level?" is
+            // only meaningful once the player has actually finished it.
             if game.solved, let _ = game.puzzle {
                 VStack {
                     Spacer()
-                    HStack {
+                    HStack(alignment: .bottom) {
+                        LikeFeedbackWidget(game: game)
+                            .padding(.leading, 20)
+                            .padding(.bottom, 20)
                         Spacer()
-                        VStack(alignment: .trailing, spacing: 12) {
-                            LikeFeedbackWidget(game: game)
-                            Button {
-                                game.handleNext()
-                            } label: {
-                                Text("Next Level \u{2192}")
-                                    .font(.system(size: 14, weight: .bold, design: .rounded))
-                                    .padding(.horizontal, 22)
-                                    .frame(height: 48)
-                                    .background(Color(red: 42 / 255, green: 157 / 255, blue: 78 / 255))
-                                    .foregroundStyle(.white)
-                                    .clipShape(Capsule())
-                                    .shadow(color: Color(red: 42 / 255, green: 157 / 255, blue: 78 / 255).opacity(0.38),
-                                            radius: 20, y: 6)
-                            }
+                        Button {
+                            game.handleNext()
+                        } label: {
+                            Text("next level \u{2192}")
+                                .font(.system(size: 14, weight: .bold, design: .rounded))
+                                .padding(.horizontal, 22)
+                                .frame(height: 48)
+                                .background(Color(red: 42 / 255, green: 157 / 255, blue: 78 / 255))
+                                .foregroundStyle(.white)
+                                .clipShape(Capsule())
+                                .shadow(color: Color(red: 42 / 255, green: 157 / 255, blue: 78 / 255).opacity(0.38),
+                                        radius: 20, y: 6)
                         }
                         .padding(.trailing, 20)
                         .padding(.bottom, 20)
                     }
                 }
                 .transition(.opacity)
+            }
+
+            // Reset-puzzle icon — floating bottom-right while the
+            // puzzle is unsolved. An arrow-in-a-circle reads as
+            // "reset this puzzle" at a glance; low-key white-on-dark
+            // styling so it's present but not shouty.
+            if !game.solved, game.puzzle != nil {
+                VStack {
+                    Spacer()
+                    HStack {
+                        Spacer()
+                        Button {
+                            game.handleReset()
+                        } label: {
+                            Image(systemName: "arrow.counterclockwise.circle")
+                                .font(.system(size: 26, weight: .regular))
+                                .foregroundStyle(Color.white.opacity(0.55))
+                                .frame(width: 44, height: 44)
+                        }
+                        .buttonStyle(.plain)
+                        .padding(.trailing, 16)
+                        .padding(.bottom, 12)
+                    }
+                }
             }
 
             // Dragged swatch ghost. Floats ABOVE the finger (not under)
@@ -157,6 +182,9 @@ struct ContentView: View {
             feedbackOpen = false
             menuOpen = false
             incomingPuzzle = nil
+        }
+        .onAppear {
+            GlassyAudio.shared.startMusicIfNeeded()
         }
         .onChange(of: menuOpen) { _, isOpen in
             // Deferred CB regeneration: cycling the CB mode inside

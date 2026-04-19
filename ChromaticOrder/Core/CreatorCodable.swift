@@ -300,7 +300,7 @@ enum CreatorCodec {
     /// same JSON schema. Preserves per-cell lock state so we can replay
     /// a liked layout to other players without re-deriving locks via
     /// the auto-lock rules. Compact JSON (no pretty-print) keeps the
-    /// payload small for the "Kroma Level Like" Paragraph field.
+    /// payload small for the "Kromatika Level Like" Paragraph field.
     static func encodePuzzle(_ p: Puzzle) throws -> String {
         // Deduplicate gradient cells by (r, c): intersections appear in
         // multiple gradients' cell arrays. The sharer's intent is

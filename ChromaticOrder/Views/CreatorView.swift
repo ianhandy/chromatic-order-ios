@@ -278,10 +278,10 @@ struct CreatorView: View {
                     let previewImage = PuzzlePreviewRenderer.render(b.puzzle)
                     ShareLink(
                         item: file,
-                        subject: Text("A Kroma puzzle"),
+                        subject: Text("A Kromatika puzzle"),
                         message: Text("difficulty \(b.validation.difficulty)/10 — tap to play: \(shareURL)"),
                         preview: SharePreview(
-                            "Kroma puzzle (\(b.validation.difficulty)/10)",
+                            "Kromatika puzzle (\(b.validation.difficulty)/10)",
                             image: previewImage ?? Image(systemName: "paintpalette.fill")
                         )
                     ) {
