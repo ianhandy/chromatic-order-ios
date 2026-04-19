@@ -10,7 +10,9 @@ import Foundation
 // ─── config / tuning knobs ──────────────────────────────────────────
 
 struct GenConfig {
-    var huePrimaryBias: Double = 0.75
+    /// nil = let `levelHuePrimaryBias(level)` pick a level-appropriate
+    /// default. Explicit doubles override that curve.
+    var huePrimaryBias: Double? = nil
     var symmetryRate: Double = 0.0
     var endpointCenterBias: Double = 0.5
     var lengthDiversityBias: Double = 0.7
@@ -90,6 +92,21 @@ private func pairProxCap(_ level: Int) -> Double? {
     case 14: return 38
     case 15: return 48
     default: return nil
+    }
+}
+
+// Player feedback at lv 4-5 challenge mode flagged "hue-only on
+// constant L/C" puzzles as feeling cheap against the timer. Lower
+// hue-primary bias at the easy end so L or c take the primary role
+// more often; ramp hue dominance back in for Expert / Master.
+private func levelHuePrimaryBias(_ level: Int) -> Double {
+    switch level {
+    case ...3: return 0.30
+    case 4...6: return 0.25
+    case 7...9: return 0.50
+    case 10...12: return 0.65
+    case 13...15: return 0.75
+    default: return 0.85
     }
 }
 
@@ -311,8 +328,9 @@ private func tryGrow(level: Int, cfg: LevelConfig, dev: GenConfig) -> Puzzle? {
     let targetN = dev.gradientCountOverride ?? defaultGradientCount(level)
     let (minLen, maxLen) = wordLenFor(level)
 
+    let bias = dev.huePrimaryBias ?? levelHuePrimaryBias(level)
     let assign = pickChannelsAndRoles(count: cfg.channelCount,
-                                      huePrimaryBias: dev.huePrimaryBias)
+                                      huePrimaryBias: bias)
 
     var cells: [String: GrowCell] = [:]
     var gradients: [Int: GrowGrad] = [:]
@@ -484,6 +502,59 @@ private func finalize(cells: [String: GrowCell],
             lockedSet.insert("\(endpoint.r),\(endpoint.c)")
         }
         outGrads[gi] = g
+    }
+
+    // Uniqueness guard 3: shared-intersection arm-swap. At any cell X
+    // shared by two gradients, each gradient has an "arm" extending
+    // from X in one or two directions. Two arms with matching non-X
+    // cell counts (whether across gradients or within one gradient's
+    // own fwd/bwd arms) are swap-ambiguous — their colors can be
+    // permuted and still form valid linear gradients in each
+    // row/column. Lock the cell adjacent to X in each additional
+    // same-length unlocked arm to pin the ordering. Guard 1's center
+    // pos-0 lock already handles the pure within-gradient case; this
+    // catches the cross-gradient case (two branches of equal length
+    // meeting at an anchor) that playtesters flagged.
+    struct Arm { let gi: Int; let intersectPos: Int; let cellIdx: [Int] }
+    var intersectionMap: [String: [(gi: Int, pos: Int)]] = [:]
+    for (gi, g) in outGrads.enumerated() {
+        for spec in g.cells {
+            intersectionMap["\(spec.r),\(spec.c)", default: []].append((gi, spec.pos))
+        }
+    }
+    for (_, memberships) in intersectionMap where memberships.count >= 2 {
+        var arms: [Arm] = []
+        for m in memberships {
+            let g = outGrads[m.gi]
+            let fwd = g.cells.indices.filter { g.cells[$0].pos > m.pos }
+            let bwd = g.cells.indices.filter { g.cells[$0].pos < m.pos }
+            if !fwd.isEmpty { arms.append(Arm(gi: m.gi, intersectPos: m.pos, cellIdx: fwd)) }
+            if !bwd.isEmpty { arms.append(Arm(gi: m.gi, intersectPos: m.pos, cellIdx: bwd)) }
+        }
+        let lenGroups = Dictionary(grouping: arms) { $0.cellIdx.count }
+        for (_, sameLen) in lenGroups where sameLen.count >= 2 {
+            // Arms that already have a locked non-X cell are pinned;
+            // only unlocked arms need new locks to break swaps.
+            let unlocked = sameLen.filter { arm in
+                let g = outGrads[arm.gi]
+                return !arm.cellIdx.contains { g.cells[$0].locked }
+            }
+            guard unlocked.count >= 2 else { continue }
+            for arm in unlocked.dropFirst() {
+                let g = outGrads[arm.gi]
+                let sorted = arm.cellIdx.sorted {
+                    abs(g.cells[$0].pos - arm.intersectPos)
+                        < abs(g.cells[$1].pos - arm.intersectPos)
+                }
+                guard let lockIdx = sorted.first else { continue }
+                var gMut = outGrads[arm.gi]
+                var spec = gMut.cells[lockIdx]
+                spec.locked = true
+                gMut.cells[lockIdx] = spec
+                outGrads[arm.gi] = gMut
+                lockedSet.insert("\(spec.r),\(spec.c)")
+            }
+        }
     }
 
     // Uniqueness guard 2: scan every pair of free cells and lock one
