@@ -106,30 +106,6 @@ struct ContentView: View {
                 .transition(.opacity)
             }
 
-            // Reset-puzzle icon — floating bottom-right while the
-            // puzzle is unsolved. An arrow-in-a-circle reads as
-            // "reset this puzzle" at a glance; low-key white-on-dark
-            // styling so it's present but not shouty.
-            if !game.solved, game.puzzle != nil {
-                VStack {
-                    Spacer()
-                    HStack {
-                        Spacer()
-                        Button {
-                            game.handleReset()
-                        } label: {
-                            Image(systemName: "arrow.counterclockwise.circle")
-                                .font(.system(size: 26, weight: .regular))
-                                .foregroundStyle(Color.white.opacity(0.55))
-                                .frame(width: 44, height: 44)
-                        }
-                        .buttonStyle(.plain)
-                        .padding(.trailing, 16)
-                        .padding(.bottom, 12)
-                    }
-                }
-            }
-
             // Dragged swatch ghost. Floats ABOVE the finger (not under)
             // so the dragged tile stays visible and isn't occluded by
             // the player's thumb. If magnetism has snapped to a cell,
@@ -165,6 +141,12 @@ struct ContentView: View {
         .onTapGesture {
             if menuOpen { menuOpen = false }
             else if game.selection != nil { game.clearSelection() }
+        }
+        .onShake {
+            // Shake to shuffle — replaces the old bottom-right reset
+            // button. Only acts on an in-progress puzzle so a shake
+            // during the solved overlay doesn't wipe the win state.
+            if !game.solved, game.puzzle != nil { game.handleReset() }
         }
         .animation(.spring(response: 0.55, dampingFraction: 0.85), value: game.solved)
         // Observing nil vs non-nil as a Bool — Puzzle isn't Equatable,
