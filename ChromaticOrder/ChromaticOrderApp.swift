@@ -2,6 +2,7 @@ import SwiftUI
 
 @main
 struct ChromaticOrderApp: App {
+    @Environment(\.scenePhase) private var scenePhase
     @State private var incomingPuzzle: Puzzle?
     /// false on cold launch → show MenuView. Flipped to true when the
     /// player picks zen or challenge from the menu. In-game "Back to
@@ -55,6 +56,15 @@ struct ChromaticOrderApp: App {
                     handleKromaURL(url)
                 } else {
                     handleFileURL(url)
+                }
+            }
+            .onChange(of: scenePhase) { _, phase in
+                // Returning from background: iOS may have torn down the
+                // AVAudioEngine graph (interruption). Rebuild so the
+                // first play() call after resume doesn't crash on a
+                // stale node.
+                if phase == .active {
+                    GlassyAudio.shared.appDidBecomeActive()
                 }
             }
         }

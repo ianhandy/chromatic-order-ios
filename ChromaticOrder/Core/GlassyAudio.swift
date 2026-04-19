@@ -111,6 +111,24 @@ final class GlassyAudio {
         }
         self.format = fmt
 
+        // iOS tears down AVAudioEngine on app-backgrounding interruption
+        // and on audio-route / sample-rate changes. Without these
+        // observers, the first play() call after resume crashes because
+        // the engine's graph is stale. handleInterruption / handleConfig
+        // bounce the engine and restart music.
+        NotificationCenter.default.addObserver(
+            forName: AVAudioSession.interruptionNotification,
+            object: nil, queue: .main
+        ) { [weak self] notif in
+            Task { @MainActor [weak self] in self?.handleInterruption(notif) }
+        }
+        NotificationCenter.default.addObserver(
+            forName: .AVAudioEngineConfigurationChange,
+            object: nil, queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor [weak self] in self?.handleConfigurationChange() }
+        }
+
         // Delay: 420ms between echoes, 72% feedback so each echo is
         // ~28% quieter than the last, low-pass the feedback path at
         // 3.2 kHz so the tail warms as it fades. 16% wet mix keeps
@@ -515,7 +533,11 @@ final class GlassyAudio {
     // ─── Engine lifecycle + playback ────────────────────────────────
 
     private func ensureStarted() {
-        guard !started else { return }
+        // `started` can linger true after iOS tears down the graph
+        // (interruption, route change). Trust engine.isRunning as the
+        // source of truth; fall through to restart when the flag lies.
+        if started && engine.isRunning { return }
+        started = false
         do {
             let session = AVAudioSession.sharedInstance()
             try session.setCategory(.ambient, mode: .default,
@@ -529,8 +551,44 @@ final class GlassyAudio {
         }
     }
 
+    /// Called by the app when returning to the foreground. Rebuilds the
+    /// engine if iOS paused it and restarts the music loop.
+    func appDidBecomeActive() {
+        ensureStarted()
+        if Self.musicEnabled { startMusicIfNeeded() }
+    }
+
+    private func handleInterruption(_ notif: Notification) {
+        guard let info = notif.userInfo,
+              let raw = info[AVAudioSessionInterruptionTypeKey] as? UInt,
+              let type = AVAudioSession.InterruptionType(rawValue: raw) else { return }
+        switch type {
+        case .began:
+            stopMusic()
+            for p in playerPool where p.isPlaying { p.stop() }
+            started = false
+        case .ended:
+            if let optsRaw = info[AVAudioSessionInterruptionOptionKey] as? UInt {
+                let opts = AVAudioSession.InterruptionOptions(rawValue: optsRaw)
+                if opts.contains(.shouldResume) {
+                    ensureStarted()
+                    if Self.musicEnabled { startMusicIfNeeded() }
+                }
+            }
+        @unknown default:
+            break
+        }
+    }
+
+    private func handleConfigurationChange() {
+        for p in playerPool where p.isPlaying { p.stop() }
+        started = false
+        ensureStarted()
+        if Self.musicEnabled { startMusicIfNeeded() }
+    }
+
     private func playOneShot(buffer: AVAudioPCMBuffer, volume: Float) {
-        guard started else { return }
+        guard started, engine.isRunning else { return }
         let player = playerPool[nextPlayerIdx]
         nextPlayerIdx = (nextPlayerIdx + 1) % poolSize
         if player.isPlaying { player.stop() }
@@ -544,7 +602,7 @@ final class GlassyAudio {
     /// grid-snapped playbacks interlock. Pure play-immediately path
     /// kicks in when the press already falls within ~5ms of a tick.
     private func playOnGrid(buffer: AVAudioPCMBuffer, volume: Float) {
-        guard started, let anchor = tempoAnchor else { return }
+        guard started, engine.isRunning, let anchor = tempoAnchor else { return }
         let elapsed = Date().timeIntervalSince(anchor)
         let snapped = ceil(elapsed / gridSec) * gridSec
         let delay = max(0, snapped - elapsed)
