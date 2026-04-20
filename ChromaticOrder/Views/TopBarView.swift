@@ -53,8 +53,12 @@ struct TopBarView: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
 
-            // Center: mode label (zen) or hearts (challenge).
-            Group {
+            // Center column: mode label / hearts on top, then a
+            // shared timer + moves row so the player can see pace
+            // and efficiency at a glance. Timer hides when the a11y
+            // toggle is off — the internal clock still runs for
+            // leaderboard submissions.
+            VStack(spacing: 2) {
                 if game.mode == .zen {
                     Text("Zen Mode")
                         .font(.system(size: 12, weight: .heavy, design: .rounded))
@@ -73,6 +77,22 @@ struct TopBarView: View {
                                 .font(.system(size: 11, weight: .bold, design: .rounded))
                                 .foregroundStyle(Self.secondaryText)
                         }
+                    }
+                }
+                // Timer + moves readout. Updates once per second via
+                // TimelineView so SwiftUI doesn't re-render the whole
+                // top bar mid-interaction. `game.solved` freezes the
+                // timer at the solve time so the player can see it.
+                TimelineView(.periodic(from: .now, by: 1.0)) { _ in
+                    HStack(spacing: 8) {
+                        if game.timerVisible {
+                            Text(formatElapsed(game.timeSpentSec))
+                                .font(.system(size: 10, weight: .bold, design: .monospaced))
+                                .foregroundStyle(Self.secondaryText)
+                        }
+                        Text("\(game.moveCount) mv")
+                            .font(.system(size: 10, weight: .bold, design: .rounded))
+                            .foregroundStyle(Self.secondaryText)
                     }
                 }
             }
@@ -124,6 +144,21 @@ struct TopBarView: View {
             LevelPickerSheet(game: game)
         }
     }
+}
+
+/// "0:42" style mm:ss formatter for the in-game timer. Rolls over
+/// to "h:mm:ss" for long zen sessions so pre-caffeine play doesn't
+/// silently wrap past 60 minutes.
+private func formatElapsed(_ s: Int) -> String {
+    let seconds = max(0, s)
+    let m = seconds / 60
+    let sec = seconds % 60
+    if m >= 60 {
+        let h = m / 60
+        let mm = m % 60
+        return String(format: "%d:%02d:%02d", h, mm, sec)
+    }
+    return String(format: "%d:%02d", m, sec)
 }
 
 func hexColor(_ hex: String) -> Color {

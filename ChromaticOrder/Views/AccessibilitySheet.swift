@@ -87,10 +87,11 @@ struct AccessibilitySheet: View {
                     Toggle("Edge vignette", isOn: $game.edgeVignetteEnabled)
                     Toggle("Solved glow", isOn: $game.solvedGlowEnabled)
                     Toggle("Menu backdrop", isOn: $game.menuBackdropEnabled)
+                    Toggle("Show timer", isOn: $game.timerVisible)
                 } header: {
                     Text("Visual effects")
                 } footer: {
-                    Text("Disable individual non-critical effects. Magnetism expands cell drop zones; the other three are purely cosmetic.")
+                    Text("Disable individual non-critical effects. Magnetism expands cell drop zones; the timer still runs internally for leaderboard submissions even when hidden.")
                 }
 
                 Section {

@@ -142,6 +142,10 @@ final class GameState {
             Haptics.isEnabled = hapticsEnabled
         }
     }
+    /// Show the puzzle solve-timer in the top bar. Some players find
+    /// the running timer pressurizing; turn off to play without it.
+    /// Internal timer still runs for leaderboard submissions.
+    var timerVisible: Bool
     /// Frame rate cap for the main-menu palette animation. 30 / 60
     /// / 120 — 120 only pays off on ProMotion displays and can feel
     /// laggy on older devices. 60 is the default; pick higher for
@@ -198,6 +202,12 @@ final class GameState {
     // correlate puzzle metrics with actual play experience.
     var puzzleStartTime: Date = Date()
     var mistakeCount: Int = 0
+    /// Count of times a swatch landed on the BOARD (cell-targeted
+    /// placements only). Bank rearrangements, returning a swatch to
+    /// the bank, and bank shuffles don't increment. Displayed
+    /// alongside the timer; submitted to leaderboards as a tiebreaker
+    /// / efficiency metric.
+    var moveCount: Int = 0
     /// The date key of the currently loaded daily puzzle. nil outside
     /// of daily mode. Used to detect "the day rolled over, refresh".
     var dailyDateKey: String?
@@ -224,15 +234,14 @@ final class GameState {
     /// usable lift above the thumb tip.
     var ghostLift: CGFloat { max(40, renderedCellSize * 0.85) }
 
-    /// Effective drop point for hit-testing. Matches the ghost's
-    /// lifted position — "the swatch falls wherever it's rendered."
-    /// A player drops the tile at whatever cell the visual ghost is
-    /// hovering over, not where the finger is. Keeps visual and
-    /// logical placement locked together now that the lift is large
-    /// enough to be meaningful.
-    func effectivePoint(_ raw: CGPoint) -> CGPoint {
-        CGPoint(x: raw.x, y: raw.y - ghostLift)
-    }
+    /// Effective drop point for hit-testing. The finger's position IS
+    /// the placement position — the ghost floats above purely as
+    /// visual feedback so the player can see the color they're
+    /// holding. With large cells on sparse puzzles a lifted hit-test
+    /// felt like the swatch was "overshooting" when the thumb was
+    /// clearly on the target; returning the raw thumb point keeps
+    /// "aim with finger" as the touch-native interaction.
+    func effectivePoint(_ raw: CGPoint) -> CGPoint { raw }
 
     func hitTest(_ point: CGPoint) -> DropTarget? {
         // Bank slots first — they're bigger drop targets and the player
@@ -304,6 +313,7 @@ final class GameState {
         self.musicEnabled = a11y.musicEnabled
         self.sfxEnabled = a11y.sfxEnabled
         self.hapticsEnabled = a11y.hapticsEnabled
+        self.timerVisible = a11y.timerVisible
         self.menuFps = a11y.menuFps
         GlassyAudio.musicEnabled = a11y.musicEnabled
         GlassyAudio.sfxEnabled = a11y.sfxEnabled
@@ -327,6 +337,7 @@ final class GameState {
         var musicEnabled: Bool
         var sfxEnabled: Bool
         var hapticsEnabled: Bool
+        var timerVisible: Bool
         var menuFps: Int
 
         static let defaults = AccessibilityBundle(
@@ -341,6 +352,7 @@ final class GameState {
             musicEnabled: true,
             sfxEnabled: true,
             hapticsEnabled: true,
+            timerVisible: true,
             menuFps: 60
         )
     }
@@ -363,6 +375,7 @@ final class GameState {
             musicEnabled: (dict["musicEnabled"] as? Bool) ?? true,
             sfxEnabled: (dict["sfxEnabled"] as? Bool) ?? true,
             hapticsEnabled: (dict["hapticsEnabled"] as? Bool) ?? true,
+            timerVisible: (dict["timerVisible"] as? Bool) ?? true,
             menuFps: (dict["menuFps"] as? Int) ?? 60
         )
         return b
@@ -383,6 +396,7 @@ final class GameState {
             "musicEnabled": musicEnabled,
             "sfxEnabled": sfxEnabled,
             "hapticsEnabled": hapticsEnabled,
+            "timerVisible": timerVisible,
             "menuFps": menuFps,
         ]
         if let data = try? JSONSerialization.data(withJSONObject: dict) {
@@ -438,6 +452,7 @@ final class GameState {
         musicEnabled = d.musicEnabled
         sfxEnabled = d.sfxEnabled
         hapticsEnabled = d.hapticsEnabled
+        timerVisible = d.timerVisible
         menuFps = d.menuFps
         cbMode = .none
         saveAccessibility()
@@ -578,9 +593,10 @@ final class GameState {
         showIncorrect = false
         engagedThisLevel = false
         currentFavoriteURL = nil
-        // Diagnostics reset — fresh puzzle = fresh timer + mistake count.
+        // Diagnostics reset — fresh puzzle = fresh timer + mistake + move count.
         puzzleStartTime = Date()
         mistakeCount = 0
+        moveCount = 0
         liked = nil
         // Capture state at dispatch time — the detached task runs off
         // the main actor and can't read properties. Snapshot everything
@@ -716,6 +732,14 @@ final class GameState {
             let base = max(1, level) * max(1, puzzle?.difficulty ?? 1) * 10
             let dailyScore = max(1, base + timeBonus - mistakePenalty - peekPenalty)
             GameCenter.shared.submitDailyScore(dailyScore)
+            // Parallel submission: raw time + moves to their own daily
+            // leaderboards. Game Center keeps the player's best per
+            // recurrence period, so today's re-solves only overwrite
+            // if they beat the prior best run.
+            GameCenter.shared.submitDailySolveMetrics(
+                timeSec: timeSpentSec,
+                moves: moveCount
+            )
             StatsStore.recordSolve(
                 mode: "daily", clean: cleanSolve,
                 solveSeconds: timeSpentSec,
@@ -861,6 +885,9 @@ final class GameState {
         showedIncorrect = false
         engagedThisLevel = false
         currentFavoriteURL = favoriteURL
+        puzzleStartTime = Date()
+        mistakeCount = 0
+        moveCount = 0
         puzzle = p
     }
 
@@ -966,6 +993,10 @@ final class GameState {
         guard board[r][c].kind == .cell, !board[r][c].locked else { return }
         guard let placed = board[r][c].placed,
               let solution = board[r][c].solution else { return }
+        // Every piece-lands-on-board event counts toward moves. Bank
+        // shuffles, bank→bank swaps, and cell→bank moves don't call
+        // this function so they're automatically excluded.
+        moveCount += 1
         if OK.equal(placed, solution) {
             Haptics.placeCorrect()
             // First-placement dismisses the onboarding hint forever —

@@ -27,6 +27,15 @@ final class GameCenter {
     /// Daily puzzle leaderboard. High-to-low, resets daily (configured
     /// in App Store Connect as a recurring leaderboard).
     static let dailyLeaderboardID = "com.ianhandy.kroma.daily_score"
+    /// Daily solve-time leaderboard. Low-to-high, recurring daily,
+    /// integer format (seconds). Submit ONCE on solve so retries
+    /// don't overwrite a better run — Game Center already keeps the
+    /// best submission per player per period.
+    static let dailyTimeLeaderboardID = "com.ianhandy.kroma.daily_time"
+    /// Daily move-count leaderboard. Low-to-high, recurring daily,
+    /// integer format. Counts only swatches landing on the board
+    /// (excludes bank shuffles and bank-slot swaps).
+    static let dailyMovesLeaderboardID = "com.ianhandy.kroma.daily_moves"
 
     /// True once `authenticateHandler` has reported a signed-in
     /// player. Score submits silently no-op until this flips true.
@@ -74,6 +83,30 @@ final class GameCenter {
             player: GKLocalPlayer.local,
             leaderboardIDs: [Self.dailyLeaderboardID]
         ) { _ in }
+    }
+
+    /// Submit solve-time (seconds) + move-count for today's daily to
+    /// the per-metric recurring leaderboards. Call once on solve; Game
+    /// Center retains the player's best per recurrence period so
+    /// later retries of the same date don't overwrite a better run.
+    func submitDailySolveMetrics(timeSec: Int, moves: Int) {
+        guard isAuthenticated else { return }
+        if timeSec > 0 {
+            GKLeaderboard.submitScore(
+                timeSec,
+                context: 0,
+                player: GKLocalPlayer.local,
+                leaderboardIDs: [Self.dailyTimeLeaderboardID]
+            ) { _ in }
+        }
+        if moves > 0 {
+            GKLeaderboard.submitScore(
+                moves,
+                context: 0,
+                player: GKLocalPlayer.local,
+                leaderboardIDs: [Self.dailyMovesLeaderboardID]
+            ) { _ in }
+        }
     }
 
     private func present(_ vc: UIViewController) {
