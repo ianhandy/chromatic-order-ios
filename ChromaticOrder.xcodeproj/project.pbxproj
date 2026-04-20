@@ -120,7 +120,7 @@
 		A4092EE2AEF345A97CFBEAFB /* FavoritesStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FavoritesStore.swift; sourceTree = "<group>"; };
 		A94584BA3E06A4F9638A8D59 /* BankView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BankView.swift; sourceTree = "<group>"; };
 		AA5AC58BB96D045A7F49B504 /* AppIconExpert@2x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "AppIconExpert@2x.png"; sourceTree = "<group>"; };
-		AC6078D359BD9914E161E080 /* ChromaticOrder.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ChromaticOrder.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		AC6078D359BD9914E161E080 /* ChromaticOrder.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = ChromaticOrder.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		B18887E34C60FB288ADA62D5 /* SeededRNG.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SeededRNG.swift; sourceTree = "<group>"; };
 		B30EAB2E2DF99E5356F3B225 /* ChromaticOrder.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = ChromaticOrder.entitlements; sourceTree = "<group>"; };
 		B6E1085BB5EA1A7051DACFF4 /* AppIconExpert@3x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "AppIconExpert@3x.png"; sourceTree = "<group>"; };
@@ -299,6 +299,12 @@
 			attributes = {
 				BuildIndependentTargetsInParallel = YES;
 				LastUpgradeCheck = 1630;
+				TargetAttributes = {
+					5238BBFE64CA1F1206C2CD02 = {
+						DevelopmentTeam = X5BKD97T2F;
+						ProvisioningStyle = Automatic;
+					};
+				};
 			};
 			buildConfigurationList = 55266205AC207DB6CFC295F6 /* Build configuration list for PBXProject "ChromaticOrder" */;
 			developmentRegion = en;
@@ -475,10 +481,8 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = ChromaticOrder/ChromaticOrder.entitlements;
-				CODE_SIGN_IDENTITY = "Apple Development";
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 9;
-				DEVELOPMENT_TEAM = X5BKD97T2F;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CURRENT_PROJECT_VERSION = 10;
 				INFOPLIST_FILE = ChromaticOrder/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -486,7 +490,6 @@
 				);
 				MARKETING_VERSION = 1.0.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.ianhandy.kroma;
-				PROVISIONING_PROFILE_SPECIFIER = "";
 				SDKROOT = iphoneos;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
 				SUPPORTS_MACCATALYST = NO;
@@ -502,10 +505,8 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = ChromaticOrder/ChromaticOrder.entitlements;
-				CODE_SIGN_IDENTITY = "Apple Development";
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 9;
-				DEVELOPMENT_TEAM = X5BKD97T2F;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CURRENT_PROJECT_VERSION = 10;
 				INFOPLIST_FILE = ChromaticOrder/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -513,7 +514,6 @@
 				);
 				MARKETING_VERSION = 1.0.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.ianhandy.kroma;
-				PROVISIONING_PROFILE_SPECIFIER = "";
 				SDKROOT = iphoneos;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
 				SUPPORTS_MACCATALYST = NO;
