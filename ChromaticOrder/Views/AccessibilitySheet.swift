@@ -95,10 +95,12 @@ struct AccessibilitySheet: View {
 
                 Section {
                     Toggle("Background music", isOn: $game.musicEnabled)
+                    Toggle("Sound effects", isOn: $game.sfxEnabled)
+                    Toggle("Haptics", isOn: $game.hapticsEnabled)
                 } header: {
-                    Text("Sound")
+                    Text("Sound & haptics")
                 } footer: {
-                    Text("Loops a quiet F# Ionian phrase over the menu and the game. Turn off for silence in the background.")
+                    Text("Music loops a quiet F# Ionian phrase. Sound effects are the pickup / place clicks and solve chord. Haptics are the Taptic Engine taps on pickup, place, and solve.")
                 }
 
                 Section {
@@ -112,6 +114,14 @@ struct AccessibilitySheet: View {
                     Text("Performance")
                 } footer: {
                     Text("Frame rate for the main-menu palette backdrop. 120 fps looks smoothest on ProMotion displays; drop to 30 if the menu feels laggy.")
+                }
+
+                Section {
+                    AppIconPickerRow()
+                } header: {
+                    Text("App icon")
+                } footer: {
+                    Text("Change the home-screen icon's palette. iOS will confirm the swap with a system alert.")
                 }
 
                 Section {
@@ -256,5 +266,38 @@ struct AccessibilitySheet: View {
             }
             Slider(value: value, in: range, step: step)
         }
+    }
+}
+
+private struct AppIconPickerRow: View {
+    @State private var current: AppIconVariant = .default
+
+    var body: some View {
+        ForEach(AppIconVariant.allCases) { variant in
+            Button {
+                AppIconPicker.apply(variant)
+                current = variant
+            } label: {
+                HStack(spacing: 12) {
+                    RoundedRectangle(cornerRadius: 7, style: .continuous)
+                        .fill(OK.toColor(variant.swatch))
+                        .frame(width: 28, height: 28)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 7, style: .continuous)
+                                .stroke(.white.opacity(0.18), lineWidth: 0.5)
+                        )
+                    Text(variant.displayName)
+                        .foregroundStyle(.primary)
+                    Spacer()
+                    if variant == current {
+                        Image(systemName: "checkmark")
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+            .buttonStyle(.plain)
+        }
+        .onAppear { current = AppIconPicker.current }
     }
 }

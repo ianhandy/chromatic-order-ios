@@ -61,6 +61,11 @@ final class GlassyAudio {
         }
     }
 
+    /// In-game sound effects gate (swatch pickup/place clicks, solve
+    /// chord, menu bloom). Independent of `musicEnabled` so players
+    /// can silence one without the other.
+    static var sfxEnabled: Bool = true
+
     enum Kind { case pickup, place, bloom, choir, glassHarmonica }
 
     private let engine = AVAudioEngine()
@@ -160,7 +165,7 @@ final class GlassyAudio {
     // ─── Public ─────────────────────────────────────────────────────
 
     func play(_ color: OKLCh, kind: Kind) {
-        if Self.muted { return }
+        if Self.muted || !Self.sfxEnabled { return }
         ensureStarted()
         let semitone = noteFor(color: color, kind: kind)
         let buffer = buffer(for: semitone, kind: kind)
@@ -175,7 +180,7 @@ final class GlassyAudio {
     /// used to produce a wide-interval chord that varied by puzzle);
     /// the reward sound is now the same grounded F# every time.
     func playSolveChord(colors: [OKLCh]) {
-        if Self.muted { return }
+        if Self.muted || !Self.sfxEnabled { return }
         ensureStarted()
         let semitones = [42, 54, 66]   // F#2, F#3, F#4
         let buffer = synthesizeChord(semitones: semitones,
@@ -190,7 +195,7 @@ final class GlassyAudio {
     /// grid so consecutive presses interlock rhythmically instead of
     /// arriving at arbitrary moments.
     func playBloom() {
-        if Self.muted { return }
+        if Self.muted || !Self.sfxEnabled { return }
         ensureStarted()
         let semis = randomBloomSemitones()
         let buffer = synthesizeChord(semitones: semis,

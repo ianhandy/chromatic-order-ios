@@ -57,17 +57,28 @@ struct BankView: View {
             // placed swatches leave their slot empty; the grid shape
             // stays constant so the player can drop a returned swatch
             // into whichever slot they want.
+            //
+            // Target 3 rows when the bank fits at swatchSize >= 22pt;
+            // for very large banks grow rows further so every swatch
+            // stays at the min size. Prevents wide banks from
+            // overflowing the viewport.
             if let p = game.puzzle, p.initialBankCount > 0 {
                 GeometryReader { geo in
                     let initial = p.initialBankCount
-                    let maxRows = 3
                     let spacing: CGFloat = 6
-                    let cols = max(1, Int(ceil(Double(initial) / Double(maxRows))))
+                    let minSize: CGFloat = 22
                     let maxSize: CGFloat = 56
                     let availW = max(0, geo.size.width)
-                    let fit = (availW - CGFloat(cols - 1) * spacing) / CGFloat(cols)
-                    let swatchSize = max(22, min(maxSize, fit))
-                    let rows = Int(ceil(Double(initial) / Double(cols)))
+                    let layout = bankLayout(
+                        initial: initial,
+                        availW: availW,
+                        spacing: spacing,
+                        minSize: minSize,
+                        maxSize: maxSize
+                    )
+                    let cols = layout.cols
+                    let rows = layout.rows
+                    let swatchSize = layout.swatchSize
                     let totalHeight = CGFloat(rows) * swatchSize + CGFloat(rows - 1) * spacing
                     VStack(spacing: spacing) {
                         ForEach(0..<rows, id: \.self) { rIdx in
@@ -102,14 +113,45 @@ struct BankView: View {
     }
 
     private func bankContentHeight(initialBankCount: Int) -> CGFloat {
-        let maxRows = 3
-        let spacing: CGFloat = 6
-        let cols = max(1, Int(ceil(Double(initialBankCount) / Double(maxRows))))
-        let availW: CGFloat = 340
+        let layout = bankLayout(
+            initial: initialBankCount,
+            availW: 340,
+            spacing: 6,
+            minSize: 22,
+            maxSize: 56
+        )
+        return CGFloat(layout.rows) * layout.swatchSize
+            + CGFloat(layout.rows - 1) * 6
+    }
+
+    /// Resolve column / row / swatch-size for the bank given the
+    /// viewport width and palette size. Prefers 3 rows; grows to 4+
+    /// rows for banks that would otherwise overflow (swatch below
+    /// minSize) so every color stays visible.
+    private func bankLayout(
+        initial: Int,
+        availW: CGFloat,
+        spacing: CGFloat,
+        minSize: CGFloat,
+        maxSize: CGFloat
+    ) -> (cols: Int, rows: Int, swatchSize: CGFloat) {
+        let preferredRows = 3
+        let preferredCols = max(1, Int(ceil(Double(initial) / Double(preferredRows))))
+        let preferredFit = (availW - CGFloat(preferredCols - 1) * spacing)
+            / CGFloat(preferredCols)
+        if preferredFit >= minSize {
+            let swatchSize = max(minSize, min(maxSize, preferredFit))
+            let rows = max(1, Int(ceil(Double(initial) / Double(preferredCols))))
+            return (preferredCols, rows, swatchSize)
+        }
+        // Bank is dense enough that 3 rows would push swatches below
+        // minSize — expand rows to keep each swatch at minSize.
+        let maxCols = max(1, Int(floor((availW + spacing) / (minSize + spacing))))
+        let cols = max(1, min(preferredCols, maxCols))
+        let rows = max(1, Int(ceil(Double(initial) / Double(cols))))
         let fit = (availW - CGFloat(cols - 1) * spacing) / CGFloat(cols)
-        let swatchSize = max(22, min(56, fit))
-        let rows = Int(ceil(Double(initialBankCount) / Double(cols)))
-        return CGFloat(rows) * swatchSize + CGFloat(rows - 1) * spacing
+        let swatchSize = max(minSize, min(maxSize, fit))
+        return (cols, rows, swatchSize)
     }
 
     private var instrText: String {

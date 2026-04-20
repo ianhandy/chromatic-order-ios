@@ -44,7 +44,11 @@ struct MenuSheet: View {
                     icon: "gearshape.fill",
                     label: "settings",
                     index: 1,
-                    isOpen: menuOpen
+                    isOpen: menuOpen,
+                    // 3-second long-press clears every lock on the
+                    // current puzzle — dev cheat for iterating on
+                    // generator output. Stripped from Release.
+                    onLongPress: settingsLongPressAction
                 ) {
                     menuOpen = false
                     accessibilityOpen = true
@@ -58,22 +62,29 @@ struct MenuSheet: View {
                     menuOpen = false
                     feedbackOpen = true
                 }
-                MenuSheetRow(
-                    icon: game.showIncorrect
-                        ? "exclamationmark.triangle.fill"
-                        : "exclamationmark.triangle",
-                    label: game.showIncorrect
-                        ? "hide incorrect"
-                        : "show incorrect",
-                    index: 3,
-                    isOpen: menuOpen && canShowIncorrect
-                ) {
-                    game.toggleShowIncorrect()
-                    menuOpen = false
+                // Conditionally mount the "show incorrect" row — if
+                // the mode doesn't support it (challenge, or a solved
+                // zen puzzle), drop it entirely so the remaining
+                // rows flex up and no empty slot is left behind. The
+                // share row's index shifts accordingly.
+                if canShowIncorrect {
+                    MenuSheetRow(
+                        icon: game.showIncorrect
+                            ? "exclamationmark.triangle.fill"
+                            : "exclamationmark.triangle",
+                        label: game.showIncorrect
+                            ? "hide incorrect"
+                            : "show incorrect",
+                        index: 3,
+                        isOpen: menuOpen
+                    ) {
+                        game.toggleShowIncorrect()
+                        menuOpen = false
+                    }
                 }
                 if let p = game.puzzle {
                     MenuSheetShareRow(
-                        index: 4,
+                        index: canShowIncorrect ? 4 : 3,
                         isOpen: menuOpen,
                         puzzle: p
                     )
@@ -86,14 +97,34 @@ struct MenuSheet: View {
         }
         .allowsHitTesting(menuOpen)
     }
+
+    /// Dev cheat wired into the settings row's 3-second long-press.
+    /// Returns nil in Release so archive builds have no handler and
+    /// the row behaves as a plain tap-only button.
+    private var settingsLongPressAction: (() -> Void)? {
+#if DEBUG
+        return {
+            Haptics.solve()
+            game.debugUnlockAllLocks()
+            menuOpen = false
+        }
+#else
+        return nil
+#endif
+    }
 }
 
 /// Share variant of the hamburger row — same slide-in-from-right +
 /// label-fade animation pattern as `MenuSheetRow`, but wraps a
-/// SwiftUI `ShareLink` so tapping opens the system share sheet with
-/// the current puzzle as a `.kroma` attachment plus a `kroma://`
-/// deep link. ShareLink can't sit inside a regular Button so it
-/// gets its own row type rather than threading through MenuSheetRow.
+/// SwiftUI `ShareLink` around an HTTPS URL. The URL points at
+/// `https://kroma.ianhandy.com/p/<base64url>` — a Vercel serverless
+/// landing page that emits OG meta tags (iMessage/Slack render a
+/// visual preview card) and JS-redirects the visitor to `kroma://`
+/// on iOS-with-Kromatika, or to the web version otherwise. HTTPS is
+/// required here: custom `kroma://` URLs skip OG fetching so their
+/// cards degrade to raw URL text. SharePreview supplies a rasterized
+/// starting-state image so the sender-side share sheet also shows a
+/// visual card before they pick a destination.
 private struct MenuSheetShareRow: View {
     let index: Int
     let isOpen: Bool
@@ -101,21 +132,29 @@ private struct MenuSheetShareRow: View {
 
     @State private var iconArrived = false
     @State private var labelVisible = false
+    /// Populated by a background POST to `/api/save` once the row
+    /// renders. When non-nil, the share URL uses the short slug form
+    /// (`/p/<slug>`) — small enough for iMessage to render a preview
+    /// card. If the network POST fails or hasn't returned in time,
+    /// the ShareLink falls through to the long base64 URL, which
+    /// still works but may dump as raw text in the message.
+    @State private var shortSlug: String? = nil
 
     var body: some View {
         let json = (try? CreatorCodec.encodePuzzle(puzzle)) ?? ""
-        let file = KromaPuzzleFile(json: json, difficulty: puzzle.difficulty)
-        let shareURL = URL(string:
-            "kroma://play?data=\(ChromaticOrderApp.encodeBase64URL(Data(json.utf8)))"
-        ) ?? URL(string: "https://kromatika.app")!
+        let b64 = ChromaticOrderApp.encodeBase64URL(Data(json.utf8))
+        let pathSegment = shortSlug ?? b64
+        let shareURL = URL(string: "https://kroma.ianhandy.com/p/\(pathSegment)")
+            ?? URL(string: "https://kroma.ianhandy.com")!
+        let previewImage = PuzzlePreviewRenderer.render(puzzle)
+            ?? Image(systemName: "paintpalette.fill")
 
         ShareLink(
-            item: file,
-            subject: Text("A Kromatika puzzle"),
-            message: Text("difficulty \(puzzle.difficulty)/10 — tap to play: \(shareURL)"),
+            item: shareURL,
+            subject: Text("A Kromatika puzzle (\(puzzle.difficulty)/10)"),
             preview: SharePreview(
                 "Kromatika puzzle (\(puzzle.difficulty)/10)",
-                image: Image(systemName: "paintpalette.fill")
+                image: previewImage
             )
         ) {
             HStack(spacing: 14) {
@@ -131,6 +170,14 @@ private struct MenuSheetShareRow: View {
                     .overlay(Circle().stroke(Color.white.opacity(0.28), lineWidth: 1))
             }
             .offset(x: iconArrived ? 0 : 280)
+        }
+        .task(id: json) {
+            // Re-run when the puzzle JSON changes. Best-effort — any
+            // failure (no network, KV down, server cold start) leaves
+            // shortSlug nil and the ShareLink falls back to the long
+            // base64 URL.
+            shortSlug = nil
+            shortSlug = await fetchShareSlug(json: json)
         }
         .onChange(of: isOpen) { _, open in
             if open {
@@ -153,6 +200,35 @@ private struct MenuSheetShareRow: View {
             }
         }
     }
+
+    /// POST the puzzle JSON to the share-link save endpoint and return
+    /// the short slug. Returns nil on any failure so the caller falls
+    /// back to the inline base64 URL.
+    private func fetchShareSlug(json: String) async -> String? {
+        guard !json.isEmpty,
+              let url = URL(string: "https://kroma.ianhandy.com/api/save") else {
+            return nil
+        }
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.timeoutInterval = 4
+        let body = ["json": json]
+        request.httpBody = try? JSONSerialization.data(withJSONObject: body)
+        guard request.httpBody != nil else { return nil }
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+            guard let http = response as? HTTPURLResponse, http.statusCode == 200 else { return nil }
+            let decoded = try JSONDecoder().decode(SlugResponse.self, from: data)
+            return decoded.slug
+        } catch {
+            return nil
+        }
+    }
+}
+
+private struct SlugResponse: Decodable {
+    let slug: String
 }
 
 private struct MenuSheetRow: View {
@@ -160,6 +236,11 @@ private struct MenuSheetRow: View {
     let label: String
     let index: Int
     let isOpen: Bool
+    /// Optional long-press handler. When non-nil, holding the row for
+    /// 3 seconds fires this instead of (and instead suppresses) the
+    /// tap action. Used for dev shortcuts that share a visible
+    /// button with a normal user action.
+    var onLongPress: (() -> Void)? = nil
     let action: () -> Void
 
     /// True once the icon has (animated) slid to its resting x=0 spot.
@@ -170,9 +251,16 @@ private struct MenuSheetRow: View {
     /// trails `iconArrived` on open so the label reveals after the
     /// icon has settled.
     @State private var labelVisible = false
+    /// Latched when a long-press fires so the button's tap-on-release
+    /// handler knows to bow out. SwiftUI's simultaneousGesture lets
+    /// both fire on a hold-then-release without this flag.
+    @State private var longPressConsumed = false
 
     var body: some View {
-        Button(action: action) {
+        Button(action: {
+            if longPressConsumed { longPressConsumed = false; return }
+            action()
+        }) {
             HStack(spacing: 14) {
                 Text(label)
                     .font(.system(size: 17, weight: .semibold, design: .rounded))
@@ -194,6 +282,13 @@ private struct MenuSheetRow: View {
             .offset(x: iconArrived ? 0 : 280)
         }
         .buttonStyle(.plain)
+        .simultaneousGesture(
+            LongPressGesture(minimumDuration: 3.0).onEnded { _ in
+                guard let handler = onLongPress else { return }
+                longPressConsumed = true
+                handler()
+            }
+        )
         .onChange(of: isOpen) { _, open in
             if open {
                 // Open: icons slide in top-first, ~90ms stagger.

@@ -112,7 +112,7 @@ func pickChannelsAndRoles(count: Int, huePrimaryBias: Double = 0.5) -> ChannelAs
     var roleFor: [Channel: ChannelRole] = [:]
     let primary: Channel = forceHue && active.contains(.h)
         ? .h
-        : active.randomElement()!
+        : Util.randomElement(active)!
     roleFor[primary] = .primary
     let rest = Util.shuffle(active.filter { $0 != primary })
     for (i, ch) in rest.enumerated() { roleFor[ch] = roles[i + 1] }

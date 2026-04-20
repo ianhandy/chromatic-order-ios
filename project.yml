@@ -72,6 +72,20 @@ targets:
         # Store Connect asks on every upload. We don't ship crypto;
         # false here skips the prompt for all subsequent builds.
         ITSAppUsesNonExemptEncryption: false
+        # Alternate app icons — iOS uses these when the app calls
+        # UIApplication.shared.setAlternateIconName(_:). Each variant's
+        # PNGs (@2x/@3x) live at AlternateIcons/<name>{@2x,@3x}.png and
+        # get copied to the bundle root via xcodegen's resource pass.
+        CFBundleIcons:
+          CFBundleAlternateIcons:
+            AppIconEasy:
+              CFBundleIconFiles: [AppIconEasy]
+            AppIconMedium:
+              CFBundleIconFiles: [AppIconMedium]
+            AppIconHard:
+              CFBundleIconFiles: [AppIconHard]
+            AppIconExpert:
+              CFBundleIconFiles: [AppIconExpert]
         # We accept .kroma files for reading only (no in-place edits).
         # Silences the compile-time warning about file-open semantics.
         LSSupportsOpeningDocumentsInPlace: false

@@ -7,7 +7,36 @@ import Foundation
 import SwiftUI
 import UIKit
 
-enum GameMode: String { case zen, challenge }
+enum GameMode: String { case zen, challenge, daily }
+
+/// Today's daily puzzle seed derivation. Uses UTC day-start so all
+/// players on the planet see the same puzzle at the same moment, not
+/// offset by local timezone. SHA-free hash is plenty — we just need
+/// a deterministic spread across dates.
+enum Daily {
+    /// YYYY-MM-DD string of the UTC date for `now`.
+    static func dateKey(now: Date = Date()) -> String {
+        var cal = Calendar(identifier: .gregorian)
+        cal.timeZone = TimeZone(identifier: "UTC") ?? .current
+        let comps = cal.dateComponents([.year, .month, .day], from: now)
+        return String(format: "%04d-%02d-%02d", comps.year ?? 0, comps.month ?? 0, comps.day ?? 0)
+    }
+
+    /// 64-bit seed for the given date key. Deterministic across devices.
+    static func seed(for key: String) -> UInt64 {
+        var h: UInt64 = 0xCBF29CE484222325
+        for b in key.utf8 {
+            h ^= UInt64(b)
+            h = h &* 0x100000001B3
+        }
+        return h
+    }
+
+    /// Level chosen for today's daily — 8 to 15 rotation driven by seed.
+    static func level(from seed: UInt64) -> Int {
+        8 + Int(seed >> 32) % 8
+    }
+}
 
 struct CellIndex: Hashable { let r: Int; let c: Int }
 
@@ -96,6 +125,23 @@ final class GameState {
             GlassyAudio.musicEnabled = musicEnabled
         }
     }
+    /// In-game sound effects (swatch pickup / place clicks, solve
+    /// chord, menu bloom). Independent of `musicEnabled` so players
+    /// can silence the ambient music and still hear placement clicks
+    /// or vice versa.
+    var sfxEnabled: Bool {
+        didSet {
+            GlassyAudio.sfxEnabled = sfxEnabled
+        }
+    }
+    /// Taptic Engine feedback for pickup / place / solve / shake.
+    /// Decoupled from `reduceMotion` so players who don't want visual
+    /// motion can still feel the taps, and vice versa.
+    var hapticsEnabled: Bool {
+        didSet {
+            Haptics.isEnabled = hapticsEnabled
+        }
+    }
     /// Frame rate cap for the main-menu palette animation. 30 / 60
     /// / 120 — 120 only pays off on ProMotion displays and can feel
     /// laggy on older devices. 60 is the default; pick higher for
@@ -152,6 +198,9 @@ final class GameState {
     // correlate puzzle metrics with actual play experience.
     var puzzleStartTime: Date = Date()
     var mistakeCount: Int = 0
+    /// The date key of the currently loaded daily puzzle. nil outside
+    /// of daily mode. Used to detect "the day rolled over, refresh".
+    var dailyDateKey: String?
     /// Did the player vote on the quick-feedback widget this puzzle?
     /// nil = hasn't voted, true = liked, false = disliked. One vote
     /// per puzzle (widget disables after submit). Reset on startLevel.
@@ -160,17 +209,30 @@ final class GameState {
     // How far above the finger the drag ghost floats. Purely visual —
     // placement still uses the raw finger position via effectivePoint
     // below. Was 64pt historically; that lifted the ghost so far up
-    // it read as disconnected from the finger and made placements
-    // feel like they were "pulling" (towards where the ghost was, not
-    // where the finger was). 22pt is enough clearance for the
-    // thumbtip without visually detaching.
-    static let ghostLift: CGFloat = 22
+    /// Rendered on-screen cell size (including any zoom factor).
+    /// GridView reports this on every layout so the drag-ghost lift
+    /// and hit-test offset scale with whatever the player currently
+    /// sees — tiny cells on a dense Expert puzzle vs. pinched-in 3×
+    /// zoom cells both need different offsets to keep the swatch
+    /// above the thumb.
+    var renderedCellSize: CGFloat = 40
 
-    /// Effective drop point for hit-testing. Pass-through now — the
-    /// finger's position IS the placement position. (An earlier pass
-    /// used the ghost's lifted position for placement, which let the
-    /// ghost visually drift from the cell it would actually land in.)
-    func effectivePoint(_ raw: CGPoint) -> CGPoint { raw }
+    /// Vertical offset from the finger to the center of the drag
+    /// ghost. Scales with `renderedCellSize` so the swatch always
+    /// clears the cell directly under the thumb (ghost sits one
+    /// cell-height + small buffer above). Clamped to 50pt so very
+    /// small cells still get a usable lift above the thumb tip.
+    var ghostLift: CGFloat { max(50, renderedCellSize + 20) }
+
+    /// Effective drop point for hit-testing. Matches the ghost's
+    /// lifted position — "the swatch falls wherever it's rendered."
+    /// A player drops the tile at whatever cell the visual ghost is
+    /// hovering over, not where the finger is. Keeps visual and
+    /// logical placement locked together now that the lift is large
+    /// enough to be meaningful.
+    func effectivePoint(_ raw: CGPoint) -> CGPoint {
+        CGPoint(x: raw.x, y: raw.y - ghostLift)
+    }
 
     func hitTest(_ point: CGPoint) -> DropTarget? {
         // Bank slots first — they're bigger drop targets and the player
@@ -225,7 +287,8 @@ final class GameState {
         self.mode = .zen
         self.checks = 0
         self.score = 0
-        self.reduceMotion = Self.loadReduceMotion()
+        let rm = Self.loadReduceMotion()
+        self.reduceMotion = rm
         self.cbMode = Self.loadCBMode()
         let a11y = Self.loadAccessibility()
         self.contrastScale = a11y.contrastScale
@@ -239,8 +302,12 @@ final class GameState {
         self.menuBackdropEnabled = a11y.menuBackdropEnabled
         self.solvedGlowEnabled = a11y.solvedGlowEnabled
         self.musicEnabled = a11y.musicEnabled
+        self.sfxEnabled = a11y.sfxEnabled
+        self.hapticsEnabled = a11y.hapticsEnabled
         self.menuFps = a11y.menuFps
         GlassyAudio.musicEnabled = a11y.musicEnabled
+        GlassyAudio.sfxEnabled = a11y.sfxEnabled
+        Haptics.isEnabled = a11y.hapticsEnabled
         startLevel(level)
     }
 
@@ -258,6 +325,8 @@ final class GameState {
         var menuBackdropEnabled: Bool
         var solvedGlowEnabled: Bool
         var musicEnabled: Bool
+        var sfxEnabled: Bool
+        var hapticsEnabled: Bool
         var menuFps: Int
 
         static let defaults = AccessibilityBundle(
@@ -270,6 +339,8 @@ final class GameState {
             menuBackdropEnabled: true,
             solvedGlowEnabled: true,
             musicEnabled: true,
+            sfxEnabled: true,
+            hapticsEnabled: true,
             menuFps: 60
         )
     }
@@ -290,6 +361,8 @@ final class GameState {
             menuBackdropEnabled: (dict["menuBackdropEnabled"] as? Bool) ?? true,
             solvedGlowEnabled: (dict["solvedGlowEnabled"] as? Bool) ?? true,
             musicEnabled: (dict["musicEnabled"] as? Bool) ?? true,
+            sfxEnabled: (dict["sfxEnabled"] as? Bool) ?? true,
+            hapticsEnabled: (dict["hapticsEnabled"] as? Bool) ?? true,
             menuFps: (dict["menuFps"] as? Int) ?? 60
         )
         return b
@@ -308,6 +381,8 @@ final class GameState {
             "menuBackdropEnabled": menuBackdropEnabled,
             "solvedGlowEnabled": solvedGlowEnabled,
             "musicEnabled": musicEnabled,
+            "sfxEnabled": sfxEnabled,
+            "hapticsEnabled": hapticsEnabled,
             "menuFps": menuFps,
         ]
         if let data = try? JSONSerialization.data(withJSONObject: dict) {
@@ -361,6 +436,8 @@ final class GameState {
         menuBackdropEnabled = d.menuBackdropEnabled
         solvedGlowEnabled = d.solvedGlowEnabled
         musicEnabled = d.musicEnabled
+        sfxEnabled = d.sfxEnabled
+        hapticsEnabled = d.hapticsEnabled
         menuFps = d.menuFps
         cbMode = .none
         saveAccessibility()
@@ -480,6 +557,7 @@ final class GameState {
         ]
         if let data = try? JSONSerialization.data(withJSONObject: dict) {
             UserDefaults.standard.set(data, forKey: progressKey)
+            CloudSync.push(progressKey)
         }
     }
 
@@ -517,6 +595,12 @@ final class GameState {
         lClampMaxAtGeneration = activeL.max
         cClampMinAtGeneration = activeC.min
         cClampMaxAtGeneration = activeC.max
+        // Capture daily seed (if any) so the detached task can install
+        // the TaskLocal RNG override — TaskLocal values do NOT propagate
+        // across detached task boundaries, so we set it inside.
+        let dailySeed: UInt64? = mode == .daily
+            ? Daily.seed(for: dailyDateKey ?? Daily.dateKey())
+            : nil
         Task.detached(priority: .userInitiated) { [weak self] in
             var cfg = GenConfig()
             cfg.cbMode = activeCBMode
@@ -525,7 +609,15 @@ final class GameState {
             cfg.lClampMax = activeL.max
             cfg.cClampMin = activeC.min
             cfg.cClampMax = activeC.max
-            let puz = generatePuzzle(level: lv, config: cfg)
+            let puz: Puzzle
+            if let seed = dailySeed {
+                let rng = SeededRNGRef(seed: seed)
+                puz = GenRNG.$current.withValue(rng) {
+                    generatePuzzle(level: lv, config: cfg)
+                }
+            } else {
+                puz = generatePuzzle(level: lv, config: cfg)
+            }
             await MainActor.run { [weak self] in
                 guard let self else { return }
                 self.puzzle = puz
@@ -564,8 +656,76 @@ final class GameState {
         showIncorrect = false
     }
 
+#if DEBUG
+    /// Dev-only cheat — clears every pre-filled lock on the current
+    /// puzzle (so the board starts empty with every solution color in
+    /// the bank) AND bumps `zenMaxLevel` so the level picker exposes
+    /// every tier through Master. Wired to the 3-second long-press on
+    /// the settings button. Not compiled into Release.
+    func debugUnlockAllLocks() {
+        // Level picker is gated on zenMaxLevel; lift it past the highest
+        // tier so the dev can jump directly to Expert/Master puzzles.
+        zenMaxLevel = max(zenMaxLevel, 20)
+        saveProgress()
+        guard var p = puzzle else { return }
+        for r in 0..<p.gridH {
+            for c in 0..<p.gridW where p.board[r][c].kind == .cell {
+                p.board[r][c].locked = false
+                p.board[r][c].placed = nil
+            }
+        }
+        for gi in 0..<p.gradients.count {
+            for k in 0..<p.gradients[gi].cells.count {
+                p.gradients[gi].cells[k].locked = false
+            }
+        }
+        // Bank now holds every distinct board-cell solution. Intersections
+        // contribute one item (not one per covering gradient).
+        var freshBank: [BankItem?] = []
+        for r in 0..<p.gridH {
+            for c in 0..<p.gridW where p.board[r][c].kind == .cell {
+                guard let sol = p.board[r][c].solution else { continue }
+                freshBank.append(BankItem(id: newBankUid(), color: sol))
+            }
+        }
+        freshBank.shuffle()
+        p.bank = freshBank
+        p.initialBankCount = freshBank.count
+        puzzle = p
+        solved = false
+        selection = nil
+        activeColor = nil
+        showIncorrect = false
+    }
+#endif
+
     func handleNext() {
         let justCompleted = level
+        // Capture "clean solve" signal before we clear flags — a
+        // puzzle counts as clean when the player made zero mistakes
+        // AND didn't pop the "show incorrect" peek. The streak in
+        // Stats rests on this same rule.
+        let cleanSolve = mistakeCount == 0 && !showedIncorrect
+        // Daily: one puzzle per day — submit the time/accuracy score
+        // and reload the same seeded puzzle so retries are allowed but
+        // the level never advances past today's assignment.
+        if mode == .daily {
+            let timeBonus = max(0, 300 - timeSpentSec)
+            let mistakePenalty = mistakeCount * 50
+            let peekPenalty = showedIncorrect ? 500 : 0
+            let base = max(1, level) * max(1, puzzle?.difficulty ?? 1) * 10
+            let dailyScore = max(1, base + timeBonus - mistakePenalty - peekPenalty)
+            GameCenter.shared.submitDailyScore(dailyScore)
+            StatsStore.recordSolve(
+                mode: "daily", clean: cleanSolve,
+                solveSeconds: timeSpentSec,
+                cbMode: cbMode.rawValue,
+                challengeScore: nil
+            )
+            showedIncorrect = false
+            startLevel(level)
+            return
+        }
         // If the player used "show incorrect" this puzzle, solving
         // it doesn't advance them — they stay on the same level and
         // try again next round. No demotion, no UI copy mentioning
@@ -586,6 +746,12 @@ final class GameState {
             // high-water mark.
             GameCenter.shared.submitChallengeScore(score)
         }
+        StatsStore.recordSolve(
+            mode: mode.rawValue, clean: cleanSolve,
+            solveSeconds: timeSpentSec,
+            cbMode: cbMode.rawValue,
+            challengeScore: mode == .challenge ? score : nil
+        )
         showedIncorrect = false
         level = nextLv
         startLevel(nextLv)
@@ -610,6 +776,7 @@ final class GameState {
             solved = true
             showIncorrect = false
             playSolveChord()
+            Haptics.solve()
         } else {
             checks -= 1
             showIncorrect = true
@@ -625,6 +792,8 @@ final class GameState {
 
     func toggleReduceMotion() {
         reduceMotion.toggle()
+        // Haptics is a separate `hapticsEnabled` setting now; don't
+        // implicitly flip it when the motion toggle moves.
         saveReduceMotion()
     }
 
@@ -650,10 +819,18 @@ final class GameState {
             level = zenLevel
             score = 0
             checks = 0
+            dailyDateKey = nil
         case .challenge:
             level = 1
             score = 0
             checks = 3
+            dailyDateKey = nil
+        case .daily:
+            let key = Daily.dateKey()
+            dailyDateKey = key
+            level = Daily.level(from: Daily.seed(for: key))
+            score = 0
+            checks = 0
         }
         saveProgress()
         startLevel(level)
@@ -750,6 +927,7 @@ final class GameState {
                 guard let self, !self.solved else { return }
                 self.solved = true
                 self.playSolveChord()
+                Haptics.solve()
             }
         }
     }
@@ -788,8 +966,16 @@ final class GameState {
         guard board[r][c].kind == .cell, !board[r][c].locked else { return }
         guard let placed = board[r][c].placed,
               let solution = board[r][c].solution else { return }
-        if !OK.equal(placed, solution) {
+        if OK.equal(placed, solution) {
+            Haptics.placeCorrect()
+            // First-placement dismisses the onboarding hint forever —
+            // the player figured out the drag, no more need for the tip.
+            if !UserDefaults.standard.bool(forKey: "onboardingSeen_v1") {
+                UserDefaults.standard.set(true, forKey: "onboardingSeen_v1")
+            }
+        } else {
             mistakeCount += 1
+            Haptics.placeWrong()
         }
     }
 
@@ -928,6 +1114,7 @@ final class GameState {
         selection = BoardSelection(kind: .bank(slot))
         activeColor = item.color
         GlassyAudio.shared.play(item.color, kind: .pickup)
+        Haptics.pickup()
     }
 
     func tapCell(at r: Int, _ c: Int) {
@@ -951,6 +1138,7 @@ final class GameState {
             selection = BoardSelection(kind: .cell(idx))
             activeColor = color
             GlassyAudio.shared.play(color, kind: .pickup)
+            Haptics.pickup()
         }
     }
 
@@ -967,6 +1155,7 @@ final class GameState {
         selection = nil
         activeColor = nil
         GlassyAudio.shared.play(source.color, kind: .pickup)
+        Haptics.pickup()
     }
 
     func updateDrag(to loc: CGPoint) {
@@ -1001,7 +1190,19 @@ final class GameState {
 
     var heldColor: OKLCh? { activeColor ?? dragSource?.color }
 
-    var tier: LevelTierInfo { levelTier(level) }
+    /// Tier chip shown in the top bar. Derives from the puzzle's
+    /// actual `difficulty` score (1–10) when a puzzle is loaded, so
+    /// custom puzzles opened via a share link display their real
+    /// difficulty instead of the tier the player's zen level implies.
+    /// Falls back to level-derived tier when no puzzle is present yet
+    /// (cold launch, between-level regeneration).
+    var tier: LevelTierInfo {
+        if let p = puzzle {
+            let i = min(max(0, (p.difficulty - 1) / 2), Tiers.labels.count - 1)
+            return LevelTierInfo(index: i, label: Tiers.labels[i], colorHex: Tiers.hexes[i])
+        }
+        return levelTier(level)
+    }
 
     /// Seconds elapsed since the current puzzle was generated. Used by
     /// the feedback form to correlate rated difficulty with dwell time

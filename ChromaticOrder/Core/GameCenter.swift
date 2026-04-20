@@ -24,6 +24,9 @@ final class GameCenter {
     /// mode's high score. Must match the value you set up when
     /// creating the leaderboard in App Store Connect exactly.
     static let challengeLeaderboardID = "com.ianhandy.kroma.challenge_score"
+    /// Daily puzzle leaderboard. High-to-low, resets daily (configured
+    /// in App Store Connect as a recurring leaderboard).
+    static let dailyLeaderboardID = "com.ianhandy.kroma.daily_score"
 
     /// True once `authenticateHandler` has reported a signed-in
     /// player. Score submits silently no-op until this flips true.
@@ -60,6 +63,16 @@ final class GameCenter {
             context: 0,
             player: GKLocalPlayer.local,
             leaderboardIDs: [Self.challengeLeaderboardID]
+        ) { _ in }
+    }
+
+    func submitDailyScore(_ score: Int) {
+        guard isAuthenticated, score > 0 else { return }
+        GKLeaderboard.submitScore(
+            score,
+            context: 0,
+            player: GKLocalPlayer.local,
+            leaderboardIDs: [Self.dailyLeaderboardID]
         ) { _ in }
     }
 

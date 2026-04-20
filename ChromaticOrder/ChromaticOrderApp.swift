@@ -50,10 +50,17 @@ struct ChromaticOrderApp: App {
                 // or the player declines, so everything downstream
                 // (score submit, leaderboard view) simply stays idle.
                 GameCenter.shared.authenticate()
+                // Pull progress + stats from iCloud (and wire a
+                // listener for later external updates). Cloud wins on
+                // cold launch so switching devices keeps the player
+                // where they left off.
+                CloudSync.start()
             }
             .onOpenURL { url in
                 if url.scheme == "kroma" {
                     handleKromaURL(url)
+                } else if url.scheme == "https" && url.host == "kroma.ianhandy.com" {
+                    handleUniversalLink(url)
                 } else {
                     handleFileURL(url)
                 }
@@ -98,6 +105,44 @@ struct ChromaticOrderApp: App {
         started = true
     }
 
+    /// Universal Link entry: `https://kroma.ianhandy.com/p/<slug>`.
+    /// Paths are declared in `/.well-known/apple-app-site-association`
+    /// on the server; iOS routes matching taps straight into the app,
+    /// skipping Safari entirely. Resolves the slug server-side via
+    /// `/api/fetch/<slug>` to get the raw JSON, then loads the puzzle
+    /// with the same pipeline as the kroma:// scheme.
+    private func handleUniversalLink(_ url: URL) {
+        let parts = url.path.split(separator: "/", omittingEmptySubsequences: true)
+        guard parts.count >= 2, parts[0] == "p" else { return }
+        let slug = String(parts[1])
+        guard (6...10).contains(slug.count) else { return }
+        Task { await fetchAndLoadSlug(slug) }
+    }
+
+    /// Resolve a share slug against `/api/fetch/<slug>`, then decode +
+    /// rebuild the puzzle. Best-effort — network failure / expired
+    /// slug silently no-ops; the user stays on whichever screen they
+    /// were on rather than getting bounced.
+    private func fetchAndLoadSlug(_ slug: String) async {
+        guard let url = URL(string: "https://kroma.ianhandy.com/api/fetch/\(slug)") else { return }
+        var request = URLRequest(url: url)
+        request.timeoutInterval = 5
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+            guard let http = response as? HTTPURLResponse, http.statusCode == 200 else { return }
+            let decoded = try JSONDecoder().decode(SlugFetchResponse.self, from: data)
+            guard let bytes = decoded.json.data(using: .utf8),
+                  let doc = try? CreatorCodec.decode(bytes),
+                  let puzzle = CreatorCodec.rebuild(doc) else { return }
+            await MainActor.run {
+                incomingPuzzle = puzzle
+                started = true
+            }
+        } catch {
+            return
+        }
+    }
+
     static func decodeBase64URL(_ s: String) -> Data? {
         var b64 = s
             .replacingOccurrences(of: "-", with: "+")
@@ -114,4 +159,8 @@ struct ChromaticOrderApp: App {
             .replacingOccurrences(of: "/", with: "_")
             .replacingOccurrences(of: "=", with: "")
     }
+}
+
+private struct SlugFetchResponse: Decodable {
+    let json: String
 }

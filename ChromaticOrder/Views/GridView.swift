@@ -46,15 +46,16 @@ struct GridView: View {
             let perH = (availH / CGFloat(rows)) - margin * 2
             let cellPx = max(10, min(64, min(perW, perH)))
 
-            // Max zoom — stop at "3 cells span the short viewport axis."
-            // Beyond that, each cell is bigger than a thumb and the
-            // player is no longer seeing context. Cell pitch = cellPx
-            // + 2*margin; short-axis / pitch gives how many cells are
-            // currently visible at 1.0x, so (current / 3) is the
-            // multiplier that drops the visible count to 3.
+            // Max zoom — stop at "roughly 8 cells span the short viewport
+            // axis." That keeps enough of the puzzle in frame to plan
+            // moves while still magnifying cells past their 1.0x size.
+            // Cell pitch = cellPx + 2*margin; short-axis / pitch gives
+            // how many cells are currently visible at 1.0x, so
+            // (current / 8) is the multiplier that drops the visible
+            // count to 8.
             let cellPitch = cellPx + margin * 2
             let shortAxis = min(size.width, size.height)
-            let maxZoom: CGFloat = max(1.2, shortAxis / (3 * cellPitch))
+            let maxZoom: CGFloat = max(1.2, shortAxis / (8 * cellPitch))
             let zoom: CGFloat = game.zoomScale
 
             VStack(spacing: 0) {
@@ -77,6 +78,17 @@ struct GridView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .scaleEffect(zoom, anchor: .center)
             .offset(game.panOffset)
+            .onAppear {
+                // Report the on-screen cell size (post-zoom) to
+                // GameState so the drag-ghost lift scales with it.
+                game.renderedCellSize = cellPitch * zoom
+            }
+            .onChange(of: zoom) { _, newZoom in
+                game.renderedCellSize = cellPitch * newZoom
+            }
+            .onChange(of: cellPitch) { _, newPitch in
+                game.renderedCellSize = newPitch * zoom
+            }
             .animation(.interactiveSpring(response: 0.2, dampingFraction: 0.95),
                        value: game.panOffset)
             .onPreferenceChange(CellFramesKey.self) { frames in

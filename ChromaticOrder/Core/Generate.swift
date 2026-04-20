@@ -120,9 +120,9 @@ private func pickSeedColor(cfg: GenConfig) -> OKLCh {
     let cMid = cfg.cClampMin + (cfg.cClampMax - cfg.cClampMin) * 0.4
     let cSpan = (cfg.cClampMax - cfg.cClampMin) * 0.45
     return OKLCh(
-        L: lMid + Double.random(in: 0..<lSpan),
-        c: cMid + Double.random(in: 0..<cSpan),
-        h: Double.random(in: 0..<360)
+        L: lMid + Util.randDouble(in: 0..<lSpan),
+        c: cMid + Util.randDouble(in: 0..<cSpan),
+        h: Util.randDouble(in: 0..<360)
     )
 }
 
@@ -272,7 +272,7 @@ private func pickBranchSeed(_ cells: [String: GrowCell],
     }
     if candidates.isEmpty { return nil }
     let total = candidates.reduce(0) { $0 + $1.score }
-    var pick = Double.random(in: 0..<total)
+    var pick = Util.randDouble(in: 0..<total)
     for x in candidates {
         pick -= x.score
         if pick < 0 { return x }
@@ -293,7 +293,7 @@ private func tryBranch(cells: inout [String: GrowCell],
 
     let dL: Double, dC: Double, dH: Double
     let sameDir = gradients.values.filter { $0.dir == newDir }
-    if Util.chance(dev.symmetryRate), let src = sameDir.randomElement() {
+    if Util.chance(dev.symmetryRate), let src = Util.randomElement(sameDir) {
         dL = -src.dL; dC = -src.dC; dH = -src.dH
     } else {
         let d = pickStepDeltas(assign, ranges)
@@ -382,7 +382,7 @@ private func tryGrow(level: Int, cfg: LevelConfig, dev: GenConfig) -> Puzzle? {
         if branched { continue }
 
         let pool = preferBelowMin ? belowMin : growing
-        guard let g = pool.randomElement() else { return nil }
+        guard let g = Util.randomElement(pool) else { return nil }
         let canF = canExtend(g, dir: "forward", gridW: gridW, gridH: gridH, cells: cells, mode: dev.cbMode, cfg: dev)
         let canB = canExtend(g, dir: "backward", gridW: gridW, gridH: gridH, cells: cells, mode: dev.cbMode, cfg: dev)
         if !canF && !canB {
@@ -477,45 +477,31 @@ private func finalize(cells: [String: GrowCell],
             cells: specs, colors: colors))
     }
 
-    // Uniqueness guard 1: odd-length gradient whose only lock sits at
-    // the exact center has two valid orderings; lock pos-0 too.
-    //
-    // Exception — intersection disambiguation. A non-center cell that
-    // crosses another gradient is pinned by that gradient's solution
-    // once the solver works through it, so the direction is resolved
-    // by process of elimination. No need to force-lock an anchor; the
-    // puzzle is still uniquely solvable. Matches the creator's
-    // warning-relaxation (CreatorBuild.swift guard 3).
-    for gi in 0..<outGrads.count {
-        var g = outGrads[gi]
-        let center = g.len % 2 == 1 ? (g.len - 1) / 2 : -1
-        let hasAnchoringLock = g.cells.contains(where: { $0.locked && $0.pos != center })
-        if hasAnchoringLock { continue }
-        let hasNonCenterIntersection = g.cells.contains { spec in
-            spec.pos != center && spec.isIntersection
-        }
-        if hasNonCenterIntersection { continue }
-        var endpoint = g.cells[0]
-        if !endpoint.locked {
-            endpoint.locked = true
-            g.cells[0] = endpoint
-            lockedSet.insert("\(endpoint.r),\(endpoint.c)")
-        }
-        outGrads[gi] = g
-    }
-
     // Uniqueness guard 3: shared-intersection arm-swap. At any cell X
     // shared by two gradients, each gradient has an "arm" extending
-    // from X in one or two directions. Two arms with matching non-X
-    // cell counts (whether across gradients or within one gradient's
-    // own fwd/bwd arms) are swap-ambiguous — their colors can be
-    // permuted and still form valid linear gradients in each
-    // row/column. Lock the cell adjacent to X in each additional
-    // same-length unlocked arm to pin the ordering. Guard 1's center
-    // pos-0 lock already handles the pure within-gradient case; this
-    // catches the cross-gradient case (two branches of equal length
-    // meeting at an anchor) that playtesters flagged.
+    // from X in one or two directions. Arms are swap-ambiguous only
+    // when three conditions ALL hold: same cell count, AND same signed
+    // step-away-from-X in color space. Matching count alone isn't
+    // enough — swapping arm colors only produces valid linear
+    // progressions in both gradients when their per-unit color step
+    // (measured from X outward) is identical. Lock the cell adjacent
+    // to X in each additional swap-compatible unlocked arm to pin
+    // the ordering. Guard 4's orientation enumerator catches the
+    // pure within-gradient reversal case; this catches the
+    // cross-gradient case.
     struct Arm { let gi: Int; let intersectPos: Int; let cellIdx: [Int] }
+    func armStepKey(_ g: PuzzleGradient, xPos: Int, cellIdx: [Int]) -> String {
+        guard let anyIdx = cellIdx.first else { return "empty" }
+        let isForward = g.cells[anyIdx].pos > xPos
+        let neighborPos = isForward ? xPos + 1 : xPos - 1
+        guard neighborPos >= 0 && neighborPos < g.len else { return "edge" }
+        let dL = g.colors[neighborPos].L - g.colors[xPos].L
+        let dC = g.colors[neighborPos].c - g.colors[xPos].c
+        var dH = g.colors[neighborPos].h - g.colors[xPos].h
+        if dH > 180 { dH -= 360 } else if dH < -180 { dH += 360 }
+        let q = 10000.0
+        return "\(Int((dL * q).rounded())),\(Int((dC * q).rounded())),\(Int((dH * q).rounded()))"
+    }
     var intersectionMap: [String: [(gi: Int, pos: Int)]] = [:]
     for (gi, g) in outGrads.enumerated() {
         for spec in g.cells {
@@ -533,85 +519,119 @@ private func finalize(cells: [String: GrowCell],
         }
         let lenGroups = Dictionary(grouping: arms) { $0.cellIdx.count }
         for (_, sameLen) in lenGroups where sameLen.count >= 2 {
-            // Arms that already have a locked non-X cell are pinned;
-            // only unlocked arms need new locks to break swaps.
-            let unlocked = sameLen.filter { arm in
-                let g = outGrads[arm.gi]
-                return !arm.cellIdx.contains { g.cells[$0].locked }
+            // Sub-group by step vector — only arms with matching signed
+            // step-away-from-X actually produce valid gradients on swap.
+            let stepGroups = Dictionary(grouping: sameLen) { arm in
+                armStepKey(outGrads[arm.gi], xPos: arm.intersectPos, cellIdx: arm.cellIdx)
             }
-            guard unlocked.count >= 2 else { continue }
-            for arm in unlocked.dropFirst() {
-                let g = outGrads[arm.gi]
-                let sorted = arm.cellIdx.sorted {
-                    abs(g.cells[$0].pos - arm.intersectPos)
-                        < abs(g.cells[$1].pos - arm.intersectPos)
+            for (_, sameStep) in stepGroups where sameStep.count >= 2 {
+                // Arms that already have a locked non-X cell are pinned;
+                // only unlocked arms need new locks to break swaps.
+                let unlocked = sameStep.filter { arm in
+                    let g = outGrads[arm.gi]
+                    return !arm.cellIdx.contains { g.cells[$0].locked }
                 }
-                guard let lockIdx = sorted.first else { continue }
-                var gMut = outGrads[arm.gi]
-                var spec = gMut.cells[lockIdx]
-                spec.locked = true
-                gMut.cells[lockIdx] = spec
-                outGrads[arm.gi] = gMut
-                lockedSet.insert("\(spec.r),\(spec.c)")
+                guard unlocked.count >= 2 else { continue }
+                for arm in unlocked.dropFirst() {
+                    let g = outGrads[arm.gi]
+                    let sorted = arm.cellIdx.sorted {
+                        abs(g.cells[$0].pos - arm.intersectPos)
+                            < abs(g.cells[$1].pos - arm.intersectPos)
+                    }
+                    guard let lockIdx = sorted.first else { continue }
+                    var gMut = outGrads[arm.gi]
+                    var spec = gMut.cells[lockIdx]
+                    spec.locked = true
+                    gMut.cells[lockIdx] = spec
+                    outGrads[arm.gi] = gMut
+                    lockedSet.insert("\(spec.r),\(spec.c)")
+                }
             }
         }
     }
 
-    // Uniqueness guard 2: scan every pair of free cells and lock one
-    // of any pair that's too close in color. canExtend rejects pairs
-    // below ΔE 2 (OK.equal); anything just past that — distinct to
-    // the math, indistinguishable to the solver — still makes
-    // playtesters flag the puzzle as "multiple solutions." Tighter
-    // threshold (ΔE 4) for the free-cell pool specifically, since
-    // these are the cells the player has to disambiguate.
-    let ambiguityThreshold: Double = 4.0
-    var freePositions: [(r: Int, c: Int, color: OKLCh, gid: Int)] = []
-    var seenPositions: Set<String> = []
-    for g in outGrads {
-        for spec in g.cells where !spec.locked {
-            let key = "\(spec.r),\(spec.c)"
-            if seenPositions.insert(key).inserted {
-                freePositions.append((spec.r, spec.c, spec.color, g.id))
-            }
-        }
-    }
-    // One lock per pass; repeat until no conflicts remain (bounded by
-    // the number of free cells so can't infinite-loop).
-    let initialFreeCount = freePositions.count
-    var guardLocks = 0
-    var guardPasses = 0
-    while guardPasses < freePositions.count {
-        guardPasses += 1
-        var flagged: (r: Int, c: Int)? = nil
-        outer: for i in 0..<freePositions.count {
-            for j in (i + 1)..<freePositions.count {
-                if OK.dist(freePositions[i].color, freePositions[j].color, mode: mode) < ambiguityThreshold {
-                    flagged = (freePositions[i].r, freePositions[i].c)
-                    break outer
+    // Uniqueness guard 4: orientation-mask enumerator.
+    //
+    // Each gradient can be read forward or reversed, giving 2^N
+    // combinations across N gradients. Mask=0 (all original) is valid
+    // by construction; any additional valid mask means the puzzle has
+    // multiple solutions. For each mask check (a) every locked cell's
+    // mask-implied color matches spec.color, and (b) every
+    // intersection cell gets consistent colors from each covering
+    // gradient. If >1 mask is valid, lock a non-palindromic cell in
+    // an ambiguous gradient and re-enumerate. Supersedes the older
+    // heuristic that force-locked pos-0 whenever a gradient's only
+    // lock sat at its odd-length center — that rule was conservative
+    // (fired on plenty of cases that intersection constraints already
+    // disambiguated) and blind to the rare double-reversal case where
+    // two ambiguous gradients' reversed colors happen to agree at a
+    // shared intersection. N ≤ 10 via defaultGradientCount; cap at 16.
+    if outGrads.count <= 16 {
+        func palindromic(_ pos: Int, len: Int) -> Bool { pos == len - 1 - pos }
+        func maskValid(_ mask: UInt64) -> Bool {
+            var cellColors: [Int: OKLCh] = [:]
+            for i in 0..<outGrads.count {
+                let reversed = (mask >> i) & 1 == 1
+                let g = outGrads[i]
+                for spec in g.cells {
+                    let intended = reversed ? g.colors[g.len - 1 - spec.pos] : g.colors[spec.pos]
+                    if spec.locked, !OK.equal(intended, spec.color, mode: mode) {
+                        return false
+                    }
+                    let key = spec.r * 32 + spec.c
+                    if let existing = cellColors[key] {
+                        if !OK.equal(existing, intended, mode: mode) { return false }
+                    } else {
+                        cellColors[key] = intended
+                    }
                 }
             }
+            return true
         }
-        guard let f = flagged else { break }
-        lockedSet.insert("\(f.r),\(f.c)")
-        guardLocks += 1
-        for gi in 0..<outGrads.count {
-            var g = outGrads[gi]
-            var dirty = false
-            for k in 0..<g.cells.count where g.cells[k].r == f.r && g.cells[k].c == f.c {
-                if !g.cells[k].locked { g.cells[k].locked = true; dirty = true }
+        func validMasks() -> [UInt64] {
+            let n = outGrads.count
+            var out: [UInt64] = []
+            for m in 0..<(UInt64(1) << n) where maskValid(m) { out.append(m) }
+            return out
+        }
+        let maxIters = outGrads.count + 1
+        var iter = 0
+        while iter < maxIters {
+            iter += 1
+            let masks = validMasks()
+            if masks.isEmpty { return nil }  // inconsistent state — bail
+            if masks.count == 1 { break }
+            // Greedy min-lock: pick the gradient whose "reversed" bit
+            // appears in the most remaining valid masks. Locking a
+            // non-palindromic cell in that gradient kills every mask
+            // where its bit is set, collapsing the ambiguous set as
+            // fast as possible. Ties broken by lower gi for stability.
+            var chosenGi: Int? = nil
+            var bestKill = 0
+            for gi in 0..<outGrads.count {
+                let bit = UInt64(1) << gi
+                let oneCount = masks.reduce(into: 0) { $0 += ($1 & bit) != 0 ? 1 : 0 }
+                if oneCount == 0 || oneCount == masks.count { continue }  // bit already fixed
+                if oneCount > bestKill {
+                    bestKill = oneCount
+                    chosenGi = gi
+                }
             }
-            if dirty { outGrads[gi] = g }
+            guard let gi = chosenGi else { break }
+            let len = outGrads[gi].len
+            var didLock = false
+            for k in 0..<outGrads[gi].cells.count {
+                let spec = outGrads[gi].cells[k]
+                if spec.locked || palindromic(spec.pos, len: len) { continue }
+                var g = outGrads[gi]
+                g.cells[k].locked = true
+                outGrads[gi] = g
+                lockedSet.insert("\(spec.r),\(spec.c)")
+                didLock = true
+                break
+            }
+            if !didLock { return nil }
         }
-        freePositions.removeAll { $0.r == f.r && $0.c == f.c }
-    }
-    // Lock-budget check — under strong CB modes (or with a tight L/C
-    // clamp) the uniqueness sweep can cascade and lock most of the
-    // free cells to force solvability. A puzzle that starts half-
-    // filled isn't a puzzle; bail so the outer retry loop tries a
-    // fresh seed that actually has enough perceptual spread.
-    if initialFreeCount >= 4,
-       Double(guardLocks) / Double(initialFreeCount) > 0.4 {
-        return nil
     }
 
     // Build board grid with solution colors + locks.
@@ -669,7 +689,7 @@ private func finalize(cells: [String: GrowCell],
         extrapProx: extrapProx,
         mode: mode)
 
-    let shuffled = bank.shuffled()
+    let shuffled = Util.shuffle(bank)
     return Puzzle(
         level: level, gridW: gridW, gridH: gridH,
         board: board,
@@ -755,7 +775,7 @@ private func makeFallback(level: Int) -> Puzzle {
             uid += 1
         }
     }
-    let shuffled = bank.shuffled()
+    let shuffled = Util.shuffle(bank)
     return Puzzle(
         level: level, gridW: gridW, gridH: gridH,
         board: board, bank: shuffled.map { Optional($0) },

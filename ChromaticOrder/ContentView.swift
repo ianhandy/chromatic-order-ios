@@ -54,6 +54,8 @@ struct ContentView: View {
                 .padding(.vertical, 4)
             }
 
+            OnboardingOverlay(game: game)
+
             // Edge vignette — viewport-level, above content. Gated
             // on the Accessibility toggle so players who find the
             // color halo distracting can disable it.
@@ -87,6 +89,18 @@ struct ContentView: View {
                             .padding(.bottom, 20)
                         Spacer()
                         Button {
+                            if let p = game.puzzle {
+                                presentSolvedShare(puzzle: p, level: game.level)
+                            }
+                        } label: {
+                            Image(systemName: "square.and.arrow.up")
+                                .font(.system(size: 18, weight: .semibold))
+                                .foregroundStyle(.white.opacity(0.75))
+                                .frame(width: 44, height: 44)
+                        }
+                        .buttonStyle(.plain)
+                        .padding(.bottom, 22)
+                        Button {
                             game.handleNext()
                         } label: {
                             Text("next level \u{2192}")
@@ -106,34 +120,16 @@ struct ContentView: View {
                 .transition(.opacity)
             }
 
-            // Dragged swatch ghost. Floats ABOVE the finger (not under)
-            // so the dragged tile stays visible and isn't occluded by
-            // the player's thumb. If magnetism has snapped to a cell,
-            // pull toward that cell's center so the tug is visible
-            // before release.
+            // Dragged swatch ghost. Always floats at the lifted
+            // position above the finger so the player can see the
+            // color they're holding, even when magnetism has locked
+            // onto a cell below. The targeted cell still gets its
+            // drop-tint (rendered inside CellView) — now two visual
+            // cues: tint where it will land, swatch in hand above
+            // finger so the color never hides under a thumb.
             if let src = game.dragSource, let loc = game.dragLocation {
-                // Same lift constant used by GameState's hit-test — the
-                // visible ghost and the effective drop point stay in sync.
-                let lifted = CGPoint(x: loc.x, y: loc.y - GameState.ghostLift)
-                let targetRect: CGRect? = {
-                    switch game.dropTarget {
-                    case .cell(let idx): return game.cellFrames[idx]
-                    case .slot(let s):   return game.bankSlotFrames[s]
-                    case .none:          return nil
-                    }
-                }()
-                // Suck-in: when a drop target is locked, the ghost
-                // snaps to that cell's position AND size — it becomes
-                // the cell visually. On release, the placement lands
-                // in the cell the ghost is sitting on, matching what
-                // the player sees. When magnetism drops (finger moves
-                // off), the ghost springs back to floating-above-finger
-                // size — the "spit out" feeling.
-                let magnetized = targetRect.map {
-                    CGPoint(x: $0.midX, y: $0.midY)
-                } ?? lifted
-                let targetSize = targetRect?.size
-                DragGhost(color: src.color, location: magnetized, snapSize: targetSize)
+                let lifted = CGPoint(x: loc.x, y: loc.y - game.ghostLift)
+                DragGhost(color: src.color, location: lifted)
                     .allowsHitTesting(false)
             }
         }
@@ -146,27 +142,22 @@ struct ContentView: View {
             // Shake to shuffle — replaces the old bottom-right reset
             // button. Only acts on an in-progress puzzle so a shake
             // during the solved overlay doesn't wipe the win state.
-            if !game.solved, game.puzzle != nil { game.handleReset() }
+            if !game.solved, game.puzzle != nil {
+                Haptics.shake()
+                game.handleReset()
+            }
         }
         .animation(.spring(response: 0.55, dampingFraction: 0.85), value: game.solved)
-        // Observing nil vs non-nil as a Bool — Puzzle isn't Equatable,
-        // which onChange(of:) requires. This is enough: we only care
-        // that something arrived, not that it changed identity.
         .onChange(of: incomingPuzzle != nil) { _, hasIncoming in
-            guard hasIncoming, let puzzle = incomingPuzzle else { return }
-            // A .kroma file was tapped externally and rebuilt in the
-            // app scene. Hand it to GameState (bypassing the normal
-            // level flow — this is a one-off custom puzzle) and clear
-            // the binding so the SAME puzzle doesn't re-load if the
-            // user later backgrounds + foregrounds the app.
-            game.loadCustomPuzzle(puzzle)
-            creatorOpen = false
-            feedbackOpen = false
-            menuOpen = false
-            incomingPuzzle = nil
+            if hasIncoming { loadIncomingPuzzleIfAny() }
         }
         .onAppear {
             GlassyAudio.shared.startMusicIfNeeded()
+            // ContentView mounts AFTER Universal Link / kroma:// handlers
+            // may have set incomingPuzzle during a cold launch. onChange
+            // only fires on subsequent transitions, so check on appear
+            // too to catch the mount-already-set case.
+            loadIncomingPuzzleIfAny()
         }
         .onChange(of: menuOpen) { _, isOpen in
             // Deferred CB regeneration: cycling the CB mode inside
@@ -194,42 +185,34 @@ struct ContentView: View {
             AccessibilitySheet(game: game)
         }
     }
+
+    /// Unified loader for externally-supplied puzzles (.kroma file tap,
+    /// kroma:// scheme, Universal Link). Clears any open sheets and
+    /// hands the puzzle to GameState, then resets the binding so the
+    /// same puzzle doesn't re-trigger on a later backgrounding.
+    private func loadIncomingPuzzleIfAny() {
+        guard let puzzle = incomingPuzzle else { return }
+        game.loadCustomPuzzle(puzzle)
+        creatorOpen = false
+        feedbackOpen = false
+        menuOpen = false
+        incomingPuzzle = nil
+    }
 }
 
 private struct DragGhost: View {
     let color: OKLCh
     let location: CGPoint
-    /// When non-nil, magnetism has locked onto a cell. The ghost
-    /// shrinks to that cell's size, drops its shadow, and fades out —
-    /// the target cell's drop-tint takes over as the visual so the
-    /// color doesn't double-render (once in the hand, once in the
-    /// cell). When demagnetized, the ghost fades back in at its
-    /// floating-above-finger size.
-    let snapSize: CGSize?
     var body: some View {
-        let defaultPx: CGFloat = 56
-        let size = snapSize ?? CGSize(width: defaultPx, height: defaultPx)
-        let radius = min(size.width, size.height) * 0.28
-        let isMagnetized = snapSize != nil
-        let scale: CGFloat = isMagnetized ? 1.0 : 1.15
-        let opacity: Double = isMagnetized ? 0.0 : 1.0
+        let size: CGFloat = 56
+        let radius = size * 0.28
         RoundedRectangle(cornerRadius: radius, style: .continuous)
             .fill(OK.toColor(color))
-            .frame(width: size.width, height: size.height)
-            .scaleEffect(scale)
-            .shadow(color: .black.opacity(isMagnetized ? 0.0 : 0.22),
-                    radius: isMagnetized ? 0 : 12,
-                    y: isMagnetized ? 0 : 6)
-            .opacity(opacity)
+            .frame(width: size, height: size)
+            .scaleEffect(1.15)
+            .shadow(color: .black.opacity(0.22), radius: 12, y: 6)
             .position(location)
-            // Snappy spring for position + size; slightly longer
-            // opacity fade so the ghost visibly "sucks into" the cell
-            // before disappearing (shrinks + fades as the cell tint
-            // swells in underneath).
             .animation(.spring(response: 0.20, dampingFraction: 0.78), value: location)
-            .animation(.spring(response: 0.20, dampingFraction: 0.78), value: size.width)
-            .animation(.spring(response: 0.20, dampingFraction: 0.78), value: size.height)
-            .animation(.easeOut(duration: 0.20), value: isMagnetized)
     }
 }
 

@@ -18,6 +18,7 @@ struct MenuView: View {
     @State private var accessibilityOpen = false
     @State private var galleryOpen = false
     @State private var leaderboardOpen = false
+    @State private var statsOpen = false
     /// Random hue anchor chosen on first appear — lets the wave field
     /// look different across cold launches without per-frame jitter.
     @State private var hueSeed: Double = Double.random(in: 0..<360)
@@ -28,9 +29,11 @@ struct MenuView: View {
     /// visual accent if we ever want to surface them.
     private static let zenColor       = OKLCh(L: 0.62, c: 0.14, h: 150)
     private static let challengeColor = OKLCh(L: 0.55, c: 0.18, h: 28)
+    private static let dailyColor     = OKLCh(L: 0.60, c: 0.16, h: 95)
     private static let galleryColor   = OKLCh(L: 0.58, c: 0.16, h: 290)
     private static let optionsColor   = OKLCh(L: 0.70, c: 0.08, h: 220)
     private static let leaderboardColor = OKLCh(L: 0.65, c: 0.14, h: 50)
+    private static let statsColor     = OKLCh(L: 0.60, c: 0.10, h: 260)
 
     var body: some View {
         ZStack {
@@ -81,6 +84,9 @@ struct MenuView: View {
                 menuButton("challenge", tone: Self.challengeColor) {
                     pick(mode: .challenge)
                 }
+                menuButton("today's puzzle", tone: Self.dailyColor) {
+                    pick(mode: .daily)
+                }
                 menuButton("gallery", tone: Self.galleryColor) {
                     galleryOpen = true
                 }
@@ -89,6 +95,9 @@ struct MenuView: View {
                 }
                 menuButton("leaderboard", tone: Self.leaderboardColor) {
                     leaderboardOpen = true
+                }
+                menuButton("stats", tone: Self.statsColor) {
+                    statsOpen = true
                 }
                 Spacer()
             }
@@ -109,6 +118,9 @@ struct MenuView: View {
         .sheet(isPresented: $leaderboardOpen) {
             LeaderboardView(leaderboardID: GameCenter.challengeLeaderboardID)
                 .ignoresSafeArea()
+        }
+        .sheet(isPresented: $statsOpen) {
+            StatsView()
         }
         .onAppear {
             GlassyAudio.shared.startMusicIfNeeded()
