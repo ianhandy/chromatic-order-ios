@@ -218,11 +218,11 @@ final class GameState {
     var renderedCellSize: CGFloat = 40
 
     /// Vertical offset from the finger to the center of the drag
-    /// ghost. Scales with `renderedCellSize` so the swatch always
-    /// clears the cell directly under the thumb (ghost sits one
-    /// cell-height + small buffer above). Clamped to 50pt so very
-    /// small cells still get a usable lift above the thumb tip.
-    var ghostLift: CGFloat { max(50, renderedCellSize + 20) }
+    /// ghost. Scales with `renderedCellSize` so the swatch clears the
+    /// cell under the thumb but stays close enough to feel connected
+    /// to the finger. Clamped to 40pt so tiny cells still get a
+    /// usable lift above the thumb tip.
+    var ghostLift: CGFloat { max(40, renderedCellSize * 0.85) }
 
     /// Effective drop point for hit-testing. Matches the ghost's
     /// lifted position — "the swatch falls wherever it's rendered."
