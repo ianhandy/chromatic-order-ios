@@ -71,6 +71,15 @@ enum CreatorBuilder {
             }
         }
 
+        // Force-lock auto-locked cells (sparsity violators +
+        // duplicate colors) regardless of manual/auto mode. These
+        // layouts are solvable but only if the player can see the
+        // ambiguous cells from the start.
+        for world in creator.autoLockedCells {
+            guard ownersByCell[world] != nil else { continue }
+            lockedSet.insert(CellIndex(r: world.r - minR, c: world.c - minC))
+        }
+
         // Build puzzle gradients with per-cell specs in local coords.
         var outGrads: [PuzzleGradient] = []
         for (gi, g) in laid.enumerated() {
@@ -179,30 +188,10 @@ enum CreatorBuilder {
             warnings.append("No starter cells — tap a cell to reveal it at the start.")
         }
 
-        // 2. Multiple solutions — two DISTINCT free cells share a
-        // color (within perceptual ΔE). Dedupe by (r, c) so
-        // intersections — present in two gradients' cells[] arrays —
-        // don't match themselves and produce a false warning.
-        var distinctFree: [(idx: CellIndex, color: OKLCh)] = []
-        var seenFree: Set<CellIndex> = []
-        for g in outGrads {
-            for spec in g.cells where !spec.locked {
-                let key = CellIndex(r: spec.r, c: spec.c)
-                if seenFree.insert(key).inserted {
-                    distinctFree.append((key, spec.color))
-                }
-            }
-        }
-        for i in 0..<distinctFree.count {
-            var conflict = false
-            for j in (i + 1)..<distinctFree.count {
-                if OK.equal(distinctFree[i].color, distinctFree[j].color) {
-                    warnings.append("Multiple solutions: two free cells share a color — lock one as a clue.")
-                    conflict = true; break
-                }
-            }
-            if conflict { break }
-        }
+        // (Duplicate-color ambiguity is now resolved structurally:
+        // any two cells with matching solution colors are force-
+        // locked via `creator.autoLockedCells`, so the warning no
+        // longer fires.)
 
         // 3. Direction ambiguity — a gradient with only one lock at
         // the exact center of an odd-length line has two valid

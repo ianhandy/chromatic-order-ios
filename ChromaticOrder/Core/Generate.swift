@@ -95,6 +95,51 @@ private func pairProxCap(_ level: Int) -> Double? {
     }
 }
 
+/// True if any gradient's colors are perceptually palindromic:
+/// `colors[i] ≈ colors[n-1-i]` under the given CB mode for every i
+/// up to the midpoint. These puzzles are fundamentally ambiguous —
+/// the forward and reversed arrangements look identical, and no lock
+/// can save them (a locked endpoint at pos 0 has the same color as
+/// the reversed-reading's pos 0). Generator-side code in `finalize`
+/// already rejects these; the helper is exposed so the community-pool
+/// injection path (which bypasses the generator entirely) can apply
+/// the same filter to legacy liked puzzles captured before the check
+/// existed.
+func hasPalindromicGradient(_ gradients: [PuzzleGradient],
+                            mode: CBMode = .none) -> Bool {
+    for g in gradients where g.len >= 2 {
+        var mirror = true
+        for i in 0..<(g.len / 2) where !OK.equal(g.colors[i],
+                                                 g.colors[g.len - 1 - i],
+                                                 mode: mode) {
+            mirror = false
+            break
+        }
+        if mirror { return true }
+    }
+    return false
+}
+
+/// Inclusive difficulty band `scoreDifficulty` (1–10) must land inside
+/// for a given zen/challenge level. tryGrow rejects any layout whose
+/// computed difficulty falls outside this window and retries, so
+/// Easy levels can't ship Medium-feel puzzles (cap was too loose) and
+/// Master can't ship Medium-feel ones either (no floor before). Bands
+/// overlap by one step at adjacent tier boundaries — the shared
+/// difficulty value lives in whichever tier the level belongs to, and
+/// the overlap gives the grower enough room to converge within 2,500
+/// attempts before falling back.
+private func levelDifficultyBand(_ level: Int) -> ClosedRange<Int> {
+    switch level {
+    case 1...3:    return 1...2    // Trivial
+    case 4...6:    return 2...3    // Easy
+    case 7...9:    return 3...5    // Medium
+    case 10...12:  return 5...7    // Hard
+    case 13...15:  return 7...9    // Expert
+    default:       return 8...10   // Master
+    }
+}
+
 // Player feedback at lv 4-5 challenge mode flagged "hue-only on
 // constant L/C" puzzles as feeling cheap against the timer. Lower
 // hue-primary bias at the easy end so L or c take the primary role
@@ -439,12 +484,19 @@ private func finalize(cells: [String: GrowCell],
     let gridH = maxR - minR + 1
     if gridW > 17 || gridH > 17 { return nil }
 
-    // Intersections and optional endpoint anchors are pre-locked.
+    // Intersections are NO LONGER auto-locked here — guard 3 below
+    // decides per-intersection whether to lock the intersection
+    // itself OR a neighboring arm cell. The distinction:
+    //   - Same-length arms meeting at the intersection → swap-
+    //     ambiguous. An arm-adjacent lock breaks the swap AND the
+    //     player can deduce the intersection's color from linearity,
+    //     so the intersection lock becomes redundant (revealing one
+    //     more cell than needed for uniqueness).
+    //   - Otherwise → the intersection lock is the minimum
+    //     disambiguator.
+    // Endpoint anchors (optional, tier-1 config only) are applied as
+    // usual.
     var lockedSet: Set<String> = []
-    for (key, cell) in cells where cell.gradIds.count >= 2 {
-        let parts = key.split(separator: ",").map { Int($0)! }
-        lockedSet.insert("\(parts[0] - minR),\(parts[1] - minC)")
-    }
     if cfg.anchorEndpoints >= 1 {
         for g in gradients.values {
             let (r, c) = g.cellOf(g.minPos)
@@ -477,31 +529,48 @@ private func finalize(cells: [String: GrowCell],
             cells: specs, colors: colors))
     }
 
-    // Uniqueness guard 3: shared-intersection arm-swap. At any cell X
-    // shared by two gradients, each gradient has an "arm" extending
-    // from X in one or two directions. Arms are swap-ambiguous only
-    // when three conditions ALL hold: same cell count, AND same signed
-    // step-away-from-X in color space. Matching count alone isn't
-    // enough — swapping arm colors only produces valid linear
-    // progressions in both gradients when their per-unit color step
-    // (measured from X outward) is identical. Lock the cell adjacent
-    // to X in each additional swap-compatible unlocked arm to pin
-    // the ordering. Guard 4's orientation enumerator catches the
-    // pure within-gradient reversal case; this catches the
-    // cross-gradient case.
+    // Uniqueness guard 3 + minimum-lock intersection policy. For each
+    // intersection (a cell shared by ≥ 2 gradients):
+    //
+    //   - If any 2 arms meeting at the intersection have the same
+    //     cell count → swap-ambiguous. Lock the cell adjacent to the
+    //     intersection on every arm beyond the first in that length
+    //     group. Leave the intersection UNLOCKED — the arm lock
+    //     breaks the swap AND lets the player deduce the intersection
+    //     color from linearity (it's the only bank-member that
+    //     extends the locked arm pair into a linear progression).
+    //     Locking the intersection on top would reveal one more cell
+    //     than the uniqueness argument requires.
+    //
+    //   - Otherwise → lock the intersection itself. No swap is
+    //     possible (arm lengths differ), and the intersection lock
+    //     kills within-gradient reversal by pinning the shared color.
+    //
+    // Guard 4 still runs below; its orientation-mask enumerator
+    // double-checks reversal via intersection-consistency and adds
+    // extra locks if anything slips through.
     struct Arm { let gi: Int; let intersectPos: Int; let cellIdx: [Int] }
-    func armStepKey(_ g: PuzzleGradient, xPos: Int, cellIdx: [Int]) -> String {
-        guard let anyIdx = cellIdx.first else { return "empty" }
-        let isForward = g.cells[anyIdx].pos > xPos
-        let neighborPos = isForward ? xPos + 1 : xPos - 1
-        guard neighborPos >= 0 && neighborPos < g.len else { return "edge" }
-        let dL = g.colors[neighborPos].L - g.colors[xPos].L
-        let dC = g.colors[neighborPos].c - g.colors[xPos].c
-        var dH = g.colors[neighborPos].h - g.colors[xPos].h
-        if dH > 180 { dH -= 360 } else if dH < -180 { dH += 360 }
-        let q = 10000.0
-        return "\(Int((dL * q).rounded())),\(Int((dC * q).rounded())),\(Int((dH * q).rounded()))"
+
+    /// Helper: mark the intersection cell as locked in every gradient
+    /// covering it, and add to `lockedSet`.
+    func lockIntersection(memberships: [(gi: Int, pos: Int)]) {
+        guard let first = memberships.first else { return }
+        let g0 = outGrads[first.gi]
+        guard let spec = g0.cells.first(where: { $0.pos == first.pos })
+        else { return }
+        lockedSet.insert("\(spec.r),\(spec.c)")
+        for m in memberships {
+            var gMut = outGrads[m.gi]
+            for (idx, s) in gMut.cells.enumerated()
+            where s.r == spec.r && s.c == spec.c {
+                var updated = s
+                updated.locked = true
+                gMut.cells[idx] = updated
+            }
+            outGrads[m.gi] = gMut
+        }
     }
+
     var intersectionMap: [String: [(gi: Int, pos: Int)]] = [:]
     for (gi, g) in outGrads.enumerated() {
         for spec in g.cells {
@@ -518,37 +587,58 @@ private func finalize(cells: [String: GrowCell],
             if !bwd.isEmpty { arms.append(Arm(gi: m.gi, intersectPos: m.pos, cellIdx: bwd)) }
         }
         let lenGroups = Dictionary(grouping: arms) { $0.cellIdx.count }
+        var addedArmLock = false
         for (_, sameLen) in lenGroups where sameLen.count >= 2 {
-            // Sub-group by step vector — only arms with matching signed
-            // step-away-from-X actually produce valid gradients on swap.
-            let stepGroups = Dictionary(grouping: sameLen) { arm in
-                armStepKey(outGrads[arm.gi], xPos: arm.intersectPos, cellIdx: arm.cellIdx)
+            let unlocked = sameLen.filter { arm in
+                let g = outGrads[arm.gi]
+                return !arm.cellIdx.contains { g.cells[$0].locked }
             }
-            for (_, sameStep) in stepGroups where sameStep.count >= 2 {
-                // Arms that already have a locked non-X cell are pinned;
-                // only unlocked arms need new locks to break swaps.
-                let unlocked = sameStep.filter { arm in
-                    let g = outGrads[arm.gi]
-                    return !arm.cellIdx.contains { g.cells[$0].locked }
+            guard unlocked.count >= 2 else { continue }
+            for arm in unlocked.dropFirst() {
+                let g = outGrads[arm.gi]
+                let sorted = arm.cellIdx.sorted {
+                    abs(g.cells[$0].pos - arm.intersectPos)
+                        < abs(g.cells[$1].pos - arm.intersectPos)
                 }
-                guard unlocked.count >= 2 else { continue }
-                for arm in unlocked.dropFirst() {
-                    let g = outGrads[arm.gi]
-                    let sorted = arm.cellIdx.sorted {
-                        abs(g.cells[$0].pos - arm.intersectPos)
-                            < abs(g.cells[$1].pos - arm.intersectPos)
-                    }
-                    guard let lockIdx = sorted.first else { continue }
-                    var gMut = outGrads[arm.gi]
-                    var spec = gMut.cells[lockIdx]
-                    spec.locked = true
-                    gMut.cells[lockIdx] = spec
-                    outGrads[arm.gi] = gMut
-                    lockedSet.insert("\(spec.r),\(spec.c)")
-                }
+                guard let lockIdx = sorted.first else { continue }
+                var gMut = outGrads[arm.gi]
+                var spec = gMut.cells[lockIdx]
+                spec.locked = true
+                gMut.cells[lockIdx] = spec
+                outGrads[arm.gi] = gMut
+                lockedSet.insert("\(spec.r),\(spec.c)")
+                addedArmLock = true
             }
         }
+        if !addedArmLock {
+            // No same-length arm group → intersection lock is the
+            // minimum disambiguator.
+            lockIntersection(memberships: memberships)
+        }
     }
+
+    // Uniqueness guard 3.5: perceptually-palindromic gradients.
+    // See `hasPalindromicGradient` for the rationale — lock-based
+    // disambiguation can't save a gradient whose colors mirror
+    // themselves, so reject and let the outer loop retry.
+    if hasPalindromicGradient(outGrads, mode: mode) { return nil }
+
+    // Feedback-driven rejection: if this candidate's shape
+    // signature has been flagged by the player as a bad puzzle, let
+    // the outer loop retry with a different layout. The ledger caps
+    // at 50 entries and ages out FIFO, so one or two past dislikes
+    // don't permanently constrain the generator.
+    let sig = PuzzleShape.signature(of: outGrads)
+    if LikedPuzzleStore.isShapeDisliked(sig) { return nil }
+
+    // Guard 3.6 (L-shape rejection) was removed — it was vetoing
+    // nearly every 2-gradient tier-2 puzzle (levels 4-6) because the
+    // config there has `anchorEndpoints: 0`, so almost all locks are
+    // intersections by construction. The vetoes starved the
+    // generator and caused the "infinite building" symptom. Guard 4
+    // (orientation-mask enumerator below) is the correct place to
+    // catch genuine L-shape ambiguity; if L-shapes still slip
+    // through there, that's where to fix it, not here.
 
     // Uniqueness guard 4: orientation-mask enumerator.
     //
@@ -594,7 +684,16 @@ private func finalize(cells: [String: GrowCell],
             for m in 0..<(UInt64(1) << n) where maskValid(m) { out.append(m) }
             return out
         }
-        let maxIters = outGrads.count + 1
+        // Each iteration locks at most one cell, and a gradient may
+        // need multiple locks to collapse the ambiguous mask set —
+        // especially when intersection constraints are weak. The old
+        // `outGrads.count + 1` ceiling exited after one lock per
+        // gradient, which allowed partially-disambiguated puzzles to
+        // ship if the first lock hit a coincident color. Budget every
+        // free cell plus a small margin; `didLock=false` still bails
+        // early when no progress is possible.
+        let totalCells = outGrads.reduce(0) { $0 + $1.len }
+        let maxIters = totalCells + outGrads.count + 1
         var iter = 0
         while iter < maxIters {
             iter += 1
@@ -632,6 +731,10 @@ private func finalize(cells: [String: GrowCell],
             }
             if !didLock { return nil }
         }
+        // Safety net: if the loop exhausted its iteration budget
+        // without collapsing to a single valid mask, the puzzle is
+        // still ambiguous — reject instead of shipping it.
+        if validMasks().count > 1 { return nil }
     }
 
     // Build board grid with solution colors + locks.
@@ -668,8 +771,12 @@ private func finalize(cells: [String: GrowCell],
 
     var bank: [BankItem] = []
     var uid = 0
+    var bankedCells: Set<Int> = []
     for g in outGrads {
         for spec in g.cells where !spec.locked {
+            let key = spec.r * 32 + spec.c
+            if bankedCells.contains(key) { continue }
+            bankedCells.insert(key)
             bank.append(BankItem(id: uid, color: spec.color))
             uid += 1
         }
@@ -688,6 +795,14 @@ private func finalize(cells: [String: GrowCell],
         pairProx: pairProx,
         extrapProx: extrapProx,
         mode: mode)
+    // Difficulty band gating moved out of `finalize` and into
+    // `generatePuzzle`. The outer loop now routes candidates by
+    // their actual computed difficulty (accept == target, stash >
+    // target, discard < target) so higher-difficulty results can be
+    // preserved for future levels instead of being thrown away here.
+    // `levelDifficultyBand` is kept in the file only for callers
+    // that still want a coarse range.
+    _ = difficulty  // silences the unused warning if difficulty isn't read below
 
     let shuffled = Util.shuffle(bank)
     return Puzzle(
@@ -707,82 +822,201 @@ private func finalize(cells: [String: GrowCell],
 
 // ─── public entry ───────────────────────────────────────────────────
 
-func generatePuzzle(level: Int, config: GenConfig = GenConfig()) -> Puzzle {
-    let cfg = applyConfig(levelConfig(level), config)
-    for _ in 0..<500 {
-        if let puz = tryGrow(level: level, cfg: cfg, dev: config) {
-            return puz
-        }
+/// Ring buffer of the most recent puzzle fingerprints returned from
+/// `generatePuzzle`. Uses position-aware fingerprints (not just
+/// direction+length) so same-shape puzzles at different grid
+/// positions are treated as distinct. Prevents the generator from
+/// converging on the same layout several levels in a row.
+private let recentShapesLock = NSLock()
+private var recentShapes: [String] = []
+private let recentShapeLimit = 16
+
+private func pushRecentShape(_ sig: String) {
+    recentShapesLock.lock()
+    defer { recentShapesLock.unlock() }
+    recentShapes.append(sig)
+    if recentShapes.count > recentShapeLimit {
+        recentShapes.removeFirst(recentShapes.count - recentShapeLimit)
     }
-    return makeFallback(level: level)
 }
 
-// Handcrafted fallback for the rare case the grower can't find a layout
-// within 500 attempts. Three real OKLCh gradients.
-private func makeFallback(level: Int) -> Puzzle {
-    let gridW = 6, gridH = 5
-    func lerp(_ a: Double, _ b: Double, _ t: Double) -> Double { a + (b - a) * t }
-    let h0: [OKLCh] = (0..<4).map { OKLCh(L: 0.60, c: 0.15, h: OK.normH(40 + Double($0) * 30)) }
-    let h1: [OKLCh] = (0..<4).map { OKLCh(L: 0.45, c: 0.14, h: OK.normH(200 - Double($0) * 25)) }
-    let vc: [OKLCh] = (0..<3).map {
-        OKLCh(L: lerp(0.60, 0.45, Double($0) / 2.0),
-              c: lerp(0.15, 0.14, Double($0) / 2.0),
-              h: OK.normH(100 + Double($0) * 37.5))
+private func isRecentShape(_ sig: String) -> Bool {
+    recentShapesLock.lock()
+    defer { recentShapesLock.unlock() }
+    return recentShapes.contains(sig)
+}
+
+/// Targeted-generation hook mirroring the web repo's `tryGrowOnce`.
+/// Single grower attempt — returns nil on guard failure so the
+/// targeted path can run its own retry budget instead of inheriting
+/// `generatePuzzle`'s internal loop + fallback semantics.
+func tryGrowOnce(level: Int, config: GenConfig = GenConfig()) -> Puzzle? {
+    let cfg = applyConfig(levelConfig(level), config)
+    return tryGrow(level: level, cfg: cfg, dev: config)
+}
+
+func generatePuzzle(level: Int, config: GenConfig = GenConfig()) -> Puzzle {
+    let cfg = applyConfig(levelConfig(level), config)
+    // Target difficulty maps 1:1 from the requested level, capped at
+    // the 1-10 range scoreDifficulty returns. Early levels effectively
+    // want difficulty == level; at level ≥ 10 the generator just
+    // keeps aiming for the hardest tier.
+    let target = min(10, max(1, level))
+
+    // Below-target buckets are now stale — purge before anything else
+    // so the ledger stays bounded and we don't accidentally pop an
+    // easier puzzle back out.
+    StashedPuzzleStore.purgeBelow(difficulty: target)
+
+    // Helper: position—aware fingerprint for a puzzle.
+    func fp(_ p: Puzzle) -> String {
+        PuzzleShape.fingerprint(of: p.gradients, gridW: p.gridW, gridH: p.gridH)
     }
-    func specs(dir: Direction, row: Int, col: Int, colors: [OKLCh], lockAt: Set<Int>) -> [GradientCellSpec] {
-        colors.enumerated().map { (i, color) in
-            let r = dir == .h ? row : row + i
-            let c = dir == .h ? col + i : col
-            return GradientCellSpec(r: r, c: c, pos: i, color: color,
-                                     locked: lockAt.contains(i),
-                                     isIntersection: lockAt.contains(i))
+
+    // Cache hit first — a previous run may have produced a puzzle at
+    // exactly this difficulty while aiming for an earlier level. Pay
+    // the decode cost instead of the full regeneration. Skip the pop
+    // when the cached fingerprint matches a recently-used or already-
+    // solved puzzle.
+    if let cachedJSON = StashedPuzzleStore.pop(difficulty: target),
+       let data = cachedJSON.data(using: .utf8),
+       let doc = try? CreatorCodec.decode(data),
+       let puzzle = CreatorCodec.rebuild(doc, level: level) {
+        let f = fp(puzzle)
+        if !isRecentShape(f), !SolvedPuzzleHistory.contains(f) {
+            pushRecentShape(f)
+            return puzzle
+        }
+        // Fall through to generation if this cache entry would
+        // duplicate a recent or already-solved puzzle.
+    }
+
+    // Last generated candidate regardless of difficulty — kept around
+    // as the absolute-last-resort return value so the generator never
+    // falls through to a hardcoded layout.
+    var lastSeen: Puzzle? = nil
+
+    /// Helper: generate a candidate, route it according to difficulty
+    /// vs. the desired window, and return true when we should return
+    /// it to the caller. `dedupRecent = true` additionally rejects
+    /// candidates whose fingerprint matches a recently-returned or
+    /// previously-solved puzzle — set during strict + soft phases to
+    /// keep output varied; dropped in the emergency loop so we can't
+    /// spin forever on a tight level config.
+    func routeCandidate(_ candidate: Puzzle,
+                         acceptWindow: ClosedRange<Int>,
+                         dedupRecent: Bool) -> Bool {
+        lastSeen = candidate
+        let f = fp(candidate)
+        if acceptWindow.contains(candidate.difficulty) {
+            if dedupRecent {
+                if isRecentShape(f) { return false }
+                if SolvedPuzzleHistory.contains(f) { return false }
+            }
+            pushRecentShape(f)
+            return true
+        }
+        // Anything harder than the top of the accept window gets
+        // stashed at its actual difficulty so a later, harder level
+        // can pop it. Anything easier is discarded — retrying is a
+        // better bet than shipping a too-easy puzzle now.
+        if candidate.difficulty > acceptWindow.upperBound {
+            if let json = try? CreatorCodec.encodePuzzle(candidate) {
+                StashedPuzzleStore.stash(
+                    puzzleJSON: json,
+                    difficulty: candidate.difficulty
+                )
+            }
+        }
+        return false
+    }
+
+    // Strict phase: accept only difficulty == target. Most puzzles
+    // should land here; over-shooting generator output builds up the
+    // higher-difficulty stash for future levels. Recent-fingerprint
+    // dedup + solved-history check are on so the player never sees
+    // the same layout twice.
+    for _ in 0..<500 {
+        if let candidate = tryGrow(level: level, cfg: cfg, dev: config),
+           routeCandidate(candidate, acceptWindow: target...target,
+                          dedupRecent: true) {
+            return candidate
         }
     }
-    let g0 = PuzzleGradient(id: 0, dir: .h, len: 4,
-                            cells: specs(dir: .h, row: 1, col: 0, colors: h0, lockAt: [2]),
-                            colors: h0)
-    let g1 = PuzzleGradient(id: 1, dir: .h, len: 4,
-                            cells: specs(dir: .h, row: 3, col: 1, colors: h1, lockAt: [1]),
-                            colors: h1)
-    let g2 = PuzzleGradient(id: 2, dir: .v, len: 3,
-                            cells: specs(dir: .v, row: 1, col: 2, colors: vc, lockAt: [0, 2]),
-                            colors: vc)
-    var board: [[BoardCell]] = Array(
-        repeating: Array(repeating: .dead, count: gridW), count: gridH)
-    for g in [g0, g1, g2] {
-        for spec in g.cells {
-            if board[spec.r][spec.c].kind == .dead {
-                board[spec.r][spec.c] = BoardCell(
-                    kind: .cell, solution: spec.color,
-                    placed: spec.locked ? spec.color : nil,
-                    locked: spec.locked,
-                    isIntersection: spec.isIntersection,
-                    gradIds: [g.id])
-            } else {
-                var cell = board[spec.r][spec.c]
-                cell.isIntersection = true
-                cell.gradIds.append(g.id)
-                if spec.locked { cell.locked = true; cell.placed = spec.color }
-                board[spec.r][spec.c] = cell
+
+    // Soft gate: widen UPWARD only — accept target through target+2.
+    // Never accept easier than target; that's the failure mode the
+    // "no fallback" rule was trying to prevent in the first place.
+    // Stash any overshoot beyond the ceiling as usual.
+    let softHigh = min(10, target + 2)
+    for _ in 0..<500 {
+        if let candidate = tryGrow(level: level, cfg: cfg, dev: config),
+           routeCandidate(candidate, acceptWindow: target...softHigh,
+                          dedupRecent: true) {
+            return candidate
+        }
+    }
+
+    // Stash fallback: pull a harder puzzle out of the cache rather
+    // than shipping a bad difficulty. Prefer closest-to-target first.
+    // Still honour dedup at this tier — if the only stashed candidate
+    // matches a recent or solved fingerprint, fall through to the
+    // emergency loop.
+    for d in target...min(10, target + 3) {
+        if let cachedJSON = StashedPuzzleStore.pop(difficulty: d),
+           let data = cachedJSON.data(using: .utf8),
+           let doc = try? CreatorCodec.decode(data),
+           let puzzle = CreatorCodec.rebuild(doc, level: level) {
+            let f = fp(puzzle)
+            if !isRecentShape(f), !SolvedPuzzleHistory.contains(f) {
+                pushRecentShape(f)
+                return puzzle
             }
         }
     }
-    var bank: [BankItem] = []
-    var uid = 0
-    for g in [g0, g1, g2] {
-        for spec in g.cells where !spec.locked {
-            bank.append(BankItem(id: uid, color: spec.color))
-            uid += 1
+
+    // Relaxed phase: prefer `>= target`, 500 additional attempts.
+    // Dedup is off here — at this point we've already paid 1000
+    // strict+soft rejections; variety gives way to shipping
+    // SOMETHING. Track the highest-difficulty easier candidate too
+    // in case even this phase doesn't cross target.
+    var bestSeen: Puzzle? = nil
+    for _ in 0..<500 {
+        guard let candidate = tryGrow(level: level, cfg: cfg, dev: config)
+        else { continue }
+        if candidate.difficulty >= target {
+            pushRecentShape(fp(candidate))
+            return candidate
+        }
+        if bestSeen == nil || candidate.difficulty > (bestSeen?.difficulty ?? 0) {
+            bestSeen = candidate
         }
     }
-    let shuffled = Util.shuffle(bank)
-    return Puzzle(
-        level: level, gridW: gridW, gridH: gridH,
-        board: board, bank: shuffled.map { Optional($0) },
-        initialBankCount: shuffled.count,
-        gradients: [g0, g1, g2],
-        channelCount: 1,
-        activeChannels: [.h],
-        primaryChannel: .h,
-        difficulty: 2, pairProx: 0, extrapProx: 0, interDist: 50)
+
+    // Last-ditch: the best easier candidate we saw. Not ideal — the
+    // player will get a level that's below target difficulty — but
+    // it's a real generator output rather than a canned layout, and
+    // it saves the app from an infinite build spinner. A level whose
+    // `LevelConfig` genuinely can't produce `target` difficulty has
+    // to terminate somewhere; this is that somewhere.
+    if let best = bestSeen {
+        pushRecentShape(fp(best))
+        return best
+    }
+
+    // tryGrow has returned nil 5500+ times in a row — extreme config
+    // failure. Keep trying (no difficulty floor) so the caller still
+    // gets a puzzle instead of a hang.
+    while true {
+        if let p = tryGrow(level: level, cfg: cfg, dev: config) {
+            pushRecentShape(fp(p))
+            return p
+        }
+    }
 }
+
+// Handcrafted fallback removed: `generatePuzzle` never returns a
+// canned layout anymore. If the strict / soft / stash phases can't
+// produce a match, the loop keeps calling `tryGrow` until it does.
+// Leaving the function absent instead of stubbed so nothing calls
+// into a hardcoded "default" puzzle by accident.

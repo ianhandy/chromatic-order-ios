@@ -61,6 +61,32 @@ enum Haptics {
         medium.impactOccurred(intensity: 0.7)
     }
 
+    /// Balloon pop — short, high-sharpness transient so it reads as
+    /// an impact rather than the crisp "click" of a placement. Falls
+    /// back to the rigid impact generator on devices without CoreHaptics.
+    static func pop() {
+        guard isEnabled else { return }
+        guard let engine else {
+            rigid.impactOccurred(intensity: 1.0)
+            return
+        }
+        let event = CHHapticEvent(
+            eventType: .hapticTransient,
+            parameters: [
+                CHHapticEventParameter(parameterID: .hapticIntensity, value: 1.0),
+                CHHapticEventParameter(parameterID: .hapticSharpness, value: 0.95),
+            ],
+            relativeTime: 0
+        )
+        do {
+            let pattern = try CHHapticPattern(events: [event], parameters: [])
+            let player = try engine.makePlayer(with: pattern)
+            try player.start(atTime: 0)
+        } catch {
+            rigid.impactOccurred(intensity: 1.0)
+        }
+    }
+
     /// Solved-puzzle celebration — three ascending taps. Falls back to
     /// the system success notification on devices without CoreHaptics.
     static func solve() {

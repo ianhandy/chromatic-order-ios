@@ -45,6 +45,14 @@ struct ChromaticOrderApp: App {
             }
             .environment(transitioner)
             .onAppear {
+                // Sync audio + haptic flags now that the audio
+                // converter service is ready. Doing this during
+                // GameState.init() started the engine before iOS
+                // had the hardware available (-302), producing a
+                // black screen and crackling on physical devices.
+                GlassyAudio.musicEnabled = game.musicEnabled
+                GlassyAudio.sfxEnabled = game.sfxEnabled
+                Haptics.isEnabled = game.hapticsEnabled
                 // Kick off Game Center sign-in once per process —
                 // handler resolves to a no-op if GC is unavailable
                 // or the player declines, so everything downstream
@@ -55,6 +63,22 @@ struct ChromaticOrderApp: App {
                 // cold launch so switching devices keeps the player
                 // where they left off.
                 CloudSync.start()
+                // Pull the community dislike ledger in the background
+                // so the generator can reject shapes that the wider
+                // player pool has already flagged. Rate-limited to
+                // once per hour inside the helper, so this fires at
+                // most once per session realistically.
+                Task.detached {
+                    await LikedPuzzleStore.refreshRemoteDislikedSignatures()
+                }
+                // First-launch redirect — drop new players straight
+                // into challenge mode. The challenge tutorial
+                // overlay takes over from there, explaining the
+                // basics / hearts / level system / accessibility.
+                if !TutorialStore.hasSeen(.firstLaunch) {
+                    game.enterMode(.challenge)
+                    started = true
+                }
             }
             .onOpenURL { url in
                 if url.scheme == "kroma" {
@@ -72,6 +96,14 @@ struct ChromaticOrderApp: App {
                 // stale node.
                 if phase == .active {
                     GlassyAudio.shared.appDidBecomeActive()
+                    // Opportunistic community-feedback refresh. The
+                    // 1-hour rate limit inside the helper means
+                    // short-backgrounding sessions won't actually
+                    // make a network call — only true multi-hour
+                    // returns trigger a refetch.
+                    Task.detached {
+                        await LikedPuzzleStore.refreshRemoteDislikedSignatures()
+                    }
                 }
             }
         }

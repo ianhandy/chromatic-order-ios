@@ -10,10 +10,6 @@ struct Stats: Codable {
     var zenSolves: Int = 0
     var challengeSolves: Int = 0
     var dailySolves: Int = 0
-    /// Best challenge-mode cumulative score ever reached. Separate
-    /// from the session `score` in GameState — this is the
-    /// high-water mark across runs.
-    var bestChallengeScore: Int = 0
     /// Current consecutive-solves-with-zero-mistakes count. Reset on
     /// any mistake or "show incorrect" peek.
     var currentCleanStreak: Int = 0
@@ -51,8 +47,7 @@ enum StatsStore {
         mode: String,
         clean: Bool,
         solveSeconds: Int,
-        cbMode: String,
-        challengeScore: Int? = nil
+        cbMode: String
     ) {
         var s = load()
         s.totalSolves += 1
@@ -70,9 +65,6 @@ enum StatsStore {
             }
         } else {
             s.currentCleanStreak = 0
-        }
-        if let cs = challengeScore, cs > s.bestChallengeScore {
-            s.bestChallengeScore = cs
         }
         if !s.cbModesSeen.contains(cbMode) {
             s.cbModesSeen.append(cbMode)

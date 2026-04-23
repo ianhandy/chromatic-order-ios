@@ -9,7 +9,7 @@ import Foundation
 
 enum CloudSync {
     private static let keys = [
-        "chromaticOrderProgress",  // zen level + zenMaxLevel
+        "chromaticOrderProgress",  // zen level + challengeMaxLevel
         "kromaStats_v1",           // aggregate stats
     ]
 

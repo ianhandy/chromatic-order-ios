@@ -20,14 +20,29 @@ struct MenuSheet: View {
     @Environment(Transitioner.self) private var transitioner
 
     var body: some View {
-        // The "show incorrect" row only makes sense while the player
-        // is still working on a zen puzzle (challenge doesn't use
-        // this mechanic; on a solved board there's nothing to check).
-        // Gating its `isOpen` on that condition means the row is
-        // always mounted (so @State survives) but only animates in
-        // when applicable.
-        let canShowIncorrect = game.mode == .zen && !game.solved
-        GeometryReader { _ in
+        // The "show incorrect" row is available in zen (free) and
+        // daily (available but using it disqualifies the leaderboard
+        // submission — handled in GameState.handleNext). Challenge
+        // mode hides the row entirely: players reveal incorrect cells
+        // by pressing Check, which costs a heart on failure — that
+        // IS the challenge-mode "show incorrect" path. Nothing to
+        // check when the puzzle is already solved.
+        let canShowIncorrect = game.mode != .challenge && !game.solved
+        ZStack(alignment: .topTrailing) {
+            // Dismiss scrim — transparent full-screen catcher that
+            // sits behind the rows and eats every tap reaching
+            // MenuSheet's z-layer while open. Closes the menu without
+            // firing any game action below (cells, bank, top bar).
+            // Hit-testing is gated on menuOpen so it doesn't block
+            // the game when the menu is closed. Rows are layered
+            // above and handle their own close-then-act.
+            if menuOpen {
+                Color.clear
+                    .contentShape(Rectangle())
+                    .ignoresSafeArea()
+                    .onTapGesture { menuOpen = false }
+            }
+
             VStack(alignment: .trailing, spacing: 10) {
                 MenuSheetRow(
                     icon: "house.fill",
@@ -62,29 +77,46 @@ struct MenuSheet: View {
                     menuOpen = false
                     feedbackOpen = true
                 }
-                // Conditionally mount the "show incorrect" row — if
-                // the mode doesn't support it (challenge, or a solved
-                // zen puzzle), drop it entirely so the remaining
-                // rows flex up and no empty slot is left behind. The
-                // share row's index shifts accordingly.
-                if canShowIncorrect {
-                    MenuSheetRow(
-                        icon: game.showIncorrect
-                            ? "exclamationmark.triangle.fill"
-                            : "exclamationmark.triangle",
-                        label: game.showIncorrect
-                            ? "hide incorrect"
-                            : "show incorrect",
-                        index: 3,
-                        isOpen: menuOpen
-                    ) {
+                // Always mount the "show incorrect" row so the menu
+                // layout stays stable across state transitions (e.g.
+                // tapping Next Level with the menu open would make
+                // the row vanish and the share row shift, leaving a
+                // visible blank). When the row isn't meaningful
+                // (challenge mode, or a solved puzzle) we dim +
+                // disable instead of unmounting.
+                ShowIncorrectMenuRow(
+                    game: game,
+                    index: 3,
+                    isOpen: menuOpen,
+                    disabled: !canShowIncorrect,
+                    onTapPrimary: {
+                        // In daily mode, enabling show-incorrect
+                        // voids leaderboard eligibility — close the
+                        // hamburger and pop the confirmation dialog
+                        // on the main game screen so the player sees
+                        // the full "disables leaderboards" copy with
+                        // the darkened backdrop, rather than an
+                        // inline "are you sure?" tucked into the menu.
+                        if game.mode == .daily && !game.showIncorrect {
+                            game.dailyShowAnswersConfirmPending = true
+                            menuOpen = false
+                        } else {
+                            game.toggleShowIncorrect()
+                            menuOpen = false
+                        }
+                    },
+                    onConfirmYes: {
                         game.toggleShowIncorrect()
+                        game.dailyShowAnswersConfirmPending = false
                         menuOpen = false
+                    },
+                    onConfirmNo: {
+                        game.dailyShowAnswersConfirmPending = false
                     }
-                }
+                )
                 if let p = game.puzzle {
                     MenuSheetShareRow(
-                        index: canShowIncorrect ? 4 : 3,
+                        index: 4,
                         isOpen: menuOpen,
                         puzzle: p
                     )
@@ -95,22 +127,20 @@ struct MenuSheet: View {
             .padding(.top, 58)
             .frame(maxWidth: .infinity, alignment: .trailing)
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
         .allowsHitTesting(menuOpen)
     }
 
-    /// Dev cheat wired into the settings row's 3-second long-press.
-    /// Returns nil in Release so archive builds have no handler and
-    /// the row behaves as a plain tap-only button.
+    /// Hidden player-facing unlock wired into the settings row's
+    /// 3-second long-press: clears every lock on the current puzzle
+    /// and opens every level tier in the zen picker. Shipped in
+    /// Release so players who want to skip the grind can find it.
     private var settingsLongPressAction: (() -> Void)? {
-#if DEBUG
         return {
             Haptics.solve()
             game.debugUnlockAllLocks()
             menuOpen = false
         }
-#else
-        return nil
-#endif
     }
 }
 
@@ -132,52 +162,31 @@ private struct MenuSheetShareRow: View {
 
     @State private var iconArrived = false
     @State private var labelVisible = false
-    /// Populated by a background POST to `/api/save` once the row
-    /// renders. When non-nil, the share URL uses the short slug form
-    /// (`/p/<slug>`) — small enough for iMessage to render a preview
-    /// card. If the network POST fails or hasn't returned in time,
-    /// the ShareLink falls through to the long base64 URL, which
-    /// still works but may dump as raw text in the message.
-    @State private var shortSlug: String? = nil
+    /// File URL of the `.kroma` file we've staged in tmp for this
+    /// puzzle. Shared directly via ShareLink — appears as a real
+    /// file attachment in AirDrop / iMessage / Mail, handled by the
+    /// app's registered UTI on the receiving end.
+    @State private var shareFileURL: URL? = nil
 
     var body: some View {
         let json = (try? CreatorCodec.encodePuzzle(puzzle)) ?? ""
-        let b64 = ChromaticOrderApp.encodeBase64URL(Data(json.utf8))
-        let pathSegment = shortSlug ?? b64
-        let shareURL = URL(string: "https://kroma.ianhandy.com/p/\(pathSegment)")
-            ?? URL(string: "https://kroma.ianhandy.com")!
-        let previewImage = PuzzlePreviewRenderer.render(puzzle)
-            ?? Image(systemName: "paintpalette.fill")
 
-        ShareLink(
-            item: shareURL,
-            subject: Text("A Kromatika puzzle (\(puzzle.difficulty)/10)"),
-            preview: SharePreview(
-                "Kromatika puzzle (\(puzzle.difficulty)/10)",
-                image: previewImage
-            )
-        ) {
-            HStack(spacing: 14) {
-                Text("share")
-                    .font(.system(size: 17, weight: .semibold, design: .rounded))
-                    .foregroundStyle(Color.white.opacity(0.92))
-                    .opacity(labelVisible ? 1 : 0)
-                Image(systemName: "square.and.arrow.up")
-                    .font(.system(size: 20, weight: .semibold))
-                    .foregroundStyle(Color.white.opacity(0.95))
-                    .frame(width: 46, height: 46)
-                    .background(Circle().fill(Color.black.opacity(0.55)))
-                    .overlay(Circle().stroke(Color.white.opacity(0.28), lineWidth: 1))
+        Group {
+            if let fileURL = shareFileURL {
+                ShareLink(
+                    item: fileURL,
+                    subject: Text("A Kromatika puzzle (\(puzzle.difficulty)/10)"),
+                    preview: SharePreview("Kromatika puzzle (\(puzzle.difficulty)/10)")
+                ) { shareLabel(waiting: false) }
+            } else {
+                // Tmp file not written yet (should be instant).
+                // Disabled with a spinner until the file URL lands.
+                Button(action: {}) { shareLabel(waiting: true) }
+                    .disabled(true)
             }
-            .offset(x: iconArrived ? 0 : 280)
         }
         .task(id: json) {
-            // Re-run when the puzzle JSON changes. Best-effort — any
-            // failure (no network, KV down, server cold start) leaves
-            // shortSlug nil and the ShareLink falls back to the long
-            // base64 URL.
-            shortSlug = nil
-            shortSlug = await fetchShareSlug(json: json)
+            shareFileURL = writePuzzleFile(json: json, puzzle: puzzle)
         }
         .onChange(of: isOpen) { _, open in
             if open {
@@ -201,34 +210,116 @@ private struct MenuSheetShareRow: View {
         }
     }
 
-    /// POST the puzzle JSON to the share-link save endpoint and return
-    /// the short slug. Returns nil on any failure so the caller falls
-    /// back to the inline base64 URL.
-    private func fetchShareSlug(json: String) async -> String? {
-        guard !json.isEmpty,
-              let url = URL(string: "https://kroma.ianhandy.com/api/save") else {
+    /// Share row label. Shows a tiny spinner overlaid on the arrow
+    /// icon while the tmp file is being staged.
+    @ViewBuilder
+    private func shareLabel(waiting: Bool) -> some View {
+        HStack(spacing: 14) {
+            Text(waiting ? "preparing…" : "share")
+                .font(.system(size: 17, weight: .semibold, design: .rounded))
+                .foregroundStyle(Color.white.opacity(waiting ? 0.55 : 0.92))
+                .opacity(labelVisible ? 1 : 0)
+            ZStack {
+                Image(systemName: "square.and.arrow.up")
+                    .font(.system(size: 20, weight: .semibold))
+                    .foregroundStyle(Color.white.opacity(waiting ? 0.45 : 0.95))
+                if waiting {
+                    ProgressView()
+                        .scaleEffect(0.65)
+                        .tint(Color.white.opacity(0.85))
+                }
+            }
+            .frame(width: 46, height: 46)
+            .background(Circle().fill(Color.black.opacity(0.55)))
+            .overlay(Circle().stroke(Color.white.opacity(0.28), lineWidth: 1))
+        }
+        .offset(x: iconArrived ? 0 : 280)
+    }
+
+    /// Stage the puzzle as a `.kroma` file in tmp and return its
+    /// URL. Shared directly to AirDrop / iMessage / Files / etc.
+    /// The registered UTI routes taps on the received file back to
+    /// the app's onOpenURL handler to load the puzzle.
+    private func writePuzzleFile(json: String, puzzle: Puzzle) -> URL? {
+        guard !json.isEmpty, let data = json.data(using: .utf8) else {
             return nil
         }
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.timeoutInterval = 4
-        let body = ["json": json]
-        request.httpBody = try? JSONSerialization.data(withJSONObject: body)
-        guard request.httpBody != nil else { return nil }
+        let label = "kromatika-puzzle-\(puzzle.difficulty)-of-10"
+        let suffix = UUID().uuidString.prefix(6)
+        let filename = "\(label)-\(suffix).kroma"
+        let url = FileManager.default.temporaryDirectory
+            .appendingPathComponent(filename)
         do {
-            let (data, response) = try await URLSession.shared.data(for: request)
-            guard let http = response as? HTTPURLResponse, http.statusCode == 200 else { return nil }
-            let decoded = try JSONDecoder().decode(SlugResponse.self, from: data)
-            return decoded.slug
+            try data.write(to: url, options: .atomic)
+            return url
         } catch {
             return nil
         }
     }
 }
 
-private struct SlugResponse: Decodable {
-    let slug: String
+/// Show-incorrect hamburger row with inline confirmation support.
+/// When the daily-mode "are you sure?" confirm flag is set on
+/// GameState, the row morphs into a small inline prompt
+/// (styled like the main-menu challenge resume) so the player
+/// can confirm without a full-screen modal.
+private struct ShowIncorrectMenuRow: View {
+    @Bindable var game: GameState
+    let index: Int
+    let isOpen: Bool
+    let disabled: Bool
+    let onTapPrimary: () -> Void
+    let onConfirmYes: () -> Void
+    let onConfirmNo: () -> Void
+
+    var body: some View {
+        if game.dailyShowAnswersConfirmPending {
+            HStack(spacing: 12) {
+                Text("are you sure?")
+                    .font(.system(size: 13, weight: .semibold, design: .rounded))
+                    .foregroundStyle(Color.white.opacity(0.80))
+                Button {
+                    onConfirmYes()
+                } label: {
+                    Text("yes")
+                        .font(.system(size: 15, weight: .heavy, design: .rounded))
+                        .foregroundStyle(Color(red: 0.45, green: 0.85, blue: 0.55))
+                }
+                .buttonStyle(.plain)
+                Button {
+                    onConfirmNo()
+                } label: {
+                    Text("no")
+                        .font(.system(size: 15, weight: .heavy, design: .rounded))
+                        .foregroundStyle(Color(red: 0.92, green: 0.48, blue: 0.48))
+                }
+                .buttonStyle(.plain)
+                MenuSheetRow(
+                    icon: "exclamationmark.triangle",
+                    label: "show incorrect",
+                    index: index,
+                    isOpen: isOpen,
+                    disabled: false,
+                    action: {}
+                )
+            }
+            .padding(.vertical, 6)
+            .transition(.opacity)
+        } else {
+            MenuSheetRow(
+                icon: game.showIncorrect
+                    ? "exclamationmark.triangle.fill"
+                    : "exclamationmark.triangle",
+                label: game.showIncorrect
+                    ? "hide incorrect"
+                    : "show incorrect",
+                index: index,
+                isOpen: isOpen,
+                disabled: disabled,
+                action: onTapPrimary
+            )
+        }
+    }
 }
 
 private struct MenuSheetRow: View {
@@ -241,6 +332,11 @@ private struct MenuSheetRow: View {
     /// tap action. Used for dev shortcuts that share a visible
     /// button with a normal user action.
     var onLongPress: (() -> Void)? = nil
+    /// When true, the row dims and ignores taps — used when the
+    /// row's action isn't meaningful in the current game state
+    /// (e.g. show-incorrect while solved or in challenge mode).
+    /// Keeps the row in place so the layout doesn't jump.
+    var disabled: Bool = false
     let action: () -> Void
 
     /// True once the icon has (animated) slid to its resting x=0 spot.
@@ -258,30 +354,32 @@ private struct MenuSheetRow: View {
 
     var body: some View {
         Button(action: {
+            if disabled { return }
             if longPressConsumed { longPressConsumed = false; return }
             action()
         }) {
             HStack(spacing: 14) {
                 Text(label)
                     .font(.system(size: 17, weight: .semibold, design: .rounded))
-                    .foregroundStyle(Color.white.opacity(0.92))
+                    .foregroundStyle(Color.white.opacity(disabled ? 0.35 : 0.92))
                     .opacity(labelVisible ? 1 : 0)
                 Image(systemName: icon)
                     .font(.system(size: 20, weight: .semibold))
-                    .foregroundStyle(Color.white.opacity(0.95))
+                    .foregroundStyle(Color.white.opacity(disabled ? 0.40 : 0.95))
                     .frame(width: 46, height: 46)
                     .background(
                         Circle()
-                            .fill(Color.black.opacity(0.55))
+                            .fill(Color.black.opacity(disabled ? 0.30 : 0.55))
                     )
                     .overlay(
                         Circle()
-                            .stroke(Color.white.opacity(0.28), lineWidth: 1)
+                            .stroke(Color.white.opacity(disabled ? 0.12 : 0.28), lineWidth: 1)
                     )
             }
             .offset(x: iconArrived ? 0 : 280)
         }
         .buttonStyle(.plain)
+        .disabled(disabled)
         .simultaneousGesture(
             LongPressGesture(minimumDuration: 3.0).onEnded { _ in
                 guard let handler = onLongPress else { return }

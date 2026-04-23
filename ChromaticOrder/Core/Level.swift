@@ -150,13 +150,41 @@ func scoreDifficulty(
 
     let pairProxScore = Util.clamp(pairProx / 6, 0, 1.5)
     let extrapProxScore = Util.clamp(extrapProx / 20, 0, 1.5)
-    let primaryChScore: Double = primary == .c ? 1.0 : primary == .L ? 0.7 : 0
+    // Primary-channel weight. Hue used to be 0 on the assumption that
+    // humans distinguish hues well — but that's only true when the
+    // hue RANGE is wide. "All red" puzzles (narrow-hue, same-chroma)
+    // are actually the hardest to discriminate. Hue now weights AT
+    // LEAST as much as chroma, and scales up further when the
+    // gradient's hue span is narrow.
+    let primaryChBase: Double = primary == .c ? 1.0 : primary == .L ? 0.7 : 1.1
+    // Hue-span bonus: measure max-min hue across every gradient's
+    // color list (in degrees) and reward narrow spans with extra
+    // difficulty. Under ~30° spans ~1.0 of extra weight; >~120° = 0.
+    var hueBonus: Double = 0
+    if primary == .h {
+        let hues = gradients.flatMap { g in g.colors.map { $0.h } }
+        if hues.count >= 2 {
+            let lo = hues.min() ?? 0
+            let hi = hues.max() ?? 0
+            let span = hi - lo
+            // Clamp-and-invert: narrower = harder.
+            hueBonus = Util.clamp(1.0 - (span - 25) / 100, 0, 1.0)
+        }
+    }
+    let primaryChScore = primaryChBase + hueBonus
 
     let raw =
         freeRatio * 1.0 +
         chScore * 1.5 +
-        stepScore * 1.5 +
-        pairProxScore * 2.5 +
+        // stepScore weight was 1.5 — bumped to 3.0 so small per-step
+        // color distances (especially small hue steps within a
+        // gradient) carry twice the difficulty signal. Too many
+        // tier-1 puzzles were shipping with near-identical-looking
+        // colors because stepScore saturated low.
+        stepScore * 3.0 +
+        // pairProxScore was 2.5 — bumped to 4.5 so tight cross-
+        // gradient hue correlation reads as harder.
+        pairProxScore * 4.5 +
         extrapProxScore * 0.8 +
         primaryChScore * 1.5 +
         max(0, Double(gradients.count - 2)) * 0.5

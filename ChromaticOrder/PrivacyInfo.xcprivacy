@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <!-- Nothing in Kromatika tracks users across apps or websites. -->
+    <key>NSPrivacyTracking</key>
+    <false/>
+
+    <!-- No tracking domains. Required to be an empty array when
+         NSPrivacyTracking is false. -->
+    <key>NSPrivacyTrackingDomains</key>
+    <array/>
+
+    <!-- Data collected by the app. Kromatika sends a small amount of
+         gameplay data to its own backend; nothing identifies the
+         player. Listed here per the App Store Connect privacy
+         questionnaire.
+         – Gameplay content: puzzle JSON the player explicitly opts
+           into sharing via the like button.
+         – Performance data: per-install UUID + aggregate solve
+           time / moves / perfect-flag; no identifiers. -->
+    <key>NSPrivacyCollectedDataTypes</key>
+    <array>
+        <dict>
+            <!-- "User Content → Gameplay Content" — the puzzle
+                 JSON uploaded on like so other players can receive
+                 it via the community pool. -->
+            <key>NSPrivacyCollectedDataType</key>
+            <string>NSPrivacyCollectedDataTypeGameplayContent</string>
+            <key>NSPrivacyCollectedDataTypeLinked</key>
+            <false/>
+            <key>NSPrivacyCollectedDataTypeTracking</key>
+            <false/>
+            <key>NSPrivacyCollectedDataTypePurposes</key>
+            <array>
+                <string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+            </array>
+        </dict>
+        <dict>
+            <!-- "Diagnostics → Performance Data" — solve stats
+                 (time, moves, perfect flag) sent to the community
+                 pool when the player has liked a puzzle, plus the
+                 opaque per-install UUID used only for server-side
+                 like-dedupe. -->
+            <key>NSPrivacyCollectedDataType</key>
+            <string>NSPrivacyCollectedDataTypePerformanceData</string>
+            <key>NSPrivacyCollectedDataTypeLinked</key>
+            <false/>
+            <key>NSPrivacyCollectedDataTypeTracking</key>
+            <false/>
+            <key>NSPrivacyCollectedDataTypePurposes</key>
+            <array>
+                <string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+                <string>NSPrivacyCollectedDataTypePurposeAnalytics</string>
+            </array>
+        </dict>
+    </array>
+
+    <!-- Required Reason API declarations. Required since iOS 17
+         for every app that uses these APIs, including indirectly
+         through UserDefaults, framework internals, etc. -->
+    <key>NSPrivacyAccessedAPITypes</key>
+    <array>
+        <!-- UserDefaults — zen progression, challenge max,
+             tutorial-seen flags, accessibility settings, liked-
+             puzzle pool local mirror, install UUID. -->
+        <dict>
+            <key>NSPrivacyAccessedAPIType</key>
+            <string>NSPrivacyAccessedAPICategoryUserDefaults</string>
+            <key>NSPrivacyAccessedAPITypeReasons</key>
+            <array>
+                <string>CA92.1</string>
+            </array>
+        </dict>
+        <!-- File timestamps — Documents directory reads for the
+             gallery store (*.kroma files). -->
+        <dict>
+            <key>NSPrivacyAccessedAPIType</key>
+            <string>NSPrivacyAccessedAPICategoryFileTimestamp</string>
+            <key>NSPrivacyAccessedAPITypeReasons</key>
+            <array>
+                <string>C617.1</string>
+            </array>
+        </dict>
+        <!-- Disk space — none yet; reserved for future cache
+             management. Leaving the declaration off to keep the
+             manifest tight; re-add with reason E174.1 if needed. -->
+    </array>
+</dict>
+</plist>

@@ -1,8 +1,9 @@
 //  Level-picker sheet. Grid of every zen level the player has
-//  reached so far; tap to jump directly there. Only shown in zen
+//  unlocked — gated by `challengeMaxLevel` (the highest level
+//  reached in challenge mode), since zen is explicitly tied to
+//  challenge progression. Tap to jump directly. Only shown in zen
 //  mode — challenge is a fresh level-1 run every entry, so there's
-//  nothing to pick. Current level is highlighted so the player
-//  always knows where they're starting from.
+//  nothing to pick. Current level is highlighted.
 
 import SwiftUI
 
@@ -15,7 +16,7 @@ struct LevelPickerSheet: View {
             ScrollView {
                 let cols = [GridItem(.adaptive(minimum: 64), spacing: 10)]
                 LazyVGrid(columns: cols, spacing: 10) {
-                    ForEach(1...max(1, game.zenMaxLevel), id: \.self) { lv in
+                    ForEach(1...max(1, game.challengeMaxLevel), id: \.self) { lv in
                         levelButton(lv)
                     }
                 }

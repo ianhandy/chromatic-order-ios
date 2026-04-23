@@ -30,12 +30,6 @@ struct StatsView: View {
                 }
 
                 Section {
-                    row("Best challenge score", "\(stats.bestChallengeScore)")
-                } header: {
-                    Text("High scores")
-                }
-
-                Section {
                     row("Total time solving", formatDuration(stats.totalSolveSeconds))
                     row("Avg per solve", averageSolveTime)
                 } header: {

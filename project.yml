@@ -72,20 +72,19 @@ targets:
         # Store Connect asks on every upload. We don't ship crypto;
         # false here skips the prompt for all subsequent builds.
         ITSAppUsesNonExemptEncryption: false
-        # Alternate app icons — iOS uses these when the app calls
-        # UIApplication.shared.setAlternateIconName(_:). Each variant's
-        # PNGs (@2x/@3x) live at AlternateIcons/<name>{@2x,@3x}.png and
-        # get copied to the bundle root via xcodegen's resource pass.
-        CFBundleIcons:
-          CFBundleAlternateIcons:
-            AppIconEasy:
-              CFBundleIconFiles: [AppIconEasy]
-            AppIconMedium:
-              CFBundleIconFiles: [AppIconMedium]
-            AppIconHard:
-              CFBundleIconFiles: [AppIconHard]
-            AppIconExpert:
-              CFBundleIconFiles: [AppIconExpert]
+        # Required for saving the solved-board snapshot to the Photos
+        # library via PHPhotoLibrary.performChanges. The system shows
+        # this string in the permission prompt the first time the
+        # player taps "save image" on the solved overlay.
+        NSPhotoLibraryAddUsageDescription: "Save your completed puzzle images to your Photos library."
+        # Alternate app icons temporarily removed as a SIGTERM-on-
+        # launch diagnostic. Fresh installs were being killed by the
+        # watchdog inside dyld, and the CFBundleIcons enumeration is
+        # the likeliest pre-main culprit given the new loose-file
+        # PNGs. If the app launches with this block gone, the
+        # alternate icons will get re-added via the asset catalog
+        # (AppIcon.appiconset sibling entries) instead of loose
+        # top-level files, which is the Apple-recommended path.
         # We accept .kroma files for reading only (no in-place edits).
         # Silences the compile-time warning about file-open semantics.
         LSSupportsOpeningDocumentsInPlace: false

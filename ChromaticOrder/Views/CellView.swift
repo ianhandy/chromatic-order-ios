@@ -18,11 +18,6 @@ struct CellView: View {
     let cellPx: CGFloat
     @Bindable var game: GameState
     @State private var shakePhase: CGFloat = 0
-    /// Drives the wrong-cell complement-color blink. Oscillates
-    /// between 0 and 1 on a loop while `isWrong`; stays at 0.5
-    /// (mid-opacity) when reduce-motion is on so the border is still
-    /// visible without pulsing.
-    @State private var wrongPhase: CGFloat = 0
 
     var body: some View {
         let filled = cell.kind == .cell && cell.placed != nil
@@ -45,11 +40,28 @@ struct CellView: View {
                 // Solved-burst glow behind color (z-order wise).
                 // Gated on reduce-motion AND the explicit glow toggle
                 // so players can keep motion on but skip this
-                // specific effect.
+                // specific effect. A "perfect" solve (no mistakes,
+                // no peeks, each placement right on the first try)
+                // scales the bleed with puzzle difficulty so tougher
+                // puzzles reward the clean solve more visibly.
                 if filled, let color = placed, game.solved,
                    !game.reduceMotion, game.solvedGlowEnabled {
-                    SolvedBurstGlow(color: color, cellPx: cellPx, phase: Double(r) * 0.17 + Double(c) * 0.31)
-                        .frame(width: cellPx, height: cellPx)
+                    let diff = Double(game.puzzle?.difficulty ?? 1)
+                    // Perfect solves scale the bleed hard — at max
+                    // difficulty a perfect solve is ~2x the bleed of
+                    // a normal solve. Normal solves also get a
+                    // baseline boost so every solve feels more
+                    // explosive than before.
+                    let perfectBoost = game.isPerfectSolve
+                        ? 2.5 + 2.5 * (diff / 10.0)
+                        : 1.1
+                    SolvedBurstGlow(
+                        color: color,
+                        cellPx: cellPx,
+                        phase: Double(r) * 0.17 + Double(c) * 0.31,
+                        perfectBoost: perfectBoost
+                    )
+                    .frame(width: cellPx, height: cellPx)
                 }
                 // Color layer (front)
                 if filled, let color = placed {
@@ -60,6 +72,25 @@ struct CellView: View {
                               radius: radius,
                               reduceMotion: game.reduceMotion,
                               shakePhase: shakePhase)
+                }
+
+                // Perfect-solve shine — a specular highlight whose
+                // position tracks the current tilt of the solved
+                // board. Permanent (not animated in waves); moves
+                // across each cell as the player rotates the puzzle
+                // with the post-solve tilt gesture, reading like
+                // light glinting off a card. Intensity scales with
+                // puzzle difficulty.
+                if filled, placed != nil, game.solved, game.isPerfectSolve,
+                   !game.reduceMotion, game.solvedGlowEnabled {
+                    let diff = Double(game.puzzle?.difficulty ?? 1)
+                    let intensity = min(1.0, 0.35 + 0.65 * diff / 10.0)
+                    PerfectSolveShine(
+                        cellPx: cellPx,
+                        radius: radius,
+                        intensity: intensity
+                    )
+                    .allowsHitTesting(false)
                 }
 
                 // Drop-target TINT. When the player is dragging a swatch
@@ -90,21 +121,9 @@ struct CellView: View {
                         .frame(width: cellPx * 0.22, height: cellPx * 0.22)
                 }
 
-                // Wrong-answer border: gentle blink in the placed
-                // color's perceptual complement (OK.opposite = hue
-                // flipped, luminance inverted). High contrast against
-                // the cell's own color without the aggressive red
-                // alarm signal the previous version leaned on.
-                if isWrong, let placedColor = placed {
-                    let borderColor = OK.opposite(placedColor)
-                    let alpha = 0.35 + Double(wrongPhase) * 0.55
-                    RoundedRectangle(cornerRadius: radius, style: .continuous)
-                        .stroke(OK.toColor(borderColor, opacity: alpha), lineWidth: 3)
-                        .frame(width: cellPx, height: cellPx)
-                }
             }
         }
-        .opacity(isDragSource ? 0.3 : 1)
+        .opacity(isDragSource ? 0.3 : 1.0)
         .frame(width: cellPx, height: cellPx)
         .background(
             GeometryReader { geo in
@@ -132,10 +151,12 @@ struct CellView: View {
                     guard moved >= 5 else { return }
                     // No drags on locked cells, and nothing once the
                     // puzzle is solved — the board is frozen after
-                    // completion. Cell-level drags also yield to the
-                    // grid's pan gesture while zoomed so the two can't
-                    // fight.
-                    if filled, !cell.locked, !game.solved, !game.zoomed,
+                    // completion. Cell drags now work in both zoomed
+                    // and unzoomed states; the grid-level pan gesture
+                    // consults `game.cellFrames` at startLocation and
+                    // skips itself when the finger lands on a cell, so
+                    // the two gestures no longer fight.
+                    if filled, !cell.locked, !game.solved,
                        game.dragSource == nil, let placedColor = placed {
                         game.beginDrag(
                             DragSource(kind: .cell(CellIndex(r: r, c: c)), color: placedColor),
@@ -158,32 +179,6 @@ struct CellView: View {
                     }
                 }
         )
-        .onChange(of: isWrong) { _, newValue in
-            if newValue && !game.reduceMotion {
-                // Kick off the wrong-shake loop; SwiftUI animation handles
-                // the oscillation via the phase variable.
-                withAnimation(.easeInOut(duration: 0.7)
-                              .repeatForever(autoreverses: true)
-                              .delay(Double((r * 13 + c * 29) % 200) / 1000)) {
-                    shakePhase = 1
-                }
-                // Gentle ~1.4s cycle for the complement-color border
-                // pulse — slow enough to read as "breathing," not an
-                // alarm. Per-cell delay staggers the blink field so
-                // it doesn't strobe in unison.
-                withAnimation(.easeInOut(duration: 1.4)
-                              .repeatForever(autoreverses: true)
-                              .delay(Double((r * 17 + c * 23) % 400) / 1000)) {
-                    wrongPhase = 1
-                }
-            } else {
-                shakePhase = 0
-                // Mid-alpha when reduce motion is on or when the cell
-                // becomes correct — no animation, just a static
-                // resting state.
-                wrongPhase = game.reduceMotion && newValue ? 0.5 : 0
-            }
-        }
     }
 
     // ─── derived flags ──────────────────────────────────────────────
@@ -226,12 +221,11 @@ private struct ColorFace: View {
     let shakePhase: CGFloat
 
     var body: some View {
-        // Gentle gyration for wrong cells — small rotation oscillation
-        // around the cell's center. Replaces the previous horizontal
-        // shake (which read as "alarmed") with something that nudges
-        // the eye without shouting. Stops the moment the placement is
-        // corrected because `wrong` flips to false.
-        let rotation: Double = reduceMotion ? 0 : (wrong ? (Double(shakePhase) - 0.5) * 3.0 : 0)
+        // Wrong-cell rotation removed per player feedback — the
+        // gyration read as distracting. Per-cell red outline replaces
+        // the old grid-wide border so the player can see exactly which
+        // placements are wrong. `shakePhase` stays wired up only for
+        // future tweaks; the rotation itself is now always zero.
         RoundedRectangle(cornerRadius: radius, style: .continuous)
             .fill(OK.toColor(color))
             .overlay(
@@ -239,11 +233,21 @@ private struct ColorFace: View {
                     .inset(by: 0.5)
                     .stroke(Color.black.opacity(0.06), lineWidth: 1)
             )
+            .overlay(
+                // Wrong-cell red outline. Only renders when the parent
+                // flipped `wrong = true`; a solid stroke rather than
+                // the old blink so the marker stays legible while the
+                // player is still placing swatches.
+                RoundedRectangle(cornerRadius: radius, style: .continuous)
+                    .inset(by: max(1.5, cellPx * 0.06))
+                    .stroke(Color.red.opacity(wrong ? 0.95 : 0),
+                            lineWidth: max(2.5, cellPx * 0.09))
+                    .animation(.easeInOut(duration: 0.18), value: wrong)
+            )
             .shadow(color: selected ? .black.opacity(0.18) : .clear,
                     radius: selected ? 9 : 0, y: selected ? 4 : 0)
             .frame(width: cellPx, height: cellPx)
             .scaleEffect(selected ? 1.08 : 1)
-            .rotationEffect(.degrees(rotation))
             .offset(y: selected ? -4 : 0)
             .animation(.easeOut(duration: 0.38), value: selected)
     }
@@ -253,43 +257,32 @@ private struct SolvedBurstGlow: View {
     let color: OKLCh
     let cellPx: CGFloat
     let phase: Double          // 0..1 per-cell stagger input
+    /// 0 on an ordinary solve; up to 1.0 on a perfect solve with
+    /// difficulty 10. Scales the bleed's blur + cell-scale headroom
+    /// so perfect clears on higher tiers bloom visibly more.
+    var perfectBoost: Double = 0
     @State private var appeared = false
     @State private var pulse = false
 
     var body: some View {
-        // Color + blur instead of .shadow — SwiftUI's shadow requires
-        // opaque pixels to cast from, and a Color.clear fill casts no
-        // shadow. A filled translucent RRect with .blur produces the
-        // halo directly, plays well with scaleEffect, and actually
-        // animates (animatable modifiers compose, opaque-shape shadow
-        // does not animate radius reliably).
-        //
-        // Boosted vs. the earlier pass: higher alphas, wider blur
-        // radii, and larger scale swing make the color bleed off
-        // each cell more pronounced, so the solve celebration reads
-        // as "colors bloom and mix" rather than "cells brighten a
-        // little."
         let stagger = phase * 0.6
-        let lowAlpha: Double = 0.48
-        let highAlpha: Double = 0.90
-        let lowBlur: CGFloat = cellPx * 1.2
-        let highBlur: CGFloat = cellPx * 2.2
-        let lowScale: CGFloat = 1.00
-        let highScale: CGFloat = 1.45
+        let lowAlpha: Double = 0.65
+        let highAlpha: Double = 1.00
+        // Static blur — animating blur radius on 100+ cells
+        // simultaneously is the heaviest per-frame GPU operation.
+        // A single fixed radius still reads as a soft halo; only
+        // opacity + scale animate.
+        let blurR: CGFloat = cellPx * (3.5 + CGFloat(2.5 * perfectBoost))
+        let lowScale: CGFloat = 1.25 + CGFloat(0.35 * perfectBoost)
+        let highScale: CGFloat = 2.20 + CGFloat(0.75 * perfectBoost)
         let alpha = appeared ? (pulse ? highAlpha : lowAlpha) : 0
-        let blurR: CGFloat = appeared ? (pulse ? highBlur : lowBlur) : 0
         let scale: CGFloat = appeared ? (pulse ? highScale : lowScale) : 0.9
         RoundedRectangle(cornerRadius: cellPx * 0.26, style: .continuous)
             .fill(OK.toColor(color, opacity: alpha))
+            .frame(width: cellPx, height: cellPx)
             .blur(radius: blurR)
             .scaleEffect(scale)
-            .frame(width: cellPx, height: cellPx)
             .onAppear {
-                // Fade the glow in gently, then hand off to a slow
-                // repeating pulse that breathes between low and high
-                // alpha/blur/scale. Per-cell stagger on the pulse
-                // phase so adjacent cells aren't strobing in unison —
-                // the field undulates instead.
                 withAnimation(.easeOut(duration: 0.8)) {
                     appeared = true
                 }
@@ -301,5 +294,40 @@ private struct SolvedBurstGlow: View {
                     pulse = true
                 }
             }
+    }
+}
+
+/// Perfect-solve specular highlight. Static — does not move with
+/// tilt, does not animate. A faint diagonal sheen baked into each
+/// cell so the player can see the board is "different" after a
+/// perfect solve without the shine competing with the color bleed.
+private struct PerfectSolveShine: View {
+    let cellPx: CGFloat
+    let radius: CGFloat
+    let intensity: Double
+
+    var body: some View {
+        let bandWidth = cellPx * 0.9
+        // Dramatically quieter than the previous pass — peak alpha
+        // caps around 0.14 so the sheen is subtle ambient detail
+        // rather than a bright streak.
+        let peak = 0.05 + 0.09 * intensity
+        let gradient = LinearGradient(
+            stops: [
+                .init(color: .white.opacity(0),            location: 0.00),
+                .init(color: .white.opacity(peak * 0.35), location: 0.40),
+                .init(color: .white.opacity(peak),         location: 0.50),
+                .init(color: .white.opacity(peak * 0.35), location: 0.60),
+                .init(color: .white.opacity(0),            location: 1.00),
+            ],
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        )
+        Rectangle()
+            .fill(gradient)
+            .frame(width: bandWidth, height: cellPx * 1.6)
+            .rotationEffect(.degrees(22))
+            .frame(width: cellPx, height: cellPx)
+            .clipShape(RoundedRectangle(cornerRadius: radius, style: .continuous))
     }
 }

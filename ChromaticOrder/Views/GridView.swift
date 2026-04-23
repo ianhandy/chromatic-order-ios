@@ -24,6 +24,17 @@ struct GridView: View {
     /// toggle the zoom.
     @State private var lastTapAt: Date = .distantPast
     @State private var lastTapLoc: CGPoint = .zero
+    /// Drives the red show-incorrect border's blink. Oscillates
+    /// between 0 and 1 while a wrong cell exists and show-incorrect
+    /// is on; stays mid-opacity under reduce-motion so the border is
+    /// still visible without strobing.
+    @State private var wrongBorderPhase: CGFloat = 0
+    /// Latched at touchdown: true when the finger came down on a
+    /// cell frame, false when it came down in the gutter. The main
+    /// pan gesture consults this to decide whether it's allowed to
+    /// pan (gutter only) or must yield to the CellView's own drag
+    /// gesture (cell only).
+    @State private var panStartLandedOnCell: Bool = false
 
     var body: some View {
         GeometryReader { geo in
@@ -35,7 +46,8 @@ struct GridView: View {
     @ViewBuilder
     private func gridContent(size: CGSize) -> some View {
         if let p = game.puzzle {
-            let b = usedBounds(p)
+            let b = (minR: game.puzzleBoundsMinR, maxR: game.puzzleBoundsMaxR,
+                     minC: game.puzzleBoundsMinC, maxC: game.puzzleBoundsMaxC)
             let rows = max(1, b.maxR - b.minR + 1)
             let cols = max(1, b.maxC - b.minC + 1)
             let margin: CGFloat = 2
@@ -138,14 +150,21 @@ struct GridView: View {
                         zoomAtGestureStart = game.zoomScale
                     }
             )
-            // Pan gesture — only wired up while zoomed. CellView's own
-            // drag gesture is suppressed by `game.zoomed` (see CellView)
-            // so they don't fight. Translation is added to the offset
-            // captured at gesture start so pan accumulates naturally.
+            // Pan gesture — only wired up while zoomed, and only when
+            // the drag starts OUTSIDE any cell. Cells keep their own
+            // drag gestures so the player can still place / relocate
+            // swatches while zoomed; the pan only kicks in for
+            // empty-gutter drags. `startLocation` + `cellFrames`
+            // together let both coexist on one view tree.
             .simultaneousGesture(
-                DragGesture(minimumDistance: 10)
+                DragGesture(minimumDistance: 10, coordinateSpace: .global)
                     .onChanged { v in
                         guard game.zoomed else { return }
+                        // Cell-landed starts yield to CellView's own
+                        // drag; everywhere else we pan.
+                        if panStartLandedOnCell {
+                            return
+                        }
                         game.panOffset = CGSize(
                             width:  panStartOffset.width  + v.translation.width,
                             height: panStartOffset.height + v.translation.height
@@ -153,8 +172,34 @@ struct GridView: View {
                     }
                     .onEnded { _ in
                         guard game.zoomed else { return }
-                        panStartOffset = game.panOffset
+                        if !panStartLandedOnCell {
+                            panStartOffset = game.panOffset
+                        }
+                        panStartLandedOnCell = false
                     }
+            )
+            .simultaneousGesture(
+                // Separate zero-distance gesture just to latch "did
+                // this touch start on a cell?" before the 10pt pan
+                // kicks in. Runs on every touch; cheap because it
+                // doesn't spawn any heavy work.
+                DragGesture(minimumDistance: 0, coordinateSpace: .global)
+                    .onChanged { v in
+                        if panStartLandedOnCell { return }
+                        // Only latch on the first onChanged event of
+                        // a gesture (translation ≈ 0). Later events
+                        // with large translations are the drag
+                        // progressing, not a new touchdown.
+                        let translated = hypot(
+                            v.translation.width, v.translation.height
+                        )
+                        if translated < 1 {
+                            panStartLandedOnCell = game.cellFrames.values.contains { frame in
+                                frame.contains(v.startLocation)
+                            }
+                        }
+                    }
+                    .onEnded { _ in panStartLandedOnCell = false }
             )
             .onChange(of: game.zoomed) { _, isZoomed in
                 // Reset pan bookkeeping whenever zoom toggles so the
@@ -162,19 +207,38 @@ struct GridView: View {
                 panStartOffset = isZoomed ? game.panOffset : .zero
                 zoomAtGestureStart = game.zoomScale
             }
+            // The grid-wide wrongBorder overlay was replaced by
+            // per-cell red outlines in CellView, so there's no
+            // animation hook to wire here anymore. Leaving the
+            // `wrongBorderPhase` state + shape code is harmless but
+            // the repeating animation driver that used to update
+            // `wrongBorderPhase` at 55 BPM has been removed — it was
+            // burning frames on every view update with no visible
+            // effect after the refactor.
         }
     }
 
-    private func usedBounds(_ p: Puzzle) -> (minR: Int, maxR: Int, minC: Int, maxC: Int) {
-        var minR = p.gridH, maxR = 0, minC = p.gridW, maxC = 0
-        for r in 0..<p.gridH {
-            for c in 0..<p.gridW where p.board[r][c].kind == .cell {
-                if r < minR { minR = r }; if r > maxR { maxR = r }
-                if c < minC { minC = c }; if c > maxC { maxC = c }
-            }
+    /// Paint the pulsing red show-incorrect border around the used
+    /// bounds of the puzzle. Replaces the per-cell opacity blink — one
+    /// piece of UI to track instead of N cells flashing under different
+    /// staggers, and it points at "something here is wrong" without
+    /// obscuring the colors themselves.
+    @ViewBuilder
+    private func wrongBorder(cellPx: CGFloat, margin: CGFloat, padding: CGFloat) -> some View {
+        if showWrongBorder {
+            let alpha = 0.35 + 0.55 * Double(wrongBorderPhase)
+            let strokeW: CGFloat = max(3, cellPx * 0.12)
+            RoundedRectangle(cornerRadius: cellPx * 0.38, style: .continuous)
+                .stroke(Color.red.opacity(alpha), lineWidth: strokeW)
+                .padding(padding - strokeW / 2)
+                .allowsHitTesting(false)
         }
-        if minR > maxR { minR = 0; maxR = 0 }
-        if minC > maxC { minC = 0; maxC = 0 }
-        return (minR, maxR, minC, maxC)
     }
+
+    /// True iff the show-incorrect red border should be drawing.
+    private var showWrongBorder: Bool {
+        game.showIncorrect && game.hasAnyWrongCell
+    }
+
+
 }

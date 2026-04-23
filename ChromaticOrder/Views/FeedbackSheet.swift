@@ -17,6 +17,15 @@ struct FeedbackSheet: View {
     @State private var qualityRating: Double = 5
     @State private var note: String = ""
 
+    // Player picks one upfront. Level = ratings + notes about the
+    // current puzzle. Game = freeform feedback about the app overall;
+    // sliders + per-puzzle diagnostics are hidden.
+    private enum FeedbackKind: String {
+        case level = "Level"
+        case game = "Game"
+    }
+    @State private var kind: FeedbackKind? = nil
+
     // Submission state machine. idle → sending → sent | failed.
     // On .sent we auto-dismiss after a beat so the player doesn't
     // feel stuck. .failed keeps the sheet open with the error + Copy
@@ -28,55 +37,19 @@ struct FeedbackSheet: View {
         case failed(String)
     }
     @State private var sendState: SendState = .idle
-    @State private var copyConfirmed = false
 
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(alignment: .leading, spacing: 16) {
-                    ratingRow(
-                        title: "Difficulty",
-                        help: "1 = trivial, 10 = brutal",
-                        value: $difficultyRating,
-                        tint: Color(red: 0.85, green: 0.47, blue: 0))
-                    ratingRow(
-                        title: "Quality",
-                        help: "1 = bad puzzle, 10 = great puzzle",
-                        value: $qualityRating,
-                        tint: Color(red: 0.16, green: 0.62, blue: 0.31))
-
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text("Notes")
-                            .font(.system(size: 13, weight: .bold))
-                        Text("Anything the sliders don't capture")
-                            .font(.system(size: 11))
-                            .foregroundStyle(.secondary)
-                        TextEditor(text: $note)
-                            .font(.system(size: 14))
-                            .padding(6)
-                            .frame(minHeight: 120)
-                            .background(
-                                Color(uiColor: .secondarySystemBackground),
-                                in: RoundedRectangle(cornerRadius: 10))
+                Group {
+                    switch kind {
+                    case .none:
+                        kindPicker
+                    case .level:
+                        levelForm
+                    case .game:
+                        gameForm
                     }
-
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text("Auto-attached")
-                            .font(.system(size: 13, weight: .bold))
-                        Text("Sent with your report so the dev can correlate your ratings with the puzzle's generator metrics. No personal data.")
-                            .font(.system(size: 11))
-                            .foregroundStyle(.secondary)
-                        Text(diagnosticPreview)
-                            .font(.system(size: 10, design: .monospaced))
-                            .foregroundStyle(.secondary)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(10)
-                            .background(
-                                Color(uiColor: .secondarySystemBackground),
-                                in: RoundedRectangle(cornerRadius: 8))
-                    }
-
-                    sendRow
                 }
                 .padding(16)
             }
@@ -86,9 +59,151 @@ struct FeedbackSheet: View {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Close") { dismiss() }
                 }
+                if kind != nil {
+                    ToolbarItem(placement: .primaryAction) {
+                        Button("Change") {
+                            kind = nil
+                            sendState = .idle
+                        }
+                        .font(.system(size: 16))
+                    }
+                }
             }
         }
         .presentationDetents([.large])
+    }
+
+    // MARK: - Kind picker
+
+    @ViewBuilder
+    private var kindPicker: some View {
+        VStack(alignment: .leading, spacing: 20) {
+            Text("What kind of feedback?")
+                .font(.system(size: 22, weight: .bold))
+            Text("Level feedback is about the puzzle you're on. Game feedback is about anything else.")
+                .font(.system(size: 16))
+                .foregroundStyle(.secondary)
+
+            VStack(spacing: 12) {
+                kindButton(
+                    title: "Level Feedback",
+                    subtitle: "Rate this puzzle's difficulty and quality",
+                    systemImage: "square.grid.2x2.fill",
+                    action: { kind = .level })
+                kindButton(
+                    title: "Game Feedback",
+                    subtitle: "General thoughts about the app",
+                    systemImage: "text.bubble.fill",
+                    action: { kind = .game })
+            }
+            .padding(.top, 8)
+        }
+    }
+
+    @ViewBuilder
+    private func kindButton(
+        title: String,
+        subtitle: String,
+        systemImage: String,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            HStack(spacing: 14) {
+                Image(systemName: systemImage)
+                    .font(.system(size: 22, weight: .semibold))
+                    .frame(width: 32)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(title)
+                        .font(.system(size: 18, weight: .semibold))
+                    Text(subtitle)
+                        .font(.system(size: 14))
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.leading)
+                }
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(.secondary)
+            }
+            .padding(16)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(
+                Color(uiColor: .secondarySystemBackground),
+                in: RoundedRectangle(cornerRadius: 12))
+        }
+        .buttonStyle(.plain)
+    }
+
+    // MARK: - Level form (full ratings + diagnostics)
+
+    @ViewBuilder
+    private var levelForm: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            ratingRow(
+                title: "Difficulty",
+                help: "1 = trivial, 10 = brutal",
+                value: $difficultyRating,
+                tint: Color(red: 0.85, green: 0.47, blue: 0))
+            ratingRow(
+                title: "Quality",
+                help: "1 = bad puzzle, 10 = great puzzle",
+                value: $qualityRating,
+                tint: Color(red: 0.16, green: 0.62, blue: 0.31))
+
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Notes")
+                    .font(.system(size: 16, weight: .bold))
+                Text("Anything the sliders don't capture")
+                    .font(.system(size: 14))
+                    .foregroundStyle(.secondary)
+                TextEditor(text: $note)
+                    .font(.system(size: 17))
+                    .padding(8)
+                    .frame(minHeight: 140)
+                    .background(
+                        Color(uiColor: .secondarySystemBackground),
+                        in: RoundedRectangle(cornerRadius: 10))
+            }
+
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Auto-attached")
+                    .font(.system(size: 16, weight: .bold))
+                Text("Sent with your report so the dev can correlate your ratings with the puzzle's generator metrics. No personal data.")
+                    .font(.system(size: 14))
+                    .foregroundStyle(.secondary)
+                Text(diagnosticPreview)
+                    .font(.system(size: 12, design: .monospaced))
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(10)
+                    .background(
+                        Color(uiColor: .secondarySystemBackground),
+                        in: RoundedRectangle(cornerRadius: 8))
+            }
+
+            sendRow
+        }
+    }
+
+    // MARK: - Game form (just the feedback box)
+
+    @ViewBuilder
+    private var gameForm: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Feedback")
+                    .font(.system(size: 16, weight: .bold))
+                TextEditor(text: $note)
+                    .font(.system(size: 17))
+                    .padding(8)
+                    .frame(minHeight: 220)
+                    .background(
+                        Color(uiColor: .secondarySystemBackground),
+                        in: RoundedRectangle(cornerRadius: 10))
+            }
+
+            sendRow
+        }
     }
 
     // MARK: - Send row
@@ -112,44 +227,19 @@ struct FeedbackSheet: View {
                         Label("Sent", systemImage: "checkmark")
                     }
                 }
-                .font(.system(size: 15, weight: .semibold))
+                .font(.system(size: 17, weight: .semibold))
                 .frame(maxWidth: .infinity)
-                .frame(height: 48)
+                .frame(height: 52)
             }
             .buttonStyle(.borderedProminent)
             .disabled(sendState == .sending || sendState == .sent)
 
             if case .failed(let msg) = sendState {
                 Text(msg)
-                    .font(.system(size: 11))
+                    .font(.system(size: 13))
                     .foregroundStyle(Color(red: 0.85, green: 0.2, blue: 0.2))
                     .multilineTextAlignment(.center)
                     .frame(maxWidth: .infinity)
-            }
-
-            HStack(spacing: 10) {
-                Button {
-                    UIPasteboard.general.string = clipboardPayload
-                    copyConfirmed = true
-                    UINotificationFeedbackGenerator().notificationOccurred(.success)
-                } label: {
-                    Label(
-                        copyConfirmed ? "Copied" : "Copy as text",
-                        systemImage: copyConfirmed ? "checkmark" : "doc.on.doc"
-                    )
-                    .font(.system(size: 13, weight: .medium))
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 40)
-                }
-                .buttonStyle(.bordered)
-
-                ShareLink(item: clipboardPayload) {
-                    Label("Share", systemImage: "square.and.arrow.up")
-                        .labelStyle(.iconOnly)
-                        .font(.system(size: 14, weight: .semibold))
-                        .frame(width: 44, height: 40)
-                }
-                .buttonStyle(.bordered)
             }
         }
     }
@@ -175,10 +265,15 @@ struct FeedbackSheet: View {
         let version = appVersionString
         let dev = deviceString
         let p = game.puzzle
+        let isGame = (kind == .game)
+        let trimmed = note.trimmingCharacters(in: .whitespacesAndNewlines)
+        // Tag the notes column so the linked Sheet shows Level vs Game at a glance.
+        let taggedNotes = "[\(kind?.rawValue ?? "Level")] \(trimmed)"
         return FeedbackPayload(
-            difficulty: Int(difficultyRating),
-            quality: Int(qualityRating),
-            notes: note.trimmingCharacters(in: .whitespacesAndNewlines),
+            // Game feedback has no per-puzzle ratings; send 0 as the "n/a" sentinel.
+            difficulty: isGame ? 0 : Int(difficultyRating),
+            quality: isGame ? 0 : Int(qualityRating),
+            notes: taggedNotes,
             appVersion: version,
             device: dev,
             level: game.level,
@@ -297,17 +392,17 @@ struct FeedbackSheet: View {
         value: Binding<Double>,
         tint: Color
     ) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: 6) {
             HStack {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(title).font(.system(size: 13, weight: .bold))
-                    Text(help).font(.system(size: 11)).foregroundStyle(.secondary)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(title).font(.system(size: 16, weight: .bold))
+                    Text(help).font(.system(size: 14)).foregroundStyle(.secondary)
                 }
                 Spacer()
                 Text("\(Int(value.wrappedValue))")
-                    .font(.system(size: 22, weight: .heavy, design: .rounded))
+                    .font(.system(size: 26, weight: .heavy, design: .rounded))
                     .foregroundStyle(tint)
-                    .frame(minWidth: 40)
+                    .frame(minWidth: 48)
                     .monospacedDigit()
             }
             Slider(value: value, in: 1...10, step: 1).tint(tint)

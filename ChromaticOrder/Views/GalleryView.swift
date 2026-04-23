@@ -16,17 +16,25 @@ struct GalleryView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var puzzles: [GalleryPuzzle] = []
     @State private var favorites: [GalleryPuzzle] = []
+    @State private var collections: [GalleryCollection] = []
     @State private var creatorOpen = false
     @State private var editingPuzzle: GalleryPuzzle? = nil
     @State private var renameTarget: GalleryPuzzle? = nil
     @State private var renameText: String = ""
+    @State private var movingPuzzle: GalleryPuzzle? = nil
     @State private var importing = false
     @State private var importError: String? = nil
+    /// New/rename flow for collections. `collectionRenameTarget` is
+    /// nil when the alert is for creation; otherwise holds the target.
+    @State private var collectionAlertOpen = false
+    @State private var collectionRenameTarget: GalleryCollection? = nil
+    @State private var collectionNameText: String = ""
+    @State private var collectionToDelete: GalleryCollection? = nil
 
     var body: some View {
         NavigationStack {
             Group {
-                if puzzles.isEmpty && favorites.isEmpty {
+                if puzzles.isEmpty && favorites.isEmpty && collections.isEmpty {
                     emptyState
                 } else {
                     list
@@ -46,6 +54,13 @@ struct GalleryView: View {
                             Label("Create New", systemImage: "square.and.pencil")
                         }
                         Button {
+                            collectionRenameTarget = nil
+                            collectionNameText = ""
+                            collectionAlertOpen = true
+                        } label: {
+                            Label("New Collection", systemImage: "folder.badge.plus")
+                        }
+                        Button {
                             importing = true
                         } label: {
                             Label("Import…", systemImage: "tray.and.arrow.down")
@@ -55,12 +70,18 @@ struct GalleryView: View {
                     }
                 }
             }
+            .navigationDestination(for: GalleryCollection.self) { col in
+                CollectionDetailView(game: game, started: $started, collection: col)
+            }
         }
         .fullScreenCover(isPresented: $creatorOpen, onDismiss: reload) {
             CreatorView(game: game, saveOnPlay: true)
         }
         .fullScreenCover(item: $editingPuzzle, onDismiss: reload) { puzzle in
             CreatorView(game: game, saveOnPlay: false, editing: puzzle)
+        }
+        .sheet(item: $movingPuzzle, onDismiss: reload) { puzzle in
+            MoveToCollectionSheet(puzzle: puzzle, currentCollection: nil)
         }
         .alert("Rename puzzle", isPresented: Binding(
             get: { renameTarget != nil },
@@ -71,6 +92,38 @@ struct GalleryView: View {
             Button("Cancel", role: .cancel) { renameTarget = nil }
         } message: {
             Text("Give this puzzle a memorable name.")
+        }
+        .alert(
+            collectionRenameTarget == nil ? "New Collection" : "Rename Collection",
+            isPresented: $collectionAlertOpen
+        ) {
+            TextField("Collection name", text: $collectionNameText)
+            Button("Save") { commitCollectionName() }
+            Button("Cancel", role: .cancel) {
+                collectionAlertOpen = false
+                collectionRenameTarget = nil
+                collectionNameText = ""
+            }
+        } message: {
+            Text(collectionRenameTarget == nil
+                 ? "Group puzzles into a campaign or theme."
+                 : "Rename this collection.")
+        }
+        .alert(
+            "Delete collection?",
+            isPresented: Binding(
+                get: { collectionToDelete != nil },
+                set: { if !$0 { collectionToDelete = nil } }
+            )
+        ) {
+            Button("Delete", role: .destructive) { commitCollectionDelete() }
+            Button("Cancel", role: .cancel) { collectionToDelete = nil }
+        } message: {
+            if let c = collectionToDelete, c.puzzleCount > 0 {
+                Text("“\(c.name)” contains \(c.puzzleCount) puzzle\(c.puzzleCount == 1 ? "" : "s"). They'll be deleted too.")
+            } else {
+                Text("This can't be undone.")
+            }
         }
         .alert("Import failed", isPresented: Binding(
             get: { importError != nil },
@@ -163,6 +216,45 @@ struct GalleryView: View {
 
     private var list: some View {
         List {
+            if !collections.isEmpty {
+                Section("Collections") {
+                    ForEach(collections) { col in
+                        NavigationLink(value: col) {
+                            collectionRow(col)
+                        }
+                        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                            Button(role: .destructive) {
+                                collectionToDelete = col
+                            } label: {
+                                Label("Delete", systemImage: "trash")
+                            }
+                            Button {
+                                collectionRenameTarget = col
+                                collectionNameText = col.name
+                                collectionAlertOpen = true
+                            } label: {
+                                Label("Rename", systemImage: "tag")
+                            }
+                            .tint(.indigo)
+                        }
+                        .contextMenu {
+                            Button {
+                                collectionRenameTarget = col
+                                collectionNameText = col.name
+                                collectionAlertOpen = true
+                            } label: {
+                                Label("Rename", systemImage: "tag")
+                            }
+                            Button(role: .destructive) {
+                                collectionToDelete = col
+                            } label: {
+                                Label("Delete", systemImage: "trash")
+                            }
+                        }
+                    }
+                }
+            }
+
             if !puzzles.isEmpty {
                 Section("Your puzzles") {
                     ForEach(puzzles) { puzzle in
@@ -208,6 +300,11 @@ struct GalleryView: View {
                                     renameTarget = puzzle
                                 } label: {
                                     Label("Rename", systemImage: "tag")
+                                }
+                                Button {
+                                    movingPuzzle = puzzle
+                                } label: {
+                                    Label("Move to…", systemImage: "folder")
                                 }
                                 Button(role: .destructive) {
                                     try? GalleryStore.delete(puzzle)
@@ -258,6 +355,45 @@ struct GalleryView: View {
     private func reload() {
         puzzles = GalleryStore.all()
         favorites = FavoritesStore.all()
+        collections = GalleryStore.collections()
+    }
+
+    private func commitCollectionName() {
+        let name = collectionNameText.trimmingCharacters(in: .whitespacesAndNewlines)
+        if let target = collectionRenameTarget {
+            try? GalleryStore.renameCollection(target, to: name)
+        } else {
+            _ = try? GalleryStore.createCollection(name: name.isEmpty ? "Untitled" : name)
+        }
+        collectionAlertOpen = false
+        collectionRenameTarget = nil
+        collectionNameText = ""
+        reload()
+    }
+
+    private func commitCollectionDelete() {
+        guard let target = collectionToDelete else { return }
+        try? GalleryStore.deleteCollection(target)
+        collectionToDelete = nil
+        reload()
+    }
+
+    @ViewBuilder
+    private func collectionRow(_ col: GalleryCollection) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: "folder.fill")
+                .font(.system(size: 22))
+                .foregroundStyle(Color.accentColor)
+                .frame(width: 34)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(col.name)
+                    .font(.system(size: 14, weight: .semibold))
+                Text("\(col.puzzleCount) puzzle\(col.puzzleCount == 1 ? "" : "s")")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .padding(.vertical, 4)
     }
 
     private func play(_ puzzle: GalleryPuzzle, favoriteURL: URL? = nil) {
@@ -273,7 +409,7 @@ struct GalleryView: View {
 
 // ─── Row ────────────────────────────────────────────────────────────
 
-private struct GalleryRow: View {
+struct GalleryRow: View {
     let puzzle: GalleryPuzzle
 
     var body: some View {

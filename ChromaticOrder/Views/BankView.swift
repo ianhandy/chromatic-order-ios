@@ -16,40 +16,57 @@ struct BankSlotFramesKey: PreferenceKey {
 
 struct BankView: View {
     @Bindable var game: GameState
+    /// Bumped each time `canCheck` flips false → true so the check
+    /// button can play a one-shot "brighten + overshoot + settle"
+    /// highlight keyframed off a single trigger.
+    @State private var readyFlash: Int = 0
 
     var body: some View {
         VStack(spacing: 8) {
-            Text(instrText)
-                .font(.system(size: 10, weight: .bold, design: .rounded))
-                .tracking(1.2)
-                .textCase(.uppercase)
-                .foregroundStyle(Color.white.opacity(0.5))
-
-            if game.mode == .challenge, !game.solved {
+            if (game.mode == .challenge || game.mode == .daily), !game.solved {
+                // Check only makes sense once every swatch is on the
+                // board — a half-filled grid can never pass, and
+                // tapping it anyway would burn a heart for nothing.
+                // Daily has no heart budget, so the hearts gate is
+                // skipped for that mode — Check is always allowed as
+                // long as every cell has a swatch.
+                let allPlaced = game.puzzle?.bank.allSatisfy { $0 == nil } ?? false
+                let hasHearts = game.mode == .daily ? true : game.checks > 0
+                let canCheck = hasHearts && allPlaced
+                let green = Color(red: 42 / 255, green: 157 / 255, blue: 78 / 255)
                 Button {
                     game.handleCheck()
                 } label: {
-                    HStack(spacing: 8) {
-                        Text("Check")
-                            .font(.system(size: 13, weight: .heavy, design: .rounded))
-                        HStack(spacing: 2) {
-                            Image(systemName: "heart.fill").font(.system(size: 12))
-                            Text("\(game.checks)")
-                                .font(.system(size: 13, weight: .bold, design: .rounded))
+                    Image(systemName: "checkmark")
+                        .font(.system(size: 20, weight: .heavy, design: .rounded))
+                        .foregroundStyle(.white)
+                        .frame(width: 48, height: 48)
+                        .background(canCheck ? green : Color.gray.opacity(0.6),
+                                    in: Circle())
+                        .shadow(color: green.opacity(canCheck ? 0.35 : 0),
+                                radius: 12, y: 4)
+                        // Brighten → overshoot → settle. The keyframe
+                        // track peaks on `.brightness` then dips past
+                        // baseline so the green appears to "flash" on
+                        // and bounce into place the moment the board
+                        // is fully placed.
+                        .keyframeAnimator(
+                            initialValue: 0.0,
+                            trigger: readyFlash
+                        ) { content, value in
+                            content.brightness(value)
+                        } keyframes: { _ in
+                            KeyframeTrack {
+                                CubicKeyframe(0.45, duration: 0.18)
+                                CubicKeyframe(-0.08, duration: 0.22)
+                                CubicKeyframe(0.0, duration: 0.35)
+                            }
                         }
-                        .opacity(0.85)
-                    }
-                    .padding(.horizontal, 20)
-                    .frame(height: 40)
-                    .foregroundStyle(.white)
-                    .background(game.checks > 0
-                                ? Color.accentColor
-                                : Color.gray.opacity(0.6),
-                                in: Capsule())
-                    .shadow(color: Color.accentColor.opacity(game.checks > 0 ? 0.3 : 0),
-                            radius: 12, y: 4)
                 }
-                .disabled(game.checks <= 0)
+                .disabled(!canCheck)
+                .onChange(of: canCheck) { oldVal, newVal in
+                    if !oldVal && newVal { readyFlash &+= 1 }
+                }
             }
 
             // Fixed toolbox layout. Column count + swatch size come from

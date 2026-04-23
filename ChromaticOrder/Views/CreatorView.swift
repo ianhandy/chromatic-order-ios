@@ -27,6 +27,13 @@ struct CreatorView: View {
     @State private var name: String = ""
     @State private var showHelp: Bool = false
     @State private var didLoadEditing: Bool = false
+    @State private var showExitConfirm: Bool = false
+    /// Tracks whether the name TextField currently owns focus. Used
+    /// to collapse the bottom tool bar + validation banner while the
+    /// keyboard is up — the player is mid-type, they don't need a
+    /// Save / Share / Undo row in their face (and it gives the
+    /// keyboard uncluttered whitespace to cover).
+    @FocusState private var nameFocused: Bool
 
     @Bindable var game: GameState
     /// When true, the Play button also writes the puzzle to the
@@ -38,6 +45,10 @@ struct CreatorView: View {
     /// appear we rehydrate `state` from its doc; Save overwrites this
     /// entry instead of creating a new one.
     var editing: GalleryPuzzle? = nil
+    /// When set, new saves (saveOnPlay) land inside this collection
+    /// rather than at the gallery root. Ignored when `editing` is
+    /// non-nil — editing overwrites the original file in place.
+    var collection: GalleryCollection? = nil
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
@@ -48,14 +59,28 @@ struct CreatorView: View {
                 toolPicker
                 CanvasView(state: state)
                     .padding(.horizontal, 14)
-                toolBar
+                if !nameFocused {
+                    toolBar
+                        .transition(.opacity.combined(with: .move(edge: .bottom)))
+                }
             }
             .padding(.vertical, 10)
+            .animation(.easeInOut(duration: 0.25), value: nameFocused)
             .navigationTitle(editing == nil ? "Create" : "Edit")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Close") { dismiss() }
+                    Button("Close") {
+                        // Protect against accidental taps on the
+                        // Close button after the player has started
+                        // building. Empty creator = no prompt;
+                        // anything laid down = confirm first.
+                        if state.gradients.isEmpty {
+                            dismiss()
+                        } else {
+                            showExitConfirm = true
+                        }
+                    }
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button {
@@ -74,6 +99,18 @@ struct CreatorView: View {
             }
             .sheet(isPresented: $showHelp) {
                 CreatorHelpSheet()
+            }
+            .confirmationDialog(
+                "Exit without saving?",
+                isPresented: $showExitConfirm,
+                titleVisibility: .visible
+            ) {
+                Button("Exit without saving", role: .destructive) {
+                    dismiss()
+                }
+                Button("Keep building", role: .cancel) { }
+            } message: {
+                Text("Your puzzle won't be saved. Tap Play to save it first.")
             }
             .sheet(isPresented: $pickingStart) {
                 ColorPickerSheet(color: $state.startColor, title: "Start color")
@@ -129,30 +166,36 @@ struct CreatorView: View {
             doc.difficulty = difficulty
             try? GalleryStore.overwrite(editing, with: doc)
         } else if saveOnPlay {
-            _ = try? GalleryStore.saveNamed(puzzle, name: chosenName)
+            if (try? GalleryStore.saveNamed(puzzle, name: chosenName, in: collection)) != nil {
+                GameCenter.shared.reportAchievement(
+                    GameCenter.Achievement.createdLevel
+                )
+            }
         }
     }
 
     // ─── Name field ─────────────────────────────────────────────────
 
     private var nameField: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: 10) {
             Image(systemName: "tag")
-                .font(.system(size: 12, weight: .semibold))
+                .font(.system(size: 18, weight: .semibold))
                 .foregroundStyle(.secondary)
             TextField("Untitled puzzle", text: $name)
                 .textFieldStyle(.plain)
-                .font(.system(size: 14, weight: .semibold))
+                .font(.system(size: 20, weight: .semibold))
                 .submitLabel(.done)
+                .focused($nameFocused)
+                .onSubmit { nameFocused = false }
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
+        .padding(.horizontal, 14)
+        .padding(.vertical, 12)
         .background(
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
                 .fill(Color.white.opacity(0.06))
         )
         .overlay(
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
                 .stroke(Color.white.opacity(0.12), lineWidth: 1)
         )
         .padding(.horizontal, 14)
@@ -212,9 +255,12 @@ struct CreatorView: View {
             if let end = state.endColor {
                 ColorChip(color: end, label: "End") { pickingEnd = true }
             } else {
-                ShiftChip(deltaL: state.deltaL, deltaC: state.deltaC, deltaH: state.deltaH) {
-                    pickingEnd = true
-                }
+                ShiftChip(
+                    startColor: state.startColor,
+                    deltaL: state.deltaL,
+                    deltaC: state.deltaC,
+                    deltaH: state.deltaH
+                ) { pickingEnd = true }
             }
 
             Spacer()
@@ -303,11 +349,10 @@ struct CreatorView: View {
                 Button {
                     if let b = built, b.validation.playable {
                         persistIfNeeded(puzzle: b.puzzle, difficulty: b.validation.difficulty)
-                        game.loadCustomPuzzle(b.puzzle)
                         dismiss()
                     }
                 } label: {
-                    Text("Play")
+                    Text("Save")
                         .font(.system(size: 13, weight: .bold))
                         .frame(height: 36)
                         .padding(.horizontal, 18)
@@ -392,17 +437,42 @@ private struct ColorChip: View {
 }
 
 private struct ShiftChip: View {
+    let startColor: OKLCh
     let deltaL: Double
     let deltaC: Double
     let deltaH: Double
     let onTap: () -> Void
+
+    /// The five-cell preview: startColor at index 0, then shifted by
+    /// (ΔL, Δc, Δh) per step. Mirrors the trajectory the shift would
+    /// actually paint onto the canvas so the chip previews the
+    /// outcome rather than a generic icon.
+    private var previewColors: [OKLCh] {
+        (0..<5).map { i in
+            let t = Double(i)
+            return OKLCh(
+                L: startColor.L + deltaL * t,
+                c: startColor.c + deltaC * t,
+                h: OK.normH(startColor.h + deltaH * t)
+            )
+        }
+    }
+
     var body: some View {
         Button(action: onTap) {
             HStack(spacing: 6) {
-                Image(systemName: "plus.forwardslash.minus")
-                    .font(.system(size: 14, weight: .semibold))
-                    .frame(width: 36, height: 36)
-                    .foregroundStyle(.secondary)
+                HStack(spacing: 1) {
+                    ForEach(Array(previewColors.enumerated()), id: \.offset) { _, c in
+                        Rectangle()
+                            .fill(OK.toColor(c))
+                            .frame(width: 7, height: 36)
+                    }
+                }
+                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .stroke(Color.black.opacity(0.08), lineWidth: 1)
+                )
                 VStack(alignment: .leading, spacing: 0) {
                     Text("Shift")
                         .font(.system(size: 12, weight: .semibold))
@@ -436,6 +506,8 @@ private struct CanvasView: View {
             let committed = state.committedCells
             let preview = Dictionary(uniqueKeysWithValues:
                 state.previewCells().map { ($0.idx, $0.color) })
+            let manualLocks = state.manualLocks
+            let autoLocks = state.autoLockedCells
             let radius = cellPx * 0.22
 
             // Total grid dimensions with cell spacing baked in — used
@@ -457,7 +529,7 @@ private struct CanvasView: View {
                                     committed: committed[idx],
                                     preview: preview[idx],
                                     isConflict: state.dragInvalid && preview[idx] != nil,
-                                    isLocked: state.manualLocks.contains(idx)
+                                    isLocked: manualLocks.contains(idx) || autoLocks.contains(idx)
                                 )
                                 .frame(width: cellPx + spacing * 2,
                                        height: cellPx + spacing * 2)

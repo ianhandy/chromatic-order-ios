@@ -3,9 +3,30 @@
 
 import SwiftUI
 
+/// Lifecycle of the celebratory heart that flies from the "perfect"
+/// banner into the top-bar hearts row on a perfect challenge-mode
+/// solve. Drives matchedGeometryEffect + wave trigger sequencing.
+///   idle     — nothing showing
+///   onBanner — big heart rendered next to the "perfect" text
+///   flying   — matched-geometry transition to the top-bar row
+///   landed   — heart has arrived; wave animation plays
+enum PerfectHeartStage { case idle, onBanner, flying, landed }
+
 struct TopBarView: View {
     @Bindable var game: GameState
     @Binding var menuOpen: Bool
+    /// Shared matched-geometry namespace so the perfect-heart flight
+    /// can transition between ContentView's banner and this view's
+    /// hearts row. ContentView owns the @Namespace; this view just
+    /// consumes the ID.
+    let perfectHeartNS: Namespace.ID
+    /// Current stage of the perfect-heart choreography. Drives whether
+    /// the "flying target" matched-geometry heart renders at the end
+    /// of the row (during .flying / .landed) or not (idle / onBanner).
+    let perfectHeartStage: PerfectHeartStage
+    /// Bump counter from ContentView — each increment triggers a
+    /// staggered per-heart scale-bump wave across the existing hearts.
+    let heartWaveTick: Int
     @State private var levelPickerOpen: Bool = false
 
     // Palette for the dark-mode top bar. Primary text is near-white
@@ -13,136 +34,241 @@ struct TopBarView: View {
     private static let primaryText = Color.white.opacity(0.92)
     private static let secondaryText = Color.white.opacity(0.6)
 
+    // Button sizing: the three top-row affordances (level chip,
+    // favorite, hamburger) all share this height so they sit on a
+    // single baseline with the center "zen" / "today" wordmark.
+    private static let buttonHeight: CGFloat = 34
+
     var body: some View {
-        HStack(alignment: .top, spacing: 8) {
-            // Left: level + tier (top row), challenge score below.
-            // In zen mode the whole "Lv X + tier" cluster is
-            // tappable and opens the level-picker sheet so the
-            // player can jump to any earlier level they've reached.
-            VStack(alignment: .leading, spacing: 2) {
-                Button {
-                    guard game.mode == .zen else { return }
-                    levelPickerOpen = true
-                } label: {
-                    HStack(spacing: 6) {
-                        Text("Lv \(game.level)")
-                            .font(.system(size: 14, weight: .heavy, design: .rounded))
-                            .foregroundStyle(Self.primaryText)
-                        let t = game.tier
-                        Text(t.label)
-                            .font(.system(size: 11, weight: .bold, design: .rounded))
-                            .foregroundStyle(hexColor(t.colorHex))
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 2)
-                            .background(hexColor(t.colorHex).opacity(0.18), in: Capsule())
-                        if game.mode == .zen {
-                            Image(systemName: "chevron.down.circle")
-                                .font(.system(size: 12, weight: .semibold))
-                                .foregroundStyle(Self.secondaryText)
-                        }
-                    }
-                }
-                .buttonStyle(.plain)
-                .disabled(game.mode != .zen)
-                if game.mode == .challenge {
-                    Text("\(game.score) pts")
-                        .font(.system(size: 11, weight: .bold, design: .rounded))
-                        .foregroundStyle(Self.secondaryText)
-                        .monospacedDigit()
-                }
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-
-            // Center column: mode label / hearts on top, then a
-            // shared timer + moves row so the player can see pace
-            // and efficiency at a glance. Timer hides when the a11y
-            // toggle is off — the internal clock still runs for
-            // leaderboard submissions.
-            VStack(spacing: 2) {
-                if game.mode == .zen {
-                    Text("Zen Mode")
-                        .font(.system(size: 12, weight: .heavy, design: .rounded))
-                        .tracking(0.5)
-                        .foregroundStyle(Self.primaryText)
-                } else {
-                    HStack(spacing: 2) {
-                        if game.checks > 0 {
-                            ForEach(0..<game.checks, id: \.self) { _ in
-                                Image(systemName: "heart.fill")
-                                    .font(.system(size: 13))
-                                    .foregroundStyle(Color(red: 1.0, green: 0.4, blue: 0.4))
-                            }
-                        } else {
-                            Text("0 \u{2665}")
-                                .font(.system(size: 11, weight: .bold, design: .rounded))
-                                .foregroundStyle(Self.secondaryText)
-                        }
-                    }
-                }
-                // Timer + moves readout. Updates once per second via
-                // TimelineView so SwiftUI doesn't re-render the whole
-                // top bar mid-interaction. `game.solved` freezes the
-                // timer at the solve time so the player can see it.
-                TimelineView(.periodic(from: .now, by: 1.0)) { _ in
-                    HStack(spacing: 8) {
-                        if game.timerVisible {
-                            Text(formatElapsed(game.timeSpentSec))
-                                .font(.system(size: 10, weight: .bold, design: .monospaced))
-                                .foregroundStyle(Self.secondaryText)
-                        }
-                        Text("\(game.moveCount) mv")
-                            .font(.system(size: 10, weight: .bold, design: .rounded))
-                            .foregroundStyle(Self.secondaryText)
-                    }
-                }
-            }
-
-            // Right: favorite star + hamburger. Star saves the
-            // current puzzle to the favorites gallery; tap again to
-            // remove it. Disabled while the generator is still
-            // producing the puzzle so the user can't favorite nil.
-            HStack(spacing: 6) {
+        VStack(spacing: 8) {
+            // Primary row: three buttons + center mode label, all
+            // vertically centered on one axis. HStack(.center)
+            // aligns each child's center to the row's center, so
+            // the 68pt buttons and the 34pt "zen" wordmark share a
+            // midline instead of drifting apart.
+            HStack(alignment: .center, spacing: 10) {
+                levelChip
                 Spacer(minLength: 0)
-                let favorited = game.currentFavoriteURL != nil
-                Button {
-                    game.toggleFavorite()
-                } label: {
-                    Image(systemName: favorited ? "star.fill" : "star")
-                        .font(.system(size: 16, weight: .semibold))
-                        .frame(width: 38, height: 34)
-                        .foregroundStyle(favorited
-                                          ? Color(red: 1.00, green: 0.83, blue: 0.22)
-                                          : Self.primaryText)
-                        .background(Color.white.opacity(0.08), in: Capsule())
-                        .overlay(
-                            Capsule().stroke(Color.white.opacity(0.25), lineWidth: 1)
-                        )
-                }
-                .disabled(game.puzzle == nil || game.generating)
-                Button {
-                    GlassyAudio.shared.playBloom()
-                    menuOpen.toggle()
-                } label: {
-                    Image(systemName: "line.3.horizontal")
-                        .font(.system(size: 18, weight: .semibold))
-                        .frame(width: 38, height: 34)
-                        .foregroundStyle(Self.primaryText)
-                        .background(menuOpen
-                                    ? Color.white.opacity(0.18)
-                                    : Color.white.opacity(0.08),
-                                    in: Capsule())
-                        .overlay(
-                            Capsule().stroke(Color.white.opacity(0.25), lineWidth: 1)
-                        )
-                }
+                centerModeLabel
+                Spacer(minLength: 0)
+                rightButtons
             }
-            .frame(maxWidth: .infinity, alignment: .trailing)
+
+            // Secondary row: one readout under each primary-row
+            // element so timer / moves / points each sit directly
+            // under the thing they're associated with (chip / zen /
+            // right buttons). Same HStack(.center) alignment keeps
+            // the three columns on one baseline.
+            HStack(alignment: .top, spacing: 10) {
+                leftStat
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                centerStat
+                    .frame(maxWidth: .infinity, alignment: .center)
+                rightStat
+                    .frame(maxWidth: .infinity, alignment: .trailing)
+            }
         }
         .padding(.top, 10)
         .padding(.bottom, 8)
         .sheet(isPresented: $levelPickerOpen) {
             LevelPickerSheet(game: game)
         }
+    }
+
+    // MARK: – Top row
+
+    @ViewBuilder
+    private var levelChip: some View {
+        if game.mode != .daily {
+            let t = game.tier
+            Button {
+                guard game.mode == .zen else { return }
+                levelPickerOpen = true
+            } label: {
+                HStack(spacing: 4) {
+                    Text("Lv \(game.level)")
+                        .font(.system(size: 15, weight: .heavy, design: .rounded))
+                        .foregroundStyle(hexColor(t.colorHex))
+                    if game.mode == .zen {
+                        Image(systemName: "chevron.down")
+                            .font(.system(size: 11, weight: .bold))
+                            .foregroundStyle(Self.secondaryText)
+                    }
+                }
+                .padding(.horizontal, 12)
+                .frame(height: Self.buttonHeight)
+                .background(Color.white.opacity(0.08), in: Capsule())
+                .overlay(
+                    Capsule().stroke(Color.white.opacity(0.25), lineWidth: 1)
+                )
+            }
+            .buttonStyle(.plain)
+            .disabled(game.mode != .zen)
+            // Publish the chip's bounds into the shared tutorial
+            // anchor bag so the zen-intro tooltip overlay can draw a
+            // pointer line from itself directly to this chip without
+            // hard-coding the chip's screen position.
+            .transformAnchorPreference(
+                key: TutorialAnchorsKey.self,
+                value: .bounds
+            ) { value, anchor in
+                value["chip"] = anchor
+            }
+        } else {
+            // Daily mode: static "daily" chip in the same slot the
+            // level chip would take, so the top-left balance matches
+            // zen/challenge and the player has a clear mode marker.
+            // Not interactive — daily's level is fixed per date.
+            Text("daily")
+                .font(.system(size: 15, weight: .heavy, design: .rounded))
+                .foregroundStyle(Self.primaryText)
+                .padding(.horizontal, 12)
+                .frame(height: Self.buttonHeight)
+                .background(Color.white.opacity(0.08), in: Capsule())
+                .overlay(
+                    Capsule().stroke(Color.white.opacity(0.25), lineWidth: 1)
+                )
+        }
+    }
+
+    @ViewBuilder
+    private var centerModeLabel: some View {
+        switch game.mode {
+        case .zen:
+            Text("zen")
+                .font(.system(size: 28, weight: .heavy, design: .rounded))
+                .foregroundStyle(Self.primaryText)
+        case .daily:
+            Text("today")
+                .font(.system(size: 28, weight: .heavy, design: .rounded))
+                .foregroundStyle(Self.primaryText)
+        case .challenge:
+            // Hearts cap at five on-screen; any extra hearts show
+            // as a compact "+N" suffix so a full bar of checks
+            // doesn't grow past the center column. Each heart plays
+            // a staggered scale-bump wave whenever `heartWaveTick`
+            // bumps (driven by the perfect-heart landing from above).
+            HStack(spacing: 4) {
+                if game.checks > 0 {
+                    let displayed = min(game.checks, 5)
+                    let extra = max(0, game.checks - 5)
+                    ForEach(0..<displayed, id: \.self) { idx in
+                        Image(systemName: "heart.fill")
+                            .font(.system(size: 18))
+                            .foregroundStyle(Color(red: 1.0, green: 0.4, blue: 0.4))
+                            .phaseAnimator([1.0, 1.35, 1.0],
+                                           trigger: heartWaveTick) { content, s in
+                                content.scaleEffect(s)
+                            } animation: { _ in
+                                .spring(response: 0.30,
+                                        dampingFraction: 0.55)
+                                    .delay(Double(idx) * 0.07)
+                            }
+                    }
+                    if extra > 0 {
+                        Text("+\(extra)")
+                            .font(.system(size: 15, weight: .bold, design: .rounded))
+                            .foregroundStyle(Color(red: 1.0, green: 0.4, blue: 0.4))
+                    }
+                } else {
+                    Text("0 \u{2665}")
+                        .font(.system(size: 15, weight: .bold, design: .rounded))
+                        .foregroundStyle(Self.secondaryText)
+                }
+                // Flying-in heart from the "perfect" banner. Only in
+                // the row while the flight is running — at `.landed`
+                // the ContentView bumps `game.checks` so the row's
+                // real hearts now include the new one, and the
+                // matched-geometry target can unmount without the
+                // row appearing to lose a heart.
+                if perfectHeartStage == .flying {
+                    Image(systemName: "heart.fill")
+                        .font(.system(size: 18))
+                        .foregroundStyle(Color(red: 1.0, green: 0.4, blue: 0.4))
+                        .matchedGeometryEffect(
+                            id: "perfectHeart",
+                            in: perfectHeartNS,
+                            isSource: false
+                        )
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var rightButtons: some View {
+        HStack(spacing: 8) {
+            let favorited = game.currentFavoriteURL != nil
+            Button {
+                game.toggleFavorite()
+            } label: {
+                Image(systemName: favorited ? "star.fill" : "star")
+                    .font(.system(size: 16, weight: .semibold))
+                    .frame(width: 38, height: Self.buttonHeight)
+                    .foregroundStyle(favorited
+                                      ? Color(red: 1.00, green: 0.83, blue: 0.22)
+                                      : Self.primaryText)
+                    .background(Color.white.opacity(0.08), in: Capsule())
+                    .overlay(
+                        Capsule().stroke(Color.white.opacity(0.25), lineWidth: 1)
+                    )
+            }
+            .disabled(game.puzzle == nil || game.generating)
+            Button {
+                GlassyAudio.shared.playBloom()
+                menuOpen.toggle()
+            } label: {
+                Image(systemName: "line.3.horizontal")
+                    .font(.system(size: 18, weight: .semibold))
+                    .frame(width: 38, height: Self.buttonHeight)
+                    .foregroundStyle(Self.primaryText)
+                    .background(menuOpen
+                                ? Color.white.opacity(0.18)
+                                : Color.white.opacity(0.08),
+                                in: Capsule())
+                    .overlay(
+                        Capsule().stroke(Color.white.opacity(0.25), lineWidth: 1)
+                    )
+            }
+        }
+    }
+
+    // MARK: – Second row
+
+    /// Under the level chip: running timer stacked above the move
+    /// count. Timer hides when the a11y toggle is off (the internal
+    /// clock still ticks for leaderboard submissions).
+    @ViewBuilder
+    private var leftStat: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            if game.timerVisible {
+                TimelineView(.periodic(from: .now, by: 1.0)) { _ in
+                    Text(formatElapsed(game.timeSpentSec))
+                        .font(.system(size: 20, weight: .bold, design: .monospaced))
+                        .foregroundStyle(Self.secondaryText)
+                }
+            }
+            TimelineView(.periodic(from: .now, by: 1.0)) { _ in
+                Text("\(game.moveCount) mv")
+                    .font(.system(size: 20, weight: .bold, design: .rounded))
+                    .foregroundStyle(Self.secondaryText)
+            }
+        }
+    }
+
+    /// Center column is intentionally empty now that moves moved to
+    /// the left column; kept as a spacer so the three-column layout
+    /// keeps the right-side points aligned.
+    @ViewBuilder
+    private var centerStat: some View {
+        EmptyView()
+    }
+
+    /// Right column is intentionally empty — the old challenge-score
+    /// readout was removed when the points system went away.
+    @ViewBuilder
+    private var rightStat: some View {
+        EmptyView()
     }
 }
 

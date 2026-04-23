@@ -1,13 +1,7 @@
 //  Game Center integration — authenticates the local player once on
-//  launch, submits challenge-mode scores, and exposes a leaderboard
-//  ID for the viewer view to pull from.
-//
-//  App Store Connect setup required:
-//    1. Enable Game Center for the app.
-//    2. Create a leaderboard with identifier matching
-//       `GameCenter.challengeLeaderboardID` below.
-//    3. Configure sort order = high-to-low, format type = integer,
-//       and a default localization.
+//  launch and submits per-metric daily leaderboards (solve time +
+//  move count). The old cumulative points/"score" leaderboards were
+//  removed when the points system went away.
 //
 //  If Game Center isn't configured (or the user isn't signed in),
 //  every submission is a silent no-op — the game still works.
@@ -20,13 +14,6 @@ import UIKit
 final class GameCenter {
     static let shared = GameCenter()
 
-    /// App Store Connect leaderboard identifier for the challenge
-    /// mode's high score. Must match the value you set up when
-    /// creating the leaderboard in App Store Connect exactly.
-    static let challengeLeaderboardID = "com.ianhandy.kroma.challenge_score"
-    /// Daily puzzle leaderboard. High-to-low, resets daily (configured
-    /// in App Store Connect as a recurring leaderboard).
-    static let dailyLeaderboardID = "com.ianhandy.kroma.daily_score"
     /// Daily solve-time leaderboard. Low-to-high, recurring daily,
     /// integer format (seconds). Submit ONCE on solve so retries
     /// don't overwrite a better run — Game Center already keeps the
@@ -37,9 +24,39 @@ final class GameCenter {
     /// (excludes bank shuffles and bank-slot swaps).
     static let dailyMovesLeaderboardID = "com.ianhandy.kroma.daily_moves"
 
+    // ─── Achievement identifiers ────────────────────────────────────
+    //
+    // Each string below must match an Achievement identifier created
+    // in App Store Connect under this app's Game Center configuration.
+    // All achievements are one-shot (100% on first trigger), hidden
+    // by default, and have intentionally lowercase player-visible
+    // titles. Description / pre-earn copy is suppressed in ASC so
+    // players only see the achievement surface as a surprise pop.
+    enum Achievement {
+        /// Player popped a tutorial balloon with a tap.
+        static let poppedBalloon = "com.ianhandy.kroma.ach.how_could_you"
+        /// Player let the main-menu "chill ramp" reach full — the
+        /// background text fades out completely.
+        static let chillMaxed = "com.ianhandy.kroma.ach.nice_isnt_it"
+        /// Player saved a custom puzzle through the creator.
+        static let createdLevel = "com.ianhandy.kroma.ach.creationism"
+        /// Player saved a solved-grid image to their Photos library.
+        static let savedImage = "com.ianhandy.kroma.ach.yoink"
+        /// Player opened the stats sheet.
+        static let openedStats = "com.ianhandy.kroma.ach.narcissism"
+        /// Player favorited a puzzle via the top-bar star button.
+        static let favoritedLevel = "com.ianhandy.kroma.ach.favoritism"
+    }
+
     /// True once `authenticateHandler` has reported a signed-in
     /// player. Score submits silently no-op until this flips true.
     private(set) var isAuthenticated = false
+    /// Local guard so a single session doesn't spam Game Center with
+    /// repeat 100% reports — useful for achievements that can trigger
+    /// repeatedly (balloon pops, image saves, stats-sheet opens). Game
+    /// Center already dedupes server-side, but short-circuiting here
+    /// saves needless round trips.
+    private var reportedThisSession: Set<String> = []
 
     private init() {}
 
@@ -60,29 +77,6 @@ final class GameCenter {
                 }
             }
         }
-    }
-
-    /// Submit a challenge-mode score. Only the player's best is
-    /// retained on the server, so we can safely submit on every
-    /// level-complete without tracking a local high-score watermark.
-    func submitChallengeScore(_ score: Int) {
-        guard isAuthenticated, score > 0 else { return }
-        GKLeaderboard.submitScore(
-            score,
-            context: 0,
-            player: GKLocalPlayer.local,
-            leaderboardIDs: [Self.challengeLeaderboardID]
-        ) { _ in }
-    }
-
-    func submitDailyScore(_ score: Int) {
-        guard isAuthenticated, score > 0 else { return }
-        GKLeaderboard.submitScore(
-            score,
-            context: 0,
-            player: GKLocalPlayer.local,
-            leaderboardIDs: [Self.dailyLeaderboardID]
-        ) { _ in }
     }
 
     /// Submit solve-time (seconds) + move-count for today's daily to
@@ -107,6 +101,20 @@ final class GameCenter {
                 leaderboardIDs: [Self.dailyMovesLeaderboardID]
             ) { _ in }
         }
+    }
+
+    /// Report a one-shot (100%-complete) achievement. Silent no-op
+    /// until Game Center authenticates. `showsCompletionBanner = true`
+    /// lets the system draw the built-in banner so the player sees a
+    /// notification the first time they earn each achievement.
+    func reportAchievement(_ identifier: String) {
+        guard isAuthenticated else { return }
+        if reportedThisSession.contains(identifier) { return }
+        reportedThisSession.insert(identifier)
+        let ach = GKAchievement(identifier: identifier)
+        ach.percentComplete = 100.0
+        ach.showsCompletionBanner = true
+        GKAchievement.report([ach]) { _ in }
     }
 
     private func present(_ vc: UIViewController) {

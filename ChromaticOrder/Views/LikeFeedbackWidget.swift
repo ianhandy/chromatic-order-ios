@@ -1,5 +1,5 @@
 //  Floating bottom-right widget — one-tap per-level feedback.
-//  "Did you like this level?" text with 🙂 / 🙁 buttons next to it.
+//  "good level?" text with 🙂 / 🙁 buttons next to it.
 //
 //  State lifecycle:
 //    unrated   → both buttons available, POST on tap
@@ -14,11 +14,18 @@ import SwiftUI
 
 struct LikeFeedbackWidget: View {
     @Bindable var game: GameState
+    /// Outer height — caller matches this to the "next level" button's
+    /// capsule so the two side-by-side affordances line up on one
+    /// baseline. Default keeps the widget self-contained when used in
+    /// isolation.
+    var height: CGFloat = 52
 
     var body: some View {
         HStack(spacing: 8) {
-            Text("Did you like this level?")
-                .font(.system(size: 11, weight: .medium, design: .rounded))
+            Text(Strings.LikeFeedback.prompt)
+                .font(.system(size: 18, weight: .bold, design: .rounded))
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
                 .foregroundStyle(Color.white.opacity(0.55))
 
             HStack(spacing: 10) {
@@ -49,8 +56,8 @@ struct LikeFeedbackWidget: View {
                 .disabled(game.liked != nil)
             }
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
+        .padding(.horizontal, 14)
+        .frame(height: height)
         .background(Color.white.opacity(0.06), in: Capsule())
         .overlay(
             Capsule().stroke(Color.white.opacity(0.14), lineWidth: 1)
@@ -77,6 +84,26 @@ struct LikeFeedbackWidget: View {
         let payload = LikePayload(liked: value, json: json)
         Task.detached(priority: .utility) {
             await LikeFeedbackSubmitter.submit(payload)
+        }
+        // Community pool wiring:
+        //   • Like → append to local liked pool AND POST to the
+        //     server community pool (decremented only by matching
+        //     dislikes).
+        //   • Dislike → POST to the server dislike endpoint, which
+        //     decrements this puzzle's community like_count and
+        //     logs the dislike for generator-tuning analytics.
+        // Nothing local for dislikes — they're server-only.
+        if !json.isEmpty {
+            if value, let p = game.puzzle {
+                LikedPuzzleStore.like(puzzle: p, puzzleJSON: json, level: game.level)
+            } else if !value {
+                let sig = game.puzzle.map { PuzzleShape.signature(of: $0.gradients) }
+                LikedPuzzleStore.dislike(
+                    puzzleJSON: json,
+                    shapeSignature: sig,
+                    level: game.level
+                )
+            }
         }
     }
 

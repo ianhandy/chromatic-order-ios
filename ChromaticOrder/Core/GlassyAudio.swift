@@ -82,10 +82,45 @@ final class GlassyAudio {
     private let format: AVAudioFormat
     private let sampleRate: Double = 44_100
     private var playerPool: [AVAudioPlayerNode] = []
-    private let poolSize = 10
+    /// Dedicated player for the looping background hum. Mounted once
+    /// when `startHum()` is first called; its buffer is a 4-beat
+    /// drone at F#1 that loops indefinitely. Volume is modulated
+    /// live to duck up on menu ripples and back down again.
+    private var humPlayer: AVAudioPlayerNode? = nil
+    private var humBuffer: AVAudioPCMBuffer? = nil
+    private static let humBaseVolume: Float = 0.06
+    private static let humBoostVolume: Float = 0.22
+    private var humDecayTask: Task<Void, Never>? = nil
+    /// Last semitone dispatched from `play(_:kind:)`. The anti-repeat
+    /// rule consults this so non-F# notes don't immediately repeat
+    /// themselves.
+    private var lastPlaySemitone: Int? = nil
+    /// Set whenever the music loop plays more than one note
+    /// simultaneously (main + harmony stack inside `playBeatNote`).
+    /// `maybePlaySixteenthGrace` consults this and skips the next
+    /// 16th-note grace slot so a chord isn't immediately followed by
+    /// a fluttery off-beat single note — the chord needs room to
+    /// breathe before the next event lands.
+    private var lastBeatWasChord: Bool = false
+    /// Chord currently anchoring the bass line. Updated at the start
+    /// of each beat inside `runMusicLoop`; nil when the music loop
+    /// isn't running (cold launch, music disabled, etc.).
+    ///
+    /// Pickup / place SFX read this so each drag event lands on a
+    /// pitch that's in-harmony with whatever the backing is playing —
+    /// pickups get the current chord's 3rd, placements get its root.
+    /// If a pickup and place straddle a beat boundary, each reads the
+    /// chord that was active at ITS moment, which is the behavior
+    /// the player hears as "pitch matched the music."
+    private var currentBassChord: MusicChord? = nil
+    private let poolSize = 24
     private var nextPlayerIdx = 0
     private var started = false
     private var cache: [CacheKey: AVAudioPCMBuffer] = [:]
+    /// LRU access order — most-recently-used at the end.
+    private var cacheOrder: [CacheKey] = []
+    /// Max cached buffers. 128 entries × ~200-400 KB ≈ 25-50 MB.
+    private let cacheCapacity = 128
 
     /// Wall-clock anchor for the bloom tempo grid. Set the first time
     /// the engine starts; all bloom playbacks snap to `gridSec`
@@ -97,6 +132,17 @@ final class GlassyAudio {
     /// a button press and the snapped beat is at most ~136ms, still
     /// responsive, but voicings across multiple presses interlock.
     private let gridSec: Double = 60.0 / 110.0 / 4.0
+    /// Quarter note at ~110 BPM — used by the solve-squish timing.
+    private let quarterSec: Double = 60.0 / 110.0
+
+    /// Seconds until the next quarter-note beat boundary on the
+    /// shared tempo grid. Returns 0 if no anchor is set.
+    func secondsToNextQuarterBeat() -> Double {
+        guard let anchor = tempoAnchor else { return 0 }
+        let elapsed = Date().timeIntervalSince(anchor)
+        let snapped = ceil(elapsed / quarterSec) * quarterSec
+        return max(0, snapped - elapsed)
+    }
 
     /// Background-music loop. Non-nil while the melodic phrase loop
     /// is active. Cancelled when music is turned off or when the
@@ -125,13 +171,18 @@ final class GlassyAudio {
             forName: AVAudioSession.interruptionNotification,
             object: nil, queue: .main
         ) { [weak self] notif in
-            Task { @MainActor [weak self] in self?.handleInterruption(notif) }
+            // Synchronous on .main — no Task enqueue — so `started`
+            // flips to false before the music loop's next suspension
+            // point resumes. The old `Task { @MainActor }` wrapper let
+            // the loop wake and call player.play() on a torn-down
+            // engine before the handler ran, crashing via NSException.
+            MainActor.assumeIsolated { self?.handleInterruption(notif) }
         }
         NotificationCenter.default.addObserver(
             forName: .AVAudioEngineConfigurationChange,
             object: nil, queue: .main
         ) { [weak self] _ in
-            Task { @MainActor [weak self] in self?.handleConfigurationChange() }
+            MainActor.assumeIsolated { self?.handleConfigurationChange() }
         }
 
         // Delay: 420ms between echoes, 72% feedback so each echo is
@@ -148,6 +199,13 @@ final class GlassyAudio {
         reverb.wetDryMix = 14
 
         engine.attach(fanInMixer)
+        // Headroom: fan-in mixer pre-effects is scaled down so
+        // summed voices (bass + melody + F# triad emphasis + pickup/
+        // place chord tones + grace notes) don't exceed 1.0 at the
+        // output stage and clip. 0.70 leaves ~30% headroom — enough
+        // for a typical 4-5 simultaneous voice peak without audible
+        // clipping / popping.
+        fanInMixer.outputVolume = 0.70
         engine.attach(delay)
         engine.attach(reverb)
         engine.connect(fanInMixer, to: delay, format: format)
@@ -167,33 +225,93 @@ final class GlassyAudio {
     func play(_ color: OKLCh, kind: Kind) {
         if Self.muted || !Self.sfxEnabled { return }
         ensureStarted()
-        let semitone = noteFor(color: color, kind: kind)
+        var semitone = noteFor(color: color, kind: kind)
+        // Octave jitter — 30% of taps shift up or down an octave so
+        // the same hue bucket doesn't always map to an identical
+        // note. Adds real ear-variety without breaking the
+        // color-to-pitch mapping's meaning. Clamped to the usable
+        // register so low colors don't sink below F#1 and highs
+        // don't climb above F#4.
+        if Double.random(in: 0..<1) < 0.30 {
+            let up = Bool.random()
+            let jittered = semitone + (up ? 12 : -12)
+            if jittered >= 30 && jittered <= 78 { semitone = jittered }
+        }
+        // Anti-repeat rule: non-F# notes don't get to play twice in
+        // a row. If this note matches the last one played AND it's
+        // not the tonic, nudge it to a different scale degree in the
+        // same octave (and never to F#, unless the last was F#).
+        // F# itself is exempt — repeated tonics are musically fine.
+        let originalDegree = ((semitone % 12) + 12) % 12
+        if let last = lastPlaySemitone, last == semitone, originalDegree != 0 {
+            semitone = nudgeAwayFromRepeat(semitone: semitone)
+        }
+        lastPlaySemitone = semitone
         let buffer = buffer(for: semitone, kind: kind)
-        let velocity = 0.55 + 0.45 * color.c / OK.cMax
-        playOneShot(buffer: buffer, volume: Float(clamp(velocity, 0.55, 1.0)))
+        // Per-placement velocity dialed down from the 0.55-1.0 range
+        // to 0.35-0.65. Rapid cell placements were stacking into a
+        // harsh peak; these sit under the music bed more comfortably.
+        let velocity = 0.35 + 0.30 * color.c / OK.cMax
+        playOneShot(buffer: buffer, volume: Float(clamp(velocity, 0.35, 0.65)))
+        postNotePlayed(semitone: semitone)
     }
 
-    /// Solved-puzzle sound — F# tonic stacked at three octaves
-    /// (F#2 / F#3 / F#4). Not a harmonic "chord" but a single note
-    /// thickened with octave doublings; reads as one strong tonic
-    /// with body. Colors no longer determine the pitches (which
-    /// used to produce a wide-interval chord that varied by puzzle);
-    /// the reward sound is now the same grounded F# every time.
+    /// Pick a non-F# scale degree in the same octave, distinct from
+    /// the input semitone. `ionianSemitones` are offsets from F#
+    /// (not C), so we anchor to the nearest F# at or below the
+    /// input — anchoring to the C octave would push candidates out
+    /// of the F# major scale.
+    private func nudgeAwayFromRepeat(semitone: Int) -> Int {
+        // MIDI semitone 6 = F#0. Step up in 12-semitone octaves
+        // from there to find the F# at or below `semitone`.
+        let fSharpBase = ((semitone - 6) / 12) * 12 + 6
+        let currentOffset = semitone - fSharpBase
+        // Drop F# (degree 0) so we never force a non-tonic into
+        // tonic, and drop the current degree so we actually change.
+        let candidates = Self.ionianSemitones.filter { $0 != 0 && $0 != currentOffset }
+        let pick = candidates.randomElement() ?? 2
+        return fSharpBase + pick
+    }
+
+    /// Solved-puzzle sound — voiced from whatever chord the music
+    /// loop is currently on so the reward lands consonantly over the
+    /// backing track. Falls back to I (F# major) when music is off.
     func playSolveChord(colors: [OKLCh]) {
         if Self.muted || !Self.sfxEnabled { return }
         ensureStarted()
-        let semitones = [42, 54, 66]   // F#2, F#3, F#4
+        let chord = currentBassChord ?? .I
+        let degrees = chord.chordDegrees       // [root, 3rd, 5th] as scale-degree indices
+        let tonic = 54                          // F#3
+        // Semitone offsets from F# for each chord tone.
+        let rootOff  = Self.ionianSemitones[degrees[0]]
+        var thirdOff = Self.ionianSemitones[degrees[1]]
+        var fifthOff = Self.ionianSemitones[degrees[2]]
+        // Ensure 3rd and 5th sit above the root within a single
+        // octave so the voicing stacks upward.
+        if thirdOff <= rootOff { thirdOff += 12 }
+        if fifthOff <= rootOff { fifthOff += 12 }
+        // Spread the triad across ~2 octaves, each voice randomly
+        // picking one of two adjacent registers so the chord's sonic
+        // "color" rotates without changing harmony.
+        let lowRoot  = tonic + rootOff - 12 + (Bool.random() ? 0 : 12)
+        let midRoot  = tonic + rootOff + (Bool.random() ? 0 : 12)
+        let third    = tonic + thirdOff + (Bool.random() ? 0 : -12)
+        let fifth    = tonic + fifthOff + (Bool.random() ? 0 : -12)
+        let topRoot  = tonic + rootOff + (Bool.random() ? 12 : 24)
+        let semitones = [lowRoot, midRoot, third, fifth, topRoot]
         let buffer = synthesizeChord(semitones: semitones,
                                       kind: .place, duration: 4.2)
-        playOneShot(buffer: buffer, volume: 0.82)
+        playOneShot(buffer: buffer, volume: 0.55)
+        postNotePlayed(semitone: semitones.first ?? 42)
     }
 
     /// Ambient pad bloom. Ignores the caller's color — instead picks
-    /// a random F# Ionian voicing each time: mostly a single note
-    /// (tonic F# biased), sometimes two- or three-note chords, always
-    /// within the key. Playback is quantized to a shared 16th-note
-    /// grid so consecutive presses interlock rhythmically instead of
-    /// arriving at arbitrary moments.
+    /// a random F# Ionian voicing each time: single-note voicings
+    /// walk the scale (tonic-biased), and any multi-note voicing is
+    /// drawn from a major triad (I, IV, or V of F# major) so every
+    /// stacked harmony stays unambiguously major. Playback is
+    /// quantized to a shared 16th-note grid so consecutive presses
+    /// interlock rhythmically.
     func playBloom() {
         if Self.muted || !Self.sfxEnabled { return }
         ensureStarted()
@@ -201,37 +319,159 @@ final class GlassyAudio {
         let buffer = synthesizeChord(semitones: semis,
                                       kind: .bloom, duration: 1.9)
         playOnGrid(buffer: buffer, volume: 0.60)
+        postNotePlayed(semitone: semis.first ?? 42)
     }
+
+    /// Short balloon-pop sample. Synthesized on the fly as a brief
+    /// (~110 ms) band-passed noise burst with a steep envelope — reads
+    /// as a rubbery "pop" without needing a bundled asset. Not
+    /// grid-snapped because tutorial pops fire in response to player
+    /// taps and should sound immediate, not quantized.
+    func playPop() {
+        if Self.muted || !Self.sfxEnabled { return }
+        ensureStarted()
+        let buffer = synthesizePopBuffer()
+        playOneShot(buffer: buffer, volume: 0.75)
+    }
+
+    private func synthesizePopBuffer() -> AVAudioPCMBuffer {
+        let sr = sampleRate
+        let durationSec = 0.18
+        let sampleCount = AVAudioFrameCount(sr * durationSec)
+        guard let buffer = AVAudioPCMBuffer(
+            pcmFormat: format,
+            frameCapacity: sampleCount
+        ) else {
+            fatalError("pop buffer alloc failed")
+        }
+        buffer.frameLength = sampleCount
+        let channels = Int(format.channelCount)
+        let frames = Int(sampleCount)
+
+        // Tail fade-out (last 15 ms) to guarantee silence at the
+        // buffer boundary — avoids a click when the scheduler stops.
+        let tailFadeSec = 0.015
+        let tailFadeFrames = Double(frames) - tailFadeSec * sr
+
+        // Filter state for band-shaping the body noise.
+        var lpPrev: Double = 0
+        var hpPrev: Double = 0
+        var hpIn: Double = 0
+        let lpCoeff = 0.45   // wider passband than before
+        let hpCoeff = 0.90
+
+        for ch in 0..<channels {
+            let ptr = buffer.floatChannelData![ch]
+            for i in 0..<frames {
+                let t = Double(i) / sr
+
+                // Layer 1 — Initial crack: broadband noise burst,
+                // instant attack, ~8 ms half-life. The snap of rubber.
+                let crackEnv = exp(-t / 0.008)
+                let crackNoise = Double.random(in: -1...1)
+                let crack = crackNoise * crackEnv * 0.85
+
+                // Layer 2 — Body: band-filtered noise, fast decay.
+                // The air-release hiss after the snap.
+                let bodyAttack = min(1.0, t / 0.001)
+                let bodyDecay = exp(-t / 0.040)
+                let bodyEnv = bodyAttack * bodyDecay
+                let rawNoise = Double.random(in: -1...1)
+                let lp = lpPrev + lpCoeff * (rawNoise - lpPrev)
+                lpPrev = lp
+                let hp = hpCoeff * (hpPrev + lp - hpIn)
+                hpPrev = hp
+                hpIn = lp
+                let body = hp * bodyEnv * 0.60
+
+                // Layer 3 — Low thump: sine at ~120 Hz, gives the
+                // pop physical weight.
+                let thumpEnv = min(1.0, t / 0.001) * exp(-t / 0.055)
+                let thump = sin(2.0 * .pi * 120.0 * t) * thumpEnv * 0.45
+
+                var sample = crack + body + thump
+
+                // Tail fade to guarantee silence.
+                if Double(i) > tailFadeFrames {
+                    let tailT = (Double(i) - tailFadeFrames) / (tailFadeSec * sr)
+                    sample *= max(0, 1 - tailT)
+                }
+
+                ptr[i] = Float(sample * 0.85)
+            }
+        }
+        return buffer
+    }
+
+    /// Diatonic major triads of F# major: I (F#), IV (B), V (C#).
+    /// Each is root/major-3rd/perfect-5th, fully inside the Ionian
+    /// scale — so any voicing drawn from these tones stays major and
+    /// in-key.
+    private static let majorTriadRoots: [Int] = [0, 5, 7]
+
+    /// Two-note voicings (intervals from root). Inversions + open
+    /// spacings so repeated bloom taps don't feel like the same
+    /// dyad on loop. All still imply the parent major triad.
+    private static let majorTriadVoicings2: [[Int]] = [
+        [0, 4],    // root + major 3rd
+        [0, 7],    // root + perfect 5th
+        [4, 12],   // 3rd + octave (1st inv-flavored)
+        [7, 12],   // 5th + octave (2nd inv-flavored)
+        [0, 12],   // root + octave doubling
+        [0, 16],   // root + 10th (wide)
+    ]
+
+    /// Three-note voicings (intervals from root). Mix of root-
+    /// position, first- and second-inversion, and open spreads.
+    private static let majorTriadVoicings3: [[Int]] = [
+        [0, 4, 7],     // root position
+        [4, 7, 12],    // 1st inversion
+        [7, 12, 16],   // 2nd inversion
+        [0, 7, 12],    // root + 5th + octave (no 3rd — bright fifth)
+        [0, 7, 16],    // open — root, 5th, wide 10th
+        [0, 12, 19],   // root + octave + 5th-above-octave (airy open)
+        [0, 4, 12],    // root + 3rd + octave doubling
+    ]
 
     private func randomBloomSemitones() -> [Int] {
         // Voicing probability — a mix of singles and chords. Heavier
         // on chords than the prior pass so consecutive taps produce
-        // clear variety (user feedback: "I want random notes and
-        // there are none currently" — the range was too low to be
-        // audible; chord frequency boosted here too so the variety
-        // is easy to hear).
+        // clear variety. Single voicings walk the full Ionian scale
+        // (any degree is fine as a single note); multi-note voicings
+        // are drawn from a major triad + inversion template so
+        // stacked harmonies are always major but vary in shape.
         let roll = Double.random(in: 0..<1)
-        let count = roll < 0.40 ? 1 : (roll < 0.75 ? 2 : 3)
-        var semis = Set<Int>()
-        var tries = 0
-        while semis.count < count && tries < 12 {
-            tries += 1
-            let isFirst = semis.isEmpty
+        let count = roll < 0.35 ? 1 : (roll < 0.70 ? 2 : 3)
+
+        if count == 1 {
             let degreeIdx: Int
-            // Bias the first note toward F# (tonic) so the
-            // "randomness" feels like it's orbiting the home note
-            // rather than drifting through the scale at random.
-            if isFirst && Double.random(in: 0..<1) < 0.40 {
+            // Bias toward F# (tonic) so the "randomness" feels like
+            // it's orbiting the home note rather than drifting
+            // through the scale at random.
+            if Double.random(in: 0..<1) < 0.40 {
                 degreeIdx = 0
             } else {
                 degreeIdx = Int.random(in: 0..<Self.ionianSemitones.count)
             }
             let degree = Self.ionianSemitones[degreeIdx]
             let octaveOffset = Int.random(in: 0..<2) * 12
-            // Two octaves (F#2..F#3 + degree) — matches the .bloom
-            // band in noteFor; the top octave is excluded to keep
-            // every voicing in the warm register.
-            semis.insert(42 + octaveOffset + degree)
+            return [42 + octaveOffset + degree]
+        }
+
+        // Two- or three-note voicing — pick a random root triad and
+        // a random voicing template, which together give inversions,
+        // doublings, and open spreads so the bloom chord doesn't
+        // feel like one fixed stack on loop.
+        let root = Self.majorTriadRoots.randomElement() ?? 0
+        let voicing: [Int] = count == 3
+            ? (Self.majorTriadVoicings3.randomElement() ?? [0, 4, 7])
+            : (Self.majorTriadVoicings2.randomElement() ?? [0, 4])
+        // One shared octave offset per voicing so the stack stays
+        // coherent; the template itself controls internal spread.
+        let octaveOffset = Int.random(in: 0..<2) * 12
+        var semis = Set<Int>()
+        for iv in voicing {
+            semis.insert(42 + octaveOffset + root + iv)
         }
         return Array(semis).sorted()
     }
@@ -250,51 +490,540 @@ final class GlassyAudio {
         guard started else { return }
         musicTask = Task { @MainActor [weak self] in
             await self?.runMusicLoop()
+            self?.musicTask = nil
         }
     }
 
     func stopMusic() {
         musicTask?.cancel()
         musicTask = nil
+        // Clear the published chord so any pickup/place tones played
+        // while the music is off fall back to the color-mapped note
+        // instead of pitching against a stale bar.
+        currentBassChord = nil
     }
 
-    /// Phrase: F# (tonic) → 3 random Ionian degrees → F# (tonic),
-    /// repeating. Each note is one beat at ~55 BPM (halved from the
-    /// earlier 110 BPM for a slower, more meditative feel —
-    /// ~1090ms per note). The phrase loops indefinitely; cancelling
-    /// the task stops it between notes. Timbre per note is chosen
-    /// at random from three ambient voices (pad bloom, choir,
-    /// glass harmonica) so repeats never sound identical.
-    private func runMusicLoop() async {
-        let beatNs: UInt64 = UInt64(60.0 / 55.0 * 1_000_000_000)
-        let timbres: [Kind] = [.bloom, .choir, .glassHarmonica]
-        while !Task.isCancelled && Self.musicEnabled && !Self.muted {
-            // Five-note phrase: start on tonic, wander three, return
-            // to tonic before repeating. Notes span F#3..F#4 +
-            // degree — just two octaves so the melody stays in its
-            // ambient register and never climbs up to F#5.
-            let tonic = 54            // F#3
-            var phrase: [Int] = [tonic]
-            for _ in 0..<3 {
-                let deg = Self.ionianSemitones.randomElement() ?? 0
-                let oct = Int.random(in: 0..<2) * 12
-                phrase.append(tonic + oct + deg)
-            }
-            phrase.append(tonic)
+    /// Pickup SFX that latches to the current chord's 3rd. Timbre is
+    /// the existing `.pickup` kind. Falls back to the color-mapped
+    /// pitch when no music is playing so muted sessions still get an
+    /// audible cue.
+    func playPickupChordTone(for color: OKLCh) {
+        if let chord = currentBassChord {
+            playChordTone(chord: chord, chordToneIndex: 1, kind: .pickup,
+                          fallbackColor: color, volume: 0.45)
+        } else {
+            play(color, kind: .pickup)
+        }
+    }
 
-            for semi in phrase {
-                if Task.isCancelled || !Self.musicEnabled || Self.muted { return }
-                // Route through the buffer cache so the 1.6-2.3s
-                // ambient samples aren't re-synthesized every note.
-                let kind = timbres.randomElement() ?? .bloom
-                let buffer = self.buffer(for: semi, kind: kind)
-                // Low background volume — must sit well underneath
-                // the interactive sounds (bloom button-hits, mallet
-                // pickup/place). 0.26 reads as "present but quiet."
-                playOneShot(buffer: buffer, volume: 0.26)
-                try? await Task.sleep(nanoseconds: beatNs)
+    /// Place SFX that latches to the current chord's root. Same
+    /// fallback semantics as `playPickupChordTone`.
+    func playPlaceChordTone(for color: OKLCh) {
+        if let chord = currentBassChord {
+            playChordTone(chord: chord, chordToneIndex: 0, kind: .place,
+                          fallbackColor: color, volume: 0.45)
+        } else {
+            play(color, kind: .place)
+        }
+    }
+
+    /// Shared helper — pitches a one-shot at a specific chord tone
+    /// (0 = root, 1 = 3rd, 2 = 5th) over the tonic reference octave.
+    private func playChordTone(
+        chord: MusicChord,
+        chordToneIndex: Int,
+        kind: Kind,
+        fallbackColor: OKLCh,
+        volume: Float
+    ) {
+        if Self.muted || !Self.sfxEnabled { return }
+        ensureStarted()
+        guard started, engine.isRunning else {
+            play(fallbackColor, kind: kind)
+            return
+        }
+        let tonic = 54  // F#3
+        let tones = chord.chordDegrees
+        let idx = min(max(0, chordToneIndex), tones.count - 1)
+        let scaleDeg = tones[idx]
+        let semi = tonic + Self.ionianSemitones[scaleDeg]
+        let buffer = buffer(for: semi, kind: kind)
+        playOneShot(buffer: buffer, volume: volume)
+        postNotePlayed(semitone: semi)
+    }
+
+    // ─── Background hum ─────────────────────────────────────────────
+
+    /// Start the low looping drone. Safe to call repeatedly; a live
+    /// player is left in place. Gated by the master mute and music
+    /// toggle for consistency with the other ambient output.
+    ///
+    /// Defensive: double-checks `engine.isRunning` right before
+    /// `play()` and calls `engine.prepare()` to force buffer
+    /// pre-roll. `AVAudioPlayerNode.play()` throws an Obj-C
+    /// NSException when the engine isn't truly running at the
+    /// instant of the call — Swift can't catch those, so the crash
+    /// takes the whole app down. The extra guards here are the
+    /// closest we can get to "try/catch" without a bridged Obj-C
+    /// helper file.
+    func startHum() {
+        if Self.muted { return }
+        if !Self.musicEnabled { return }
+        ensureStarted()
+        guard started, engine.isRunning else { return }
+        if humPlayer != nil { return }
+        let player = AVAudioPlayerNode()
+        engine.attach(player)
+        engine.connect(player, to: fanInMixer, format: format)
+        let buffer = synthesizeHumBuffer()
+        player.scheduleBuffer(buffer, at: nil, options: .loops, completionHandler: nil)
+        player.volume = Self.humBaseVolume
+        // Force the engine to pre-roll this player before `play()`;
+        // avoids the "node not ready" NSException path on device.
+        engine.prepare()
+        // Last-chance check: if anything raced the engine into a
+        // stopped state between ensureStarted() and now (session
+        // interruption, route change mid-frame), skip play — it
+        // would otherwise throw an Obj-C NSException and terminate.
+        guard engine.isRunning else {
+            engine.detach(player)
+            return
+        }
+        player.play()
+        humPlayer = player
+        humBuffer = buffer
+    }
+
+    /// Stop the hum and tear its dedicated player off the graph.
+    func stopHum() {
+        humDecayTask?.cancel()
+        humDecayTask = nil
+        if let p = humPlayer {
+            p.stop()
+            p.reset()
+            engine.detach(p)
+        }
+        humPlayer = nil
+        humBuffer = nil
+    }
+
+    /// Duck the hum's volume up briefly, then decay it back to the
+    /// base. Called from the menu whenever a ripple is spawned so
+    /// the ambient drone swells slightly with player interaction.
+    func boostHum() {
+        guard let player = humPlayer else { return }
+        humDecayTask?.cancel()
+        player.volume = Self.humBoostVolume
+        humDecayTask = Task { @MainActor [weak self] in
+            // Linear decay from boost to base over ~1.4 s — slow
+            // enough that successive ripples stack into a sustained
+            // swell rather than popping discrete bumps.
+            let steps = 70
+            let dropPerStep = (Self.humBoostVolume - Self.humBaseVolume) / Float(steps)
+            for _ in 0..<steps {
+                try? await Task.sleep(nanoseconds: 20_000_000)
+                guard let self, let p = self.humPlayer, !Task.isCancelled else { return }
+                let next = max(Self.humBaseVolume, p.volume - dropPerStep)
+                p.volume = next
+                if next == Self.humBaseVolume { return }
             }
         }
+    }
+
+    /// Build the looping hum buffer — 4 beats at ~41 BPM (≈ 5.82 s)
+    /// of a low F#1 sine plus a quieter F#2 octave for body, with
+    /// short start/end fades so the loop boundary is seamless.
+    /// Shared tempo anchor for the melodic loop AND the hum drone —
+    /// 0.75× the original 55 BPM feel, now ~41 BPM. Both paths compute
+    /// `beatSec = 60.0 / Self.musicBPM` from here so the hum and the
+    /// chord progression stay locked to the same pulse.
+    static let musicBPM: Double = 55.0 * 0.75
+
+    private func synthesizeHumBuffer() -> AVAudioPCMBuffer {
+        let beatSec = 60.0 / Self.musicBPM
+        let duration = beatSec * 4
+        let frameCount = AVAudioFrameCount(duration * sampleRate)
+        guard let buffer = AVAudioPCMBuffer(pcmFormat: format,
+                                             frameCapacity: frameCount) else {
+            fatalError("hum buffer alloc failed")
+        }
+        buffer.frameLength = frameCount
+        let ptr = buffer.floatChannelData![0]
+        let twoPi = 2.0 * Double.pi
+        let freq = frequency(semitone: 30)   // F#1
+        let fadeSec = 0.35
+        let fadeFrames = fadeSec * sampleRate
+        for i in 0..<Int(frameCount) {
+            let t = Double(i) / sampleRate
+            let f1 =        sin(twoPi * freq * t)
+            let f2 = 0.25 * sin(twoPi * freq * 2.0 * t)
+            let voice = (f1 + f2) * 0.55
+            // Very slow per-beat swell — amplitude rises slightly on
+            // each downbeat so the drone feels alive rather than a
+            // flat tone.
+            let beatPhase = (t / beatSec).truncatingRemainder(dividingBy: 1)
+            let swell = 0.82 + 0.18 * sin(beatPhase * twoPi)
+            // Fade both ends to zero for a seamless loop boundary.
+            let fadeIn = min(1.0, Double(i) / fadeFrames)
+            let fadeOut = min(1.0, Double(Int(frameCount) - i) / fadeFrames)
+            let fade = fadeIn * fadeOut
+            ptr[i] = Float(voice * swell * fade * 0.55)
+        }
+        return buffer
+    }
+
+    // MARK: – Procedural chord progression
+    //
+    // The music loop now runs against a per-phrase chord progression
+    // rather than a flat list of random scale degrees. Each phrase is
+    // five chords — `I → X → X → X → I` — where the inner chords are
+    // sampled from a functional transition matrix (I→{IV,V,vi,...},
+    // V→{I,vi,...}, etc.). Within a single chord's beat, note
+    // selection (main note, 1/8 ornament, 16th grace) is weighted
+    // toward the chord's root/3rd/5th so the melody outlines the
+    // harmony instead of drifting.
+
+    /// Diatonic triads of F# major, tracked by Roman numeral so the
+    /// transition table reads like a music-theory cheat sheet.
+    private enum MusicChord: CaseIterable {
+        case I, ii, iii, IV, V, vi
+
+        /// Root scale-degree within F# Ionian (0 = F#, 1 = G#, …).
+        var rootDegree: Int {
+            switch self {
+            case .I:   return 0
+            case .ii:  return 1
+            case .iii: return 2
+            case .IV:  return 3
+            case .V:   return 4
+            case .vi:  return 5
+            }
+        }
+
+        /// Root + 3rd + 5th as scale-degree indices, mod 7.
+        var chordDegrees: [Int] {
+            let r = rootDegree
+            return [r, (r + 2) % 7, (r + 4) % 7]
+        }
+    }
+
+    /// Functional transition weights. Each entry maps the current
+    /// chord to the set of chords that can follow and the relative
+    /// probability of each. Values are not normalized — the sampler
+    /// just picks proportionally. Tuned to feel cadential: V pulls
+    /// hardest to I, ii pulls toward V, etc.
+    private static let chordTransitions: [MusicChord: [(MusicChord, Double)]] = [
+        .I:   [(.IV, 0.32), (.V, 0.28), (.vi, 0.22), (.ii, 0.10), (.iii, 0.08)],
+        .ii:  [(.V,  0.55), (.IV, 0.20), (.I,  0.15), (.vi, 0.10)],
+        .iii: [(.vi, 0.38), (.IV, 0.30), (.I,  0.22), (.ii, 0.10)],
+        .IV:  [(.I,  0.38), (.V,  0.32), (.vi, 0.18), (.ii, 0.12)],
+        .V:   [(.I,  0.62), (.vi, 0.22), (.IV, 0.10), (.ii, 0.06)],
+        .vi:  [(.IV, 0.34), (.V,  0.28), (.ii, 0.18), (.I,  0.14), (.iii, 0.06)]
+    ]
+
+    private static func nextChord(from current: MusicChord) -> MusicChord {
+        let options = chordTransitions[current] ?? [(.I, 1.0)]
+        let total = options.reduce(0) { $0 + $1.1 }
+        var roll = Double.random(in: 0..<total)
+        for (chord, weight) in options {
+            roll -= weight
+            if roll <= 0 { return chord }
+        }
+        return .I
+    }
+
+    /// 4-chord phrase: tonic → two weighted steps → cadence chord.
+    /// The loop repeats, so the next iteration's leading I provides
+    /// the resolution — I doesn't get emitted twice in a row at the
+    /// phrase boundary. Cadence chord skews toward V/IV/ii so the
+    /// following I lands as a genuine resolution.
+    private static func buildChordPhrase() -> [MusicChord] {
+        var phrase: [MusicChord] = [.I]
+        var current: MusicChord = .I
+        for _ in 0..<2 {
+            current = nextChord(from: current)
+            phrase.append(current)
+        }
+        let cadenceOptions: [MusicChord] = [.V, .V, .V, .IV, .IV, .ii]
+        phrase.append(cadenceOptions.randomElement() ?? .V)
+        return phrase
+    }
+
+    /// Pick a scale-degree index weighted toward the current chord's
+    /// tones. `chordWeight` is the probability of landing on a chord
+    /// tone (root/3rd/5th); the remaining mass falls to any scale
+    /// degree. Higher chord-weights make arpeggiated/outlining
+    /// melodies; lower weights give more scalar motion.
+    private static func pickDegree(for chord: MusicChord,
+                                    chordWeight: Double) -> Int {
+        if Double.random(in: 0..<1) < chordWeight {
+            return chord.chordDegrees.randomElement() ?? chord.rootDegree
+        }
+        return Int.random(in: 0..<ionianSemitones.count)
+    }
+
+    /// Phrase: `I → X → X → X → I` — 5-chord progression over a 4/4
+    /// groove at ~55 BPM. Within each chord: 25% skip (rest), 25%
+    /// 8th-note ornament between
+    /// this note and the next. Top octave is excluded so the
+    /// melody stays in F#3..B3 range — companion rule to the
+    /// single-note octave cap.
+    private func runMusicLoop() async {
+        let beatSec = 60.0 / Self.musicBPM
+        // Each chord occupies one full beat. The bass note at the
+        // downbeat holds the beat; melody + ornament + grace all
+        // play at half-length so two melody passes fit inside each
+        // chord's beat — the listener hears the bass at tempo plus a
+        // chord-outlining melodic flurry on top.
+        let beatNs: UInt64 = UInt64(beatSec * 1_000_000_000)
+        let subBeatNs: UInt64 = beatNs / 2          // half-beat = melody pass
+        let quarterSubNs: UInt64 = subBeatNs / 4    // 16th of the sub-beat
+        let timbres: [Kind] = [.bloom, .choir, .glassHarmonica]
+        while !Task.isCancelled && Self.musicEnabled && !Self.muted {
+            let tonic = 54  // F#3
+            let phrase = Self.buildChordPhrase()
+
+            for (i, chord) in phrase.enumerated() {
+                if Task.isCancelled || !Self.musicEnabled || Self.muted { return }
+
+                // Publish the chord so pickup/place SFX called during
+                // this beat can latch to its root/3rd.
+                currentBassChord = chord
+
+                // Bass note — root of the current chord, one octave
+                // below the melody range. Only one per chord; holds
+                // its full length regardless of what the melody does.
+                let bassSemi = tonic + Self.ionianSemitones[chord.rootDegree] - 12
+                playBassNote(semi: bassSemi, volume: 0.34)
+
+                // Two melody sub-beats per chord — half-length each.
+                for subBeat in 0..<2 {
+                    if Task.isCancelled || !Self.musicEnabled || Self.muted { return }
+                    let mainDeg = Self.pickDegree(for: chord, chordWeight: 0.80)
+                    let semi = tonic + Self.ionianSemitones[mainDeg]
+                    let roll = Double.random(in: 0..<1)
+                    let canSkip = !(i == 0 && subBeat == 0)
+                        && !(i == phrase.count - 1 && subBeat == 1)
+                    // Lower skip rate than the old loop — dropping
+                    // events blurs the chord progression. 15% keeps
+                    // breath in without making harmony inaudible.
+                    if canSkip && roll < 0.15 {
+                        try? await Task.sleep(nanoseconds: subBeatNs)
+                        continue
+                    }
+                    let ornament = roll >= 0.75
+
+                    // Main note at the sub-beat downbeat.
+                    playBeatNote(semi: semi, degIdx: mainDeg, tonic: tonic,
+                                 kind: timbres.randomElement() ?? .bloom,
+                                 volume: 0.24, chord: chord)
+
+                    try? await Task.sleep(nanoseconds: quarterSubNs)
+                    if Task.isCancelled || !Self.musicEnabled || Self.muted { return }
+                    maybePlaySixteenthGrace(tonic: tonic, timbres: timbres, chord: chord)
+
+                    try? await Task.sleep(nanoseconds: quarterSubNs)
+                    if Task.isCancelled || !Self.musicEnabled || Self.muted { return }
+                    if ornament {
+                        let ornDeg = Self.pickDegree(for: chord, chordWeight: 0.60)
+                        let ornSemi = tonic + Self.ionianSemitones[ornDeg]
+                        playBeatNote(semi: ornSemi, degIdx: ornDeg, tonic: tonic,
+                                     kind: timbres.randomElement() ?? .bloom,
+                                     volume: 0.20, chord: chord)
+                    }
+
+                    try? await Task.sleep(nanoseconds: quarterSubNs)
+                    if Task.isCancelled || !Self.musicEnabled || Self.muted { return }
+                    maybePlaySixteenthGrace(tonic: tonic, timbres: timbres, chord: chord)
+
+                    try? await Task.sleep(nanoseconds: quarterSubNs)
+                }
+            }
+        }
+    }
+
+    /// Chord-root bass, one octave under the melody. Always a pad
+    /// timbre so the low end blends rather than barking, and a touch
+    /// louder than melody notes since it anchors the progression.
+    private func playBassNote(semi: Int, volume: Float) {
+        let buffer = self.buffer(for: semi, kind: .bloom)
+        playOneShot(buffer: buffer, volume: volume)
+        postNotePlayed(semitone: semi)
+    }
+
+    /// Play a note at a sub-beat position. Non-tonic notes get a 1/4
+    /// chance to stack a chord tone above the main note. Tonic (F#)
+    /// notes ALWAYS get extra body — either the full F# triad (F# +
+    /// A# + C#, 50%) or a pair of F#'s one octave above and below
+    /// the main (50%). Either way the tonic lands as a chord event
+    /// so the following 16th grace slot respects the breath rule.
+    private func playBeatNote(semi: Int, degIdx: Int, tonic: Int,
+                               kind: Kind, volume: Float,
+                               chord: MusicChord) {
+        let buffer = self.buffer(for: semi, kind: kind)
+        playOneShot(buffer: buffer, volume: volume)
+        postNotePlayed(semitone: semi)
+
+        let mainMod = ((degIdx % 7) + 7) % 7
+
+        // F# tonic emphasis — always stack something on the tonic so
+        // it lands with weight, not as a single thin voice.
+        if mainMod == 0 {
+            if Double.random(in: 0..<1) < 0.5 {
+                // Full F# triad: main F# + A# (3rd) + C# (5th).
+                let thirdSemi = tonic + Self.ionianSemitones[2]
+                let fifthSemi = tonic + Self.ionianSemitones[4]
+                playOneShot(buffer: self.buffer(for: thirdSemi, kind: kind),
+                            volume: volume * 0.65)
+                playOneShot(buffer: self.buffer(for: fifthSemi, kind: kind),
+                            volume: volume * 0.65)
+                postNotePlayed(semitone: thirdSemi)
+                postNotePlayed(semitone: fifthSemi)
+            } else {
+                // Octave pair — F# one octave above and one below
+                // the main note. Quieter so the octaves reinforce
+                // the tonic without overshadowing it.
+                let octaveUp = semi + 12
+                let octaveDown = semi - 12
+                playOneShot(buffer: self.buffer(for: octaveUp, kind: kind),
+                            volume: volume * 0.55)
+                playOneShot(buffer: self.buffer(for: octaveDown, kind: kind),
+                            volume: volume * 0.55)
+                postNotePlayed(semitone: octaveUp)
+                postNotePlayed(semitone: octaveDown)
+            }
+            lastBeatWasChord = true
+            return
+        }
+
+        guard Double.random(in: 0..<1) < 0.25 else {
+            lastBeatWasChord = false
+            return
+        }
+        // Pick a chord tone that isn't the main note — guarantees an
+        // actual interval rather than a doubled unison.
+        let candidates = chord.chordDegrees.filter { $0 != mainMod }
+        guard let harmonyMod = candidates.randomElement() else {
+            lastBeatWasChord = false
+            return
+        }
+        // Force the harmony to sit above the melody note by rotating
+        // upward until we clear it, then tracking any octave jump so
+        // the pitch comes out right.
+        var steps = harmonyMod - mainMod
+        if steps <= 0 { steps += 7 }
+        let degreeCount = Self.ionianSemitones.count
+        let targetDeg = mainMod + steps
+        let wrappedDeg = targetDeg % degreeCount
+        let octaveJump = (targetDeg / degreeCount) * 12
+        let harmonySemi = tonic + Self.ionianSemitones[wrappedDeg] + octaveJump
+        let harmonyBuffer = self.buffer(for: harmonySemi, kind: kind)
+        playOneShot(buffer: harmonyBuffer, volume: volume * 0.70)
+        postNotePlayed(semitone: harmonySemi)
+        lastBeatWasChord = true
+    }
+
+    /// 1/16 chance to play a grace note at a 16th-note off-eighth
+    /// position. Called twice per beat — at 1/4 and 3/4 — never at
+    /// 1/2 (which belongs to the 1/8-note ornament grid). Degree is
+    /// weighted toward the current chord's tones so the decoration
+    /// reinforces the harmony. Skips (and clears the flag) when the
+    /// previous beat event was a chord so harmonies don't get
+    /// stepped on the moment they start sounding.
+    ///
+    /// On a fire, schedules a chained grace — 1/4 chance to play
+    /// another 16th note half a 16th later, with each chained note
+    /// stepping ±1 or 0 scale degrees from the previous note,
+    /// repeating until the chain breaks.
+    private func maybePlaySixteenthGrace(tonic: Int,
+                                          timbres: [Kind],
+                                          chord: MusicChord) {
+        if lastBeatWasChord {
+            lastBeatWasChord = false
+            return
+        }
+        guard Double.random(in: 0..<1) < (1.0 / 16.0) else { return }
+        let firstIndex = playSixteenthGrace(
+            tonic: tonic, timbres: timbres, chord: chord, previousIndex: nil
+        )
+        scheduleSixteenthChain(
+            tonic: tonic, timbres: timbres, chord: chord,
+            startingFromIndex: firstIndex
+        )
+    }
+
+    /// Single-shot grace render. Returns the scale-position index
+    /// that was played so the chain can continue stepping relative
+    /// to it. `previousIndex` nil = chord-weighted random pick (the
+    /// initial fire); non-nil = step the previous index by -1, 0, or
+    /// +1 scale degrees so chained notes feel like a passing line.
+    /// The index is unbounded — octaves wrap via floored division so
+    /// chains can climb or descend through the scale freely.
+    @discardableResult
+    private func playSixteenthGrace(tonic: Int,
+                                     timbres: [Kind],
+                                     chord: MusicChord,
+                                     previousIndex: Int?) -> Int {
+        let degreeCount = Self.ionianSemitones.count
+        let scaleIndex: Int
+        if let prev = previousIndex {
+            scaleIndex = prev + Int.random(in: -1...1)
+        } else {
+            scaleIndex = Self.pickDegree(for: chord, chordWeight: 0.55)
+        }
+        let octaveOffset = Int((Double(scaleIndex) / Double(degreeCount)).rounded(.down))
+        let modIndex = scaleIndex - octaveOffset * degreeCount
+        let semi = tonic + Self.ionianSemitones[modIndex] + octaveOffset * 12
+        let kind = timbres.randomElement() ?? .bloom
+        let buffer = self.buffer(for: semi, kind: kind)
+        // Quieter than main/ornament so grace notes sit under the
+        // melodic line, not on top of it.
+        playOneShot(buffer: buffer, volume: 0.18)
+        postNotePlayed(semitone: semi)
+        return scaleIndex
+    }
+
+    /// Detached chain runner — each step waits half a 16th-note,
+    /// then 1/4 chance to fire another grace and continue. The
+    /// chained note steps ±1 or 0 scale degrees from the previous
+    /// fired note. Runs off the main loop so the beat grid stays on
+    /// time.
+    private func scheduleSixteenthChain(tonic: Int,
+                                         timbres: [Kind],
+                                         chord: MusicChord,
+                                         startingFromIndex initial: Int) {
+        // Half the prior 16th-note step — was beatNs/8, now beatNs/16
+        // so chains burst as a flourish rather than crawl.
+        let beatSec = 60.0 / Self.musicBPM
+        let stepNs = UInt64(beatSec * 1_000_000_000) / 16
+        Task { [weak self] in
+            var lastIndex = initial
+            while true {
+                try? await Task.sleep(nanoseconds: stepNs)
+                guard let self,
+                      Self.musicEnabled,
+                      !Self.muted,
+                      Double.random(in: 0..<1) < 0.25
+                else { return }
+                lastIndex = self.playSixteenthGrace(
+                    tonic: tonic, timbres: timbres, chord: chord,
+                    previousIndex: lastIndex
+                )
+            }
+        }
+    }
+
+    /// Post a note-played event so UI that reacts to audio (e.g. the
+    /// continuous-grid menu backdrop's flare spawning) can pick it
+    /// up. Marshals to the main queue since observers are typically
+    /// SwiftUI views and NotificationCenter delivers on the posting
+    /// queue.
+    private func postNotePlayed(semitone: Int) {
+        NotificationCenter.default.post(
+            name: .kromaNotePlayed,
+            object: nil,
+            userInfo: ["semitone": semitone]
+        )
     }
 
     // ─── Mapping: OKLCh → F# Phrygian note ─────────────────────────
@@ -317,12 +1046,13 @@ final class GlassyAudio {
         // played simultaneously.
         let (baseMidi, octaveSpan): (Int, Int)
         switch kind {
-        // Top octave excluded — dropped from 3 to 2 so L drives
-        // notes into F#2..F#3 only. F#4+ was flagged as too high,
-        // but removing L differentiation entirely felt too flat.
-        case .pickup, .place: baseMidi = 42; octaveSpan = 2   // F#2..F#3
+        // Top octave stripped — single-note playback now covers only
+        // F#2..B3 (span of 1 octave from base). Chord voicings (solve
+        // chord + bloom) build their own semitones elsewhere so they
+        // still reach higher notes; this cap is for single notes only.
+        case .pickup, .place: baseMidi = 42; octaveSpan = 1
         case .bloom, .choir, .glassHarmonica:
-            baseMidi = 42; octaveSpan = 2                     // F#2..F#3
+            baseMidi = 42; octaveSpan = 1
         }
         let octaveOffset = Int(lNorm * Double(octaveSpan) * 0.9999) * 12
         return baseMidi + octaveOffset + degree
@@ -344,7 +1074,13 @@ final class GlassyAudio {
         case .glassHarmonica: k = 4
         }
         let key = CacheKey(semitone: semitone, kind: k)
-        if let cached = cache[key] { return cached }
+        if let cached = cache[key] {
+            // Promote to most-recently-used.
+            if let idx = cacheOrder.firstIndex(of: key) {
+                cacheOrder.append(cacheOrder.remove(at: idx))
+            }
+            return cached
+        }
         let freq = frequency(semitone: semitone)
         let buffer: AVAudioPCMBuffer
         switch kind {
@@ -353,7 +1089,13 @@ final class GlassyAudio {
         case .choir:          buffer = synthesizeChoir(frequency: freq)
         case .glassHarmonica: buffer = synthesizeGlassHarmonica(frequency: freq)
         }
+        // Evict least-recently-used if at capacity.
+        if cache.count >= cacheCapacity, let evict = cacheOrder.first {
+            cache.removeValue(forKey: evict)
+            cacheOrder.removeFirst()
+        }
         cache[key] = buffer
+        cacheOrder.append(key)
         return buffer
     }
 
@@ -381,6 +1123,7 @@ final class GlassyAudio {
             let decay = exp(-t * 2.2)
             ptr[i] = Float(voice * attack * decay * 0.16)
         }
+        applyRelease(ptr, frameCount: Int(frameCount))
         return buffer
     }
 
@@ -409,6 +1152,7 @@ final class GlassyAudio {
             let decay = exp(-t * 0.80)
             ptr[i] = Float(voice * attack * decay * 0.17)
         }
+        applyRelease(ptr, frameCount: Int(frameCount))
         return buffer
     }
 
@@ -441,6 +1185,7 @@ final class GlassyAudio {
             let decay = exp(-t * 0.70)
             ptr[i] = Float(voice * attack * decay * 0.20)
         }
+        applyRelease(ptr, frameCount: Int(frameCount))
         return buffer
     }
 
@@ -467,6 +1212,7 @@ final class GlassyAudio {
             let decay = exp(-t * 1.2)
             ptr[i] = Float(voice * attack * decay * 0.16)
         }
+        applyRelease(ptr, frameCount: Int(frameCount))
         return buffer
     }
 
@@ -496,7 +1242,24 @@ final class GlassyAudio {
             }
             ptr[i] = Float(sample * voiceNorm * 0.32)
         }
+        applyRelease(ptr, frameCount: Int(frameCount))
         return buffer
+    }
+
+    /// Linear fade to zero across the last `releaseSec` seconds of
+    /// the buffer. Every synthesis path finishes mid-decay with a
+    /// non-zero tail amplitude — without this ramp, playback ends at
+    /// a hard amplitude step that the speaker reproduces as a click.
+    private func applyRelease(_ ptr: UnsafeMutablePointer<Float>,
+                              frameCount: Int,
+                              releaseSec: Double = 0.08) {
+        let releaseFrames = min(frameCount, Int(releaseSec * sampleRate))
+        guard releaseFrames > 1 else { return }
+        let start = frameCount - releaseFrames
+        for i in start..<frameCount {
+            let t = Float(i - start) / Float(releaseFrames - 1)
+            ptr[i] *= (1.0 - t)
+        }
     }
 
     /// Single-voice sample for the chord synth — stateless per-time
@@ -599,6 +1362,7 @@ final class GlassyAudio {
         if player.isPlaying { player.stop() }
         player.volume = volume
         player.scheduleBuffer(buffer, at: nil, options: [], completionHandler: nil)
+        guard engine.isRunning else { return }
         player.play()
     }
 
@@ -621,10 +1385,11 @@ final class GlassyAudio {
         nextPlayerIdx = (nextPlayerIdx + 1) % poolSize
         Task { @MainActor [weak self] in
             try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
-            guard let self, self.started else { return }
+            guard let self, self.started, self.engine.isRunning else { return }
             if player.isPlaying { player.stop() }
             player.volume = volume
-            player.scheduleBuffer(buffer, at: nil, options: [], completionHandler: nil)
+            player.scheduleBuffer(buffer, at: nil, options: [], completionCallbackType: .dataPlayedBack) { _ in }
+            guard self.engine.isRunning else { return }
             player.play()
         }
     }

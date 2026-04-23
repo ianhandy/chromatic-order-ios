@@ -144,7 +144,6 @@ private struct SwatchChip: View {
                     ? -6
                     : (animateSway ? -abs(sin(swayPhase * .pi * 2)) * 2.5 : 0)
             )
-            .rotationEffect(.degrees(animateSway ? sin(swayPhase * .pi * 2) * 1.1 : 0))
             .animation(.easeOut(duration: 0.38), value: picked)
     }
 }
