@@ -36,14 +36,15 @@ struct ContentView: View {
     /// Bumped when the flying heart lands so TopBarView can kick off
     /// its per-heart scale-bump wave.
     @State private var heartWaveTick: Int = 0
-    /// Center of the balloon at the moment it was tapped, in overlay
-    /// coords. Drives where the pop-particle burst spawns — nil when
-    /// no burst is active.
-    @State private var popBurstOrigin: CGPoint? = nil
     /// Bumped every time a new pop burst is triggered so the
     /// particle overlay re-renders as a fresh view each time rather
     /// than trying to reuse stale particle state.
     @State private var popBurstTick: Int = 0
+    /// Captured balloon-center screen position when the pop fires.
+    /// Stored separately from the live anchor so particles can continue
+    /// even after the balloon unmounts (which clears the anchor 0.11s
+    /// after the pop but before the 2.2s particle animation ends).
+    @State private var popBurstOriginCapture: CGPoint? = nil
     /// Tint snapshot for the most recent pop so the particle colors
     /// match the balloon the player just popped.
     @State private var popBurstTint: Color = .pink
@@ -719,28 +720,34 @@ struct ContentView: View {
     }
 
     /// Overlay that renders a falling-confetti burst whenever the
-    /// player pops a tutorial balloon. Origin comes from the
-    /// "balloonCenter" anchor published by the live balloon so the
-    /// burst spawns exactly where the balloon was at tap time. Keyed
-    /// on `popBurstTick` so each pop spins up a fresh particle run
-    /// instead of reusing the previous burst's physics state.
+    /// player pops a tutorial balloon. The origin is captured via
+    /// `onChange(of: popBurstTick)` while the balloon is still mounted
+    /// (anchor available), then stored in `popBurstOriginCapture` so
+    /// the 2.2-second particle animation can finish even after the
+    /// balloon unmounts (which clears the anchor after ~0.11s).
     @ViewBuilder
     private var popBurstOverlay: some View {
         Color.clear
             .overlayPreferenceValue(TutorialAnchorsKey.self) { anchors in
                 GeometryReader { geo in
-                    if popBurstTick > 0,
-                       let centerA = anchors["balloonCenter"] {
-                        let center = geo[centerA]
+                    Color.clear
+                        .onChange(of: popBurstTick) { _, tick in
+                            // Capture origin the moment a new burst fires
+                            // while the "balloonCenter" anchor is still live.
+                            if tick > 0, let centerA = anchors["balloonCenter"] {
+                                let center = geo[centerA]
+                                popBurstOriginCapture = CGPoint(x: center.midX,
+                                                                y: center.midY)
+                            }
+                        }
+                    if let origin = popBurstOriginCapture, popBurstTick > 0 {
                         BalloonPopParticles(
-                            origin: CGPoint(x: center.midX, y: center.midY),
+                            origin: origin,
                             tint: popBurstTint,
                             containerHeight: geo.size.height,
                             onFinished: {
-                                // Clearing the tick stops the overlay
-                                // from rendering a stale burst on the
-                                // next pop until a new tap bumps it.
                                 popBurstTick = 0
+                                popBurstOriginCapture = nil
                             }
                         )
                         .id(popBurstTick)

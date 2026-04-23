@@ -90,11 +90,12 @@ struct ChromaticOrderApp: App {
                 }
             }
             .onChange(of: scenePhase) { _, phase in
-                // Returning from background: iOS may have torn down the
-                // AVAudioEngine graph (interruption). Rebuild so the
-                // first play() call after resume doesn't crash on a
-                // stale node.
-                if phase == .active {
+                switch phase {
+                case .active:
+                    // Returning from background: iOS may have torn down
+                    // the AVAudioEngine graph (interruption). Rebuild so
+                    // the first play() call after resume doesn't crash on
+                    // a stale node.
                     GlassyAudio.shared.appDidBecomeActive()
                     // Opportunistic community-feedback refresh. The
                     // 1-hour rate limit inside the helper means
@@ -104,6 +105,18 @@ struct ChromaticOrderApp: App {
                     Task.detached {
                         await LikedPuzzleStore.refreshRemoteDislikedSignatures()
                     }
+                case .background:
+                    // Explicitly stop audio when the app enters the
+                    // background. The AVAudioSession interruptionNotification
+                    // doesn't always fire for simple app-switches on newer
+                    // iOS versions, so without this the engine can be in a
+                    // torn-down-but-started state when the app returns,
+                    // causing a crash on the first play() call.
+                    GlassyAudio.shared.appDidEnterBackground()
+                case .inactive:
+                    break
+                @unknown default:
+                    break
                 }
             }
         }

@@ -36,15 +36,6 @@ struct StatsView: View {
                     Text("Time")
                 }
 
-                if !stats.cbModesSeen.isEmpty {
-                    Section {
-                        ForEach(stats.cbModesSeen, id: \.self) { m in
-                            Text(m.capitalized)
-                        }
-                    } header: {
-                        Text("Color vision modes tried")
-                    }
-                }
             }
             .navigationTitle("Stats")
             .navigationBarTitleDisplayMode(.inline)

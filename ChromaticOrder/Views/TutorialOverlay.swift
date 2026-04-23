@@ -112,6 +112,8 @@ struct TutorialBalloon: View {
 
     @State private var appearAt: Date? = nil
     @State private var exitStartedAt: Date? = nil
+    /// Guards `onFinished()` so at most one call fires per lifecycle.
+    @State private var finishedFired: Bool = false
 
     private static let balloonSize = CGSize(width: 120, height: 150)
     private static let knotHeight: CGFloat = 10
@@ -141,6 +143,20 @@ struct TutorialBalloon: View {
         .onTapGesture {
             if exit == .alive || exit == .floating {
                 onTap()
+            }
+        }
+        // Initialise appearAt once at mount so computePose has a
+        // stable birth date without scheduling async state mutations
+        // from inside the TimelineView body (which can cause "modifying
+        // state during view update" crashes when the app returns from
+        // background and the timeline fires multiple frames rapidly).
+        .onAppear { if appearAt == nil { appearAt = Date() } }
+        // Capture the exit-start timestamp the moment the balloon
+        // transitions out of its idle state — covers .floating,
+        // .released, and .popped in one handler.
+        .onChange(of: exit) { _, newExit in
+            if newExit != .alive && exitStartedAt == nil {
+                exitStartedAt = Date()
             }
         }
     }
@@ -175,9 +191,9 @@ struct TutorialBalloon: View {
                 .fixedSize(horizontal: false, vertical: true)
                 .padding(.horizontal, 10)
                 .frame(width: Self.balloonSize.width - 8,
-                       height: Self.balloonSize.height * 0.65,
+                       height: Self.balloonSize.height * 0.55,
                        alignment: .center)
-                .offset(y: -Self.balloonSize.height * 0.10
+                .offset(y: -Self.balloonSize.height * 0.16
                          - Self.stringLength / 2)
             // Up-left corner pointer — only rendered when the parent
             // wires it in (e.g. the zen-intro tutorial). Sits inside
@@ -196,7 +212,7 @@ struct TutorialBalloon: View {
             // Dangling string below the knot
             BalloonDanglingString(swayPhase: swayPhase)
                 .stroke(Color.white.opacity(0.70),
-                        style: StrokeStyle(lineWidth: 1.5, lineCap: .round))
+                        style: StrokeStyle(lineWidth: 2.5, lineCap: .round))
                 .frame(width: 30, height: Self.stringLength)
                 .offset(y: bodyH / 2 + Self.stringLength / 2)
             // Knot position anchor
@@ -241,11 +257,6 @@ struct TutorialBalloon: View {
     }
 
     private func computePose(at t: Date) -> BalloonPose {
-        if appearAt == nil {
-            DispatchQueue.main.async {
-                if appearAt == nil { appearAt = t }
-            }
-        }
         let birth = appearAt ?? t
         let age = t.timeIntervalSince(birth)
         let isStationary = exit == .alive || exit == .floating
@@ -263,11 +274,6 @@ struct TutorialBalloon: View {
         var popScale: CGFloat = 1
         var exitOpacity: Double = 1
         if !isStationary || exit == .floating {
-            if exitStartedAt == nil {
-                DispatchQueue.main.async {
-                    if exitStartedAt == nil { exitStartedAt = t }
-                }
-            }
             let started = exitStartedAt ?? t
             let dt = t.timeIntervalSince(started)
             switch exit {
@@ -279,8 +285,12 @@ struct TutorialBalloon: View {
                 floatY = CGFloat(up)
                 floatAngle = sin(dt * 1.2) * 4
                 exitOpacity = max(0, 1 - dt / 4.0)
-                if dt > 4.5 {
-                    DispatchQueue.main.async { onFinished() }
+                if dt > 4.5 && !finishedFired {
+                    DispatchQueue.main.async {
+                        guard !self.finishedFired else { return }
+                        self.finishedFired = true
+                        self.onFinished()
+                    }
                 }
             case .released:
                 let up = -180 * dt - 60 * dt * dt
@@ -289,8 +299,12 @@ struct TutorialBalloon: View {
                 floatY = CGFloat(up)
                 floatAngle = sin(dt * 1.8) * 6
                 exitOpacity = max(0, 1 - dt / 2.8)
-                if dt > 3.0 {
-                    DispatchQueue.main.async { onFinished() }
+                if dt > 3.0 && !finishedFired {
+                    DispatchQueue.main.async {
+                        guard !self.finishedFired else { return }
+                        self.finishedFired = true
+                        self.onFinished()
+                    }
                 }
             case .popped:
                 // Snappy pop — body scales up briefly and the alpha
@@ -298,8 +312,12 @@ struct TutorialBalloon: View {
                 // over as the primary "something happened" cue.
                 popScale = 1 + CGFloat(dt) * 5.5
                 exitOpacity = max(0, 1 - dt / 0.09)
-                if dt > 0.11 {
-                    DispatchQueue.main.async { onFinished() }
+                if dt > 0.11 && !finishedFired {
+                    DispatchQueue.main.async {
+                        guard !self.finishedFired else { return }
+                        self.finishedFired = true
+                        self.onFinished()
+                    }
                 }
             case .alive:
                 break
@@ -327,9 +345,11 @@ struct BalloonBodyShape: Shape {
         let w = rect.width
         let cx = rect.midX
         let topY = rect.minY
-        // Widest point ~46% down gives plenty of vertical room for
-        // the dome to arc into a full, round shape.
-        let wideY = topY + bodyH * 0.46
+        // Widest point ~42% down — moved slightly lower than before
+        // so the dome spans more of the body height, eliminating the
+        // flat-top indent that appeared when both control points pulled
+        // the curve above the frame boundary and got clipped.
+        let wideY = topY + bodyH * 0.42
         let bottomY = topY + bodyH
         let halfW = w * 0.50
         let neckHalfW = w * 0.055
@@ -339,11 +359,12 @@ struct BalloonBodyShape: Shape {
 
         // ── Right side ──────────────────────────────────────────
 
-        // Top-right dome — c1 pulls above the apex so the curve
-        // bulges upward into a full round arc.
+        // Top-right dome — control point stays within the frame so
+        // the curve arcs fully within bounds and the apex reads as
+        // a smooth, round dome with no center indent.
         p.addCurve(
             to: CGPoint(x: cx + halfW, y: wideY),
-            control1: CGPoint(x: cx + halfW * 0.56, y: topY - bodyH * 0.04),
+            control1: CGPoint(x: cx + halfW * 0.72, y: topY + bodyH * 0.01),
             control2: CGPoint(x: cx + halfW * 1.10, y: topY + bodyH * 0.12)
         )
         // Bottom-right taper to neck
@@ -381,7 +402,7 @@ struct BalloonBodyShape: Shape {
         p.addCurve(
             to: CGPoint(x: cx, y: topY),
             control1: CGPoint(x: cx - halfW * 1.10, y: topY + bodyH * 0.12),
-            control2: CGPoint(x: cx - halfW * 0.56, y: topY - bodyH * 0.04)
+            control2: CGPoint(x: cx - halfW * 0.72, y: topY + bodyH * 0.01)
         )
         p.closeSubpath()
         return p

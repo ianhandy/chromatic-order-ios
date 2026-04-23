@@ -103,19 +103,76 @@ enum CreatorBuilder {
         // (no manual locks). When the player chose locks manually,
         // trust their choice — the warnings collected further down
         // will flag direction ambiguity if it sneaks through.
-        if !usingManual {
-            for gi in 0..<outGrads.count {
-                var g = outGrads[gi]
-                let center = g.len % 2 == 1 ? (g.len - 1) / 2 : -1
-                let hasAnchoringLock = g.cells.contains(where: { $0.locked && $0.pos != center })
-                if hasAnchoringLock { continue }
-                var endpoint = g.cells[0]
-                if !endpoint.locked {
-                    endpoint.locked = true
-                    g.cells[0] = endpoint
-                    lockedSet.insert(CellIndex(r: endpoint.r, c: endpoint.c))
+        //
+        // Full orientation-mask enumerator (mirrors Generate.swift Guard
+        // 4). For each of the 2^N forward/reversed combinations across N
+        // gradients, a mask is valid if (a) every locked cell's implied
+        // color matches spec.color, and (b) every shared-cell pair gets
+        // consistent colors from all covering gradients. If more than one
+        // mask is valid, greedily lock a non-palindromic cell in the
+        // gradient whose reversal-bit appears in the most remaining valid
+        // masks. This handles parallel (non-intersecting) gradients of
+        // equal length — a common creator layout that the old
+        // endpoint-only guard left ambiguous.
+        if !usingManual, outGrads.count <= 16 {
+            func palindromic(_ pos: Int, len: Int) -> Bool { pos == len - 1 - pos }
+            func maskValid(_ mask: UInt64) -> Bool {
+                var cellColors: [Int: OKLCh] = [:]
+                for i in 0..<outGrads.count {
+                    let reversed = (mask >> i) & 1 == 1
+                    let g = outGrads[i]
+                    for spec in g.cells {
+                        let intended = reversed
+                            ? g.colors[g.len - 1 - spec.pos]
+                            : g.colors[spec.pos]
+                        if spec.locked, !OK.equal(intended, spec.color) {
+                            return false
+                        }
+                        let key = spec.r * 64 + spec.c
+                        if let existing = cellColors[key] {
+                            if !OK.equal(existing, intended) { return false }
+                        } else {
+                            cellColors[key] = intended
+                        }
+                    }
                 }
-                outGrads[gi] = g
+                return true
+            }
+            func validMasks() -> [UInt64] {
+                let n = outGrads.count
+                var out: [UInt64] = []
+                for m in 0..<(UInt64(1) << n) where maskValid(m) { out.append(m) }
+                return out
+            }
+            let totalCells = outGrads.reduce(0) { $0 + $1.len }
+            let maxIters = totalCells + outGrads.count + 1
+            var iter = 0
+            while iter < maxIters {
+                iter += 1
+                let masks = validMasks()
+                if masks.count <= 1 { break }
+                var chosenGi: Int? = nil
+                var bestKill = 0
+                for gi in 0..<outGrads.count {
+                    let bit = UInt64(1) << gi
+                    let oneCount = masks.reduce(into: 0) { $0 += ($1 & bit) != 0 ? 1 : 0 }
+                    if oneCount == 0 || oneCount == masks.count { continue }
+                    if oneCount > bestKill { bestKill = oneCount; chosenGi = gi }
+                }
+                guard let gi = chosenGi else { break }
+                let len = outGrads[gi].len
+                var didLock = false
+                for k in 0..<outGrads[gi].cells.count {
+                    let spec = outGrads[gi].cells[k]
+                    if spec.locked || palindromic(spec.pos, len: len) { continue }
+                    var g = outGrads[gi]
+                    g.cells[k].locked = true
+                    outGrads[gi] = g
+                    lockedSet.insert(CellIndex(r: spec.r, c: spec.c))
+                    didLock = true
+                    break
+                }
+                if !didLock { break }
             }
         }
 

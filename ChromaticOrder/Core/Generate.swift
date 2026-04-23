@@ -372,6 +372,15 @@ private func tryGrow(level: Int, cfg: LevelConfig, dev: GenConfig) -> Puzzle? {
     let gridW = 20, gridH = 20
     let targetN = dev.gradientCountOverride ?? defaultGradientCount(level)
     let (minLen, maxLen) = wordLenFor(level)
+    // Levels 4-6 are the 2-gradient tier. With the default endpoint
+    // bias of 0.5, branches almost always sprout from an endpoint of
+    // the first gradient → L-shape every time. Lowering the bias to
+    // ~0.05 makes interior cells equally likely branch points so the
+    // output mix includes T-shapes and +-crosses, not just L-shapes.
+    var dev = dev
+    if level >= 4 && level <= 6 && dev.endpointCenterBias > 0.05 {
+        dev.endpointCenterBias = 0.05
+    }
 
     let bias = dev.huePrimaryBias ?? levelHuePrimaryBias(level)
     let assign = pickChannelsAndRoles(count: cfg.channelCount,

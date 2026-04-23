@@ -1326,6 +1326,22 @@ final class GlassyAudio {
         if Self.musicEnabled { startMusicIfNeeded() }
     }
 
+    /// Called by the app when entering the background. Stops the music
+    /// loop and pauses the engine so that when the app returns, the
+    /// engine is cleanly stopped — not in an ambiguous partially-torn-
+    /// down state that can crash on the next play() call. The
+    /// AVAudioSession interruptionNotification doesn't reliably fire for
+    /// plain app-switches on newer iOS versions, so this provides a
+    /// deterministic teardown path.
+    func appDidEnterBackground() {
+        stopMusic()
+        for p in playerPool where p.isPlaying { p.stop() }
+        if engine.isRunning {
+            engine.pause()
+        }
+        started = false
+    }
+
     private func handleInterruption(_ notif: Notification) {
         guard let info = notif.userInfo,
               let raw = info[AVAudioSessionInterruptionTypeKey] as? UInt,
