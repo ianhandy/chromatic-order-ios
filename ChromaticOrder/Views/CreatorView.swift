@@ -75,8 +75,7 @@ struct CreatorView: View {
         NavigationStack {
             VStack(spacing: 12) {
                 nameField
-                colorBar
-                toolPicker
+                headerBar
                 CanvasView(state: state)
                     .padding(.horizontal, 14)
                 if !nameFocused {
@@ -433,57 +432,35 @@ struct CreatorView: View {
 
     // ─── Tool picker ────────────────────────────────────────────────
 
-    private var toolPicker: some View {
-        HStack(spacing: 8) {
-            toolButton(.paint, system: "paintbrush.fill", label: "Paint")
-            toolButton(.erase, system: "eraser.fill", label: "Erase")
-            toolButton(.eyedropper, system: "eyedropper", label: "Pick")
-            Spacer()
+    // ─── Top header: colors (left) + tools (right), no labels ─────────
+
+    /// Single row above the canvas. Colors live on the left (start
+    /// swatch + arrow + end swatch / shift preview), tools live on
+    /// the right as icon-only chips. Text labels removed in favor
+    /// of larger touch targets — the icons carry meaning and the
+    /// selected tool state is picked up via the filled background.
+    private var headerBar: some View {
+        HStack(alignment: .center, spacing: 14) {
+            colorCluster
+            Spacer(minLength: 8)
+            toolCluster
         }
         .padding(.horizontal, 14)
     }
 
-    @ViewBuilder
-    private func toolButton(_ t: CreatorState.Tool, system: String, label: String) -> some View {
-        let selected = state.tool == t
-        Button {
-            state.tool = t
-            state.cancelDrag()
-        } label: {
-            HStack(spacing: 6) {
-                Image(systemName: system)
-                    .font(.system(size: 12, weight: .semibold))
-                Text(label)
-                    .font(.system(size: 12, weight: .semibold))
-            }
-            .foregroundStyle(selected ? Color.black : Color.white.opacity(0.55))
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
-            .background(
-                RoundedRectangle(cornerRadius: 10, style: .continuous)
-                    .fill(selected ? Color.white : Color.white.opacity(0.05))
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 10, style: .continuous)
-                    .stroke(selected ? Color.clear : Color.white.opacity(0.12), lineWidth: 1)
-            )
-        }
-        .buttonStyle(.plain)
-    }
-
-    // ─── Top: color swatches + Δ readout ────────────────────────────
-
-    private var colorBar: some View {
-        HStack(spacing: 12) {
-            ColorChip(color: state.startColor, label: "Start") { pickingStart = true }
+    /// Start swatch + arrow + end swatch (or shift-preview strip).
+    /// Chips are ~50pt tall, the arrow is bold and 22pt so it
+    /// anchors the left side visually.
+    private var colorCluster: some View {
+        HStack(spacing: 10) {
+            ColorChip(color: state.startColor) { pickingStart = true }
 
             Image(systemName: "arrow.right")
-                .font(.system(size: 14, weight: .semibold))
-                .foregroundStyle(.secondary)
+                .font(.system(size: 22, weight: .heavy))
+                .foregroundStyle(Color.white.opacity(0.65))
 
-            // End chip shows striped placeholder when shift-mode is on.
             if let end = state.endColor {
-                ColorChip(color: end, label: "End") { pickingEnd = true }
+                ColorChip(color: end) { pickingEnd = true }
             } else {
                 ShiftChip(
                     startColor: state.startColor,
@@ -492,10 +469,48 @@ struct CreatorView: View {
                     deltaH: state.deltaH
                 ) { pickingEnd = true }
             }
-
-            Spacer()
         }
-        .padding(.horizontal, 14)
+    }
+
+    /// Three icon-only tool buttons. Touch target ~44x44; the
+    /// selected tool gets a white fill + black icon so it reads
+    /// first at a glance.
+    private var toolCluster: some View {
+        HStack(spacing: 8) {
+            toolIconButton(.paint, system: "paintbrush.fill")
+            toolIconButton(.erase, system: "eraser.fill")
+            toolIconButton(.eyedropper, system: "eyedropper")
+        }
+    }
+
+    @ViewBuilder
+    private func toolIconButton(_ t: CreatorState.Tool, system: String) -> some View {
+        let selected = state.tool == t
+        Button {
+            state.tool = t
+            state.cancelDrag()
+        } label: {
+            Image(systemName: system)
+                .font(.system(size: 20, weight: .semibold))
+                .frame(width: 44, height: 44)
+                .foregroundStyle(selected ? Color.black : Color.white.opacity(0.7))
+                .background(
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .fill(selected ? Color.white : Color.white.opacity(0.07))
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .stroke(selected ? Color.clear : Color.white.opacity(0.14), lineWidth: 1)
+                )
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel({
+            switch t {
+            case .paint: return "Paint"
+            case .erase: return "Erase"
+            case .eyedropper: return "Pick color"
+            }
+        }())
     }
 
     // ─── Bottom: tools + validation ─────────────────────────────────
@@ -599,25 +614,19 @@ struct CreatorView: View {
 
 private struct ColorChip: View {
     let color: OKLCh
-    let label: String
     let onTap: () -> Void
     var body: some View {
         Button(action: onTap) {
-            HStack(spacing: 6) {
-                RoundedRectangle(cornerRadius: 10, style: .continuous)
-                    .fill(OK.toColor(color))
-                    .frame(width: 36, height: 36)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 10, style: .continuous)
-                            .stroke(Color.black.opacity(0.08), lineWidth: 1)
-                    )
-                Text(label)
-                    .font(.system(size: 12, weight: .semibold))
-            }
-            .padding(.trailing, 6)
-            .background(Color(uiColor: .secondarySystemBackground), in: Capsule())
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(OK.toColor(color))
+                .frame(width: 50, height: 50)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .stroke(Color.white.opacity(0.2), lineWidth: 1)
+                )
         }
         .buttonStyle(.plain)
+        .accessibilityLabel("Pick color")
     }
 }
 
@@ -645,31 +654,24 @@ private struct ShiftChip: View {
 
     var body: some View {
         Button(action: onTap) {
-            HStack(spacing: 6) {
-                HStack(spacing: 1) {
-                    ForEach(Array(previewColors.enumerated()), id: \.offset) { _, c in
-                        Rectangle()
-                            .fill(OK.toColor(c))
-                            .frame(width: 7, height: 36)
-                    }
-                }
-                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 10, style: .continuous)
-                        .stroke(Color.black.opacity(0.08), lineWidth: 1)
-                )
-                VStack(alignment: .leading, spacing: 0) {
-                    Text("Shift")
-                        .font(.system(size: 12, weight: .semibold))
-                    Text(String(format: "Δh %.0f°", deltaH))
-                        .font(.system(size: 10, design: .monospaced))
-                        .foregroundStyle(.secondary)
+            // Five-stripe gradient preview in a chip matching the
+            // solid ColorChip footprint (50x50). Drops the 'Shift'
+            // text + Δh readout so the header row stays tight.
+            HStack(spacing: 1) {
+                ForEach(Array(previewColors.enumerated()), id: \.offset) { _, c in
+                    Rectangle()
+                        .fill(OK.toColor(c))
+                        .frame(width: 10, height: 50)
                 }
             }
-            .padding(.trailing, 8)
-            .background(Color(uiColor: .secondarySystemBackground), in: Capsule())
+            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .stroke(Color.white.opacity(0.2), lineWidth: 1)
+            )
         }
         .buttonStyle(.plain)
+        .accessibilityLabel("Pick shift")
     }
 }
 

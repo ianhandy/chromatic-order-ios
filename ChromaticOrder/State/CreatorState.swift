@@ -267,6 +267,11 @@ final class CreatorState {
     /// to define a step.
     func erase(cells: Set<CellIndex>) {
         guard !cells.isEmpty else { return }
+        // Capture pre-erase state for undo so the "Clear" path in the
+        // erase tool is reversible — not just gradient-commit. Without
+        // this, tapping Erase and clearing a stroke permanently
+        // destroyed work with no way back.
+        pushUndoSnapshot()
         var updated: [LaidGradient] = []
         for g in gradients {
             updated.append(contentsOf: gradientRemoving(cells, from: g))
@@ -410,6 +415,7 @@ final class CreatorState {
             cells: preview.map { $0.idx },
             colors: preview.map { $0.color }
         )
+        pushUndoSnapshot()
         gradients.append(g)
         return true
     }
@@ -428,16 +434,55 @@ final class CreatorState {
     /// committed cells — calling it on an empty cell is a no-op.
     func toggleLock(at idx: CellIndex) {
         guard committedCells[idx] != nil else { return }
+        pushUndoSnapshot()
         if manualLocks.contains(idx) { manualLocks.remove(idx) }
         else { manualLocks.insert(idx) }
     }
 
+    /// Tiny snapshot of the reversible creator state. Not every field
+    /// on CreatorState is captured — only the mutations a user can
+    /// "undo" from the bottom bar. Transient drag state isn't; tool
+    /// selection isn't (reversing a tool toggle would confuse more
+    /// than it helps).
+    private struct UndoSnapshot {
+        let gradients: [LaidGradient]
+        let manualLocks: Set<CellIndex>
+    }
+    private var undoStack: [UndoSnapshot] = []
+    private static let undoStackLimit = 50
+
+    /// Record the current reversible state before mutating. Called
+    /// by commitGradient, erase, toggleLock, and clearAll. The stack
+    /// caps at 50 entries so an over-eager user doesn't grow it
+    /// unbounded across a long session.
+    private func pushUndoSnapshot() {
+        undoStack.append(UndoSnapshot(
+            gradients: gradients,
+            manualLocks: manualLocks
+        ))
+        if undoStack.count > Self.undoStackLimit {
+            undoStack.removeFirst(undoStack.count - Self.undoStackLimit)
+        }
+    }
+
+    var canUndo: Bool { !undoStack.isEmpty }
+
     func undo() {
-        if !gradients.isEmpty { gradients.removeLast() }
+        guard let snap = undoStack.popLast() else { return }
+        gradients = snap.gradients
+        manualLocks = snap.manualLocks
+        cancelDrag()
     }
 
     func clearAll() {
+        // Snapshot before nuking so Undo can restore a full canvas.
+        // No-op if already empty — don't pollute the stack with
+        // identity operations.
+        if !gradients.isEmpty || !manualLocks.isEmpty {
+            pushUndoSnapshot()
+        }
         gradients.removeAll()
+        manualLocks.removeAll()
         cancelDrag()
     }
 
