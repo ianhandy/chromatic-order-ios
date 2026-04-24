@@ -18,45 +18,30 @@ import SwiftUI
 
 struct LikeFeedbackWidget: View {
     @Bindable var game: GameState
-    /// Opens the full FeedbackSheet. ContentView owns the binding;
-    /// we just flip it when the player taps Yes on the prompt.
+    /// Retained for API compatibility with the ContentView call-site.
+    /// The widget no longer opens the feedback sheet directly; the
+    /// follow-up "Leave feedback?" prompt was removed per player
+    /// feedback that it turned a one-tap rating into a two-step
+    /// dialog. Players who want deeper feedback still have the
+    /// hamburger-menu feedback row.
     @Binding var feedbackOpen: Bool
     /// Outer height — caller matches this to the "next level" button's
     /// capsule so the two side-by-side affordances line up on one
     /// baseline.
     var height: CGFloat = 52
 
-    /// Whether the "Want to leave feedback?" prompt is currently
-    /// showing. Flipped true immediately after tap(liked:); flipped
-    /// false on Yes / No dismissal. Not persisted — every level starts
-    /// back at the arrow row.
-    @State private var promptVisible: Bool = false
-
     private let likeGreen  = Color(red: 0.36, green: 0.78, blue: 0.45)
     private let dislikeRed = Color(red: 0.92, green: 0.42, blue: 0.42)
 
     var body: some View {
-        Group {
-            if promptVisible {
-                feedbackPromptRow
-            } else {
-                ratingRow
-            }
-        }
-        .padding(.horizontal, 14)
-        .frame(height: height)
-        .background(Color.white.opacity(0.06), in: Capsule())
-        .overlay(
-            Capsule().stroke(Color.white.opacity(0.14), lineWidth: 1)
-        )
-        .animation(.easeOut(duration: 0.2), value: game.liked)
-        .animation(.easeOut(duration: 0.2), value: promptVisible)
-        .onChange(of: game.liked) { _, newValue in
-            // Level advanced (startLevel sets liked = nil) — clear
-            // any lingering prompt so the next level starts fresh on
-            // the arrow row.
-            if newValue == nil { promptVisible = false }
-        }
+        ratingRow
+            .padding(.horizontal, 14)
+            .frame(height: height)
+            .background(Color.white.opacity(0.06), in: Capsule())
+            .overlay(
+                Capsule().stroke(Color.white.opacity(0.14), lineWidth: 1)
+            )
+            .animation(.easeOut(duration: 0.2), value: game.liked)
     }
 
     @ViewBuilder
@@ -97,40 +82,9 @@ struct LikeFeedbackWidget: View {
         }
     }
 
-    @ViewBuilder
-    private var feedbackPromptRow: some View {
-        HStack(spacing: 10) {
-            Text("Leave feedback?")
-                .font(.system(size: 15, weight: .bold, design: .rounded))
-                .foregroundStyle(Color.white.opacity(0.85))
-                .lineLimit(1)
-                .minimumScaleFactor(0.7)
-
-            Button("Yes") {
-                promptVisible = false
-                feedbackOpen = true
-            }
-            .buttonStyle(.borderedProminent)
-            .controlSize(.small)
-            .tint(likeGreen)
-
-            Button("No") {
-                promptVisible = false
-            }
-            .buttonStyle(.bordered)
-            .controlSize(.small)
-            .tint(Color.white.opacity(0.4))
-        }
-    }
-
     private func tap(liked value: Bool) {
         guard game.liked == nil else { return }
         game.liked = value
-        // Pivot the row to the "Want to leave feedback?" prompt so
-        // the player can opt into the full FeedbackSheet without the
-        // hamburger-menu detour. Reset happens in startLevel along
-        // with `game.liked = nil`.
-        promptVisible = true
         // One JSON blob carries everything: puzzle structure, per-cell
         // locks, difficulty, session context (level / mode / cbMode).
         // Everything else is derivable from it, so no need for a

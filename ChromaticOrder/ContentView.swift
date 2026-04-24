@@ -52,6 +52,12 @@ struct ContentView: View {
     /// even after the balloon unmounts (which clears the anchor 0.11s
     /// after the pop but before the 2.2s particle animation ends).
     @State private var popBurstOriginCapture: CGPoint? = nil
+    /// Most recent live balloon-center position resolved from the
+    /// `balloonCenter` preference anchor. Updated every layout pass
+    /// the balloon publishes it, so the pop handler can capture the
+    /// origin synchronously on tap instead of racing the anchor
+    /// against the .popped unmount animation.
+    @State private var balloonCenterLive: CGPoint? = nil
     /// Tint snapshot for the most recent pop so the particle colors
     /// match the balloon the player just popped.
     @State private var popBurstTint: Color = .pink
@@ -757,6 +763,13 @@ struct ContentView: View {
                         zenTutorialBaselineLevel = nil
                     } else if tutorialExit == .floating {
                         // Second tap — pop the floating balloon.
+                        // Capture the balloon's LAST KNOWN center
+                        // before state change so the particle burst
+                        // has a reliable origin even if the anchor
+                        // unmounts in the same render tick.
+                        if let center = balloonCenterLive {
+                            popBurstOriginCapture = center
+                        }
                         tutorialExit = .popped
                         Haptics.pop()
                         GlassyAudio.shared.playPop()
@@ -766,6 +779,13 @@ struct ContentView: View {
                             GameCenter.Achievement.poppedBalloon
                         )
                     }
+                },
+                onSwipe: { dx, dy in
+                    // Swipe dismiss — mark seen + send the balloon
+                    // gliding off along the swipe vector.
+                    if let f = tutorialFlag { TutorialStore.markSeen(f) }
+                    zenTutorialBaselineLevel = nil
+                    tutorialExit = .swipedAway(dx: dx, dy: dy)
                 },
                 knotAnchorKey: "balloonKnot",
                 cornerArrow: flag == .zenIntro
@@ -786,27 +806,56 @@ struct ContentView: View {
         Color.clear
             .overlayPreferenceValue(TutorialAnchorsKey.self) { anchors in
                 GeometryReader { geo in
-                    Color.clear
-                        .onChange(of: popBurstTick) { _, tick in
-                            // Capture origin the moment a new burst fires
-                            // while the "balloonCenter" anchor is still live.
-                            if tick > 0, let centerA = anchors["balloonCenter"] {
-                                let center = geo[centerA]
-                                popBurstOriginCapture = CGPoint(x: center.midX,
-                                                                y: center.midY)
+                    ZStack {
+                        // Continuously mirror the balloon's resolved
+                        // center into `balloonCenterLive` so the tap
+                        // handler can capture it synchronously. The
+                        // previous onChange(of: popBurstTick) approach
+                        // raced the .popped unmount animation — by the
+                        // time the tick observation fired, the
+                        // balloon's anchor preference could already
+                        // be stale, leaving the burst with nil origin
+                        // and no particles. Reading it here every
+                        // render cycle keeps `balloonCenterLive`
+                        // fresh while the balloon is alive.
+                        Color.clear
+                            .onAppear {
+                                if let a = anchors["balloonCenter"] {
+                                    let r = geo[a]
+                                    balloonCenterLive = CGPoint(x: r.midX, y: r.midY)
+                                }
                             }
+                            .onChange(of: anchors["balloonCenter"] != nil) { _, has in
+                                if has, let a = anchors["balloonCenter"] {
+                                    let r = geo[a]
+                                    balloonCenterLive = CGPoint(x: r.midX, y: r.midY)
+                                } else {
+                                    balloonCenterLive = nil
+                                }
+                            }
+                            .onChange(of: popBurstTick) { _, tick in
+                                // Second-chance capture for bursts that
+                                // fired without a pre-captured origin.
+                                if tick > 0, popBurstOriginCapture == nil,
+                                   let a = anchors["balloonCenter"] {
+                                    let r = geo[a]
+                                    popBurstOriginCapture = CGPoint(
+                                        x: r.midX, y: r.midY
+                                    )
+                                }
+                            }
+                        if let origin = popBurstOriginCapture, popBurstTick > 0 {
+                            BalloonPopParticles(
+                                origin: origin,
+                                tint: popBurstTint,
+                                containerHeight: geo.size.height,
+                                onFinished: {
+                                    popBurstTick = 0
+                                    popBurstOriginCapture = nil
+                                }
+                            )
+                            .id(popBurstTick)
                         }
-                    if let origin = popBurstOriginCapture, popBurstTick > 0 {
-                        BalloonPopParticles(
-                            origin: origin,
-                            tint: popBurstTint,
-                            containerHeight: geo.size.height,
-                            onFinished: {
-                                popBurstTick = 0
-                                popBurstOriginCapture = nil
-                            }
-                        )
-                        .id(popBurstTick)
                     }
                 }
             }
