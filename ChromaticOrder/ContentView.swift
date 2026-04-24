@@ -14,6 +14,7 @@ struct ContentView: View {
     @State private var creatorOpen: Bool = false
     @State private var feedbackOpen: Bool = false
     @State private var accessibilityOpen: Bool = false
+    @State private var communityOpen: Bool = false
     /// Set by ChromaticOrderApp.onOpenURL when a .kroma file is tapped.
     /// We watch it and pipe the Puzzle into the game when it changes.
     @Binding var incomingPuzzle: Puzzle?
@@ -33,6 +34,12 @@ struct ContentView: View {
     /// Choreography for the celebratory perfect-solve heart — see
     /// `PerfectHeartStage` for the stage ordering.
     @State private var perfectHeartStage: PerfectHeartStage = .idle
+    /// Handle for the in-flight perfect-heart animation task so
+    /// `handleNext` (or any other level-advance) can cancel it before
+    /// the delayed `game.checks += 1` fires. Without cancellation the
+    /// task wakes up on the next level and double-counts when
+    /// combined with handleNext's own perfect-solve award.
+    @State private var perfectHeartFlightTask: Task<Void, Never>? = nil
     /// Bumped when the flying heart lands so TopBarView can kick off
     /// its per-heart scale-bump wave.
     @State private var heartWaveTick: Int = 0
@@ -86,7 +93,48 @@ struct ContentView: View {
             // preventing the "one board disappears, another appears
             // a frame later" pop the player sees at `handleNext`.
             Group {
-                if game.generating || game.puzzle == nil {
+                if game.generating {
+                    VStack {
+                        ProgressView("Building puzzle…")
+                            .font(.system(size: 14, weight: .bold, design: .rounded))
+                            .tint(.white)
+                            .foregroundStyle(.white.opacity(0.7))
+                    }
+                    .transition(.opacity)
+                } else if game.puzzle == nil && game.mode == .daily && game.dailyUnavailable {
+                    // Server hasn't published a daily for this UTC date
+                    // (or the fetch failed outright). We don't fall back
+                    // to local generation — every player must see the
+                    // same daily — so render a tap-to-retry placeholder.
+                    VStack(spacing: 14) {
+                        Image(systemName: "calendar.badge.exclamationmark")
+                            .font(.system(size: 44, weight: .regular))
+                            .foregroundStyle(.white.opacity(0.55))
+                        Text("no daily yet")
+                            .font(.system(size: 22, weight: .heavy, design: .rounded))
+                            .foregroundStyle(.white.opacity(0.9))
+                        Text("Check back later — today's puzzle hasn't been published yet.")
+                            .font(.system(size: 14, weight: .medium, design: .rounded))
+                            .foregroundStyle(.white.opacity(0.6))
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal, 32)
+                        Button {
+                            game.startLevel(game.level)
+                        } label: {
+                            Text("Try again")
+                                .font(.system(size: 15, weight: .bold, design: .rounded))
+                                .foregroundStyle(.white)
+                                .padding(.horizontal, 20)
+                                .frame(height: 38)
+                                .background(Color.white.opacity(0.12), in: Capsule())
+                                .overlay(
+                                    Capsule().stroke(Color.white.opacity(0.3), lineWidth: 1)
+                                )
+                        }
+                        .padding(.top, 4)
+                    }
+                    .transition(.opacity)
+                } else if game.puzzle == nil {
                     VStack {
                         ProgressView("Building puzzle…")
                             .font(.system(size: 14, weight: .bold, design: .rounded))
@@ -102,6 +150,7 @@ struct ContentView: View {
             }
             .animation(.easeInOut(duration: 0.45), value: game.generating)
             .animation(.easeInOut(duration: 0.45), value: game.puzzle?.level)
+            .animation(.easeInOut(duration: 0.45), value: game.dailyUnavailable)
 
             OnboardingOverlay(game: game)
 
@@ -123,6 +172,7 @@ struct ContentView: View {
                       creatorOpen: $creatorOpen,
                       feedbackOpen: $feedbackOpen,
                       accessibilityOpen: $accessibilityOpen,
+                      communityOpen: $communityOpen,
                       started: $started)
 
             // Solved overlay: Like widget on the bottom-left, Next
@@ -331,46 +381,47 @@ struct ContentView: View {
             if solvedNow && game.isPerfectSolve {
                 perfectBannerVisible = true
                 perfectHeartStage = .onBanner
-                Task { @MainActor in
-                    // Banner stays visible ~1 s, then fades away
-                    // via the .easeInOut on perfectBannerVisible.
+                // Cancel any still-running flight from a previous
+                // solve before starting a new one — avoids the task
+                // waking on the next level and stomping state.
+                perfectHeartFlightTask?.cancel()
+                perfectHeartFlightTask = Task { @MainActor in
                     try? await Task.sleep(nanoseconds: 1_000_000_000)
+                    if Task.isCancelled { return }
                     perfectBannerVisible = false
-                    // Fly the heart from the banner into the top-bar
-                    // hearts row. matchedGeometryEffect tweens the
-                    // position + size; withAnimation wraps the state
-                    // flip so both source/target animate together.
                     if game.mode == .challenge {
                         withAnimation(.spring(response: 0.7,
                                               dampingFraction: 0.75)) {
                             perfectHeartStage = .flying
                         }
                         try? await Task.sleep(nanoseconds: 700_000_000)
-                        // Heart has landed — promote it to a real
-                        // heart in `game.checks` so the row keeps
-                        // showing it after the flying target fades.
-                        // handleNext skips its own perfect-solve +1
-                        // when this flag is set to avoid a double
-                        // increment.
-                        game.checks += 1
-                        game.perfectHeartAlreadyAwarded = true
+                        if Task.isCancelled { return }
+                        // Claim-once token: if handleNext (fast Next
+                        // tap) has already awarded the perfect heart
+                        // it'll have set `perfectHeartAlreadyAwarded`
+                        // to true — in that case we skip the +1 here
+                        // and just finish the animation. Whichever
+                        // path fires first wins; the other is a
+                        // no-op. Clearing happens in startLevel so
+                        // the next perfect solve can claim again.
+                        if !game.perfectHeartAlreadyAwarded {
+                            game.checks += 1
+                            game.perfectHeartAlreadyAwarded = true
+                        }
                         perfectHeartStage = .landed
-                        // Yield two frames so SwiftUI mounts the new
-                        // heart's phaseAnimator BEFORE the trigger
-                        // changes — otherwise the newly-inserted view
-                        // initializes with the post-bump trigger value
-                        // and misses the wave entirely.
                         try? await Task.sleep(nanoseconds: 34_000_000)
+                        if Task.isCancelled { return }
                         heartWaveTick &+= 1
                         try? await Task.sleep(nanoseconds: 600_000_000)
+                        if Task.isCancelled { return }
                         perfectHeartStage = .idle
                     } else {
-                        // Non-challenge modes never had the heart row;
-                        // skip the fly and just clear.
                         perfectHeartStage = .idle
                     }
                 }
             } else if !solvedNow {
+                perfectHeartFlightTask?.cancel()
+                perfectHeartFlightTask = nil
                 perfectBannerVisible = false
                 perfectHeartStage = .idle
                 solveSquishScale = 1.0
@@ -427,6 +478,9 @@ struct ContentView: View {
         }
         .fullScreenCover(isPresented: $creatorOpen) {
             CreatorView(game: game)
+        }
+        .sheet(isPresented: $communityOpen) {
+            CommunityListView(game: game)
         }
         .sheet(isPresented: $feedbackOpen) {
             FeedbackSheet(game: game)

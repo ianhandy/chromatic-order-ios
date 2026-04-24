@@ -16,6 +16,7 @@ struct MenuSheet: View {
     @Binding var creatorOpen: Bool
     @Binding var feedbackOpen: Bool
     @Binding var accessibilityOpen: Bool
+    @Binding var communityOpen: Bool
     @Binding var started: Bool
     @Environment(Transitioner.self) private var transitioner
 
@@ -69,9 +70,18 @@ struct MenuSheet: View {
                     accessibilityOpen = true
                 }
                 MenuSheetRow(
+                    icon: "person.2.fill",
+                    label: "community",
+                    index: 2,
+                    isOpen: menuOpen
+                ) {
+                    menuOpen = false
+                    communityOpen = true
+                }
+                MenuSheetRow(
                     icon: "envelope.fill",
                     label: "feedback",
-                    index: 2,
+                    index: 3,
                     isOpen: menuOpen
                 ) {
                     menuOpen = false
@@ -86,7 +96,7 @@ struct MenuSheet: View {
                 // disable instead of unmounting.
                 ShowIncorrectMenuRow(
                     game: game,
-                    index: 3,
+                    index: 4,
                     isOpen: menuOpen,
                     disabled: !canShowIncorrect,
                     onTapPrimary: {
@@ -116,7 +126,7 @@ struct MenuSheet: View {
                 )
                 if let p = game.puzzle {
                     MenuSheetShareRow(
-                        index: 4,
+                        index: 5,
                         isOpen: menuOpen,
                         puzzle: p
                     )

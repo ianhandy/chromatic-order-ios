@@ -43,28 +43,42 @@ struct LevelConfig {
 
 func levelConfig(_ level: Int) -> LevelConfig {
     // Tier 1: Trivial (lv 1-3). 1 channel, obvious steps, anchored endpoint.
+    // Hue-step floor raised from 22° → 34° (lv 1) after Round 3 feedback
+    // where low-level hue-primary puzzles still registered as "very
+    // similar colors" to players even post stepScore weight bump. Per-
+    // step hue now sits solidly above the perceptual collapse zone for
+    // mid-chroma seeds.
     if level <= 3 {
         let t = Double(level - 1) / 2.0
         let hi = 0.10 - 0.005 * t
         let lo = 0.06 - 0.005 * t
-        let hHi = 32 - 2 * t, hLo = 22 - 2 * t
+        let hHi = 50 - 3 * t, hLo = 34 - 3 * t
         return LevelConfig(
             channelCount: 1,
             ranges: .init(L: lo...hi, c: lo...(hi - 0.01), h: hLo...hHi),
             anchorEndpoints: 1
         )
     }
+    // Tier 2: Easy (lv 4-6). Hue floor bumped 20° → 26° and ceiling
+    // 30° → 40° so the random step draw clears the "looks the same"
+    // band even on the low end. Feedback round 3: player diff avg
+    // 5.5 vs gen 3.5 across 4 reports — players felt Easy was Medium,
+    // driven by narrow-hue ambiguity rather than cross-gradient prox.
     if level <= 6 {
         return LevelConfig(
             channelCount: Util.chance(0.85) ? 1 : 2,
-            ranges: .init(L: 0.05...0.09, c: 0.05...0.08, h: 20...30),
+            ranges: .init(L: 0.05...0.09, c: 0.05...0.08, h: 26...40),
             anchorEndpoints: 0
         )
     }
+    // Tier 3: Medium (lv 7-9). Modest hue-floor bump 17° → 20° —
+    // single-report feedback at lv 7 showed |player-gen|=4; widening
+    // the floor pulls very-similar draws out of the distribution
+    // without collapsing the intended Medium difficulty band.
     if level <= 9 {
         return LevelConfig(
             channelCount: Util.chance(0.65) ? 1 : 2,
-            ranges: .init(L: 0.045...0.08, c: 0.045...0.07, h: 17...27),
+            ranges: .init(L: 0.045...0.08, c: 0.045...0.07, h: 20...30),
             anchorEndpoints: 0
         )
     }

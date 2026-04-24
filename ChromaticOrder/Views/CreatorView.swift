@@ -9,6 +9,22 @@
 
 import SwiftUI
 
+/// UI state for CreatorView's community Submit button. Tracks the
+/// network roundtrip and the post-roundtrip outcome so the bottom
+/// bar can render a matching inline status row without needing a
+/// sheet or alert.
+enum CommunitySubmitState {
+    case idle
+    case submitting
+    case success(String)     // "pending" | "approved" | "rejected"
+    case failed(String)
+
+    var isInFlight: Bool {
+        if case .submitting = self { return true }
+        return false
+    }
+}
+
 struct CanvasCellFramesKey: PreferenceKey {
     static var defaultValue: [CellIndex: CGRect] = [:]
     static func reduce(value: inout [CellIndex: CGRect], nextValue: () -> [CellIndex: CGRect]) {
@@ -34,6 +50,10 @@ struct CreatorView: View {
     /// Save / Share / Undo row in their face (and it gives the
     /// keyboard uncluttered whitespace to cover).
     @FocusState private var nameFocused: Bool
+
+    /// Drives the Submit-to-community button's UI state: idle, in
+    /// flight, or displaying the result of the most recent attempt.
+    @State private var submitState: CommunitySubmitState = .idle
 
     @Bindable var game: GameState
     /// When true, the Play button also writes the puzzle to the
@@ -149,6 +169,79 @@ struct CreatorView: View {
         let data = Data(json.utf8)
         let payload = ChromaticOrderApp.encodeBase64URL(data)
         return URL(string: "kroma://play?data=\(payload)")!
+    }
+
+    // ─── Community submit ───────────────────────────────────────────
+
+    /// Renders the current submit-state as a small single-line row
+    /// under the action bar. Collapses to zero height when idle so
+    /// it doesn't permanently reserve vertical space.
+    @ViewBuilder
+    private var submitStatusRow: some View {
+        switch submitState {
+        case .idle:
+            EmptyView()
+        case .submitting:
+            Text("Submitting…")
+                .font(.system(size: 11, weight: .medium))
+                .foregroundStyle(.secondary)
+                .padding(.horizontal, 14)
+        case .success(let status):
+            let label: String = {
+                switch status {
+                case "pending":  return "Submitted — awaiting review."
+                case "approved": return "Already approved — it's in the community pool."
+                case "rejected": return "This puzzle was previously rejected."
+                default:         return "Submitted."
+                }
+            }()
+            Text(label)
+                .font(.system(size: 11, weight: .medium))
+                .foregroundStyle(.green)
+                .padding(.horizontal, 14)
+        case .failed(let message):
+            Text("Submit failed: \(message)")
+                .font(.system(size: 11, weight: .medium))
+                .foregroundStyle(.red)
+                .padding(.horizontal, 14)
+        }
+    }
+
+    /// Build the current doc, fire the submit request, surface the
+    /// result through `submitState`. The server dedups by content
+    /// hash so repeatedly tapping Submit on the same layout echoes
+    /// back the existing row's status rather than queuing dupes.
+    private func submitBuiltToCommunity() {
+        guard case .idle = submitState else { return }
+        guard let b = built, b.validation.playable else { return }
+        let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        let submitterName = trimmedName.isEmpty ? nil : trimmedName
+        let difficulty = b.validation.difficulty
+        let puzzle = b.puzzle
+        // Encode on the main actor (CreatorState is MainActor-bound),
+        // then fire the request off-actor.
+        let level = puzzle.level
+        guard let json = try? CreatorCodec.encodeString(
+                state, difficulty: difficulty, name: submitterName),
+              let data = json.data(using: .utf8),
+              let doc = try? CreatorCodec.decode(data) else {
+            submitState = .failed("couldn't encode puzzle")
+            return
+        }
+        submitState = .submitting
+        Task {
+            let result = await CommunityStore.submit(
+                doc: doc, level: level, submitterName: submitterName
+            )
+            await MainActor.run {
+                switch result {
+                case .success(let resp):
+                    submitState = .success(resp.status ?? "pending")
+                case .failure(let err):
+                    submitState = .failed(err.localizedDescription)
+                }
+            }
+        }
     }
 
     /// Write-back helper for the Play button. When editing, overwrite
@@ -346,6 +439,23 @@ struct CreatorView: View {
                     .disabled(true)
                 }
 
+                // Submit-for-community: pending until an admin
+                // approves via /api/community/moderate.
+                Button {
+                    submitBuiltToCommunity()
+                } label: {
+                    if case .submitting = submitState {
+                        ProgressView()
+                            .frame(width: 40, height: 36)
+                    } else {
+                        Label("Submit", systemImage: "paperplane.fill")
+                            .labelStyle(.iconOnly)
+                            .frame(width: 40, height: 36)
+                    }
+                }
+                .buttonStyle(.bordered)
+                .disabled(!(built?.validation.playable ?? false) || submitState.isInFlight)
+
                 Button {
                     if let b = built, b.validation.playable {
                         persistIfNeeded(puzzle: b.puzzle, difficulty: b.validation.difficulty)
@@ -361,6 +471,8 @@ struct CreatorView: View {
                 .disabled(!(built?.validation.playable ?? false))
             }
             .padding(.horizontal, 14)
+
+            submitStatusRow
 
             if state.gradients.isEmpty {
                 Text("Tap a color, drag across the canvas to lay a gradient")

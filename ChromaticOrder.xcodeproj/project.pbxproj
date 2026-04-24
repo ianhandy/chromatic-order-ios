@@ -51,6 +51,7 @@
 		7E2F4BDF41106D7916BACAB2 /* AppIconNeonGreens@3x.png in Resources */ = {isa = PBXBuildFile; fileRef = D94101A044DB3D6C4908B9A7 /* AppIconNeonGreens@3x.png */; };
 		83037D463FE5344EAB42D581 /* StashedPuzzleStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2127B74E0F9E52C41BD5C836 /* StashedPuzzleStore.swift */; };
 		83F8F6CF0B388CEDC5B8B4D6 /* FavoritesStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = A4092EE2AEF345A97CFBEAFB /* FavoritesStore.swift */; };
+		85FCECA425CE86E9279DEC83 /* CommunityListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9E565238E3EC2C08660B8EF3 /* CommunityListView.swift */; };
 		8B3541DE6EEDF21CD7B0BD16 /* AppIconRainbow@2x.png in Resources */ = {isa = PBXBuildFile; fileRef = B02CBF2C5269FBF68290C3BE /* AppIconRainbow@2x.png */; };
 		8E112D77E2C0E17E9877CB73 /* CollectionDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B984BE767FD3DC4F9F72010C /* CollectionDetailView.swift */; };
 		95DA07FCCF6CFF07523F06D5 /* AppIconEarthyTones@3x.png in Resources */ = {isa = PBXBuildFile; fileRef = 33DEE38CC65D5CDC79AC7668 /* AppIconEarthyTones@3x.png */; };
@@ -67,6 +68,7 @@
 		CE755B3B5C9E56D6A75CA63D /* GalleryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EED9AF64DB8B44E82237AD19 /* GalleryView.swift */; };
 		CEE893EBF3AE14E898F23C92 /* AppIconEarthyTones@2x.png in Resources */ = {isa = PBXBuildFile; fileRef = 01EC02939B917DDE202806A3 /* AppIconEarthyTones@2x.png */; };
 		D46A6ECE05CF84DCDA8160B6 /* ColorPickerSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = EFD96AAE98A2EF5AD111E041 /* ColorPickerSheet.swift */; };
+		DAA5C7BE0E673596B11FE0AF /* CommunityStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB5CA128E9F91DAD5B84834E /* CommunityStore.swift */; };
 		E04EBD9DE8C0CCFDF58E294C /* Strings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0F9C8BFFB495AE36E277498C /* Strings.swift */; };
 		E2B88FAF9FF065FFFD5B8F56 /* CBMode.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7ABE78F55223134DDFDF9698 /* CBMode.swift */; };
 		E3640AC314BF03A52651D38A /* Haptics.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5E6C13952A90DB8C288DB938 /* Haptics.swift */; };
@@ -139,6 +141,7 @@
 		8EB16E3924DEA8FE5C7A80CB /* TutorialOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TutorialOverlay.swift; sourceTree = "<group>"; };
 		96D29A1C979F5F2395EEE2B8 /* DailyFetcher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DailyFetcher.swift; sourceTree = "<group>"; };
 		9A1D95583EDBA5EE171A1CEE /* LikeFeedbackSubmitter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LikeFeedbackSubmitter.swift; sourceTree = "<group>"; };
+		9E565238E3EC2C08660B8EF3 /* CommunityListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommunityListView.swift; sourceTree = "<group>"; };
 		A3496AFEC28F950FFD8F9B7C /* LevelGeneratorRules.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LevelGeneratorRules.swift; sourceTree = "<group>"; };
 		A4092EE2AEF345A97CFBEAFB /* FavoritesStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FavoritesStore.swift; sourceTree = "<group>"; };
 		A94584BA3E06A4F9638A8D59 /* BankView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BankView.swift; sourceTree = "<group>"; };
@@ -162,6 +165,7 @@
 		DF8AA772B4B1B97E8798D50E /* AppIconRainbow@3x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "AppIconRainbow@3x.png"; sourceTree = "<group>"; };
 		E17BEA8C8B5E3223F9CF042C /* ShakeDetector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShakeDetector.swift; sourceTree = "<group>"; };
 		E23F6F320CE9FB81C4DA1411 /* LikedPuzzleStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LikedPuzzleStore.swift; sourceTree = "<group>"; };
+		EB5CA128E9F91DAD5B84834E /* CommunityStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommunityStore.swift; sourceTree = "<group>"; };
 		EED9AF64DB8B44E82237AD19 /* GalleryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GalleryView.swift; sourceTree = "<group>"; };
 		EFD96AAE98A2EF5AD111E041 /* ColorPickerSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ColorPickerSheet.swift; sourceTree = "<group>"; };
 		F09D74B9360A82C1C35BF7E1 /* AppIconNeonGreens.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = AppIconNeonGreens.png; sourceTree = "<group>"; };
@@ -178,6 +182,7 @@
 				7E6FF556ED0F7EDA72FF5966 /* CellView.swift */,
 				B984BE767FD3DC4F9F72010C /* CollectionDetailView.swift */,
 				EFD96AAE98A2EF5AD111E041 /* ColorPickerSheet.swift */,
+				9E565238E3EC2C08660B8EF3 /* CommunityListView.swift */,
 				79B1EAC8087FD4755571D516 /* ContinuousGridMenuField.swift */,
 				243AC22FA234D5D50BF52A0D /* CreatorView.swift */,
 				8A5B6723BA4A89C9505169E0 /* EdgeVignetteView.swift */,
@@ -259,6 +264,7 @@
 				7ABE78F55223134DDFDF9698 /* CBMode.swift */,
 				2A10E148A8D22F8B5896E7A3 /* CBTransform.swift */,
 				160AAC1FB0A9B5644583DAF4 /* CloudSync.swift */,
+				EB5CA128E9F91DAD5B84834E /* CommunityStore.swift */,
 				43B82FAB2C24A6433D8AA423 /* CreatorBuild.swift */,
 				BFF309508A73C7B4221B54D7 /* CreatorCodable.swift */,
 				96D29A1C979F5F2395EEE2B8 /* DailyFetcher.swift */,
@@ -406,6 +412,8 @@
 				999E347DD14C17B67638CDB0 /* CloudSync.swift in Sources */,
 				8E112D77E2C0E17E9877CB73 /* CollectionDetailView.swift in Sources */,
 				D46A6ECE05CF84DCDA8160B6 /* ColorPickerSheet.swift in Sources */,
+				85FCECA425CE86E9279DEC83 /* CommunityListView.swift in Sources */,
+				DAA5C7BE0E673596B11FE0AF /* CommunityStore.swift in Sources */,
 				E4850BB725F2BE42A0C12A07 /* ContentView.swift in Sources */,
 				FA0829D6B45001FB834D13B2 /* ContinuousGridMenuField.swift in Sources */,
 				7AAB29C1ADCA369B67B5F85A /* CreatorBuild.swift in Sources */,

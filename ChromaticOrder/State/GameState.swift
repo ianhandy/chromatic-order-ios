@@ -276,6 +276,11 @@ final class GameState {
     private(set) var puzzleBoundsMinC = 0
     private(set) var puzzleBoundsMaxC = 0
     var generating: Bool = true
+    /// True when daily-mode fetch returned no row (server 404, or
+    /// network/decode miss). UI renders an empty state instead of a
+    /// board. Reset at the top of every `startLevel` so a retry /
+    /// mode switch clears the flag.
+    var dailyUnavailable: Bool = false
     /// Set when the current puzzle has been favorited (or loaded
     /// from favorites). nil otherwise. Drives the top-bar star's
     /// filled-vs-outline state and lets `toggleFavorite()` know
@@ -840,6 +845,12 @@ final class GameState {
 
     func startLevel(_ lv: Int) {
         generating = true
+        dailyUnavailable = false
+        // Clear the once-claim perfect-heart token so the next
+        // perfect solve can award a fresh +1. Both handleNext and
+        // the ContentView flight task gate on this flag so only
+        // one path awards per solve.
+        perfectHeartAlreadyAwarded = false
         solved = false
         selection = nil
         dragSource = nil
@@ -948,18 +959,26 @@ final class GameState {
             // Daily mode fetches from the shared server so every
             // player plays the same puzzle for a given UTC date.
             // Skipped when a first-run tooltip still owns the board
-            // layout (tutorialSeed != nil), and when the network
-            // fetch fails — in both cases we fall through to the
-            // local seeded generator below.
+            // layout (tutorialSeed != nil) — in that case the
+            // deterministic tutorial seed path below still runs. When
+            // the fetch misses (404 = no daily published, or any
+            // network failure), daily mode surfaces an empty state
+            // instead of silently diverging into local generation.
             var dailyLevelOverride: Int? = nil
+            var dailyMissing = false
             if puz == nil, activeMode == .daily, tutorialSeed == nil {
                 let key = Daily.dateKey()
                 if let fetched = await DailyFetcher.fetch(for: key) {
                     puz = fetched.puzzle
                     dailyLevelOverride = fetched.level
+                } else {
+                    dailyMissing = true
                 }
             }
-            if puz == nil {
+            // Local generator only runs for non-daily modes. Daily
+            // puzzles must come from the server so every player sees
+            // the same board — no fallback.
+            if puz == nil, !dailyMissing {
                 // Dev-only routing through the targeted-difficulty
                 // generator. Flip via:
                 //   UserDefaults.standard.set(true,
@@ -982,12 +1001,16 @@ final class GameState {
                         : generatePuzzle(level: lv, config: cfg)
                 }
             }
-            let finalPuz = puz!
+            let finalPuz = puz
             let finalDailyLevel = dailyLevelOverride
+            let finalDailyMissing = dailyMissing
             await MainActor.run { [weak self] in
                 guard let self else { return }
                 self.puzzle = finalPuz
-                self.recomputePuzzleBounds()
+                self.dailyUnavailable = finalDailyMissing
+                if finalPuz != nil {
+                    self.recomputePuzzleBounds()
+                }
                 self.generating = false
                 // If the server returned a different level than the
                 // client predicted (curve disagreement or server-side
@@ -1202,13 +1225,15 @@ final class GameState {
             // directly, so advancing in challenge is the only way to
             // open higher zen levels.
             challengeMaxLevel = max(challengeMaxLevel, nextLv)
-            // Hearts only come from perfect solves now — the old
-            // every-3-levels regen is gone. Rewards precision over
-            // persistence.
+            // Claim-once token shared with the ContentView perfect-
+            // heart flight task. Whichever path fires first awards
+            // the +1 and flips the flag; the other is a no-op. The
+            // flag is cleared at the top of `startLevel` so the next
+            // perfect solve can claim again.
             if isPerfectSolve && !perfectHeartAlreadyAwarded {
                 checks += 1
+                perfectHeartAlreadyAwarded = true
             }
-            perfectHeartAlreadyAwarded = false
             _ = justCompleted
         }
         StatsStore.recordSolve(
