@@ -54,6 +54,11 @@ struct CreatorView: View {
     /// Drives the Submit-to-community button's UI state: idle, in
     /// flight, or displaying the result of the most recent attempt.
     @State private var submitState: CommunitySubmitState = .idle
+    /// When true, the space below the canvas shows the
+    /// "Submit this level to the community? Yes / No" prompt
+    /// instead of the usual warning strip. Tapping Submit in the
+    /// bottom bar flips this on; Yes / No flips it off.
+    @State private var showSubmitConfirm: Bool = false
 
     @Bindable var game: GameState
     /// When true, the Play button also writes the puzzle to the
@@ -102,22 +107,18 @@ struct CreatorView: View {
                     }
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    // Overflow menu — collects secondary actions that
-                    // used to clutter the bottom action row. Submit
-                    // lives here so it has room to breathe and the
-                    // bottom row stays focused on Undo / Clear /
-                    // Share / Save.
+                    // Overflow menu for secondary actions. Clear is
+                    // here (destructive, keep it out of the primary
+                    // row); Help stays here too. Submit moved to
+                    // the bottom action row since it's now the
+                    // primary publish affordance.
                     Menu {
-                        Button {
-                            submitBuiltToCommunity()
+                        Button(role: .destructive) {
+                            state.clearAll()
                         } label: {
-                            if case .submitting = submitState {
-                                Label("Submitting…", systemImage: "paperplane.fill")
-                            } else {
-                                Label("Submit to Community", systemImage: "paperplane.fill")
-                            }
+                            Label("Clear canvas", systemImage: "trash")
                         }
-                        .disabled(!(built?.validation.playable ?? false) || submitState.isInFlight)
+                        .disabled(state.gradients.isEmpty)
 
                         Divider()
 
@@ -416,6 +417,25 @@ struct CreatorView: View {
                 .submitLabel(.done)
                 .focused($nameFocused)
                 .onSubmit { nameFocused = false }
+            // Live difficulty chip — replaces the old validation
+            // banner readout below the canvas. 0-10 with a gauge
+            // glyph so the score is visible without consuming any
+            // vertical space. Hidden until at least one gradient is
+            // laid (difficulty is undefined before that).
+            if let b = built {
+                Label("\(b.validation.difficulty)/10", systemImage: "gauge")
+                    .labelStyle(.titleAndIcon)
+                    .font(.system(size: 13, weight: .bold, design: .rounded))
+                    .foregroundStyle(Color.white.opacity(0.85))
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 5)
+                    .background(
+                        Capsule().fill(Color.white.opacity(0.08))
+                    )
+                    .overlay(
+                        Capsule().stroke(Color.white.opacity(0.18), lineWidth: 1)
+                    )
+            }
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 12)
@@ -538,11 +558,18 @@ struct CreatorView: View {
                 ) { state.undo() }
 
                 bottomBarButton(
-                    system: "trash",
-                    label: "Clear",
-                    disabled: state.gradients.isEmpty,
-                    tone: .destructive
-                ) { state.clearAll() }
+                    system: "paperplane.fill",
+                    label: submitState.isInFlight ? "…" : "Submit",
+                    disabled: !(built?.validation.playable ?? false)
+                             || submitState.isInFlight
+                             || showSubmitConfirm,
+                    tone: .neutral
+                ) {
+                    // Tapping Submit opens the confirmation prompt
+                    // in the validation-banner slot; the actual
+                    // POST doesn't fire until Yes.
+                    showSubmitConfirm = true
+                }
 
                 shareBottomButton
 
@@ -578,22 +605,42 @@ struct CreatorView: View {
         }
     }
 
-    // Info + warning banner — shows the live difficulty and any issues
-    // the builder flagged. Warnings render in red; stat text is neutral.
+    // Pre-toolbar content slot. Primary job is now hosting the
+    // submit-confirmation prompt ("Submit this level to the
+    // community? Yes / No") that lives in the space where the
+    // grads/free metrics used to sit. Warnings from the builder
+    // still surface here; difficulty moved into the name-field
+    // capsule on the right.
     @ViewBuilder
     private var validationBanner: some View {
-        if let b = built {
-            VStack(spacing: 4) {
-                HStack(spacing: 12) {
-                    Label("\(b.validation.difficulty)/10", systemImage: "gauge")
-                        .font(.system(size: 11, weight: .semibold))
-                    Label("\(b.validation.gradientCount) grads", systemImage: "line.diagonal")
-                        .font(.system(size: 11, weight: .semibold))
-                    Label("\(b.validation.bankCount) free", systemImage: "square.grid.2x2")
-                        .font(.system(size: 11, weight: .semibold))
-                    Spacer()
+        if showSubmitConfirm {
+            HStack(spacing: 10) {
+                Text("Submit this level to the community?")
+                    .font(.system(size: 13, weight: .semibold, design: .rounded))
+                    .foregroundStyle(Color.white.opacity(0.85))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+                Spacer(minLength: 6)
+                Button("Yes") {
+                    showSubmitConfirm = false
+                    submitBuiltToCommunity()
                 }
-                .foregroundStyle(.secondary)
+                .buttonStyle(.borderedProminent)
+                .controlSize(.small)
+                .tint(Color(red: 0.36, green: 0.78, blue: 0.45))
+                Button("No") {
+                    showSubmitConfirm = false
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+                .tint(Color.white.opacity(0.4))
+            }
+            .padding(.horizontal, 14)
+            .transition(.opacity)
+        } else if let b = built, !b.validation.warnings.isEmpty {
+            // Warnings still surface (builder-side hints about grid
+            // fit, intersection issues, etc.). Stat metrics hidden.
+            VStack(alignment: .leading, spacing: 3) {
                 ForEach(b.validation.warnings, id: \.self) { w in
                     HStack(alignment: .top, spacing: 6) {
                         Image(systemName: "exclamationmark.triangle.fill")

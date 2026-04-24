@@ -169,15 +169,6 @@ struct CollectionDetailView: View {
                         } label: {
                             Label("Move to…", systemImage: "folder")
                         }
-                        Button {
-                            submitToCommunity(puzzle)
-                        } label: {
-                            Label(
-                                submittingPuzzleId == puzzle.id ? "Submitting…" : "Submit to Community",
-                                systemImage: "paperplane.fill"
-                            )
-                        }
-                        .disabled(submittingPuzzleId != nil)
                         Button(role: .destructive) {
                             try? GalleryStore.delete(puzzle)
                             reload()
