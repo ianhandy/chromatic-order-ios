@@ -216,7 +216,9 @@ struct ContentView: View {
                     // button in the middle.
                     let solvedRowHeight: CGFloat = 52
                     HStack(alignment: .center, spacing: 8) {
-                        LikeFeedbackWidget(game: game, height: solvedRowHeight)
+                        LikeFeedbackWidget(game: game,
+                                           feedbackOpen: $feedbackOpen,
+                                           height: solvedRowHeight)
                             .layoutPriority(1)
                         Button {
                             if let p = game.puzzle {
