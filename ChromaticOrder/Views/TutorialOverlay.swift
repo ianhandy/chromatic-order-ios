@@ -165,24 +165,49 @@ struct TutorialBalloon: View {
     private var balloonVisual: some View {
         let bodyH = Self.balloonSize.height + Self.knotHeight
         ZStack {
-            // Balloon body
+            // Balloon body — radial gradient so the dome reads as an
+            // inflated rubber sphere with a soft sheen in the upper
+            // left, fading to a deeper shade at the lower right. All
+            // four stops derive from `tint` so per-tutorial colors
+            // still drive the hue; alpha does the light-to-dark work.
             BalloonBodyShape()
-                .fill(tint.opacity(0.55))
+                .fill(
+                    RadialGradient(
+                        colors: [
+                            tint.opacity(0.95),
+                            tint.opacity(0.75),
+                            tint.opacity(0.45),
+                            tint.opacity(0.25),
+                        ],
+                        center: UnitPoint(x: 0.32, y: 0.22),
+                        startRadius: 6,
+                        endRadius: Self.balloonSize.width * 0.95
+                    )
+                )
                 .overlay(
                     BalloonBodyShape()
                         .stroke(Color.white.opacity(0.45), lineWidth: 1)
                 )
                 .frame(width: Self.balloonSize.width, height: bodyH)
-                .shadow(color: .black.opacity(0.25), radius: 10, y: 4)
+                .shadow(color: .black.opacity(0.28), radius: 12, y: 5)
             // Specular highlight — small bright ellipse in the
-            // upper-left quadrant reads as inflated rubber.
+            // upper-left quadrant reinforces the radial gradient's
+            // sheen origin so the balloon reads as glossy rubber.
             Ellipse()
-                .fill(Color.white.opacity(0.20))
+                .fill(Color.white.opacity(0.22))
                 .frame(width: Self.balloonSize.width * 0.28,
                        height: Self.balloonSize.height * 0.20)
                 .offset(x: -Self.balloonSize.width * 0.15,
                         y: -Self.balloonSize.height * 0.25)
                 .allowsHitTesting(false)
+            // Text centered on the balloon's widest point. The old
+            // offset was pulled up by stringLength/2 as if the
+            // ZStack included the string, but the string sits on a
+            // sibling offset (below) — so subtracting stringLength
+            // here shoved the text into the upper lobe. Use a small
+            // negative nudge so the text reads as sitting on the
+            // balloon's visual center-of-mass (widest point ~42%
+            // down the body).
             Text(text)
                 .font(.system(size: 13, weight: .bold, design: .rounded))
                 .foregroundStyle(.white)
@@ -193,8 +218,7 @@ struct TutorialBalloon: View {
                 .frame(width: Self.balloonSize.width - 8,
                        height: Self.balloonSize.height * 0.55,
                        alignment: .center)
-                .offset(y: -Self.balloonSize.height * 0.16
-                         - Self.stringLength / 2)
+                .offset(y: -Self.balloonSize.height * 0.06)
             // Up-left corner pointer — only rendered when the parent
             // wires it in (e.g. the zen-intro tutorial). Sits inside
             // the balloon's upper-left lobe so it reads as part of
@@ -338,6 +362,12 @@ struct TutorialBalloon: View {
 /// Classic balloon silhouette — round dome at the top, gentle taper
 /// to a narrow neck, and a small tied-knot nub at the bottom. Drawn
 /// as a single continuous Path so fill + stroke line up without seams.
+///
+/// Top arcs use the standard `kappa = 0.5522847…` Bezier control-
+/// length for quarter-circle approximation so the apex reads as a
+/// genuine dome rather than a pointy teardrop. The widest point sits
+/// at 45% down the body height — further down than a perfect sphere
+/// to give the balloon its characteristic heavy-bottom profile.
 struct BalloonBodyShape: Shape {
     func path(in rect: CGRect) -> Path {
         let knotH: CGFloat = 8
@@ -345,32 +375,34 @@ struct BalloonBodyShape: Shape {
         let w = rect.width
         let cx = rect.midX
         let topY = rect.minY
-        // Widest point ~42% down — moved slightly lower than before
-        // so the dome spans more of the body height, eliminating the
-        // flat-top indent that appeared when both control points pulled
-        // the curve above the frame boundary and got clipped.
-        let wideY = topY + bodyH * 0.42
+        let wideY = topY + bodyH * 0.45
         let bottomY = topY + bodyH
         let halfW = w * 0.50
         let neckHalfW = w * 0.055
+
+        // Bezier-circle constant — control-point offset that makes a
+        // cubic curve trace a near-perfect quarter circle.
+        let kappa: CGFloat = 0.5522847
+        let topArcH = wideY - topY
 
         var p = Path()
         p.move(to: CGPoint(x: cx, y: topY))
 
         // ── Right side ──────────────────────────────────────────
 
-        // Top-right dome — control point stays within the frame so
-        // the curve arcs fully within bounds and the apex reads as
-        // a smooth, round dome with no center indent.
+        // Top-right dome: tangent leaves the apex horizontally
+        // (control1 at y = topY) and arrives at the widest point
+        // vertically (control2 at x = cx + halfW). That yields a
+        // proper circular dome shape with no pinch or flat spot.
         p.addCurve(
             to: CGPoint(x: cx + halfW, y: wideY),
-            control1: CGPoint(x: cx + halfW * 0.72, y: topY + bodyH * 0.01),
-            control2: CGPoint(x: cx + halfW * 1.10, y: topY + bodyH * 0.12)
+            control1: CGPoint(x: cx + halfW * kappa, y: topY),
+            control2: CGPoint(x: cx + halfW, y: wideY - topArcH * kappa)
         )
         // Bottom-right taper to neck
         p.addCurve(
             to: CGPoint(x: cx + neckHalfW, y: bottomY),
-            control1: CGPoint(x: cx + halfW * 0.96, y: wideY + bodyH * 0.34),
+            control1: CGPoint(x: cx + halfW * 0.96, y: wideY + bodyH * 0.32),
             control2: CGPoint(x: cx + neckHalfW * 2.2, y: bottomY - bodyH * 0.06)
         )
 
@@ -396,13 +428,13 @@ struct BalloonBodyShape: Shape {
         p.addCurve(
             to: CGPoint(x: cx - halfW, y: wideY),
             control1: CGPoint(x: cx - neckHalfW * 2.2, y: bottomY - bodyH * 0.06),
-            control2: CGPoint(x: cx - halfW * 0.96, y: wideY + bodyH * 0.34)
+            control2: CGPoint(x: cx - halfW * 0.96, y: wideY + bodyH * 0.32)
         )
-        // Top-left dome (mirror)
+        // Top-left dome (mirror) — same circle-arc approximation.
         p.addCurve(
             to: CGPoint(x: cx, y: topY),
-            control1: CGPoint(x: cx - halfW * 1.10, y: topY + bodyH * 0.12),
-            control2: CGPoint(x: cx - halfW * 0.72, y: topY + bodyH * 0.01)
+            control1: CGPoint(x: cx - halfW, y: wideY - topArcH * kappa),
+            control2: CGPoint(x: cx - halfW * kappa, y: topY)
         )
         p.closeSubpath()
         return p
@@ -515,8 +547,8 @@ struct BalloonPopParticles: View {
     @State private var started: Bool = false
     @State private var lastTick: Date? = nil
 
-    private static let spawnCount = 18
-    private static let maxLife: TimeInterval = 2.2
+    private static let spawnCount = 26
+    private static let maxLife: TimeInterval = 1.8
     /// Downward acceleration in pt/s². Tuned by eye — slower than real
     /// gravity so the arc feels floaty / rubbery rather than like lead.
     private static let gravity: Double = 900
@@ -580,18 +612,22 @@ struct BalloonPopParticles: View {
     private func spawnParticles() -> [PopParticle] {
         let spawn = Date()
         return (0..<Self.spawnCount).map { _ in
-            // Bias velocity slightly upward + outward so the initial
-            // burst reads as a "pop" rather than just a spill.
-            let angleRad = Double.random(in: -.pi...0) - .pi / 8
-            let speed = Double.random(in: 260...520)
+            // Full-circle radial burst — each fragment flies out at a
+            // random angle so the effect reads as a popped balloon
+            // exploding in all directions rather than a unidirectional
+            // spray. Small upward bias (subtract π/2 * 0.12) so the
+            // top half of the burst is slightly denser, matching how
+            // rubber balloon fragments actually behave when popped.
+            let angleRad = Double.random(in: 0..<(2 * .pi)) - .pi / 2 * 0.12
+            let speed = Double.random(in: 300...640)
             let vx = cos(angleRad) * speed
             let vy = sin(angleRad) * speed
             return PopParticle(
                 position: origin,
                 velocity: CGVector(dx: vx, dy: vy),
-                angle: Double.random(in: -45...45),
-                angularVelocity: Double.random(in: -260...260),
-                size: CGFloat.random(in: 10...18),
+                angle: Double.random(in: -180...180),
+                angularVelocity: Double.random(in: -540...540),
+                size: CGFloat.random(in: 8...16),
                 color: fragmentColor(),
                 spawnDate: spawn
             )
