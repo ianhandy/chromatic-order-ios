@@ -58,6 +58,7 @@
 		999E347DD14C17B67638CDB0 /* CloudSync.swift in Sources */ = {isa = PBXBuildFile; fileRef = 160AAC1FB0A9B5644583DAF4 /* CloudSync.swift */; };
 		A1700E3B5A207284C4796185 /* GalleryStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4C0E618AA2C692769FA0CD57 /* GalleryStore.swift */; };
 		AB911B28DCFE996C1E5A5DF1 /* GridView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B77B6DBA462A78886EC80CC /* GridView.swift */; };
+		AFF8037C0A2C2CC55C87FE24 /* GallerySolvedStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 333FC8788FF4E81B5E7DF11D /* GallerySolvedStore.swift */; };
 		B046ADA643FBCCDCBA769C47 /* Proximity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 41500A18A21C00DF321D45C7 /* Proximity.swift */; };
 		B318B8B7094331E0E402D782 /* TutorialStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6C0E12C6A4E80120117977B6 /* TutorialStore.swift */; };
 		B35978D976478DF1888F7DA5 /* CellView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E6FF556ED0F7EDA72FF5966 /* CellView.swift */; };
@@ -111,6 +112,7 @@
 		2805C33A1DAE888F6BEE6772 /* Transitioner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Transitioner.swift; sourceTree = "<group>"; };
 		2A10E148A8D22F8B5896E7A3 /* CBTransform.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CBTransform.swift; sourceTree = "<group>"; };
 		2EDE5327E1AA3D7BCC8E36E6 /* MenuView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuView.swift; sourceTree = "<group>"; };
+		333FC8788FF4E81B5E7DF11D /* GallerySolvedStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GallerySolvedStore.swift; sourceTree = "<group>"; };
 		3395BD7F6140655A87532271 /* OnboardingOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingOverlay.swift; sourceTree = "<group>"; };
 		33DEE38CC65D5CDC79AC7668 /* AppIconEarthyTones@3x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "AppIconEarthyTones@3x.png"; sourceTree = "<group>"; };
 		41500A18A21C00DF321D45C7 /* Proximity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Proximity.swift; sourceTree = "<group>"; };
@@ -271,6 +273,7 @@
 				A4092EE2AEF345A97CFBEAFB /* FavoritesStore.swift */,
 				60C1AF3FAF10C86541EE9315 /* FeedbackSubmitter.swift */,
 				05E19AD6B398060DF1E285B6 /* FluidWarp.metal */,
+				333FC8788FF4E81B5E7DF11D /* GallerySolvedStore.swift */,
 				4C0E618AA2C692769FA0CD57 /* GalleryStore.swift */,
 				0B305E810212560C51C822ED /* GameCenter.swift */,
 				618A23A276B3DEE750B5FCD2 /* Generate.swift */,
@@ -427,6 +430,7 @@
 				23AC0EF292446C08D74F9CF3 /* FeedbackSubmitter.swift in Sources */,
 				0474E00251D2487498A7D39A /* FluidWarp.metal in Sources */,
 				0090125491B8F3FB51DF0119 /* FocusDim.swift in Sources */,
+				AFF8037C0A2C2CC55C87FE24 /* GallerySolvedStore.swift in Sources */,
 				A1700E3B5A207284C4796185 /* GalleryStore.swift in Sources */,
 				CE755B3B5C9E56D6A75CA63D /* GalleryView.swift in Sources */,
 				00FE421408CA275CF639DB35 /* GameCenter.swift in Sources */,

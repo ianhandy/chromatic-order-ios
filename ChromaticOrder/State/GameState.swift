@@ -288,6 +288,13 @@ final class GameState {
     /// "return to where I came from" behavior. Cleared whenever a
     /// generator puzzle takes over via `startLevel`.
     var cameFromGallery: Bool = false
+    /// When the current puzzle was loaded from a specific Gallery
+    /// row, this carries that row's stable id. On a perfect-solve
+    /// we record the id in `GallerySolvedStore` so the Gallery list
+    /// can paint a heart on rows the player has completed clean.
+    /// Cleared on every startLevel (generator path) and on fresh
+    /// loadCustomPuzzle calls from non-gallery sources.
+    var currentGalleryPuzzleId: String? = nil
     /// Set by the in-game "← Gallery" hamburger row. MenuView reads
     /// this on appear and auto-presents its Gallery sheet, then
     /// clears the flag. Avoids routing a signal through a separate
@@ -314,6 +321,16 @@ final class GameState {
             // state (new puzzle, handleReset, etc.).
             if solved && !oldValue {
                 solvedAt = Date()
+                // Record perfect solves of gallery puzzles so the
+                // Gallery list can paint a heart on the completed
+                // row. Only fires on first transition to solved
+                // (oldValue == false) and only for actual gallery
+                // plays (currentGalleryPuzzleId set). isPerfectSolve
+                // is computed from heartLostThisLevel + showedIncorrect
+                // so this captures clean solves only.
+                if let gid = currentGalleryPuzzleId, isPerfectSolve {
+                    GallerySolvedStore.markPerfected(gid)
+                }
             } else if !solved {
                 solvedAt = nil
             }
@@ -863,6 +880,7 @@ final class GameState {
         // next Home tap goes to the main menu instead of re-opening
         // Gallery.
         cameFromGallery = false
+        currentGalleryPuzzleId = nil
         // Clear the once-claim perfect-heart token so the next
         // perfect solve can award a fresh +1. Both handleNext and
         // the ContentView flight task gate on this flag so only
@@ -1459,7 +1477,7 @@ final class GameState {
     /// generator's level ladder (and its per-puzzle scoring doesn't
     /// make sense for a one-off), so entering a custom puzzle from
     /// challenge forces a switch back to zen first.
-    func loadCustomPuzzle(_ p: Puzzle, favoriteURL: URL? = nil, fromGallery: Bool = false) {
+    func loadCustomPuzzle(_ p: Puzzle, favoriteURL: URL? = nil, fromGallery: Bool = false, galleryPuzzleId: String? = nil) {
         if mode != .zen {
             mode = .zen
             level = zenLevel
@@ -1482,6 +1500,11 @@ final class GameState {
         // Cleared automatically on any subsequent `startLevel` call
         // (the generator path owns the non-custom lifecycle).
         cameFromGallery = fromGallery
+        // Stash the gallery id (if any) so a perfect solve can
+        // record this row in GallerySolvedStore. Always overwrite
+        // so a fresh custom load from a non-gallery source clears
+        // stale state from a prior gallery play.
+        currentGalleryPuzzleId = fromGallery ? galleryPuzzleId : nil
         puzzleStartTime = Date()
         mistakeCount = 0
         moveCount = 0

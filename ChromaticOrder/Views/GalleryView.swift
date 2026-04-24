@@ -481,7 +481,12 @@ struct GalleryView: View {
 
     private func play(_ puzzle: GalleryPuzzle, favoriteURL: URL? = nil) {
         guard let built = CreatorCodec.rebuild(puzzle.doc) else { return }
-        game.loadCustomPuzzle(built, favoriteURL: favoriteURL, fromGallery: true)
+        game.loadCustomPuzzle(
+            built,
+            favoriteURL: favoriteURL,
+            fromGallery: true,
+            galleryPuzzleId: puzzle.id
+        )
         // Close gallery + drop into game. The dismiss chain routes
         // through the parent sheet's onDismiss; MenuView flips
         // `started` to true there.
@@ -538,12 +543,28 @@ struct GalleryRow: View {
             // Palette swatch — first 6 colors of the first gradient,
             // laid out as a horizontal strip. Gives a visual at-a-
             // glance so the list isn't 40 identical text rows.
+            // Perfect-solve badge floats in the top-left corner when
+            // the player has cleared this puzzle without burning a
+            // heart or peeking the solution.
             HStack(spacing: 2) {
                 let cells = puzzle.doc.gradients.first?.cells.prefix(5) ?? []
                 ForEach(Array(cells.enumerated()), id: \.offset) { (_, cell) in
                     RoundedRectangle(cornerRadius: 4, style: .continuous)
                         .fill(OK.toColor(OKLCh(L: cell.L, c: cell.C, h: cell.h)))
                         .frame(width: 14, height: 30)
+                }
+            }
+            .overlay(alignment: .topLeading) {
+                if GallerySolvedStore.hasPerfected(puzzle.id) {
+                    Image(systemName: "heart.fill")
+                        .font(.system(size: 10, weight: .heavy))
+                        .foregroundStyle(Color(red: 1.0, green: 0.4, blue: 0.4))
+                        .padding(2)
+                        .background(
+                            Circle().fill(Color.black.opacity(0.55))
+                        )
+                        .offset(x: -4, y: -4)
+                        .accessibilityLabel("Perfect solve")
                 }
             }
 

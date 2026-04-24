@@ -202,7 +202,12 @@ struct CollectionDetailView: View {
 
     private func play(_ puzzle: GalleryPuzzle) {
         guard let built = CreatorCodec.rebuild(puzzle.doc) else { return }
-        game.loadCustomPuzzle(built, favoriteURL: nil, fromGallery: true)
+        game.loadCustomPuzzle(
+            built,
+            favoriteURL: nil,
+            fromGallery: true,
+            galleryPuzzleId: puzzle.id
+        )
         started = true
         dismiss()
     }
