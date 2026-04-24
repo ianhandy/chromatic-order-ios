@@ -20,6 +20,9 @@ struct CollectionDetailView: View {
     @State private var movingPuzzle: GalleryPuzzle? = nil
     @State private var importing = false
     @State private var importError: String? = nil
+    /// Submit-to-Community feedback — same pattern as GalleryView.
+    @State private var submitAlertMessage: String? = nil
+    @State private var submittingPuzzleId: String? = nil
 
     var body: some View {
         Group {
@@ -166,6 +169,15 @@ struct CollectionDetailView: View {
                         } label: {
                             Label("Move to…", systemImage: "folder")
                         }
+                        Button {
+                            submitToCommunity(puzzle)
+                        } label: {
+                            Label(
+                                submittingPuzzleId == puzzle.id ? "Submitting…" : "Submit to Community",
+                                systemImage: "paperplane.fill"
+                            )
+                        }
+                        .disabled(submittingPuzzleId != nil)
                         Button(role: .destructive) {
                             try? GalleryStore.delete(puzzle)
                             reload()
@@ -174,6 +186,14 @@ struct CollectionDetailView: View {
                         }
                     }
             }
+        }
+        .alert("Community", isPresented: Binding(
+            get: { submitAlertMessage != nil },
+            set: { if !$0 { submitAlertMessage = nil } }
+        )) {
+            Button("OK", role: .cancel) { submitAlertMessage = nil }
+        } message: {
+            Text(submitAlertMessage ?? "")
         }
     }
 
@@ -191,9 +211,45 @@ struct CollectionDetailView: View {
 
     private func play(_ puzzle: GalleryPuzzle) {
         guard let built = CreatorCodec.rebuild(puzzle.doc) else { return }
-        game.loadCustomPuzzle(built, favoriteURL: nil)
+        game.loadCustomPuzzle(built, favoriteURL: nil, fromGallery: true)
         started = true
         dismiss()
+    }
+
+    /// Same submit flow as GalleryView.submitToCommunity — kept per-
+    /// view so each screen owns its own alert state without threading
+    /// it through a shared environment object.
+    private func submitToCommunity(_ puzzle: GalleryPuzzle) {
+        guard submittingPuzzleId == nil else { return }
+        guard let built = CreatorCodec.rebuild(puzzle.doc) else {
+            submitAlertMessage = "Couldn't rebuild this puzzle for submission."
+            return
+        }
+        submittingPuzzleId = puzzle.id
+        let level = built.level
+        let submitterName = puzzle.doc.name
+        let doc = puzzle.doc
+        Task {
+            let result = await CommunityStore.submit(
+                doc: doc, level: level, submitterName: submitterName
+            )
+            await MainActor.run {
+                submittingPuzzleId = nil
+                switch result {
+                case .success(let resp):
+                    switch resp.status ?? "pending" {
+                    case "approved":
+                        submitAlertMessage = "Already approved — your puzzle is live in the community pool."
+                    case "rejected":
+                        submitAlertMessage = "This puzzle was previously rejected by the moderator."
+                    default:
+                        submitAlertMessage = "Submitted — awaiting review."
+                    }
+                case .failure(let err):
+                    submitAlertMessage = "Submit failed: \(err.localizedDescription)"
+                }
+            }
+        }
     }
 
     private func handleImport(_ result: Result<[URL], Error>) {

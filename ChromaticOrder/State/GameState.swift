@@ -281,6 +281,18 @@ final class GameState {
     /// board. Reset at the top of every `startLevel` so a retry /
     /// mode switch clears the flag.
     var dailyUnavailable: Bool = false
+    /// True when the currently-loaded puzzle came from the Gallery
+    /// sheet (either user-saved or a favorite). Drives the in-game
+    /// hamburger's Home row to read 'Gallery' and route back to the
+    /// Gallery sheet instead of the main menu, matching the expected
+    /// "return to where I came from" behavior. Cleared whenever a
+    /// generator puzzle takes over via `startLevel`.
+    var cameFromGallery: Bool = false
+    /// Set by the in-game "← Gallery" hamburger row. MenuView reads
+    /// this on appear and auto-presents its Gallery sheet, then
+    /// clears the flag. Avoids routing a signal through a separate
+    /// environment object or AppStorage key for a one-shot hop.
+    var openGalleryOnMenuAppear: Bool = false
     /// Set when the current puzzle has been favorited (or loaded
     /// from favorites). nil otherwise. Drives the top-bar star's
     /// filled-vs-outline state and lets `toggleFavorite()` know
@@ -846,6 +858,11 @@ final class GameState {
     func startLevel(_ lv: Int) {
         generating = true
         dailyUnavailable = false
+        // Starting a level via the generator means we're no longer
+        // in a gallery-custom-play context; clear the flag so the
+        // next Home tap goes to the main menu instead of re-opening
+        // Gallery.
+        cameFromGallery = false
         // Clear the once-claim perfect-heart token so the next
         // perfect solve can award a fresh +1. Both handleNext and
         // the ContentView flight task gate on this flag so only
@@ -1442,7 +1459,7 @@ final class GameState {
     /// generator's level ladder (and its per-puzzle scoring doesn't
     /// make sense for a one-off), so entering a custom puzzle from
     /// challenge forces a switch back to zen first.
-    func loadCustomPuzzle(_ p: Puzzle, favoriteURL: URL? = nil) {
+    func loadCustomPuzzle(_ p: Puzzle, favoriteURL: URL? = nil, fromGallery: Bool = false) {
         if mode != .zen {
             mode = .zen
             level = zenLevel
@@ -1460,6 +1477,11 @@ final class GameState {
         showedIncorrect = false
         engagedThisLevel = false
         currentFavoriteURL = favoriteURL
+        // Signal the hamburger-menu Home row to read 'Gallery' and
+        // route back to the Gallery sheet instead of the main menu.
+        // Cleared automatically on any subsequent `startLevel` call
+        // (the generator path owns the non-custom lifecycle).
+        cameFromGallery = fromGallery
         puzzleStartTime = Date()
         mistakeCount = 0
         moveCount = 0

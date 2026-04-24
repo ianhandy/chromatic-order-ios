@@ -103,10 +103,32 @@ struct CreatorView: View {
                     }
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button {
-                        showHelp = true
+                    // Overflow menu — collects secondary actions that
+                    // used to clutter the bottom action row. Submit
+                    // lives here so it has room to breathe and the
+                    // bottom row stays focused on Undo / Clear /
+                    // Share / Save.
+                    Menu {
+                        Button {
+                            submitBuiltToCommunity()
+                        } label: {
+                            if case .submitting = submitState {
+                                Label("Submitting…", systemImage: "paperplane.fill")
+                            } else {
+                                Label("Submit to Community", systemImage: "paperplane.fill")
+                            }
+                        }
+                        .disabled(!(built?.validation.playable ?? false) || submitState.isInFlight)
+
+                        Divider()
+
+                        Button {
+                            showHelp = true
+                        } label: {
+                            Label("Help", systemImage: "questionmark.circle")
+                        }
                     } label: {
-                        Image(systemName: "questionmark.circle")
+                        Image(systemName: "line.3.horizontal")
                     }
                 }
             }
@@ -169,6 +191,121 @@ struct CreatorView: View {
         let data = Data(json.utf8)
         let payload = ChromaticOrderApp.encodeBase64URL(data)
         return URL(string: "kroma://play?data=\(payload)")!
+    }
+
+    // ─── Bottom-bar atoms ───────────────────────────────────────────
+
+    private enum BottomButtonTone { case neutral, destructive, prominent }
+
+    /// Shared styling for the bottom action bar so every button has
+    /// the same height, icon + label stack, and touch target. Tone
+    /// picks the color treatment without forcing three different
+    /// button-style calls at each call-site.
+    private func bottomBarForegroundColor(disabled: Bool, tone: BottomButtonTone) -> Color {
+        if disabled { return Color.white.opacity(0.3) }
+        switch tone {
+        case .prominent: return Color.black
+        case .destructive: return Color(red: 0.92, green: 0.42, blue: 0.42)
+        case .neutral: return Color.white.opacity(0.9)
+        }
+    }
+
+    private func bottomBarFillColor(disabled: Bool, tone: BottomButtonTone) -> Color {
+        if disabled { return Color.white.opacity(0.04) }
+        if tone == .prominent { return Color.white }
+        return Color.white.opacity(0.08)
+    }
+
+    private func bottomBarStrokeColor(disabled: Bool, tone: BottomButtonTone) -> Color {
+        if disabled { return Color.white.opacity(0.08) }
+        if tone == .prominent { return Color.clear }
+        return Color.white.opacity(0.2)
+    }
+
+    @ViewBuilder
+    private func bottomBarButton(
+        system: String,
+        label: String,
+        disabled: Bool,
+        tone: BottomButtonTone,
+        action: @escaping () -> Void
+    ) -> some View {
+        let fg = bottomBarForegroundColor(disabled: disabled, tone: tone)
+        let fill = bottomBarFillColor(disabled: disabled, tone: tone)
+        let stroke = bottomBarStrokeColor(disabled: disabled, tone: tone)
+        Button(action: action) {
+            VStack(spacing: 3) {
+                Image(systemName: system)
+                    .font(.system(size: 18, weight: .semibold))
+                Text(label)
+                    .font(.system(size: 12, weight: .semibold, design: .rounded))
+            }
+            .frame(maxWidth: .infinity, minHeight: 52)
+            .foregroundStyle(fg)
+            .background(
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .fill(fill)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .stroke(stroke, lineWidth: 1)
+            )
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .disabled(disabled)
+    }
+
+    /// Share is special — it wraps SwiftUI's ShareLink around a
+    /// KromaPuzzleFile so the system share sheet handles the AirDrop
+    /// / Messages / Mail routing. Rendered to match bottomBarButton
+    /// so the row stays visually uniform.
+    @ViewBuilder
+    private var shareBottomButton: some View {
+        let playable = built?.validation.playable ?? false
+        if playable, let b = built,
+           let json = try? CreatorCodec.encodeString(
+               state, difficulty: b.validation.difficulty) {
+            let file = KromaPuzzleFile(
+                json: json,
+                difficulty: b.validation.difficulty
+            )
+            let shareURL = kromaPlayURL(json: json)
+            let previewImage = PuzzlePreviewRenderer.render(b.puzzle)
+            ShareLink(
+                item: file,
+                subject: Text("A Kromatika puzzle"),
+                message: Text("difficulty \(b.validation.difficulty)/10 — tap to play: \(shareURL)"),
+                preview: SharePreview(
+                    "Kromatika puzzle (\(b.validation.difficulty)/10)",
+                    image: previewImage ?? Image(systemName: "paintpalette.fill")
+                )
+            ) {
+                VStack(spacing: 3) {
+                    Image(systemName: "square.and.arrow.up")
+                        .font(.system(size: 18, weight: .semibold))
+                    Text("Share")
+                        .font(.system(size: 12, weight: .semibold, design: .rounded))
+                }
+                .frame(maxWidth: .infinity, minHeight: 52)
+                .foregroundStyle(Color.white.opacity(0.9))
+                .background(
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .fill(Color.white.opacity(0.08))
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .stroke(Color.white.opacity(0.2), lineWidth: 1)
+                )
+            }
+        } else {
+            bottomBarButton(
+                system: "square.and.arrow.up",
+                label: "Share",
+                disabled: true,
+                tone: .neutral
+            ) { /* no-op; disabled */ }
+        }
     }
 
     // ─── Community submit ───────────────────────────────────────────
@@ -370,105 +507,41 @@ struct CreatorView: View {
     }
 
     private var toolBar: some View {
-        VStack(spacing: 8) {
+        VStack(spacing: 10) {
             validationBanner
 
+            // Four equal-flex buttons with generous touch targets —
+            // Submit moved into the top-right overflow menu so this
+            // row has room. Icons sit above labels so the buttons
+            // stay legible even at the 14pt step.
             HStack(spacing: 10) {
-                Button {
-                    state.undo()
-                } label: {
-                    Label("Undo", systemImage: "arrow.uturn.backward")
-                        .labelStyle(.iconOnly)
-                        .frame(width: 40, height: 36)
-                }
-                .buttonStyle(.bordered)
-                .disabled(state.gradients.isEmpty)
+                bottomBarButton(
+                    system: "arrow.uturn.backward",
+                    label: "Undo",
+                    disabled: state.gradients.isEmpty,
+                    tone: .neutral
+                ) { state.undo() }
 
-                Button(role: .destructive) {
-                    state.clearAll()
-                } label: {
-                    Text("Clear")
-                        .font(.system(size: 13, weight: .semibold))
-                        .frame(height: 36)
-                        .padding(.horizontal, 14)
-                }
-                .buttonStyle(.bordered)
-                .disabled(state.gradients.isEmpty)
+                bottomBarButton(
+                    system: "trash",
+                    label: "Clear",
+                    disabled: state.gradients.isEmpty,
+                    tone: .destructive
+                ) { state.clearAll() }
 
-                Spacer()
+                shareBottomButton
 
-                // Share: attaches a .kroma file AND puts a clickable
-                // `kroma://play?data=…` URL in the message body. The
-                // file path covers AirDrop / Files; the link path lets
-                // the recipient open the puzzle directly from Messages,
-                // Slack, etc. with one tap (the app's URL scheme
-                // decodes the inline payload and drops them into the
-                // puzzle). Both ship so the channel with the best UX
-                // wins per conversation.
-                if let b = built,
-                   let json = try? CreatorCodec.encodeString(
-                        state,
-                        difficulty: b.validation.difficulty) {
-                    let file = KromaPuzzleFile(
-                        json: json,
-                        difficulty: b.validation.difficulty
-                    )
-                    let shareURL = kromaPlayURL(json: json)
-                    let previewImage = PuzzlePreviewRenderer.render(b.puzzle)
-                    ShareLink(
-                        item: file,
-                        subject: Text("A Kromatika puzzle"),
-                        message: Text("difficulty \(b.validation.difficulty)/10 — tap to play: \(shareURL)"),
-                        preview: SharePreview(
-                            "Kromatika puzzle (\(b.validation.difficulty)/10)",
-                            image: previewImage ?? Image(systemName: "paintpalette.fill")
-                        )
-                    ) {
-                        Label("Share", systemImage: "square.and.arrow.up")
-                            .labelStyle(.iconOnly)
-                            .frame(width: 40, height: 36)
-                    }
-                    .buttonStyle(.bordered)
-                } else {
-                    Button {} label: {
-                        Label("Share", systemImage: "square.and.arrow.up")
-                            .labelStyle(.iconOnly)
-                            .frame(width: 40, height: 36)
-                    }
-                    .buttonStyle(.bordered)
-                    .disabled(true)
-                }
-
-                // Submit-for-community: pending until an admin
-                // approves via /api/community/moderate.
-                Button {
-                    submitBuiltToCommunity()
-                } label: {
-                    if case .submitting = submitState {
-                        ProgressView()
-                            .frame(width: 40, height: 36)
-                    } else {
-                        Label("Submit", systemImage: "paperplane.fill")
-                            .labelStyle(.iconOnly)
-                            .frame(width: 40, height: 36)
-                    }
-                }
-                .buttonStyle(.bordered)
-                .disabled(!(built?.validation.playable ?? false) || submitState.isInFlight)
-
-                Button {
+                bottomBarButton(
+                    system: "square.and.arrow.down.fill",
+                    label: "Save",
+                    disabled: !(built?.validation.playable ?? false),
+                    tone: .prominent
+                ) {
                     if let b = built, b.validation.playable {
                         persistIfNeeded(puzzle: b.puzzle, difficulty: b.validation.difficulty)
                         dismiss()
                     }
-                } label: {
-                    Text("Save")
-                        .font(.system(size: 13, weight: .bold))
-                        .frame(height: 36)
-                        .padding(.horizontal, 18)
                 }
-                .buttonStyle(.borderedProminent)
-                .disabled(!(built?.validation.playable ?? false))
             }
             .padding(.horizontal, 14)
 

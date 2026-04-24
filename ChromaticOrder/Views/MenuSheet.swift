@@ -45,15 +45,35 @@ struct MenuSheet: View {
             }
 
             VStack(alignment: .trailing, spacing: 10) {
-                MenuSheetRow(
-                    icon: "house.fill",
-                    label: "home",
-                    index: 0,
-                    isOpen: menuOpen
-                ) {
-                    menuOpen = false
-                    transitioner.fade {
-                        started = false
+                // Home row morphs into "← gallery" when the current
+                // puzzle was loaded from the Gallery sheet so the
+                // return path matches the entry path. The gallery
+                // auto-re-opens via GameState.openGalleryOnMenuAppear
+                // which MenuView consumes on appear.
+                if game.cameFromGallery {
+                    MenuSheetRow(
+                        icon: "square.grid.2x2.fill",
+                        label: "gallery",
+                        index: 0,
+                        isOpen: menuOpen
+                    ) {
+                        menuOpen = false
+                        game.openGalleryOnMenuAppear = true
+                        transitioner.fade {
+                            started = false
+                        }
+                    }
+                } else {
+                    MenuSheetRow(
+                        icon: "house.fill",
+                        label: "home",
+                        index: 0,
+                        isOpen: menuOpen
+                    ) {
+                        menuOpen = false
+                        transitioner.fade {
+                            started = false
+                        }
                     }
                 }
                 MenuSheetRow(

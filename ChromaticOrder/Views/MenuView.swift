@@ -227,6 +227,14 @@ struct MenuView: View {
         .onAppear {
             GlassyAudio.shared.startMusicIfNeeded()
             GlassyAudio.shared.startHum()
+            // One-shot hop from the in-game "← Gallery" hamburger
+            // row: it sets `started=false` and this flag, then MenuView
+            // auto-opens its existing Gallery sheet so the user lands
+            // back where they started instead of on the main menu.
+            if game.openGalleryOnMenuAppear {
+                game.openGalleryOnMenuAppear = false
+                galleryOpen = true
+            }
         }
         .task {
             // Chill ramp — while the player is dripping ripples onto
