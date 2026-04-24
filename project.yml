@@ -45,7 +45,7 @@ targets:
       path: ChromaticOrder/Info.plist
       properties:
         CFBundleDevelopmentRegion: $(DEVELOPMENT_LANGUAGE)
-        CFBundleDisplayName: Kromatika
+        CFBundleDisplayName: kromatika
         CFBundleExecutable: $(EXECUTABLE_NAME)
         CFBundleIdentifier: $(PRODUCT_BUNDLE_IDENTIFIER)
         CFBundleInfoDictionaryVersion: "6.0"
