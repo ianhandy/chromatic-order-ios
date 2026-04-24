@@ -145,9 +145,29 @@ func scoreDifficulty(
     extrapProx: Double = 0,
     mode: CBMode = .none
 ) -> Int {
-    let totalCells = gradients.reduce(0) { $0 + $1.len }
-    let freeRatio = Double(bankCount) / Double(max(totalCells, 1))
     let chScore: Double = channelCount == 1 ? 0 : channelCount == 2 ? 0.4 : 1.0
+
+    // Direct work measure: how many pieces the player has to place.
+    // Replaces the old `freeRatio` + `countBonus` pair. bankCount is
+    // the unambiguous signal of "how much arranging left to do."
+    let bankSizeScore = Util.clamp(Double(bankCount) / 20, 0, 1.5)
+
+    // Hint credits — cells the player doesn't have to figure out.
+    // Locked cells are direct hints; shared intersections pin a single
+    // color across two gradients at once. Count intersection cells
+    // uniquely (a cell shared by 2 gradients appears twice in the flat
+    // per-gradient list).
+    var lockedUniqueKeys: Set<Int> = []
+    var intersectionUniqueKeys: Set<Int> = []
+    for g in gradients {
+        for spec in g.cells {
+            let key = spec.r * 64 + spec.c
+            if spec.locked { lockedUniqueKeys.insert(key) }
+            if spec.isIntersection { intersectionUniqueKeys.insert(key) }
+        }
+    }
+    let lockHintScore = Util.clamp(Double(lockedUniqueKeys.count) / 10, 0, 1.5)
+    let intersectionScore = Util.clamp(Double(intersectionUniqueKeys.count) / 4, 0, 1.0)
 
     var totalStep = 0.0
     var stepN = 0
@@ -162,8 +182,6 @@ func scoreDifficulty(
     let avgStep = stepN > 0 ? totalStep / Double(stepN) : 20
     let stepScore = Util.clamp(1.0 - (avgStep - 2) / 18, 0, 1)
 
-    let pairProxScore = Util.clamp(pairProx / 6, 0, 1.5)
-    let extrapProxScore = Util.clamp(extrapProx / 20, 0, 1.5)
     // Primary-channel weight. Hue used to be 0 on the assumption that
     // humans distinguish hues well — but that's only true when the
     // hue RANGE is wide. "All red" puzzles (narrow-hue, same-chroma)
@@ -187,20 +205,18 @@ func scoreDifficulty(
     }
     let primaryChScore = primaryChBase + hueBonus
 
+    // Confusion score: how likely two gradients' colors get mistaken
+    // for each other. Combines pairProx (cell-pair proximity) and
+    // extrapProx (extended-line crossings) into one saturating term.
+    let confusionScore = Util.clamp(pairProx / 6 + extrapProx / 20, 0, 1.5)
+
     let raw =
-        freeRatio * 1.0 +
-        chScore * 1.5 +
-        // stepScore weight was 1.5 — bumped to 3.0 so small per-step
-        // color distances (especially small hue steps within a
-        // gradient) carry twice the difficulty signal. Too many
-        // tier-1 puzzles were shipping with near-identical-looking
-        // colors because stepScore saturated low.
-        stepScore * 3.0 +
-        // pairProxScore was 2.5 — bumped to 4.5 so tight cross-
-        // gradient hue correlation reads as harder.
-        pairProxScore * 4.5 +
-        extrapProxScore * 0.8 +
-        primaryChScore * 1.5 +
-        max(0, Double(gradients.count - 2)) * 0.5
+        bankSizeScore * 3.0
+      + stepScore * 3.0
+      + confusionScore * 4.5
+      + chScore * 1.5
+      + primaryChScore * 1.5
+      - lockHintScore * 1.5            // pre-revealed cells reduce work
+      - intersectionScore * 0.5        // shared cells propagate info
     return Util.clamp(Int(raw.rounded()), 1, 10)
 }

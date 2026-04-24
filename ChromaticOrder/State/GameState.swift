@@ -970,25 +970,34 @@ final class GameState {
             // first-run board layout.
             if activeMode != .daily, tutorialSeed == nil,
                Double.random(in: 0..<1) < 0.30 {
-                if let community = await LikedPuzzleStore.fetchCommunityRandom(level: lv),
-                   let data = community.json.data(using: .utf8),
-                   let doc = try? CreatorCodec.decode(data),
-                   let built = CreatorCodec.rebuild(doc),
-                   // Reject legacy community puzzles whose gradients
-                   // are perceptually palindromic — those were liked
-                   // before the generator rejected them locally, but
-                   // they're just as ambiguous in anyone else's hands.
-                   // On rejection, fall through to local generation so
-                   // the player still gets a puzzle at this level.
-                   !hasPalindromicGradient(built.gradients, mode: activeCBMode) {
-                    // Reject community puzzles the player has already
-                    // solved or that match a recently-shown layout.
+                // Retry a few times on the weighted-random endpoint so
+                // a seen-before hit (by server ID or matching a solved
+                // / today-seen fingerprint) gets a fresh draw instead
+                // of forcing local fallback. Pool exhaustion — the
+                // player has played every liked puzzle available — is
+                // fine: we drop out of the loop and generate locally.
+                for _ in 0..<5 {
+                    guard let community = await LikedPuzzleStore.fetchCommunityRandom(level: lv)
+                    else { break }
+                    if CommunitySeenIds.contains(community.id) { continue }
+                    guard let data = community.json.data(using: .utf8),
+                          let doc = try? CreatorCodec.decode(data),
+                          let built = CreatorCodec.rebuild(doc),
+                          // Reject legacy community puzzles whose gradients
+                          // are perceptually palindromic — those were liked
+                          // before the generator rejected them locally, but
+                          // they're just as ambiguous in anyone else's hands.
+                          !hasPalindromicGradient(built.gradients, mode: activeCBMode)
+                    else { continue }
                     let f = PuzzleShape.fingerprint(
                         of: built.gradients,
                         gridW: built.gridW, gridH: built.gridH)
-                    if !SolvedPuzzleHistory.contains(f) {
-                        puz = built
-                    }
+                    if SolvedPuzzleHistory.contains(f) { continue }
+                    if ShapesSeenToday.contains(f) { continue }
+                    CommunitySeenIds.push(community.id)
+                    ShapesSeenToday.push(f)
+                    puz = built
+                    break
                 }
             }
             // Daily mode fetches from the shared server so every

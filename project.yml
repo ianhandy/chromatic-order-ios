@@ -118,15 +118,31 @@ targets:
             CFBundleTypeRole: Viewer
             CFBundleURLSchemes:
               - kroma
+  ChromaticOrderTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: ChromaticOrderTests
+    dependencies:
+      - target: ChromaticOrder
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.ianhandy.kroma.tests
+        GENERATE_INFOPLIST_FILE: YES
+        BUNDLE_LOADER: $(TEST_HOST)
+        TEST_HOST: $(BUILT_PRODUCTS_DIR)/ChromaticOrder.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/ChromaticOrder
 schemes:
   ChromaticOrder:
     build:
       targets:
         ChromaticOrder: all
+        ChromaticOrderTests: [test]
     run:
       config: Debug
     test:
       config: Debug
+      targets:
+        - ChromaticOrderTests
     profile:
       config: Release
     analyze:

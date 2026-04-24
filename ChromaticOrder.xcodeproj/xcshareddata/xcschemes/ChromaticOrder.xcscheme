@@ -21,6 +21,20 @@
                ReferencedContainer = "container:ChromaticOrder.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
+         <BuildActionEntry
+            buildForTesting = "YES"
+            buildForRunning = "NO"
+            buildForProfiling = "NO"
+            buildForArchiving = "NO"
+            buildForAnalyzing = "NO">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "DD20335C02297883460BA3DF"
+               BuildableName = "ChromaticOrderTests.xctest"
+               BlueprintName = "ChromaticOrderTests"
+               ReferencedContainer = "container:ChromaticOrder.xcodeproj">
+            </BuildableReference>
+         </BuildActionEntry>
       </BuildActionEntries>
    </BuildAction>
    <TestAction
@@ -39,6 +53,17 @@
          </BuildableReference>
       </MacroExpansion>
       <Testables>
+         <TestableReference
+            skipped = "NO"
+            parallelizable = "NO">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "DD20335C02297883460BA3DF"
+               BuildableName = "ChromaticOrderTests.xctest"
+               BlueprintName = "ChromaticOrderTests"
+               ReferencedContainer = "container:ChromaticOrder.xcodeproj">
+            </BuildableReference>
+         </TestableReference>
       </Testables>
       <CommandLineArguments>
       </CommandLineArguments>
