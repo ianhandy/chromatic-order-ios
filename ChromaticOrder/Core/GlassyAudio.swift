@@ -53,6 +53,7 @@ final class GlassyAudio {
     /// without requiring any extra interaction.
     static var musicEnabled: Bool = true {
         didSet {
+            if isUnderTest { return }
             if musicEnabled {
                 shared.startMusicIfNeeded()
             } else {
@@ -65,6 +66,12 @@ final class GlassyAudio {
     /// chord, menu bloom). Independent of `musicEnabled` so players
     /// can silence one without the other.
     static var sfxEnabled: Bool = true
+
+    /// True when the app is hosted under XCTest — audio engine graph
+    /// isn't built (see `init`) and every entry point short-circuits
+    /// so the simulator's audio server can't deadlock the test runner.
+    private static let isUnderTest: Bool =
+        ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
 
     enum Kind { case pickup, place, bloom, choir, glassHarmonica }
 
@@ -161,6 +168,15 @@ final class GlassyAudio {
             fatalError("AVAudioFormat init failed")
         }
         self.format = fmt
+
+        // Under XCTest, skip the engine graph construction. Building
+        // `engine.mainMixerNode` synchronously RPCs the simulator's
+        // audio server and sporadically times out → SIGABRT before the
+        // first test assertion runs. The solvability audit doesn't
+        // touch audio, so stubbing out the graph here costs nothing.
+        if ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil {
+            return
+        }
 
         // iOS tears down AVAudioEngine on app-backgrounding interruption
         // and on audio-route / sample-rate changes. Without these
@@ -483,6 +499,7 @@ final class GlassyAudio {
     /// task is left in place. Idempotent entry points make wiring
     /// onAppear / onChange straightforward for the caller.
     func startMusicIfNeeded() {
+        if Self.isUnderTest { return }
         if Self.muted { return }
         if !Self.musicEnabled { return }
         if musicTask != nil { return }
@@ -1301,6 +1318,7 @@ final class GlassyAudio {
     // ─── Engine lifecycle + playback ────────────────────────────────
 
     private func ensureStarted() {
+        if Self.isUnderTest { return }
         // `started` can linger true after iOS tears down the graph
         // (interruption, route change). Trust engine.isRunning as the
         // source of truth; fall through to restart when the flag lies.
