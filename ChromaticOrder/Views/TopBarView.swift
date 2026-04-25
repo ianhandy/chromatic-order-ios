@@ -27,6 +27,11 @@ struct TopBarView: View {
     /// Bump counter from ContentView — each increment triggers a
     /// staggered per-heart scale-bump wave across the existing hearts.
     let heartWaveTick: Int
+    /// Optional handler invoked when the player taps the back arrow
+    /// shown in place of the level chip while playing a custom puzzle
+    /// loaded from the gallery. Caller is responsible for closing the
+    /// game screen and restoring the gallery sheet (see ContentView).
+    var onBackToGallery: (() -> Void)? = nil
     @State private var levelPickerOpen: Bool = false
 
     // Palette for the dark-mode top bar. Primary text is near-white
@@ -79,7 +84,31 @@ struct TopBarView: View {
 
     @ViewBuilder
     private var levelChip: some View {
-        if game.mode != .daily {
+        // Custom puzzles loaded from the Gallery override every mode's
+        // chip — the player came in via a specific entry, so the slot
+        // surfaces a return arrow back to that entry instead of the
+        // mode-specific level / "daily" affordance. The chevron text
+        // gives a hint without reserving extra horizontal space.
+        if game.cameFromGallery, let onBack = onBackToGallery {
+            Button(action: onBack) {
+                HStack(spacing: 4) {
+                    Image(systemName: "chevron.left")
+                        .font(.system(size: 13, weight: .heavy))
+                        .foregroundStyle(Self.primaryText)
+                    Text("gallery")
+                        .font(.system(size: 13, weight: .heavy, design: .rounded))
+                        .foregroundStyle(Self.primaryText)
+                }
+                .padding(.horizontal, 12)
+                .frame(height: Self.buttonHeight)
+                .background(Color.white.opacity(0.08), in: Capsule())
+                .overlay(
+                    Capsule().stroke(Color.white.opacity(0.25), lineWidth: 1)
+                )
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Back to gallery")
+        } else if game.mode != .daily {
             let t = game.tier
             Button {
                 guard game.mode == .zen else { return }

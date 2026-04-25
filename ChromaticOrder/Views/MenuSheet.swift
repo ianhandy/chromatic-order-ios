@@ -89,14 +89,21 @@ struct MenuSheet: View {
                     menuOpen = false
                     accessibilityOpen = true
                 }
-                MenuSheetRow(
-                    icon: "person.2.fill",
-                    label: "community",
-                    index: 2,
-                    isOpen: menuOpen
-                ) {
-                    menuOpen = false
-                    communityOpen = true
+                // Community access is currently surfaced from the
+                // Gallery's top bar instead of the in-game hamburger.
+                // Row kept here behind a flag so the staggered-row
+                // animation indices stay grouped if we re-enable it.
+                let showCommunityRow = false
+                if showCommunityRow {
+                    MenuSheetRow(
+                        icon: "person.2.fill",
+                        label: "community",
+                        index: 2,
+                        isOpen: menuOpen
+                    ) {
+                        menuOpen = false
+                        communityOpen = true
+                    }
                 }
                 MenuSheetRow(
                     icon: "envelope.fill",

@@ -43,14 +43,28 @@ struct GalleryView: View {
     @State private var collectionRenameTarget: GalleryCollection? = nil
     @State private var collectionNameText: String = ""
     @State private var collectionToDelete: GalleryCollection? = nil
+    /// When the player exits a custom puzzle via the in-game back
+    /// arrow / hamburger gallery row, GameState's
+    /// `currentGalleryPuzzleId` is still set to the puzzle's id. On
+    /// the next appear we scroll to that row and briefly tint its
+    /// background so the player sees where they came back from.
+    @State private var highlightedPuzzleId: String? = nil
 
     var body: some View {
         NavigationStack {
-            Group {
-                if puzzles.isEmpty && favorites.isEmpty && collections.isEmpty {
-                    emptyState
-                } else {
-                    list
+            ScrollViewReader { proxy in
+                Group {
+                    if puzzles.isEmpty && favorites.isEmpty && collections.isEmpty {
+                        emptyState
+                    } else {
+                        list
+                    }
+                }
+                .onChange(of: puzzles.map(\.id) + favorites.map(\.id)) { _, _ in
+                    // Wait until the list has actual rows to scroll to
+                    // — the menu-driven re-open path hits onAppear
+                    // before reload() finishes, so we re-arm here.
+                    focusReturnedPuzzleIfNeeded(proxy: proxy)
                 }
             }
             .navigationTitle("Gallery")
@@ -179,7 +193,12 @@ struct GalleryView: View {
         ) { result in
             handleImport(result)
         }
-        .onAppear(perform: reload)
+        .onAppear {
+            reload()
+            // Capture the returning puzzle id BEFORE the row dataset
+            // arrives — focusReturnedPuzzleIfNeeded fires once the
+            // list rows are present (.onChange picks up the dataset).
+        }
         .sheet(isPresented: $communityOpen) {
             CommunityListView(game: game)
         }
@@ -193,6 +212,32 @@ struct GalleryView: View {
             if communityEntries == nil {
                 let (entries, _) = await CommunityStore.fetchFeed(sort: .top, limit: 20)
                 await MainActor.run { communityEntries = entries }
+            }
+        }
+    }
+
+    /// Scroll to the row representing the just-played gallery puzzle
+    /// and tint it for ~1.5s so the player visually re-acquires it.
+    /// Consumes `game.currentGalleryPuzzleId` (clears it after) so a
+    /// later re-open of the gallery doesn't re-trigger.
+    private func focusReturnedPuzzleIfNeeded(proxy: ScrollViewProxy) {
+        guard let id = game.currentGalleryPuzzleId else { return }
+        let exists = puzzles.contains(where: { $0.id == id })
+                  || favorites.contains(where: { $0.id == id })
+        guard exists else { return }
+        game.currentGalleryPuzzleId = nil
+        Task { @MainActor in
+            // Tiny defer so the List has settled into its initial
+            // layout before the scroll animates — without it scrollTo
+            // can skip on first present.
+            try? await Task.sleep(nanoseconds: 80_000_000)
+            withAnimation(.easeInOut(duration: 0.35)) {
+                proxy.scrollTo(id, anchor: .center)
+            }
+            highlightedPuzzleId = id
+            try? await Task.sleep(nanoseconds: 1_500_000_000)
+            withAnimation(.easeOut(duration: 0.5)) {
+                highlightedPuzzleId = nil
             }
         }
     }
@@ -315,6 +360,12 @@ struct GalleryView: View {
                             onPlay: { play(puzzle) },
                             onEdit: { editingPuzzle = puzzle }
                         )
+                        .id(puzzle.id)
+                        .listRowBackground(
+                            highlightedPuzzleId == puzzle.id
+                                ? Color.accentColor.opacity(0.18)
+                                : Color.clear
+                        )
                         .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                             Button(role: .destructive) {
                                 try? GalleryStore.delete(puzzle)
@@ -378,6 +429,12 @@ struct GalleryView: View {
                             // gallery entries. Hide the Edit button
                             // so the row reflects available actions.
                             onEdit: nil
+                        )
+                        .id(puzzle.id)
+                        .listRowBackground(
+                            highlightedPuzzleId == puzzle.id
+                                ? Color.accentColor.opacity(0.18)
+                                : Color.clear
                         )
                         .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                             Button(role: .destructive) {

@@ -673,7 +673,15 @@ struct ContentView: View {
                     menuOpen: $menuOpen,
                     perfectHeartNS: perfectHeartNS,
                     perfectHeartStage: perfectHeartStage,
-                    heartWaveTick: heartWaveTick
+                    heartWaveTick: heartWaveTick,
+                    onBackToGallery: {
+                        // Same return path the hamburger's "← gallery"
+                        // row uses — set the menu-appear flag so MenuView
+                        // re-presents the Gallery sheet, then fade back
+                        // to the menu screen.
+                        game.openGalleryOnMenuAppear = true
+                        transitioner.fade { started = false }
+                    }
                 )
                 .padding(.horizontal, 22)
                 Spacer(minLength: 0)

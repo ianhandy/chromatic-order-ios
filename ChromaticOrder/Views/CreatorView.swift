@@ -44,6 +44,14 @@ struct CreatorView: View {
     @State private var showHelp: Bool = false
     @State private var didLoadEditing: Bool = false
     @State private var showExitConfirm: Bool = false
+    /// Snapshot of the encoded puzzle + name taken once on first appear
+    /// (after the editing-doc rehydration if any). Drives the exit
+    /// prompt: if the live signature still matches the baseline, the
+    /// player hasn't actually edited anything and we close without
+    /// asking. Without this, opening an existing gallery entry to look
+    /// at it always pops "Exit without saving?" because the canvas
+    /// isn't empty.
+    @State private var baselineSignature: String? = nil
     /// Tracks whether the name TextField currently owns focus. Used
     /// to collapse the bottom tool bar + validation banner while the
     /// keyboard is up — the player is mid-type, they don't need a
@@ -96,11 +104,10 @@ struct CreatorView: View {
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Close") {
-                        // Protect against accidental taps on the
-                        // Close button after the player has started
-                        // building. Empty creator = no prompt;
-                        // anything laid down = confirm first.
-                        if state.gradients.isEmpty {
+                        // No edits since open → leave silently. Otherwise
+                        // confirm so the player doesn't lose work they
+                        // haven't pressed Play to commit.
+                        if currentSignature() == baselineSignature {
                             dismiss()
                         } else {
                             showExitConfirm = true
@@ -138,6 +145,12 @@ struct CreatorView: View {
                     CreatorCodec.populate(state, from: e.doc)
                     name = e.doc.name ?? ""
                     didLoadEditing = true
+                }
+                // Snapshot AFTER rehydration so opening an existing
+                // entry counts as 'no edits yet'; first-tap-back exits
+                // without the prompt.
+                if baselineSignature == nil {
+                    baselineSignature = currentSignature()
                 }
             }
             .sheet(isPresented: $showHelp) {
@@ -182,6 +195,16 @@ struct CreatorView: View {
 
     private func syncEndToggle() {
         endDisabled = state.endColor == nil
+    }
+
+    /// Stable fingerprint of the editor's user-visible state. The
+    /// encoder sorts keys + ignores ephemeral state (drag preview,
+    /// undo stack) so identical canvases always hash equal regardless
+    /// of how the player got there.
+    @MainActor
+    private func currentSignature() -> String {
+        let json = (try? CreatorCodec.encodeString(state)) ?? ""
+        return json + "|name=" + name
     }
 
     // ─── Bottom-bar atoms ───────────────────────────────────────────
