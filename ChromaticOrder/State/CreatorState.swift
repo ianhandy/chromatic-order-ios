@@ -17,13 +17,55 @@ final class CreatorState {
 
     /// Active creator tool. Paint is the default; erase deletes
     /// gradients the finger touches; eyedropper copies a committed
-    /// cell's color onto `startColor`.
-    enum Tool { case paint, erase, eyedropper }
+    /// cell's color onto `startColor`; select draws a marquee +
+    /// drags whole gradients around the canvas.
+    enum Tool { case paint, erase, eyedropper, select }
     var tool: Tool = .paint
+
+    /// Human-readable name of the active tool — drives the label
+    /// rendered under the tool cluster in the kromatika wordmark
+    /// style.
+    var toolName: String {
+        switch tool {
+        case .paint: return "paint"
+        case .erase: return "erase"
+        case .eyedropper: return "eyedropper"
+        case .select: return "select"
+        }
+    }
 
     /// Cells visited while dragging in erase mode. Drained to
     /// `gradients.removeAll(...)` on drag end.
     var eraseHits: Set<CellIndex> = []
+
+    // ─── Select tool state ──────────────────────────────────────────
+    // The select tool runs in two distinct phases:
+    //  (1) Marquee draw — empty-canvas drag draws a dashed rect.
+    //      Box endpoints are stored in GLOBAL coords so they line up
+    //      with cellFrames during commit.
+    //  (2) Translate — drag starting on a selected cell shifts all
+    //      moving gradients by an integer (dr, dc) in cell units.
+    //      Clamp keeps the shifted bounding box inside the canvas.
+
+    /// Cells that are part of the current selection. Populated by
+    /// `commitSelectionBox` — expanded to whole gradients so the
+    /// player can't accidentally select half a gradient.
+    var selectedCells: Set<CellIndex> = []
+    /// Marquee box endpoints, in global coords. Both nil when no box
+    /// is being drawn.
+    var selectionBoxStart: CGPoint? = nil
+    var selectionBoxCurrent: CGPoint? = nil
+    /// Cell where a translate-drag began. Nil while no translate is
+    /// in flight.
+    var selectionMoveStartCell: CellIndex? = nil
+    /// Live (rows, cols) translation being previewed during a move
+    /// drag. Reset to (0, 0) on commit / cancel.
+    var selectionMoveDelta: (dr: Int, dc: Int) = (0, 0)
+    /// True while the live translate would collide with a
+    /// non-selected gradient or leave the canvas. Drives the
+    /// preview rect's color so the player sees a bad drop before
+    /// they let go.
+    var selectionMoveBlocked: Bool = false
 
     // Laid gradients. Order matters for undo (last laid = undone first).
     var gradients: [LaidGradient] = []
@@ -428,6 +470,161 @@ final class CreatorState {
         dragStartOverride = nil
         dragEndOverride = nil
         dragPrevAnchor = nil
+    }
+
+    // ─── Select tool ────────────────────────────────────────────────
+
+    /// Wipe everything related to the select tool — both the in-flight
+    /// marquee box and any committed selection / move preview.
+    func clearSelection() {
+        selectedCells.removeAll()
+        selectionBoxStart = nil
+        selectionBoxCurrent = nil
+        selectionMoveStartCell = nil
+        selectionMoveDelta = (0, 0)
+        selectionMoveBlocked = false
+    }
+
+    /// Start drawing a marquee. Drops any prior selection; the
+    /// player has to commit a brand-new box to re-select.
+    func beginSelectionBox(at point: CGPoint) {
+        clearSelection()
+        selectionBoxStart = point
+        selectionBoxCurrent = point
+    }
+
+    func updateSelectionBox(to point: CGPoint) {
+        guard selectionBoxStart != nil else { return }
+        selectionBoxCurrent = point
+    }
+
+    /// Finalize the marquee. Cells whose frames intersect the box are
+    /// the seed; we then expand to whole gradients so a partially-
+    /// covered gradient gets fully selected (the player can't move
+    /// half a gradient without breaking it).
+    func commitSelectionBox() {
+        defer {
+            selectionBoxStart = nil
+            selectionBoxCurrent = nil
+        }
+        guard let start = selectionBoxStart, let cur = selectionBoxCurrent
+        else { return }
+        let rect = CGRect(
+            x: min(start.x, cur.x),
+            y: min(start.y, cur.y),
+            width: abs(start.x - cur.x),
+            height: abs(start.y - cur.y)
+        )
+        var hits: Set<CellIndex> = []
+        for (idx, frame) in cellFrames where rect.intersects(frame) {
+            hits.insert(idx)
+        }
+        var full: Set<CellIndex> = []
+        for g in gradients where g.cells.contains(where: { hits.contains($0) }) {
+            for c in g.cells { full.insert(c) }
+        }
+        selectedCells = full
+    }
+
+    func beginSelectionMove(at idx: CellIndex) {
+        selectionMoveStartCell = idx
+        selectionMoveDelta = (0, 0)
+        selectionMoveBlocked = false
+    }
+
+    /// Update the live (dr, dc) translation. Clamp keeps every
+    /// selected cell inside the canvas; collision-with-stationary-
+    /// gradient is flagged via `selectionMoveBlocked` so the preview
+    /// rect can render in a warning color but the drag still tracks.
+    func updateSelectionMove(to idx: CellIndex) {
+        guard let start = selectionMoveStartCell,
+              !selectedCells.isEmpty else { return }
+        let rawDR = idx.r - start.r
+        let rawDC = idx.c - start.c
+
+        var minR = Int.max, maxR = Int.min
+        var minC = Int.max, maxC = Int.min
+        for c in selectedCells {
+            if c.r < minR { minR = c.r }
+            if c.r > maxR { maxR = c.r }
+            if c.c < minC { minC = c.c }
+            if c.c > maxC { maxC = c.c }
+        }
+        let drMin = -minR
+        let drMax = (Self.canvasRows - 1) - maxR
+        let dcMin = -minC
+        let dcMax = (Self.canvasCols - 1) - maxC
+        let dr = max(drMin, min(drMax, rawDR))
+        let dc = max(dcMin, min(dcMax, rawDC))
+        selectionMoveDelta = (dr, dc)
+        selectionMoveBlocked = moveCollidesWithStationary(dr: dr, dc: dc)
+    }
+
+    /// True when the proposed (dr, dc) would land any moving cell on
+    /// top of a non-selected cell, OR break an intersection (a
+    /// shared cell that belongs to both a moving and non-moving
+    /// gradient — moving it would tear the join apart).
+    private func moveCollidesWithStationary(dr: Int, dc: Int) -> Bool {
+        let movingIndices = gradients.indices.filter { gi in
+            gradients[gi].cells.contains(where: { selectedCells.contains($0) })
+        }
+        let movingCells: Set<CellIndex> = Set(
+            movingIndices.flatMap { gradients[$0].cells }
+        )
+        var stationaryCells: Set<CellIndex> = []
+        for gi in gradients.indices where !movingIndices.contains(gi) {
+            for c in gradients[gi].cells { stationaryCells.insert(c) }
+        }
+        // Tear-the-join check: a moving cell that is ALSO part of a
+        // stationary gradient can't be moved without breaking the
+        // shared intersection. Treat as a collision so the preview
+        // turns red and commit aborts.
+        for c in movingCells where stationaryCells.contains(c) { return true }
+        // Standard collision: a moved cell lands on a stationary one.
+        for c in movingCells {
+            let dest = CellIndex(r: c.r + dr, c: c.c + dc)
+            if stationaryCells.contains(dest) { return true }
+        }
+        return false
+    }
+
+    /// Apply the live `selectionMoveDelta` to all moving gradients,
+    /// updating `manualLocks` and `selectedCells` to follow. No-op
+    /// when delta is (0, 0) or when the move would collide.
+    func commitSelectionMove() {
+        defer {
+            selectionMoveStartCell = nil
+            selectionMoveDelta = (0, 0)
+            selectionMoveBlocked = false
+        }
+        let (dr, dc) = selectionMoveDelta
+        guard dr != 0 || dc != 0 else { return }
+        guard !selectionMoveBlocked else { return }
+
+        let movingIndices = Set(gradients.indices.filter { gi in
+            gradients[gi].cells.contains(where: { selectedCells.contains($0) })
+        })
+        let movingCells: Set<CellIndex> = Set(
+            movingIndices.flatMap { gradients[$0].cells }
+        )
+
+        pushUndoSnapshot()
+        for gi in movingIndices {
+            let g = gradients[gi]
+            gradients[gi] = LaidGradient(
+                dir: g.dir,
+                cells: g.cells.map { CellIndex(r: $0.r + dr, c: $0.c + dc) },
+                colors: g.colors
+            )
+        }
+        manualLocks = Set(manualLocks.map { c in
+            movingCells.contains(c)
+                ? CellIndex(r: c.r + dr, c: c.c + dc)
+                : c
+        })
+        selectedCells = Set(selectedCells.map {
+            CellIndex(r: $0.r + dr, c: $0.c + dc)
+        })
     }
 
     /// Toggle whether a cell is revealed at start. Only meaningful for

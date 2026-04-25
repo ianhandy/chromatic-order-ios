@@ -206,7 +206,8 @@ struct CollectionDetailView: View {
             built,
             favoriteURL: nil,
             fromGallery: true,
-            galleryPuzzleId: puzzle.id
+            galleryPuzzleId: puzzle.id,
+            title: puzzle.doc.name
         )
         started = true
         dismiss()

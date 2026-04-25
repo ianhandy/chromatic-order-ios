@@ -81,6 +81,7 @@ struct CreatorView: View {
             VStack(spacing: 12) {
                 nameField
                 headerBar
+                toolNameLabel
                 CanvasView(state: state)
                     .padding(.horizontal, 14)
                 if !nameFocused {
@@ -183,16 +184,6 @@ struct CreatorView: View {
         endDisabled = state.endColor == nil
     }
 
-    /// Build a `kroma://play?data=<base64url>` link that embeds the
-    /// puzzle JSON inline. Tapping the URL opens the app's onOpenURL
-    /// handler and lands the player in the puzzle immediately — no
-    /// file attachment dance.
-    private func kromaPlayURL(json: String) -> URL {
-        let data = Data(json.utf8)
-        let payload = ChromaticOrderApp.encodeBase64URL(data)
-        return URL(string: "kroma://play?data=\(payload)")!
-    }
-
     // ─── Bottom-bar atoms ───────────────────────────────────────────
 
     private enum BottomButtonTone { case neutral, destructive, prominent }
@@ -263,19 +254,22 @@ struct CreatorView: View {
     @ViewBuilder
     private var shareBottomButton: some View {
         let playable = built?.validation.playable ?? false
+        let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        let chosenName: String? = trimmedName.isEmpty ? nil : trimmedName
         if playable, let b = built,
-           let json = try? CreatorCodec.encodeString(
-               state, difficulty: b.validation.difficulty) {
+           // Encode the BUILT puzzle so per-cell `locked` flags and the
+           // player-chosen name ride along. The earlier CreatorState
+           // encode dropped both, leaving recipients with a blank board.
+           let json = try? CreatorCodec.encodePuzzleString(
+               b.puzzle, name: chosenName, difficulty: b.validation.difficulty) {
             let file = KromaPuzzleFile(
                 json: json,
                 difficulty: b.validation.difficulty
             )
-            let shareURL = kromaPlayURL(json: json)
             let previewImage = PuzzlePreviewRenderer.render(b.puzzle)
             ShareLink(
                 item: file,
                 subject: Text("A Kromatika puzzle"),
-                message: Text("difficulty \(b.validation.difficulty)/10 — tap to play: \(shareURL)"),
                 preview: SharePreview(
                     "Kromatika puzzle (\(b.validation.difficulty)/10)",
                     image: previewImage ?? Image(systemName: "paintpalette.fill")
@@ -358,8 +352,12 @@ struct CreatorView: View {
         // Encode on the main actor (CreatorState is MainActor-bound),
         // then fire the request off-actor.
         let level = puzzle.level
-        guard let json = try? CreatorCodec.encodeString(
-                state, difficulty: difficulty, name: submitterName),
+        // Encode the BUILT puzzle (not the raw CreatorState) so the
+        // doc carries per-cell `locked` flags. Without this the
+        // submission lands in the moderation queue with zero starters
+        // and the puzzle plays as a blank board.
+        guard let json = try? CreatorCodec.encodePuzzleString(
+                puzzle, name: submitterName, difficulty: difficulty),
               let data = json.data(using: .utf8),
               let doc = try? CreatorCodec.decode(data) else {
             submitState = .failed("couldn't encode puzzle")
@@ -492,7 +490,7 @@ struct CreatorView: View {
         }
     }
 
-    /// Three icon-only tool buttons. Touch target ~44x44; the
+    /// Four icon-only tool buttons. Touch target ~44x44; the
     /// selected tool gets a white fill + black icon so it reads
     /// first at a glance.
     private var toolCluster: some View {
@@ -500,6 +498,7 @@ struct CreatorView: View {
             toolIconButton(.paint, system: "paintbrush.fill")
             toolIconButton(.erase, system: "eraser.fill")
             toolIconButton(.eyedropper, system: "eyedropper")
+            toolIconButton(.select, system: "lasso")
         }
     }
 
@@ -509,6 +508,10 @@ struct CreatorView: View {
         Button {
             state.tool = t
             state.cancelDrag()
+            // Tool switches also drop any pending marquee / committed
+            // selection — the highlight wouldn't have a meaning under
+            // paint / erase / eyedropper.
+            state.clearSelection()
         } label: {
             Image(systemName: system)
                 .font(.system(size: 20, weight: .semibold))
@@ -529,8 +532,27 @@ struct CreatorView: View {
             case .paint: return "Paint"
             case .erase: return "Erase"
             case .eyedropper: return "Pick color"
+            case .select: return "Select"
             }
         }())
+    }
+
+    /// Active-tool name beneath the tool cluster, styled to match
+    /// the kromatika wordmark (heavy, rounded, lowercase, slight
+    /// negative tracking). Centered under the tool cluster width
+    /// so it lines up with the icons rather than the colors.
+    private var toolNameLabel: some View {
+        HStack {
+            Spacer(minLength: 0)
+            Text(state.toolName)
+                .font(.system(size: 18, weight: .heavy, design: .rounded))
+                .tracking(-0.5)
+                .foregroundStyle(Color.white.opacity(0.65))
+                .lineLimit(1)
+            Spacer(minLength: 0)
+        }
+        .padding(.top, 4)
+        .padding(.horizontal, 14)
     }
 
     // ─── Bottom: tools + validation ─────────────────────────────────
@@ -784,6 +806,12 @@ private struct CanvasView: View {
                                 style: StrokeStyle(lineWidth: 1.5, dash: [5, 4]))
                         .padding(-4)
                 )
+                .overlay(
+                    selectionOverlay(
+                        cellPx: cellPx, spacing: spacing,
+                        totalW: totalW, totalH: totalH
+                    )
+                )
                 Spacer(minLength: 0)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -805,6 +833,8 @@ private struct CanvasView: View {
                             if let hit { state.eraseHits.insert(hit) }
                         case .eyedropper:
                             if let hit { state.pickColor(at: hit) }
+                        case .select:
+                            handleSelectChanged(at: v.location, hit: hit)
                         }
                     }
                     .onEnded { _ in
@@ -829,6 +859,12 @@ private struct CanvasView: View {
                             state.eraseHits.removeAll()
                         case .eyedropper:
                             break
+                        case .select:
+                            if state.selectionMoveStartCell != nil {
+                                state.commitSelectionMove()
+                            } else if state.selectionBoxStart != nil {
+                                state.commitSelectionBox()
+                            }
                         }
                     }
             )
@@ -837,6 +873,105 @@ private struct CanvasView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    // ─── Select tool: gesture branch + overlay ──────────────────────
+
+    /// Routes the canvas drag's onChanged event for the .select tool.
+    /// Three flows: continuing an in-flight translate, continuing an
+    /// in-flight marquee, or starting a fresh gesture (translate iff
+    /// the touch lands on a selected cell, marquee otherwise).
+    private func handleSelectChanged(at point: CGPoint, hit: CellIndex?) {
+        if state.selectionMoveStartCell != nil {
+            if let hit { state.updateSelectionMove(to: hit) }
+            return
+        }
+        if state.selectionBoxStart != nil {
+            state.updateSelectionBox(to: point)
+            return
+        }
+        if let hit, state.selectedCells.contains(hit) {
+            state.beginSelectionMove(at: hit)
+        } else {
+            state.beginSelectionBox(at: point)
+        }
+    }
+
+    /// Two-rect overlay drawn over the canvas:
+    ///   • the marquee while it's being dragged
+    ///   • a "selected" outline around the bounding box of
+    ///     selectedCells, plus a "destination" outline shifted by
+    ///     selectionMoveDelta during a translate drag
+    /// All math is in canvas-local coords (cell-grid units → pt),
+    /// with the marquee rect converted from global → local using
+    /// the canvas's anchor cell frame.
+    @ViewBuilder
+    private func selectionOverlay(
+        cellPx: CGFloat, spacing: CGFloat,
+        totalW: CGFloat, totalH: CGFloat
+    ) -> some View {
+        let pitch = cellPx + spacing * 2
+        ZStack(alignment: .topLeading) {
+            // Marquee in flight.
+            if let s = state.selectionBoxStart, let c = state.selectionBoxCurrent,
+               let anchor = state.cellFrames[CellIndex(r: 0, c: 0)] {
+                let local = CGRect(
+                    x: min(s.x, c.x) - anchor.minX,
+                    y: min(s.y, c.y) - anchor.minY,
+                    width: abs(s.x - c.x),
+                    height: abs(s.y - c.y)
+                ).intersection(CGRect(x: 0, y: 0, width: totalW, height: totalH))
+                if !local.isEmpty {
+                    RoundedRectangle(cornerRadius: 6, style: .continuous)
+                        .stroke(Color.white.opacity(0.85),
+                                style: StrokeStyle(lineWidth: 1.5, dash: [5, 4]))
+                        .frame(width: local.width, height: local.height)
+                        .offset(x: local.minX, y: local.minY)
+                }
+            }
+            // Persistent selection bounding box + (optional) move
+            // destination preview.
+            if !state.selectedCells.isEmpty {
+                let bbox = boundingBox(of: state.selectedCells)
+                let baseX = CGFloat(bbox.minC) * pitch
+                let baseY = CGFloat(bbox.minR) * pitch
+                let bw = CGFloat(bbox.maxC - bbox.minC + 1) * pitch
+                let bh = CGFloat(bbox.maxR - bbox.minR + 1) * pitch
+                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                    .stroke(Color.white.opacity(0.55),
+                            style: StrokeStyle(lineWidth: 1.5, dash: [4, 3]))
+                    .frame(width: bw, height: bh)
+                    .offset(x: baseX, y: baseY)
+                let (dr, dc) = state.selectionMoveDelta
+                if dr != 0 || dc != 0 {
+                    let blocked = state.selectionMoveBlocked
+                    RoundedRectangle(cornerRadius: 6, style: .continuous)
+                        .stroke(blocked
+                                ? Color(red: 0.9, green: 0.3, blue: 0.3)
+                                : Color.white,
+                                style: StrokeStyle(lineWidth: 2.0, dash: [5, 3]))
+                        .frame(width: bw, height: bh)
+                        .offset(x: baseX + CGFloat(dc) * pitch,
+                                y: baseY + CGFloat(dr) * pitch)
+                }
+            }
+        }
+        .frame(width: totalW, height: totalH, alignment: .topLeading)
+        .allowsHitTesting(false)
+    }
+
+    /// Tight bounding box of a set of cell indices.
+    private func boundingBox(
+        of cells: Set<CellIndex>
+    ) -> (minR: Int, maxR: Int, minC: Int, maxC: Int) {
+        var minR = Int.max, maxR = Int.min, minC = Int.max, maxC = Int.min
+        for c in cells {
+            if c.r < minR { minR = c.r }
+            if c.r > maxR { maxR = c.r }
+            if c.c < minC { minC = c.c }
+            if c.c > maxC { maxC = c.c }
+        }
+        return (minR, maxR, minC, maxC)
     }
 }
 

@@ -306,6 +306,13 @@ final class GameState {
     /// which file to remove on un-favorite. Cleared on every
     /// `startLevel` so a new generated puzzle starts unfavorited.
     var currentFavoriteURL: URL?
+    /// Title to display in the top-bar's center wordmark in place of
+    /// "zen" — set when a community-submitted puzzle is loaded so the
+    /// player sees the submitter's chosen name instead of the generic
+    /// mode label. nil → fall back to the regular mode wordmark.
+    /// Cleared on every `startLevel` (generator path) and on
+    /// non-community `loadCustomPuzzle` calls.
+    var customTitle: String? = nil
 
     // Interaction
     var selection: BoardSelection?
@@ -401,13 +408,21 @@ final class GameState {
     // How far above the finger the drag ghost floats. Purely visual —
     // placement still uses the raw finger position via effectivePoint
     // below. Was 64pt historically; that lifted the ghost so far up
-    /// Rendered on-screen cell size (including any zoom factor).
-    /// GridView reports this on every layout so the drag-ghost lift
-    /// and hit-test offset scale with whatever the player currently
-    /// sees — tiny cells on a dense Expert puzzle vs. pinched-in 3×
-    /// zoom cells both need different offsets to keep the swatch
-    /// above the thumb.
-    var renderedCellSize: CGFloat = 40
+    /// Cell pitch in unscaled (1.0× zoom) layout coordinates. GridView
+    /// updates this once per layout — only when the actual underlying
+    /// cell size changes (resize, orientation, grid bounds), NOT on
+    /// every pinch tick. The screen-space cell size is then derived
+    /// from this against `zoomScale` so a zoom change doesn't have to
+    /// push state into GameState every frame, which used to cascade
+    /// into an extra view-graph pass per pinch event.
+    var unscaledCellPitch: CGFloat = 40
+
+    /// On-screen cell size after the active zoom. Derived rather than
+    /// stored: any code reading this — drag-ghost lift, magnetism's
+    /// upward bias, hit-test offsets — automatically picks up zoom
+    /// changes through SwiftUI's normal observation of `zoomScale`,
+    /// so we don't pay for an extra state mutation per pinch frame.
+    var renderedCellSize: CGFloat { unscaledCellPitch * zoomScale }
 
     /// Vertical offset from the finger to the center of the drag
     /// ghost. Scales modestly with `renderedCellSize` so dense grids
@@ -923,6 +938,7 @@ final class GameState {
         // Gallery.
         cameFromGallery = false
         currentGalleryPuzzleId = nil
+        customTitle = nil
         // Clear the once-claim perfect-heart token so the next
         // perfect solve can award a fresh +1. Both handleNext and
         // the ContentView flight task gate on this flag so only
@@ -1528,7 +1544,7 @@ final class GameState {
     /// generator's level ladder (and its per-puzzle scoring doesn't
     /// make sense for a one-off), so entering a custom puzzle from
     /// challenge forces a switch back to zen first.
-    func loadCustomPuzzle(_ p: Puzzle, favoriteURL: URL? = nil, fromGallery: Bool = false, galleryPuzzleId: String? = nil) {
+    func loadCustomPuzzle(_ p: Puzzle, favoriteURL: URL? = nil, fromGallery: Bool = false, galleryPuzzleId: String? = nil, title: String? = nil) {
         if mode != .zen {
             mode = .zen
             level = zenLevel
@@ -1556,6 +1572,12 @@ final class GameState {
         // so a fresh custom load from a non-gallery source clears
         // stale state from a prior gallery play.
         currentGalleryPuzzleId = fromGallery ? galleryPuzzleId : nil
+        // Title overrides the top-bar's "zen" wordmark while a custom
+        // puzzle is loaded — community submissions pass the
+        // submitter-chosen name through here. Empty/whitespace strings
+        // collapse to nil so the wordmark falls back cleanly.
+        let trimmed = title?.trimmingCharacters(in: .whitespacesAndNewlines)
+        customTitle = (trimmed?.isEmpty == false) ? trimmed : nil
         puzzleStartTime = Date()
         mistakeCount = 0
         moveCount = 0
