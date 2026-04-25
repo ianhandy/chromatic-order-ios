@@ -154,8 +154,8 @@ struct ChromaticOrderApp: App {
     /// Paths are declared in `/.well-known/apple-app-site-association`
     /// on the server; iOS routes matching taps straight into the app,
     /// skipping Safari entirely. Resolves the slug server-side via
-    /// `/api/fetch/<slug>` to get the raw JSON, then loads the puzzle
-    /// with the same pipeline as the kroma:// scheme.
+    /// `/api/share?slug=<slug>` to get the raw JSON, then loads the
+    /// puzzle with the same pipeline as the kroma:// scheme.
     private func handleUniversalLink(_ url: URL) {
         let parts = url.path.split(separator: "/", omittingEmptySubsequences: true)
         guard parts.count >= 2, parts[0] == "p" else { return }
@@ -164,12 +164,12 @@ struct ChromaticOrderApp: App {
         Task { await fetchAndLoadSlug(slug) }
     }
 
-    /// Resolve a share slug against `/api/fetch/<slug>`, then decode +
+    /// Resolve a share slug against `/api/share?slug=<slug>`, then decode +
     /// rebuild the puzzle. Best-effort — network failure / expired
     /// slug silently no-ops; the user stays on whichever screen they
     /// were on rather than getting bounced.
     private func fetchAndLoadSlug(_ slug: String) async {
-        guard let url = URL(string: "https://kroma.ianhandy.com/api/fetch/\(slug)") else { return }
+        guard let url = URL(string: "https://kroma.ianhandy.com/api/share?slug=\(slug)") else { return }
         var request = URLRequest(url: url)
         request.timeoutInterval = 5
         do {

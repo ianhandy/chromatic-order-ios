@@ -175,13 +175,20 @@ struct MenuSheet: View {
 }
 
 /// Share variant of the hamburger row — same slide-in-from-right +
-/// label-fade animation pattern as `MenuSheetRow`, but wraps a
-/// SwiftUI `ShareLink` around a `KromaPuzzleFile`. The previous URL
-/// form (`https://kroma.ianhandy.com/p/<…>`) lost its backend when
-/// `/api/save` and `/p/[slug]` were retired in favor of the liked-
-/// puzzle pool, so a file-based share is what survives — recipients
-/// tap the .kroma attachment and Kromatika handles it via
-/// `ChromaticOrderApp.onOpenURL`.
+/// label-fade animation pattern as `MenuSheetRow`. Pre-fetches a
+/// short share URL by POSTing the puzzle JSON to `/api/share` when
+/// the menu opens; the resulting `https://kroma.ianhandy.com/p/<slug>`
+/// is what the `ShareLink` actually shares, so recipients see an
+/// iMessage card titled "Kromatika puzzle (X/10)" instead of a
+/// generic `.kroma` attachment.
+///
+/// Three render states:
+///   1. Preparing (no URL yet, no tap — spinner shown).
+///   2. URL ready — `ShareLink(item: URL)` with `SharePreview` for the
+///      title + preview image.
+///   3. API failed / offline — `ShareLink(item: KromaPuzzleFile)`
+///      fallback so sharing never hard-breaks; recipient gets the
+///      `.kroma` attachment + the app's UTI handler picks it up.
 private struct MenuSheetShareRow: View {
     let index: Int
     let isOpen: Bool
@@ -189,23 +196,45 @@ private struct MenuSheetShareRow: View {
 
     @State private var iconArrived = false
     @State private var labelVisible = false
+    @State private var shareURL: URL? = nil
+    @State private var preparing: Bool = false
+    @State private var apiFailed: Bool = false
+    @State private var prepareTask: Task<Void, Never>? = nil
 
     var body: some View {
         let json = (try? CreatorCodec.encodePuzzle(puzzle)) ?? ""
         let file = KromaPuzzleFile(json: json, difficulty: puzzle.difficulty)
         let previewImage = PuzzlePreviewRenderer.render(puzzle)
             ?? Image(systemName: "paintpalette.fill")
+        let title = "Kromatika puzzle (\(puzzle.difficulty)/10)"
+        let preview = SharePreview(title, image: previewImage)
 
-        ShareLink(
-            item: file,
-            subject: Text("A Kromatika puzzle (\(puzzle.difficulty)/10)"),
-            preview: SharePreview(
-                "Kromatika puzzle (\(puzzle.difficulty)/10)",
-                image: previewImage
-            )
-        ) { shareLabel(waiting: false) }
+        Group {
+            if let url = shareURL {
+                ShareLink(item: url, subject: Text(title), preview: preview) {
+                    shareLabel(waiting: false)
+                }
+            } else if preparing {
+                // Non-tappable while the slug is being minted — taps
+                // during the brief prep window otherwise fall through
+                // to the file-share fallback, which is the bug we're
+                // fixing.
+                shareLabel(waiting: true)
+            } else if apiFailed {
+                // Offline / API unreachable — degrade to file share
+                // so the user can still send the puzzle, just without
+                // the iMessage card.
+                ShareLink(item: file, subject: Text(title), preview: preview) {
+                    shareLabel(waiting: false)
+                }
+            } else {
+                // Initial state before the menu has ever opened.
+                shareLabel(waiting: false)
+            }
+        }
         .onChange(of: isOpen) { _, open in
             if open {
+                startPrepare(json: json)
                 withAnimation(.spring(response: 0.52, dampingFraction: 0.84)
                     .delay(Double(index) * 0.09)) {
                     iconArrived = true
@@ -215,6 +244,11 @@ private struct MenuSheetShareRow: View {
                     labelVisible = true
                 }
             } else {
+                prepareTask?.cancel()
+                prepareTask = nil
+                preparing = false
+                shareURL = nil
+                apiFailed = false
                 withAnimation(.easeOut(duration: 0.18)) {
                     labelVisible = false
                 }
@@ -223,6 +257,48 @@ private struct MenuSheetShareRow: View {
                     iconArrived = false
                 }
             }
+        }
+    }
+
+    private func startPrepare(json: String) {
+        prepareTask?.cancel()
+        shareURL = nil
+        apiFailed = false
+        preparing = true
+        prepareTask = Task { @MainActor in
+            let url = await Self.requestShareURL(json: json)
+            guard !Task.isCancelled else { return }
+            if let url {
+                shareURL = url
+            } else {
+                apiFailed = true
+            }
+            preparing = false
+            prepareTask = nil
+        }
+    }
+
+    private static func requestShareURL(json: String) async -> URL? {
+        guard let endpoint = URL(string: "https://kroma.ianhandy.com/api/share") else {
+            return nil
+        }
+        var request = URLRequest(url: endpoint)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.timeoutInterval = 5
+        guard let body = try? JSONSerialization.data(withJSONObject: ["json": json]) else {
+            return nil
+        }
+        request.httpBody = body
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+            guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
+                return nil
+            }
+            let decoded = try JSONDecoder().decode(ShareSaveResponse.self, from: data)
+            return URL(string: decoded.url)
+        } catch {
+            return nil
         }
     }
 
@@ -250,6 +326,11 @@ private struct MenuSheetShareRow: View {
         }
         .offset(x: iconArrived ? 0 : 280)
     }
+}
+
+private struct ShareSaveResponse: Decodable {
+    let slug: String
+    let url: String
 }
 
 /// Show-incorrect hamburger row with inline confirmation support.
