@@ -14,7 +14,6 @@
 		03B9F9A501C7037D3F74A273 /* MenuSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6575560348AFC2F3872179B2 /* MenuSheet.swift */; };
 		03EEBA76DE39F6B85588AFA8 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = F0F0E7F1E0EE47D0CB4CB0D0 /* PrivacyInfo.xcprivacy */; };
 		0474E00251D2487498A7D39A /* FluidWarp.metal in Sources */ = {isa = PBXBuildFile; fileRef = 05E19AD6B398060DF1E285B6 /* FluidWarp.metal */; };
-		0740DE1A8C03402FA7C99EAE /* DevSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3C6D57FEFBB760F4E5D2B01D /* DevSheet.swift */; };
 		08CE52F5A21B0F9A1E7201AF /* PuzzlePreviewRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC9416A751C05997A4BCC969 /* PuzzlePreviewRenderer.swift */; };
 		0C16E8ED132AF726BF559765 /* LikeFeedbackWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 71D717FAB5FB32C4C42C341B /* LikeFeedbackWidget.swift */; };
 		16BE10635925E518192256C2 /* SolvedPuzzleHistory.swift in Sources */ = {isa = PBXBuildFile; fileRef = CCC34D0B81466FC230ECE9E0 /* SolvedPuzzleHistory.swift */; };
@@ -131,7 +130,6 @@
 		333FC8788FF4E81B5E7DF11D /* GallerySolvedStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GallerySolvedStore.swift; sourceTree = "<group>"; };
 		3395BD7F6140655A87532271 /* OnboardingOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingOverlay.swift; sourceTree = "<group>"; };
 		33DEE38CC65D5CDC79AC7668 /* AppIconEarthyTones@3x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "AppIconEarthyTones@3x.png"; sourceTree = "<group>"; };
-		3C6D57FEFBB760F4E5D2B01D /* DevSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DevSheet.swift; sourceTree = "<group>"; };
 		41500A18A21C00DF321D45C7 /* Proximity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Proximity.swift; sourceTree = "<group>"; };
 		43B82FAB2C24A6433D8AA423 /* CreatorBuild.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CreatorBuild.swift; sourceTree = "<group>"; };
 		49C623023D8D07FF21BC731B /* ChromaticOrderTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = ChromaticOrderTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -208,7 +206,6 @@
 				9E565238E3EC2C08660B8EF3 /* CommunityListView.swift */,
 				79B1EAC8087FD4755571D516 /* ContinuousGridMenuField.swift */,
 				243AC22FA234D5D50BF52A0D /* CreatorView.swift */,
-				3C6D57FEFBB760F4E5D2B01D /* DevSheet.swift */,
 				8A5B6723BA4A89C9505169E0 /* EdgeVignetteView.swift */,
 				856A5842C2329B56B733CFD4 /* FeedbackSheet.swift */,
 				56632D3D367AD0444A588FDC /* FocusDim.swift */,
@@ -491,7 +488,6 @@
 				69EE9A80D26B46D5D370E294 /* CreatorState.swift in Sources */,
 				73CC87BA62B8F64B5CE76103 /* CreatorView.swift in Sources */,
 				5CA88A2B6C261540E702C32B /* DailyFetcher.swift in Sources */,
-				0740DE1A8C03402FA7C99EAE /* DevSheet.swift in Sources */,
 				43E6C6041EEAD1A70F99CC72 /* EdgeVignetteView.swift in Sources */,
 				83F8F6CF0B388CEDC5B8B4D6 /* FavoritesStore.swift in Sources */,
 				4064609A726FF8CADA1E484B /* FeedbackSheet.swift in Sources */,
