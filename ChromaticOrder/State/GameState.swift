@@ -353,12 +353,14 @@ final class GameState {
     // Zoom + pan state.
     //   zoomScale = 1.0 is the default/fit-to-screen view; cannot zoom
     //   further OUT than that (no empty space around the grid).
-    //   >1.0 scales the grid up. GridView clamps the upper bound to
-    //   whatever makes 3 cells span the short viewport axis — the max
-    //   "zoom into the grid" that's still useful for single-cell
-    //   targeting.
+    //   >1.0 scales the grid up. GridView clamps two ceilings:
+    //     • Pinch: 3 cells span the screen width — the all-the-way-in
+    //       limit, lets a single cell fill ~⅓ of the viewport.
+    //     • Double-tap: ~8 cells span the short axis — a softer
+    //       intermediate preset that keeps surrounding context.
     //   Pinch gesture updates zoomScale live; double-tap toggles
-    //   between 1.0 and the max. Pan enabled whenever zoomScale > 1.
+    //   between 1.0 and the double-tap preset. Pan enabled whenever
+    //   zoomScale > 1.
     var zoomScale: CGFloat = 1.0
     var panOffset: CGSize = .zero
 
@@ -450,13 +452,26 @@ final class GameState {
         // -32pt which pulled too aggressively across gaps. When the
         // player has disabled magnetism in Accessibility, drop the
         // inflation to 0 so only direct-hit cells accept drops.
+        //
+        // Upward bias: ghost-aiming players (who track the lifted
+        // swatch instead of the finger) tend to release with their
+        // finger ABOVE the target. Catch them by extending the magnet
+        // rect upward by ~half the ghost lift. Lateral and downward
+        // halos stay the tight ±12pt — only the top edge stretches,
+        // so adjacent-row cells in dense grids don't steal each
+        // other's drops.
         let catchInset: CGFloat = magnetismEnabled ? -12 : 0
+        let upwardBias: CGFloat = magnetismEnabled ? ghostLift * 0.5 : 0
         var bestIdx: CellIndex? = nil
         var bestDist = CGFloat.infinity
         for (idx, rect) in cellFrames {
             let cell = puzzle.board[idx.r][idx.c]
             guard cell.kind == .cell, !cell.locked else { continue }
-            let catchRect = rect.insetBy(dx: catchInset, dy: catchInset)
+            let catchRect = CGRect(
+                x: rect.minX + catchInset,
+                y: rect.minY + catchInset - upwardBias,
+                width: rect.width - 2 * catchInset,
+                height: rect.height - 2 * catchInset + upwardBias)
             guard catchRect.contains(point) else { continue }
             let dx = rect.midX - point.x
             let dy = rect.midY - point.y
@@ -686,26 +701,53 @@ final class GameState {
         applyAccessibilityIfChanged()
     }
 
-    /// Double-tap jumps between the default fit-view (1.0) and the
-    /// player's max zoom. Caller passes the current maxZoom since
-    /// GridView computes it from the container size.
+    /// Double-tap snaps to the nearest of {1.0, max}. From any state
+    /// closer to 1.0 (small accidental pinch, fully zoomed-out, the
+    /// fit view) the player gets the preset; from anything past the
+    /// midpoint (fully zoomed-in via pinch, or already at the preset)
+    /// they get the reset to fit. PanOffset is cleared either way —
+    /// double-tap is a "go to a known state" gesture, so a user-
+    /// applied pan from a previous session shouldn't carry over.
     func toggleZoom(max: CGFloat) {
-        if zoomScale > 1.0001 {
-            zoomScale = 1.0
-            panOffset = .zero
-        } else {
+        let midpoint = (1.0 + max) / 2
+        if zoomScale < midpoint {
             zoomScale = max
+        } else {
+            zoomScale = 1.0
         }
+        panOffset = .zero
     }
 
     /// Set zoom directly — used by the pinch gesture. `max` is the
-    /// current maxZoom so we never allow zooming past "3 cells fill
-    /// the screen." Clamped below at 1.0 (can't zoom out past
-    /// fit-view; there's no purpose to empty space around the grid).
+    /// current pinchMaxZoom (3 cells fill the screen width) so we
+    /// never allow zooming past it. Clamped below at 1.0 (can't zoom
+    /// out past fit-view; there's no purpose to empty space around
+    /// the grid).
     func setZoom(_ value: CGFloat, max: CGFloat) {
         let clamped = min(max, Swift.max(1.0, value))
         zoomScale = clamped
         if clamped <= 1.0001 { panOffset = .zero }
+    }
+
+    /// True when the touch lands on (or in the gutter immediately
+    /// adjacent to) a LIVE cell — used by the grid pan gesture to
+    /// decide whether to yield to the cell's own drag/tap. Dead
+    /// cells render as transparent black space, so their frames
+    /// don't count: panning should be allowed in any black area
+    /// outside a real cell, including the cell-shaped voids
+    /// surrounding the puzzle. Cell frames are reported with the
+    /// 2pt cell margin baked in (CellView's frame is cellPx +
+    /// 2*margin), so the thin gutter directly between two adjacent
+    /// live cells gets covered automatically — there's no gap to
+    /// pan in between touching cells, which matches the player's
+    /// intuition.
+    func landedOnCell(_ point: CGPoint) -> Bool {
+        guard let puzzle else { return false }
+        for (idx, frame) in cellFrames where frame.contains(point) {
+            let cell = puzzle.board[idx.r][idx.c]
+            if cell.kind == .cell { return true }
+        }
+        return false
     }
 
     /// Apply a pan delta while zoomed; no-op when not zoomed so the

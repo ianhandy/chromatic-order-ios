@@ -192,31 +192,39 @@ private struct MenuSheetShareRow: View {
 
     @State private var iconArrived = false
     @State private var labelVisible = false
-    /// File URL of the `.kroma` file we've staged in tmp for this
-    /// puzzle. Shared directly via ShareLink — appears as a real
-    /// file attachment in AirDrop / iMessage / Mail, handled by the
-    /// app's registered UTI on the receiving end.
-    @State private var shareFileURL: URL? = nil
+    /// Populated by a background POST to `/api/save` once the row
+    /// renders. When non-nil, the share URL uses the short slug form
+    /// (`/p/<slug>`) — small enough for iMessage to render a preview
+    /// card. If the network POST fails or hasn't returned in time,
+    /// the ShareLink falls through to the long base64 URL, which
+    /// still works but may dump as raw text in the message.
+    @State private var shortSlug: String? = nil
 
     var body: some View {
         let json = (try? CreatorCodec.encodePuzzle(puzzle)) ?? ""
+        let b64 = ChromaticOrderApp.encodeBase64URL(Data(json.utf8))
+        let pathSegment = shortSlug ?? b64
+        let shareURL = URL(string: "https://kroma.ianhandy.com/p/\(pathSegment)")
+            ?? URL(string: "https://kroma.ianhandy.com")!
+        let previewImage = PuzzlePreviewRenderer.render(puzzle)
+            ?? Image(systemName: "paintpalette.fill")
 
-        Group {
-            if let fileURL = shareFileURL {
-                ShareLink(
-                    item: fileURL,
-                    subject: Text("A Kromatika puzzle (\(puzzle.difficulty)/10)"),
-                    preview: SharePreview("Kromatika puzzle (\(puzzle.difficulty)/10)")
-                ) { shareLabel(waiting: false) }
-            } else {
-                // Tmp file not written yet (should be instant).
-                // Disabled with a spinner until the file URL lands.
-                Button(action: {}) { shareLabel(waiting: true) }
-                    .disabled(true)
-            }
-        }
+        ShareLink(
+            item: shareURL,
+            subject: Text("A Kromatika puzzle (\(puzzle.difficulty)/10)"),
+            preview: SharePreview(
+                "Kromatika puzzle (\(puzzle.difficulty)/10)",
+                image: previewImage
+            )
+        ) { shareLabel(waiting: false) }
         .task(id: json) {
-            shareFileURL = writePuzzleFile(json: json, puzzle: puzzle)
+            // Re-run when the puzzle JSON changes. Best-effort — any
+            // failure (no network, KV down, server cold start) leaves
+            // shortSlug nil and the ShareLink falls back to the long
+            // base64 URL embedded directly in the path so the link
+            // still resolves to the same `/p/<…>` landing page.
+            shortSlug = nil
+            shortSlug = await fetchShareSlug(json: json)
         }
         .onChange(of: isOpen) { _, open in
             if open {
@@ -240,8 +248,34 @@ private struct MenuSheetShareRow: View {
         }
     }
 
-    /// Share row label. Shows a tiny spinner overlaid on the arrow
-    /// icon while the tmp file is being staged.
+    /// POST the puzzle JSON to the share-link save endpoint and return
+    /// the short slug. Returns nil on any failure so the caller falls
+    /// back to the inline base64 URL.
+    private func fetchShareSlug(json: String) async -> String? {
+        guard !json.isEmpty,
+              let url = URL(string: "https://kroma.ianhandy.com/api/save") else {
+            return nil
+        }
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.timeoutInterval = 4
+        let body = ["json": json]
+        request.httpBody = try? JSONSerialization.data(withJSONObject: body)
+        guard request.httpBody != nil else { return nil }
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+            guard let http = response as? HTTPURLResponse,
+                  http.statusCode == 200 else { return nil }
+            struct SlugResponse: Decodable { let slug: String }
+            let decoded = try JSONDecoder().decode(SlugResponse.self, from: data)
+            return decoded.slug
+        } catch {
+            return nil
+        }
+    }
+
+    /// Share row label.
     @ViewBuilder
     private func shareLabel(waiting: Bool) -> some View {
         HStack(spacing: 14) {
@@ -264,27 +298,6 @@ private struct MenuSheetShareRow: View {
             .overlay(Circle().stroke(Color.white.opacity(0.28), lineWidth: 1))
         }
         .offset(x: iconArrived ? 0 : 280)
-    }
-
-    /// Stage the puzzle as a `.kroma` file in tmp and return its
-    /// URL. Shared directly to AirDrop / iMessage / Files / etc.
-    /// The registered UTI routes taps on the received file back to
-    /// the app's onOpenURL handler to load the puzzle.
-    private func writePuzzleFile(json: String, puzzle: Puzzle) -> URL? {
-        guard !json.isEmpty, let data = json.data(using: .utf8) else {
-            return nil
-        }
-        let label = "kromatika-puzzle-\(puzzle.difficulty)-of-10"
-        let suffix = UUID().uuidString.prefix(6)
-        let filename = "\(label)-\(suffix).kroma"
-        let url = FileManager.default.temporaryDirectory
-            .appendingPathComponent(filename)
-        do {
-            try data.write(to: url, options: .atomic)
-            return url
-        } catch {
-            return nil
-        }
     }
 }
 

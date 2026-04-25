@@ -360,10 +360,13 @@ struct ContentView: View {
             else if game.selection != nil { game.clearSelection() }
         }
         .onShake {
-            // Shake to shuffle — replaces the old bottom-right reset
-            // button. Only acts on an in-progress puzzle so a shake
-            // during the solved overlay doesn't wipe the win state.
-            if !game.solved, game.puzzle != nil {
+            // Shake-to-shuffle disabled: too easy to trigger
+            // accidentally (commute, walking, sleeve brushes phone)
+            // and the reset wipes a puzzle in progress with no undo.
+            // Wiring kept so the feature can be re-enabled by a flag
+            // later without re-adding the modifier + ShakeDetector.
+            let enabled = false
+            if enabled, !game.solved, game.puzzle != nil {
                 Haptics.shake()
                 game.handleReset()
             }

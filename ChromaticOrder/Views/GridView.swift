@@ -58,16 +58,20 @@ struct GridView: View {
             let perH = (availH / CGFloat(rows)) - margin * 2
             let cellPx = max(10, min(64, min(perW, perH)))
 
-            // Max zoom — stop at "roughly 8 cells span the short viewport
-            // axis." That keeps enough of the puzzle in frame to plan
-            // moves while still magnifying cells past their 1.0x size.
-            // Cell pitch = cellPx + 2*margin; short-axis / pitch gives
-            // how many cells are currently visible at 1.0x, so
-            // (current / 8) is the multiplier that drops the visible
-            // count to 8.
+            // Two zoom ceilings, both calibrated against screen width
+            // so portrait + iPad-landscape obey the same rule (the
+            // wider screen yields a more dramatic close-up at the same
+            // N-cell target). Cell pitch = cellPx + 2*margin; axis /
+            // pitch gives the current 1.0x visible cell count, so axis
+            // / (N * pitch) is the multiplier that brings it down to N.
+            //   • doubleTapZoom — the preset reached by tapping twice.
+            //     5 cells span the screen width.
+            //   • pinchMaxZoom — the absolute pinch ceiling. 3 cells
+            //     span the screen width.
             let cellPitch = cellPx + margin * 2
-            let shortAxis = min(size.width, size.height)
-            let maxZoom: CGFloat = max(1.2, shortAxis / (8 * cellPitch))
+            let pinchMaxZoom: CGFloat = max(1.2, size.width / (3 * cellPitch))
+            let doubleTapZoom: CGFloat = max(1.2, min(pinchMaxZoom,
+                                                      size.width / (5 * cellPitch)))
             let zoom: CGFloat = game.zoomScale
 
             VStack(spacing: 0) {
@@ -126,7 +130,7 @@ struct GridView: View {
                         // filtering spurious re-taps, not ergonomics.
                         if dt < game.doubleTapInterval, dist < 24 {
                             withAnimation(.spring(response: 0.28, dampingFraction: 0.82)) {
-                                game.toggleZoom(max: maxZoom)
+                                game.toggleZoom(max: doubleTapZoom)
                             }
                             zoomAtGestureStart = game.zoomScale
                             lastTapAt = .distantPast
@@ -138,72 +142,62 @@ struct GridView: View {
                     }
             )
             // Pinch to zoom — clamped between 1x (default view) and
-            // maxZoom (3 cells span the short axis). MagnificationGesture
-            // reports a relative multiplier, so we resolve against the
-            // snapshot taken at gesture start.
+            // pinchMaxZoom (3 cells span the screen width).
+            // MagnificationGesture reports a relative multiplier, so
+            // we resolve against the snapshot taken at gesture start.
             .simultaneousGesture(
                 MagnificationGesture()
                     .onChanged { value in
-                        game.setZoom(zoomAtGestureStart * value, max: maxZoom)
+                        game.setZoom(zoomAtGestureStart * value, max: pinchMaxZoom)
                     }
                     .onEnded { _ in
                         zoomAtGestureStart = game.zoomScale
                     }
             )
-            // Pan gesture — only wired up while zoomed, and only when
-            // the drag starts OUTSIDE any cell. Cells keep their own
-            // drag gestures so the player can still place / relocate
-            // swatches while zoomed; the pan only kicks in for
-            // empty-gutter drags. `startLocation` + `cellFrames`
-            // together let both coexist on one view tree.
+            // Pan gesture. Single DragGesture, gated on zoom. Touches
+            // that land on a cell yield to CellView's own gesture
+            // (cellFrames lookup); gutter touches pan the grid. Both
+            // panStartOffset and panStartLandedOnCell are captured at
+            // gesture start (translation ≈ 0) so a cancelled or
+            // out-of-order onEnded can't strand stale state into the
+            // next gesture. 10pt threshold keeps small wiggles from
+            // becoming pans.
             .simultaneousGesture(
-                DragGesture(minimumDistance: 10, coordinateSpace: .global)
+                DragGesture(minimumDistance: 0, coordinateSpace: .global)
                     .onChanged { v in
                         guard game.zoomed else { return }
-                        // Cell-landed starts yield to CellView's own
-                        // drag; everywhere else we pan.
-                        if panStartLandedOnCell {
+                        let moved = hypot(v.translation.width,
+                                           v.translation.height)
+                        if moved < 1 {
+                            panStartOffset = game.panOffset
+                            // Only LIVE cells block pan. Dead cells
+                            // render as black space so panning starts
+                            // there should work — the previous
+                            // `cellFrames.contains` check covered
+                            // every grid slot indiscriminately, which
+                            // meant a zoomed-in puzzle (with the
+                            // grid filling the viewport) had almost
+                            // no pannable surface.
+                            panStartLandedOnCell =
+                                game.landedOnCell(v.startLocation)
                             return
                         }
+                        if panStartLandedOnCell { return }
+                        guard moved >= 10 else { return }
                         game.panOffset = CGSize(
-                            width:  panStartOffset.width  + v.translation.width,
+                            width: panStartOffset.width + v.translation.width,
                             height: panStartOffset.height + v.translation.height
                         )
                     }
                     .onEnded { _ in
-                        guard game.zoomed else { return }
-                        if !panStartLandedOnCell {
-                            panStartOffset = game.panOffset
-                        }
                         panStartLandedOnCell = false
                     }
             )
-            .simultaneousGesture(
-                // Separate zero-distance gesture just to latch "did
-                // this touch start on a cell?" before the 10pt pan
-                // kicks in. Runs on every touch; cheap because it
-                // doesn't spawn any heavy work.
-                DragGesture(minimumDistance: 0, coordinateSpace: .global)
-                    .onChanged { v in
-                        if panStartLandedOnCell { return }
-                        // Only latch on the first onChanged event of
-                        // a gesture (translation ≈ 0). Later events
-                        // with large translations are the drag
-                        // progressing, not a new touchdown.
-                        let translated = hypot(
-                            v.translation.width, v.translation.height
-                        )
-                        if translated < 1 {
-                            panStartLandedOnCell = game.cellFrames.values.contains { frame in
-                                frame.contains(v.startLocation)
-                            }
-                        }
-                    }
-                    .onEnded { _ in panStartLandedOnCell = false }
-            )
             .onChange(of: game.zoomed) { _, isZoomed in
-                // Reset pan bookkeeping whenever zoom toggles so the
-                // next pan starts from the new (possibly-zero) offset.
+                // Snap pan bookkeeping to the new zoom state. On
+                // zoom-out game.panOffset has already been cleared by
+                // toggleZoom / setZoom; on zoom-in we mirror whatever
+                // pan offset is current.
                 panStartOffset = isZoomed ? game.panOffset : .zero
                 zoomAtGestureStart = game.zoomScale
             }
