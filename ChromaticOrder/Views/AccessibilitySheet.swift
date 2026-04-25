@@ -21,9 +21,6 @@ struct AccessibilitySheet: View {
     @Bindable var game: GameState
     @Environment(\.dismiss) private var dismiss
     @State private var showResetProgress = false
-    #if DEBUG
-    @State private var showDevSheet = false
-    #endif
 
     var body: some View {
         NavigationStack {
@@ -162,23 +159,6 @@ struct AccessibilitySheet: View {
                     Text("Clears your current level and hearts. Ratings are kept.")
                 }
 
-                #if DEBUG
-                // Dev section is stripped from Release builds via the
-                // #if DEBUG gate so TestFlight / App Store users never
-                // see the moderation surface.
-                Section {
-                    Button {
-                        showDevSheet = true
-                    } label: {
-                        Label("Community moderation", systemImage: "wrench.and.screwdriver")
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                    }
-                } header: {
-                    Text("Dev")
-                } footer: {
-                    Text("Browse + approve / reject community submissions. Requires DAILY_ADMIN_TOKEN.")
-                }
-                #endif
             }
             .navigationTitle("Accessibility")
             .navigationBarTitleDisplayMode(.inline)
@@ -197,11 +177,6 @@ struct AccessibilitySheet: View {
             } message: {
                 Text("This clears your current level and hearts. Ratings are kept.")
             }
-            #if DEBUG
-            .sheet(isPresented: $showDevSheet) {
-                DevSheet(game: game)
-            }
-            #endif
         }
         .presentationDetents([.large])
     }
