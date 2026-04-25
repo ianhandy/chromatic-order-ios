@@ -35,6 +35,12 @@ struct GridView: View {
     /// pan (gutter only) or must yield to the CellView's own drag
     /// gesture (cell only).
     @State private var panStartLandedOnCell: Bool = false
+    /// Sticky flag flipped on by MagnificationGesture's onChanged and
+    /// off by onEnded. The pan gesture short-circuits while it's
+    /// true so two-finger pinches don't accidentally feed translation
+    /// into the pan offset every frame — that simultaneous scale +
+    /// shift was the source of the perceived zoom jitter.
+    @State private var isPinching: Bool = false
 
     var body: some View {
         GeometryReader { geo in
@@ -95,15 +101,13 @@ struct GridView: View {
             .scaleEffect(zoom, anchor: .center)
             .offset(game.panOffset)
             .onAppear {
-                // Report the on-screen cell size (post-zoom) to
-                // GameState so the drag-ghost lift scales with it.
-                game.renderedCellSize = cellPitch * zoom
-            }
-            .onChange(of: zoom) { _, newZoom in
-                game.renderedCellSize = cellPitch * newZoom
+                // Push the unscaled cell pitch once per layout. The
+                // screen-space size is derived (`game.renderedCellSize`)
+                // so we don't have to re-push it on every zoom tick.
+                game.unscaledCellPitch = cellPitch
             }
             .onChange(of: cellPitch) { _, newPitch in
-                game.renderedCellSize = newPitch * zoom
+                game.unscaledCellPitch = newPitch
             }
             .animation(.interactiveSpring(response: 0.2, dampingFraction: 0.95),
                        value: game.panOffset)
@@ -148,10 +152,18 @@ struct GridView: View {
             .simultaneousGesture(
                 MagnificationGesture()
                     .onChanged { value in
+                        isPinching = true
                         game.setZoom(zoomAtGestureStart * value, max: pinchMaxZoom)
                     }
                     .onEnded { _ in
+                        isPinching = false
                         zoomAtGestureStart = game.zoomScale
+                        // Re-anchor pan bookkeeping after a pinch so
+                        // a finger that was about to drag doesn't
+                        // resume from a stale baseline (the pinch
+                        // ate any in-flight translation while we
+                        // were short-circuiting the pan branch).
+                        panStartOffset = game.panOffset
                     }
             )
             // Pan gesture. Single DragGesture, gated on zoom. Touches
@@ -166,6 +178,14 @@ struct GridView: View {
                 DragGesture(minimumDistance: 0, coordinateSpace: .global)
                     .onChanged { v in
                         guard game.zoomed else { return }
+                        // Two-finger pinch wins over pan. Without this
+                        // gate the drag gesture also fires during a
+                        // pinch (simultaneous gesture dispatch), and
+                        // its translation feeds into panOffset every
+                        // frame — so the grid was both scaling AND
+                        // shifting during a pinch, which read as
+                        // jitter.
+                        if isPinching { return }
                         let moved = hypot(v.translation.width,
                                            v.translation.height)
                         if moved < 1 {

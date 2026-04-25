@@ -133,17 +133,31 @@ struct TopBarView: View {
 
     @ViewBuilder
     private var centerModeLabel: some View {
-        switch game.mode {
-        case .zen:
-            Text("zen")
-                .font(.system(size: 28, weight: .heavy, design: .rounded))
+        // Custom-loaded puzzles (community / gallery / favorites that
+        // ship with a name) override the mode wordmark so the player
+        // sees the level's title instead of the generic "zen" label.
+        // Long titles get a gentle width cap + truncation so the
+        // top-bar layout stays balanced.
+        if let title = game.customTitle, !title.isEmpty {
+            Text(title)
+                .font(.system(size: 22, weight: .heavy, design: .rounded))
                 .foregroundStyle(Self.primaryText)
-        case .daily:
-            Text("today")
-                .font(.system(size: 28, weight: .heavy, design: .rounded))
-                .foregroundStyle(Self.primaryText)
-        case .challenge:
-            heartsRow
+                .lineLimit(1)
+                .truncationMode(.tail)
+                .frame(maxWidth: 220)
+        } else {
+            switch game.mode {
+            case .zen:
+                Text("zen")
+                    .font(.system(size: 28, weight: .heavy, design: .rounded))
+                    .foregroundStyle(Self.primaryText)
+            case .daily:
+                Text("today")
+                    .font(.system(size: 28, weight: .heavy, design: .rounded))
+                    .foregroundStyle(Self.primaryText)
+            case .challenge:
+                heartsRow
+            }
         }
     }
 

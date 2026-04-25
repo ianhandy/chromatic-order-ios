@@ -83,6 +83,44 @@ enum CreatorCodec {
         return String(data: data, encoding: .utf8) ?? ""
     }
 
+    /// Encode a fully built `Puzzle` (CreatorBuilder.build output) into
+    /// the share/submit JSON — preserves per-cell `locked` state and
+    /// attaches an optional player-chosen name. The CreatorState-based
+    /// `encode` above can't see locks because they're derived during
+    /// the build pipeline (manual locks + auto-locks + uniqueness
+    /// guard). Callers wiring submit / .kroma share / link share
+    /// should route through this so recipients see the same starter
+    /// cells the author placed.
+    static func encodePuzzleString(
+        _ p: Puzzle,
+        name: String? = nil,
+        difficulty: Int? = nil
+    ) throws -> String {
+        let doc = CreatorPuzzleDoc(
+            version: CreatorPuzzleDoc.currentVersion,
+            gridW: p.gridW,
+            gridH: p.gridH,
+            gradients: p.gradients.map { g in
+                CreatorPuzzleDoc.Grad(
+                    dir: g.dir == .h ? "h" : "v",
+                    cells: g.cells.map { spec in
+                        CreatorPuzzleDoc.Cell(
+                            r: spec.r, c: spec.c,
+                            L: spec.color.L, C: spec.color.c, h: spec.color.h,
+                            locked: spec.locked
+                        )
+                    }
+                )
+            },
+            difficulty: difficulty ?? p.difficulty,
+            name: name
+        )
+        let enc = JSONEncoder()
+        enc.outputFormatting = [.sortedKeys]
+        let data = try enc.encode(doc)
+        return String(data: data, encoding: .utf8) ?? ""
+    }
+
     /// Pre-populate a CreatorState from a saved doc so the gallery's
     /// "Edit" flow can open the creator with the existing layout.
     /// Canvas dims come from the state's static constants, so docs

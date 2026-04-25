@@ -474,7 +474,8 @@ struct GalleryView: View {
     /// and returns here instead of the main menu.
     private func playCommunityEntry(_ entry: CommunityPuzzleEntry) {
         guard let built = CreatorCodec.rebuild(entry.doc, level: entry.level) else { return }
-        game.loadCustomPuzzle(built, favoriteURL: nil, fromGallery: true)
+        let title = entry.doc.name ?? entry.submitterName
+        game.loadCustomPuzzle(built, favoriteURL: nil, fromGallery: true, title: title)
         started = true
         dismiss()
     }
@@ -485,7 +486,8 @@ struct GalleryView: View {
             built,
             favoriteURL: favoriteURL,
             fromGallery: true,
-            galleryPuzzleId: puzzle.id
+            galleryPuzzleId: puzzle.id,
+            title: puzzle.doc.name
         )
         // Close gallery + drop into game. The dismiss chain routes
         // through the parent sheet's onDismiss; MenuView flips

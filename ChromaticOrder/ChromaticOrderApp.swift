@@ -3,7 +3,7 @@ import SwiftUI
 @main
 struct ChromaticOrderApp: App {
     @Environment(\.scenePhase) private var scenePhase
-    @State private var incomingPuzzle: Puzzle?
+    @State private var incomingPuzzle: IncomingPuzzle?
     /// false on cold launch → show MenuView. Flipped to true when the
     /// player picks zen or challenge from the menu. In-game "Back to
     /// menu" flips it back via Transitioner.
@@ -129,7 +129,7 @@ struct ChromaticOrderApp: App {
         guard let data = try? Data(contentsOf: url) else { return }
         guard let doc = try? CreatorCodec.decode(data) else { return }
         guard let puzzle = CreatorCodec.rebuild(doc) else { return }
-        incomingPuzzle = puzzle
+        incomingPuzzle = IncomingPuzzle(puzzle: puzzle, title: doc.name)
         // Opening a .kroma file from outside the app counts as
         // starting — skip the menu, drop into the puzzle.
         started = true
@@ -146,7 +146,7 @@ struct ChromaticOrderApp: App {
               let doc = try? CreatorCodec.decode(bytes),
               let puzzle = CreatorCodec.rebuild(doc)
         else { return }
-        incomingPuzzle = puzzle
+        incomingPuzzle = IncomingPuzzle(puzzle: puzzle, title: doc.name)
         started = true
     }
 
@@ -180,7 +180,7 @@ struct ChromaticOrderApp: App {
                   let doc = try? CreatorCodec.decode(bytes),
                   let puzzle = CreatorCodec.rebuild(doc) else { return }
             await MainActor.run {
-                incomingPuzzle = puzzle
+                incomingPuzzle = IncomingPuzzle(puzzle: puzzle, title: doc.name)
                 started = true
             }
         } catch {
@@ -208,4 +208,14 @@ struct ChromaticOrderApp: App {
 
 private struct SlugFetchResponse: Decodable {
     let json: String
+}
+
+/// Externally-supplied puzzle bundle handed off through onOpenURL.
+/// The title rides alongside the rebuilt Puzzle so the top-bar
+/// wordmark can show the player-chosen name instead of "zen" when
+/// a .kroma file or shared link drops the player straight into a
+/// puzzle they didn't generate.
+struct IncomingPuzzle {
+    let puzzle: Puzzle
+    let title: String?
 }

@@ -104,46 +104,180 @@ struct CommunityListView: View {
 
     private func play(_ entry: CommunityPuzzleEntry) {
         guard let puzzle = CreatorCodec.rebuild(entry.doc, level: entry.level) else { return }
-        game.loadCustomPuzzle(puzzle)
+        // Prefer the doc's `name` (creator-typed title) over the legacy
+        // `submitterName` field — both carry the same value on new
+        // submissions but the doc field is the canonical source.
+        let title = entry.doc.name ?? entry.submitterName
+        game.loadCustomPuzzle(puzzle, title: title)
         dismiss()
     }
 }
 
-/// One row in the community list. Renders a compact thumbnail
-/// (reusing the in-house PuzzlePreviewRenderer), title, submitter,
-/// score, and thumbs-up / thumbs-down buttons that optimistically
-/// flip local state while the vote POST is in flight.
+/// One row in the community list. Two states:
+///
+///   • Compact: thumbnail + title/subtitle + vote count summary.
+///     Tap anywhere to expand.
+///   • Expanded: full-width detail panel grows downward in place,
+///     swapping the "Lv N" chip for a back arrow that collapses
+///     the row. Difficulty surfaces here, the like / dislike
+///     arrows are full-size (matching LikeFeedbackWidget's
+///     arrowtriangle pair), and a Play button is the only path
+///     into the actual puzzle. A bare row tap no longer plays —
+///     the user has to expand first, look the puzzle over, then
+///     hit Play. Voting works in either state via the same
+///     optimistic-flip mechanism.
 private struct CommunityRow: View {
     @Binding var entry: CommunityPuzzleEntry
     let onPlay: () -> Void
     @State private var voting: Bool = false
+    @State private var expanded: Bool = false
+
+    private let likeGreen  = Color(red: 0.36, green: 0.78, blue: 0.45)
+    private let dislikeRed = Color(red: 0.92, green: 0.42, blue: 0.42)
 
     var body: some View {
-        HStack(spacing: 12) {
-            Button {
-                onPlay()
-            } label: {
-                HStack(spacing: 12) {
-                    thumbnail
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text(title)
-                            .font(.system(size: 15, weight: .semibold, design: .rounded))
-                            .foregroundStyle(.primary)
-                            .lineLimit(1)
-                        Text(subtitle)
-                            .font(.system(size: 11, weight: .medium))
-                            .foregroundStyle(.secondary)
-                            .lineLimit(1)
-                    }
-                }
+        VStack(spacing: 0) {
+            compactHeader
+            if expanded {
+                expandedDetail
+                    .transition(.opacity.combined(with: .move(edge: .top)))
             }
-            .buttonStyle(.plain)
-
-            Spacer()
-
-            voteControls
         }
         .padding(.vertical, 6)
+        .contentShape(Rectangle())
+        .onTapGesture {
+            withAnimation(.spring(response: 0.32, dampingFraction: 0.85)) {
+                expanded.toggle()
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var compactHeader: some View {
+        HStack(spacing: 12) {
+            thumbnail
+            VStack(alignment: .leading, spacing: 3) {
+                Text(title)
+                    .font(.system(size: 15, weight: .semibold, design: .rounded))
+                    .foregroundStyle(.primary)
+                    .lineLimit(1)
+                Text(subtitle)
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
+            Spacer()
+            // Compact vote summary — no buttons here, the player
+            // votes from the expanded panel where the arrows are
+            // full-size.
+            HStack(spacing: 8) {
+                Label("\(entry.upCount)", systemImage: "arrowtriangle.up.fill")
+                    .labelStyle(.titleAndIcon)
+                    .foregroundStyle(entry.myVote == 1
+                                      ? likeGreen : Color.secondary)
+                Label("\(entry.downCount)", systemImage: "arrowtriangle.down.fill")
+                    .labelStyle(.titleAndIcon)
+                    .foregroundStyle(entry.myVote == -1
+                                      ? dislikeRed : Color.secondary)
+            }
+            .font(.system(size: 12, weight: .bold, design: .rounded))
+        }
+    }
+
+    @ViewBuilder
+    private var expandedDetail: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            // Header row: back-arrow takes the spot the lv chip used
+            // to occupy, and on the right the play button mounts the
+            // puzzle in the game (the only way to actually play now —
+            // a bare tap on the row toggles expansion, not load).
+            HStack(alignment: .center, spacing: 12) {
+                Button {
+                    withAnimation(.spring(response: 0.32, dampingFraction: 0.85)) {
+                        expanded = false
+                    }
+                } label: {
+                    Image(systemName: "chevron.left")
+                        .font(.system(size: 16, weight: .heavy, design: .rounded))
+                        .frame(width: 36, height: 36)
+                        .foregroundStyle(.primary)
+                        .background(Color.white.opacity(0.10), in: Circle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Back")
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(name)
+                        .font(.system(size: 15, weight: .semibold,
+                                       design: .rounded))
+                        .lineLimit(1)
+                    Text(difficultyLabel)
+                        .font(.system(size: 13, weight: .bold,
+                                       design: .rounded))
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
+                Button {
+                    onPlay()
+                } label: {
+                    Text("Play")
+                        .font(.system(size: 14, weight: .heavy,
+                                       design: .rounded))
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 8)
+                        .background(Color.accentColor, in: Capsule())
+                        .foregroundStyle(.white)
+                }
+                .buttonStyle(.plain)
+            }
+
+            // Full-size arrow vote controls — matches the
+            // LikeFeedbackWidget styling so the feedback arrows feel
+            // consistent across the app.
+            HStack(spacing: 18) {
+                voteArrow(direction: +1, color: likeGreen,
+                          system: "arrowtriangle.up.fill",
+                          count: entry.upCount)
+                voteArrow(direction: -1, color: dislikeRed,
+                          system: "arrowtriangle.down.fill",
+                          count: entry.downCount)
+                Spacer()
+            }
+            .padding(.leading, 4)
+        }
+        .padding(.top, 10)
+        .padding(.horizontal, 4)
+        // Stop the outer tap-to-expand from firing on inner buttons.
+        .contentShape(Rectangle())
+        .onTapGesture { /* swallow */ }
+    }
+
+    @ViewBuilder
+    private func voteArrow(direction: Int, color: Color,
+                            system: String, count: Int) -> some View {
+        let active = entry.myVote == direction
+        Button {
+            cast(direction)
+        } label: {
+            HStack(spacing: 6) {
+                Image(systemName: system)
+                    .font(.system(size: 22, weight: .heavy))
+                    .foregroundStyle(active ? color : Color.secondary)
+                Text("\(count)")
+                    .font(.system(size: 14, weight: .bold,
+                                   design: .rounded))
+                    .foregroundStyle(active ? color : Color.secondary)
+            }
+            .padding(.vertical, 6)
+            .padding(.horizontal, 10)
+            .background(
+                Capsule().fill(active
+                                ? color.opacity(0.14)
+                                : Color.white.opacity(0.05))
+            )
+        }
+        .buttonStyle(.plain)
+        .disabled(voting)
     }
 
     @ViewBuilder
@@ -169,31 +303,12 @@ private struct CommunityRow: View {
     private var subtitle: String {
         "lv \(entry.level) · \(entry.doc.gridW)×\(entry.doc.gridH)"
     }
-
-    @ViewBuilder
-    private var voteControls: some View {
-        HStack(spacing: 10) {
-            Button { cast(+1) } label: {
-                HStack(spacing: 3) {
-                    Image(systemName: entry.myVote == 1 ? "hand.thumbsup.fill" : "hand.thumbsup")
-                    Text("\(entry.upCount)")
-                        .font(.system(size: 12, weight: .bold, design: .rounded))
-                }
-                .foregroundStyle(entry.myVote == 1 ? Color.accentColor : Color.secondary)
-            }
-            .buttonStyle(.borderless)
-
-            Button { cast(-1) } label: {
-                HStack(spacing: 3) {
-                    Image(systemName: entry.myVote == -1 ? "hand.thumbsdown.fill" : "hand.thumbsdown")
-                    Text("\(entry.downCount)")
-                        .font(.system(size: 12, weight: .bold, design: .rounded))
-                }
-                .foregroundStyle(entry.myVote == -1 ? Color.red : Color.secondary)
-            }
-            .buttonStyle(.borderless)
-        }
-        .disabled(voting)
+    private var name: String {
+        if let n = entry.submitterName, !n.isEmpty { return n }
+        return "Untitled"
+    }
+    private var difficultyLabel: String {
+        "difficulty \(entry.doc.difficulty ?? 0)/10"
     }
 
     /// Cast or retract a vote. If the player taps the same direction

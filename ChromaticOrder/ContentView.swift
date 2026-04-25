@@ -17,7 +17,7 @@ struct ContentView: View {
     @State private var communityOpen: Bool = false
     /// Set by ChromaticOrderApp.onOpenURL when a .kroma file is tapped.
     /// We watch it and pipe the Puzzle into the game when it changes.
-    @Binding var incomingPuzzle: Puzzle?
+    @Binding var incomingPuzzle: IncomingPuzzle?
     /// Flipped back to false by the hamburger "Back to Menu" action so
     /// the app returns to MenuView without unloading GameState.
     @Binding var started: Bool
@@ -949,8 +949,8 @@ struct ContentView: View {
     /// hands the puzzle to GameState, then resets the binding so the
     /// same puzzle doesn't re-trigger on a later backgrounding.
     private func loadIncomingPuzzleIfAny() {
-        guard let puzzle = incomingPuzzle else { return }
-        game.loadCustomPuzzle(puzzle)
+        guard let incoming = incomingPuzzle else { return }
+        game.loadCustomPuzzle(incoming.puzzle, title: incoming.title)
         creatorOpen = false
         feedbackOpen = false
         menuOpen = false

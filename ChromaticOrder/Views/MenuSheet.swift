@@ -176,15 +176,12 @@ struct MenuSheet: View {
 
 /// Share variant of the hamburger row — same slide-in-from-right +
 /// label-fade animation pattern as `MenuSheetRow`, but wraps a
-/// SwiftUI `ShareLink` around an HTTPS URL. The URL points at
-/// `https://kroma.ianhandy.com/p/<base64url>` — a Vercel serverless
-/// landing page that emits OG meta tags (iMessage/Slack render a
-/// visual preview card) and JS-redirects the visitor to `kroma://`
-/// on iOS-with-Kromatika, or to the web version otherwise. HTTPS is
-/// required here: custom `kroma://` URLs skip OG fetching so their
-/// cards degrade to raw URL text. SharePreview supplies a rasterized
-/// starting-state image so the sender-side share sheet also shows a
-/// visual card before they pick a destination.
+/// SwiftUI `ShareLink` around a `KromaPuzzleFile`. The previous URL
+/// form (`https://kroma.ianhandy.com/p/<…>`) lost its backend when
+/// `/api/save` and `/p/[slug]` were retired in favor of the liked-
+/// puzzle pool, so a file-based share is what survives — recipients
+/// tap the .kroma attachment and Kromatika handles it via
+/// `ChromaticOrderApp.onOpenURL`.
 private struct MenuSheetShareRow: View {
     let index: Int
     let isOpen: Bool
@@ -192,40 +189,21 @@ private struct MenuSheetShareRow: View {
 
     @State private var iconArrived = false
     @State private var labelVisible = false
-    /// Populated by a background POST to `/api/save` once the row
-    /// renders. When non-nil, the share URL uses the short slug form
-    /// (`/p/<slug>`) — small enough for iMessage to render a preview
-    /// card. If the network POST fails or hasn't returned in time,
-    /// the ShareLink falls through to the long base64 URL, which
-    /// still works but may dump as raw text in the message.
-    @State private var shortSlug: String? = nil
 
     var body: some View {
         let json = (try? CreatorCodec.encodePuzzle(puzzle)) ?? ""
-        let b64 = ChromaticOrderApp.encodeBase64URL(Data(json.utf8))
-        let pathSegment = shortSlug ?? b64
-        let shareURL = URL(string: "https://kroma.ianhandy.com/p/\(pathSegment)")
-            ?? URL(string: "https://kroma.ianhandy.com")!
+        let file = KromaPuzzleFile(json: json, difficulty: puzzle.difficulty)
         let previewImage = PuzzlePreviewRenderer.render(puzzle)
             ?? Image(systemName: "paintpalette.fill")
 
         ShareLink(
-            item: shareURL,
+            item: file,
             subject: Text("A Kromatika puzzle (\(puzzle.difficulty)/10)"),
             preview: SharePreview(
                 "Kromatika puzzle (\(puzzle.difficulty)/10)",
                 image: previewImage
             )
         ) { shareLabel(waiting: false) }
-        .task(id: json) {
-            // Re-run when the puzzle JSON changes. Best-effort — any
-            // failure (no network, KV down, server cold start) leaves
-            // shortSlug nil and the ShareLink falls back to the long
-            // base64 URL embedded directly in the path so the link
-            // still resolves to the same `/p/<…>` landing page.
-            shortSlug = nil
-            shortSlug = await fetchShareSlug(json: json)
-        }
         .onChange(of: isOpen) { _, open in
             if open {
                 withAnimation(.spring(response: 0.52, dampingFraction: 0.84)
@@ -245,33 +223,6 @@ private struct MenuSheetShareRow: View {
                     iconArrived = false
                 }
             }
-        }
-    }
-
-    /// POST the puzzle JSON to the share-link save endpoint and return
-    /// the short slug. Returns nil on any failure so the caller falls
-    /// back to the inline base64 URL.
-    private func fetchShareSlug(json: String) async -> String? {
-        guard !json.isEmpty,
-              let url = URL(string: "https://kroma.ianhandy.com/api/save") else {
-            return nil
-        }
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.timeoutInterval = 4
-        let body = ["json": json]
-        request.httpBody = try? JSONSerialization.data(withJSONObject: body)
-        guard request.httpBody != nil else { return nil }
-        do {
-            let (data, response) = try await URLSession.shared.data(for: request)
-            guard let http = response as? HTTPURLResponse,
-                  http.statusCode == 200 else { return nil }
-            struct SlugResponse: Decodable { let slug: String }
-            let decoded = try JSONDecoder().decode(SlugResponse.self, from: data)
-            return decoded.slug
-        } catch {
-            return nil
         }
     }
 

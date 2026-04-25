@@ -27,7 +27,17 @@
 //  the player's palette up and down the staff.
 //
 //  Signal chain:
-//    player pool → fanInMixer → delay → reverb → mainMixer → output
+//    player pool → fanInMixer → delay → reverb → limiter → mainMixer → output
+//
+//  The limiter is a `kAudioUnitSubType_DynamicsProcessor` AU configured
+//  as a brickwall — fast attack, musical release, threshold a touch
+//  below 0dBFS. It's there to stop the summed signal from clipping
+//  when several voices stack up (multiple cell drops, chord on the
+//  beat, hum + bloom at once). Without it, peaks above 0dBFS at the
+//  master got hard-clipped by the output unit, which is what "crackle
+//  on multiple layers" sounds like. The fan-in mixer's output
+//  attenuation supplies the static headroom; the limiter catches
+//  whatever still pokes above the threshold.
 //
 //  The delay unit is the "long, quiet echo" tail — low wet mix but
 //  high feedback so each repeat is quieter than the last but rings
@@ -36,6 +46,7 @@
 //  harsh.
 
 import AVFoundation
+import AudioToolbox
 import Foundation
 
 @MainActor
@@ -82,6 +93,23 @@ final class GlassyAudio {
     /// size so notes don't feel surgically dry.
     private let delay = AVAudioUnitDelay()
     private let reverb = AVAudioUnitReverb()
+    /// Master brickwall limiter. Sits between the reverb stage and
+    /// the engine's main mixer; configured below in `init` to a fast
+    /// attack + musical release with a threshold ~3dB below clip.
+    /// Built once and reused — Apple's bundled DynamicsProcessor AU
+    /// is stable across config changes, no need to rebuild on
+    /// interruption. See `kAudioUnitSubType_DynamicsProcessor` in
+    /// AudioUnit/AUComponent.h for parameter list.
+    private let limiter: AVAudioUnitEffect = {
+        let desc = AudioComponentDescription(
+            componentType: kAudioUnitType_Effect,
+            componentSubType: kAudioUnitSubType_DynamicsProcessor,
+            componentManufacturer: kAudioUnitManufacturer_Apple,
+            componentFlags: 0,
+            componentFlagsMask: 0
+        )
+        return AVAudioUnitEffect(audioComponentDescription: desc)
+    }()
     /// Sums all player nodes into a single bus before the effects
     /// chain — effect units only accept one input. Without this
     /// mixer, attaching multiple players would throw on engine start.
@@ -215,18 +243,23 @@ final class GlassyAudio {
         reverb.wetDryMix = 14
 
         engine.attach(fanInMixer)
-        // Headroom: fan-in mixer pre-effects is scaled down so
-        // summed voices (bass + melody + F# triad emphasis + pickup/
-        // place chord tones + grace notes) don't exceed 1.0 at the
-        // output stage and clip. 0.70 leaves ~30% headroom — enough
-        // for a typical 4-5 simultaneous voice peak without audible
-        // clipping / popping.
-        fanInMixer.outputVolume = 0.70
+        // Static headroom budget: drop the fan-in mixer output ~5dB
+        // below unity. Combined with the per-voice constant-power
+        // attenuation in `playOneShot` and the master limiter at the
+        // end of the chain, summed voices stay below the limiter's
+        // threshold most of the time so the limiter only kicks in
+        // for true peaks (chord + delay tail + bloom landing on the
+        // same frame), keeping the dynamic range musical instead of
+        // squashing everything.
+        fanInMixer.outputVolume = 0.55
         engine.attach(delay)
         engine.attach(reverb)
+        engine.attach(limiter)
         engine.connect(fanInMixer, to: delay, format: format)
         engine.connect(delay, to: reverb, format: format)
-        engine.connect(reverb, to: engine.mainMixerNode, format: format)
+        engine.connect(reverb, to: limiter, format: format)
+        engine.connect(limiter, to: engine.mainMixerNode, format: format)
+        configureLimiter()
 
         for _ in 0..<poolSize {
             let p = AVAudioPlayerNode()
@@ -1389,12 +1422,63 @@ final class GlassyAudio {
         if Self.musicEnabled { startMusicIfNeeded() }
     }
 
+    /// Apply a brickwall-limiter profile to the master limiter AU.
+    /// Threshold is set ~3dB below clip with a 5dB knee — anything
+    /// summing past -8dBFS gets gradually clamped, anything past
+    /// -3dBFS gets pinned. Attack 2ms catches transients before they
+    /// punch through; release 150ms keeps the limiter from pumping
+    /// on dense passages. ExpansionRatio = 1 (no downward expansion);
+    /// expansion threshold is parked at the floor so the expander
+    /// stage is effectively bypassed.
+    private func configureLimiter() {
+        let unit = limiter.audioUnit
+        let zero: AudioUnitElement = 0
+        AudioUnitSetParameter(unit,
+            AudioUnitParameterID(kDynamicsProcessorParam_Threshold),
+            kAudioUnitScope_Global, zero, -3.0, 0)
+        AudioUnitSetParameter(unit,
+            AudioUnitParameterID(kDynamicsProcessorParam_HeadRoom),
+            kAudioUnitScope_Global, zero, 5.0, 0)
+        AudioUnitSetParameter(unit,
+            AudioUnitParameterID(kDynamicsProcessorParam_ExpansionRatio),
+            kAudioUnitScope_Global, zero, 1.0, 0)
+        AudioUnitSetParameter(unit,
+            AudioUnitParameterID(kDynamicsProcessorParam_ExpansionThreshold),
+            kAudioUnitScope_Global, zero, -40.0, 0)
+        AudioUnitSetParameter(unit,
+            AudioUnitParameterID(kDynamicsProcessorParam_AttackTime),
+            kAudioUnitScope_Global, zero, 0.002, 0)
+        AudioUnitSetParameter(unit,
+            AudioUnitParameterID(kDynamicsProcessorParam_ReleaseTime),
+            kAudioUnitScope_Global, zero, 0.150, 0)
+        AudioUnitSetParameter(unit,
+            AudioUnitParameterID(kDynamicsProcessorParam_OverallGain),
+            kAudioUnitScope_Global, zero, 0.0, 0)
+    }
+
+    /// Constant-power per-voice scaling. Rather than bookkeeping
+    /// active-voice state via increment/decrement (which drifts
+    /// whenever a player is stopped mid-buffer with no completion
+    /// callback), inspect the pool directly for currently-playing
+    /// voices. With N existing voices and one new voice, scale the
+    /// new voice by 1/√(N+1) so total acoustic power stays roughly
+    /// constant rather than summing linearly. Combined with the
+    /// master limiter and the fan-in mixer headroom, peaks stay
+    /// inside the limiter's gentle-knee region instead of slamming
+    /// into the brickwall.
+    private func voiceVolume(base: Float) -> Float {
+        var playing = 0
+        for p in playerPool where p.isPlaying { playing += 1 }
+        let n = max(1, playing + 1)
+        return base / Float(sqrt(Double(n)))
+    }
+
     private func playOneShot(buffer: AVAudioPCMBuffer, volume: Float) {
         guard started, engine.isRunning else { return }
         let player = playerPool[nextPlayerIdx]
         nextPlayerIdx = (nextPlayerIdx + 1) % poolSize
         if player.isPlaying { player.stop() }
-        player.volume = volume
+        player.volume = voiceVolume(base: volume)
         player.scheduleBuffer(buffer, at: nil, options: [], completionHandler: nil)
         guard engine.isRunning else { return }
         player.play()
@@ -1421,7 +1505,7 @@ final class GlassyAudio {
             try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
             guard let self, self.started, self.engine.isRunning else { return }
             if player.isPlaying { player.stop() }
-            player.volume = volume
+            player.volume = self.voiceVolume(base: volume)
             player.scheduleBuffer(buffer, at: nil, options: [], completionCallbackType: .dataPlayedBack) { _ in }
             guard self.engine.isRunning else { return }
             player.play()
