@@ -1487,6 +1487,11 @@ final class GameState {
             zenLevel = level
             saveProgress()
         }
+        // Run-complete is challenge-only state. Without this clear,
+        // switching from a finished challenge run into zen / daily
+        // leaves the overlay armed and the next mode opens with the
+        // "run ended" screen still showing.
+        runComplete = false
         let wasDaily = mode == .daily
         mode = target
         switch target {
