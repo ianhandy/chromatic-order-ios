@@ -295,6 +295,12 @@ final class GameState {
     /// Cleared on every startLevel (generator path) and on fresh
     /// loadCustomPuzzle calls from non-gallery sources.
     var currentGalleryPuzzleId: String? = nil
+    /// When a gallery puzzle was launched from inside a collection
+    /// (CollectionDetailView), this carries that collection's id so
+    /// the back-arrow can re-push the collection onto the gallery's
+    /// nav stack when the player returns. nil for root-of-gallery,
+    /// favorite, and community plays.
+    var currentGalleryCollectionId: String? = nil
     /// Set by the in-game "← Gallery" hamburger row. MenuView reads
     /// this on appear and auto-presents its Gallery sheet, then
     /// clears the flag. Avoids routing a signal through a separate
@@ -938,6 +944,7 @@ final class GameState {
         // Gallery.
         cameFromGallery = false
         currentGalleryPuzzleId = nil
+        currentGalleryCollectionId = nil
         customTitle = nil
         // Clear the once-claim perfect-heart token so the next
         // perfect solve can award a fresh +1. Both handleNext and
@@ -1549,7 +1556,7 @@ final class GameState {
     /// generator's level ladder (and its per-puzzle scoring doesn't
     /// make sense for a one-off), so entering a custom puzzle from
     /// challenge forces a switch back to zen first.
-    func loadCustomPuzzle(_ p: Puzzle, favoriteURL: URL? = nil, fromGallery: Bool = false, galleryPuzzleId: String? = nil, title: String? = nil) {
+    func loadCustomPuzzle(_ p: Puzzle, favoriteURL: URL? = nil, fromGallery: Bool = false, galleryPuzzleId: String? = nil, galleryCollectionId: String? = nil, title: String? = nil) {
         if mode != .zen {
             mode = .zen
             level = zenLevel
@@ -1577,6 +1584,7 @@ final class GameState {
         // so a fresh custom load from a non-gallery source clears
         // stale state from a prior gallery play.
         currentGalleryPuzzleId = fromGallery ? galleryPuzzleId : nil
+        currentGalleryCollectionId = fromGallery ? galleryCollectionId : nil
         // Title overrides the top-bar's "zen" wordmark while a custom
         // puzzle is loaded — community submissions pass the
         // submitter-chosen name through here. Empty/whitespace strings

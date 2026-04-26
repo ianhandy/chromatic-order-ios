@@ -23,13 +23,23 @@ struct CollectionDetailView: View {
     /// Submit-to-Community feedback — same pattern as GalleryView.
     @State private var submitAlertMessage: String? = nil
     @State private var submittingPuzzleId: String? = nil
+    /// Mirrors GalleryView's focus pattern — when the player exits a
+    /// puzzle that was launched from this collection, the back-arrow
+    /// pushes us back here and we tint the row briefly so the player
+    /// re-acquires their place.
+    @State private var highlightedPuzzleId: String? = nil
 
     var body: some View {
-        Group {
-            if puzzles.isEmpty {
-                empty
-            } else {
-                list
+        ScrollViewReader { proxy in
+            Group {
+                if puzzles.isEmpty {
+                    empty
+                } else {
+                    list
+                }
+            }
+            .onChange(of: puzzles.map(\.id)) { _, _ in
+                focusReturnedPuzzleIfNeeded(proxy: proxy)
             }
         }
         .navigationTitle(collection.name)
@@ -125,6 +135,12 @@ struct CollectionDetailView: View {
             ForEach(puzzles) { puzzle in
                 GalleryRow(puzzle: puzzle)
                     .contentShape(Rectangle())
+                    .id(puzzle.id)
+                    .listRowBackground(
+                        highlightedPuzzleId == puzzle.id
+                            ? Color.accentColor.opacity(0.18)
+                            : Color.clear
+                    )
                     .onTapGesture { play(puzzle) }
                     .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                         Button(role: .destructive) {
@@ -207,10 +223,36 @@ struct CollectionDetailView: View {
             favoriteURL: nil,
             fromGallery: true,
             galleryPuzzleId: puzzle.id,
+            galleryCollectionId: collection.id,
             title: puzzle.doc.name
         )
         started = true
         dismiss()
+    }
+
+    /// Mirror of GalleryView.focusReturnedPuzzleIfNeeded: scroll to
+    /// the row of the just-played puzzle and tint it briefly. Only
+    /// fires when the player returns from a play that originated in
+    /// THIS collection (currentGalleryCollectionId matches), so a
+    /// stale id from a sibling collection doesn't mis-target.
+    private func focusReturnedPuzzleIfNeeded(proxy: ScrollViewProxy) {
+        guard game.currentGalleryCollectionId == collection.id,
+              let id = game.currentGalleryPuzzleId,
+              puzzles.contains(where: { $0.id == id })
+        else { return }
+        game.currentGalleryPuzzleId = nil
+        game.currentGalleryCollectionId = nil
+        Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 80_000_000)
+            withAnimation(.easeInOut(duration: 0.35)) {
+                proxy.scrollTo(id, anchor: .center)
+            }
+            highlightedPuzzleId = id
+            try? await Task.sleep(nanoseconds: 1_500_000_000)
+            withAnimation(.easeOut(duration: 0.5)) {
+                highlightedPuzzleId = nil
+            }
+        }
     }
 
     /// Same submit flow as GalleryView.submitToCommunity — kept per-
@@ -311,7 +353,13 @@ struct MoveToCollectionSheet: View {
                                     move(to: col)
                                 } label: {
                                     HStack {
-                                        Label(col.name, systemImage: "folder")
+                                        Label {
+                                            Text(col.name)
+                                                .multilineTextAlignment(.leading)
+                                                .fixedSize(horizontal: false, vertical: true)
+                                        } icon: {
+                                            Image(systemName: "folder")
+                                        }
                                         Spacer()
                                         Text("\(col.puzzleCount)")
                                             .font(.system(size: 12))

@@ -91,20 +91,14 @@ struct TopBarView: View {
         // gives a hint without reserving extra horizontal space.
         if game.cameFromGallery, let onBack = onBackToGallery {
             Button(action: onBack) {
-                HStack(spacing: 4) {
-                    Image(systemName: "chevron.left")
-                        .font(.system(size: 13, weight: .heavy))
-                        .foregroundStyle(Self.primaryText)
-                    Text("gallery")
-                        .font(.system(size: 13, weight: .heavy, design: .rounded))
-                        .foregroundStyle(Self.primaryText)
-                }
-                .padding(.horizontal, 12)
-                .frame(height: Self.buttonHeight)
-                .background(Color.white.opacity(0.08), in: Capsule())
-                .overlay(
-                    Capsule().stroke(Color.white.opacity(0.25), lineWidth: 1)
-                )
+                Image(systemName: "chevron.left")
+                    .font(.system(size: 14, weight: .heavy))
+                    .foregroundStyle(Self.primaryText)
+                    .frame(width: 38, height: Self.buttonHeight)
+                    .background(Color.white.opacity(0.08), in: Capsule())
+                    .overlay(
+                        Capsule().stroke(Color.white.opacity(0.25), lineWidth: 1)
+                    )
             }
             .buttonStyle(.plain)
             .accessibilityLabel("Back to gallery")
@@ -171,9 +165,10 @@ struct TopBarView: View {
             Text(title)
                 .font(.system(size: 22, weight: .heavy, design: .rounded))
                 .foregroundStyle(Self.primaryText)
-                .lineLimit(1)
-                .truncationMode(.tail)
-                .frame(maxWidth: 220)
+                .multilineTextAlignment(.center)
+                .lineLimit(3)
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: 240)
         } else {
             switch game.mode {
             case .zen:

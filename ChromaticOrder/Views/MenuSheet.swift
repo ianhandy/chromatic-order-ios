@@ -16,7 +16,6 @@ struct MenuSheet: View {
     @Binding var creatorOpen: Bool
     @Binding var feedbackOpen: Bool
     @Binding var accessibilityOpen: Bool
-    @Binding var communityOpen: Bool
     @Binding var started: Bool
     @Environment(Transitioner.self) private var transitioner
 
@@ -89,22 +88,10 @@ struct MenuSheet: View {
                     menuOpen = false
                     accessibilityOpen = true
                 }
-                // Community access is currently surfaced from the
-                // Gallery's top bar instead of the in-game hamburger.
-                // Row kept here behind a flag so the staggered-row
-                // animation indices stay grouped if we re-enable it.
-                let showCommunityRow = false
-                if showCommunityRow {
-                    MenuSheetRow(
-                        icon: "person.2.fill",
-                        label: "community",
-                        index: 2,
-                        isOpen: menuOpen
-                    ) {
-                        menuOpen = false
-                        communityOpen = true
-                    }
-                }
+                // Community is reachable from the Gallery's inline
+                // "Community puzzles" section (sort + expand + vote
+                // + play). The standalone hamburger row was removed
+                // along with CommunityListView.
                 MenuSheetRow(
                     icon: "envelope.fill",
                     label: "feedback",
@@ -316,6 +303,9 @@ private struct MenuSheetShareRow: View {
             Text(waiting ? "preparing…" : "share")
                 .font(.system(size: 17, weight: .semibold, design: .rounded))
                 .foregroundStyle(Color.white.opacity(waiting ? 0.55 : 0.92))
+                .multilineTextAlignment(.trailing)
+                .lineLimit(2)
+                .fixedSize(horizontal: false, vertical: true)
                 .opacity(labelVisible ? 1 : 0)
             ZStack {
                 Image(systemName: "square.and.arrow.up")
@@ -444,6 +434,9 @@ private struct MenuSheetRow: View {
                 Text(label)
                     .font(.system(size: 17, weight: .semibold, design: .rounded))
                     .foregroundStyle(Color.white.opacity(disabled ? 0.35 : 0.92))
+                    .multilineTextAlignment(.trailing)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
                     .opacity(labelVisible ? 1 : 0)
                 Image(systemName: icon)
                     .font(.system(size: 20, weight: .semibold))

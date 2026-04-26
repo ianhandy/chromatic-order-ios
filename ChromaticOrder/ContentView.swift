@@ -14,7 +14,6 @@ struct ContentView: View {
     @State private var creatorOpen: Bool = false
     @State private var feedbackOpen: Bool = false
     @State private var accessibilityOpen: Bool = false
-    @State private var communityOpen: Bool = false
     /// Set by ChromaticOrderApp.onOpenURL when a .kroma file is tapped.
     /// We watch it and pipe the Puzzle into the game when it changes.
     @Binding var incomingPuzzle: IncomingPuzzle?
@@ -178,7 +177,6 @@ struct ContentView: View {
                       creatorOpen: $creatorOpen,
                       feedbackOpen: $feedbackOpen,
                       accessibilityOpen: $accessibilityOpen,
-                      communityOpen: $communityOpen,
                       started: $started)
 
             // Solved overlay: Like widget on the bottom-left, Next
@@ -489,9 +487,6 @@ struct ContentView: View {
         }
         .fullScreenCover(isPresented: $creatorOpen) {
             CreatorView(game: game)
-        }
-        .sheet(isPresented: $communityOpen) {
-            CommunityListView(game: game)
         }
         .sheet(isPresented: $feedbackOpen) {
             FeedbackSheet(game: game)

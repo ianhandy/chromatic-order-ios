@@ -293,6 +293,8 @@ private struct AppIconPickerRow: View {
                         .frame(width: 38, height: 38)
                     Text(variant.displayName)
                         .foregroundStyle(.primary)
+                        .multilineTextAlignment(.leading)
+                        .fixedSize(horizontal: false, vertical: true)
                     Spacer()
                     if variant == current {
                         Image(systemName: "checkmark")

@@ -31,12 +31,26 @@ struct GalleryView: View {
     /// Creator sheet.
     @State private var submitAlertMessage: String? = nil
     @State private var submittingPuzzleId: String? = nil
-    /// Community sheet presented from the social button.
-    @State private var communityOpen = false
-    /// Fetched community feed for the new Community Puzzles section
-    /// shown inline in the Gallery list. nil = still loading; empty
-    /// array = backend returned nothing; populated = show rows.
+    /// Fetched community feed for the inline Community Puzzles
+    /// section. nil = still loading; empty = backend returned
+    /// nothing; populated = show rows. Replaces the old standalone
+    /// CommunityListView sheet — the Gallery now owns the full
+    /// Top/New sort + expand-to-vote/play interaction inline.
     @State private var communityEntries: [CommunityPuzzleEntry]? = nil
+    /// Sort mode for the community section. Server-side; flipping
+    /// this re-fetches.
+    @State private var communitySort: CommunitySort = .top
+    /// Optimistic-vote / async-fetch error surfaced under the section
+    /// header so a transient outage doesn't blank the section
+    /// silently.
+    @State private var communityLoadError: String? = nil
+    /// Currently-expanded community row id (only one expanded at a
+    /// time). nil = compact for everyone.
+    @State private var expandedCommunityId: String? = nil
+    /// NavigationStack path. Owned at this level so we can re-push a
+    /// CollectionDetailView programmatically when the player exits a
+    /// puzzle that was launched from inside that collection.
+    @State private var navPath: [GalleryCollection] = []
     /// New/rename flow for collections. `collectionRenameTarget` is
     /// nil when the alert is for creation; otherwise holds the target.
     @State private var collectionAlertOpen = false
@@ -51,7 +65,7 @@ struct GalleryView: View {
     @State private var highlightedPuzzleId: String? = nil
 
     var body: some View {
-        NavigationStack {
+        NavigationStack(path: $navPath) {
             ScrollViewReader { proxy in
                 Group {
                     if puzzles.isEmpty && favorites.isEmpty && collections.isEmpty {
@@ -66,24 +80,17 @@ struct GalleryView: View {
                     // before reload() finishes, so we re-arm here.
                     focusReturnedPuzzleIfNeeded(proxy: proxy)
                 }
+                .onChange(of: communityEntries?.map(\.id) ?? []) { _, _ in
+                    // Community plays focus the row in the inline
+                    // section once the feed lands.
+                    focusReturnedPuzzleIfNeeded(proxy: proxy)
+                }
             }
             .navigationTitle("Gallery")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Close") { dismiss() }
-                }
-                ToolbarItem(placement: .confirmationAction) {
-                    // Social button — jumps to the Community feed
-                    // from the Gallery top bar. Placed left of the
-                    // + so 'browse community' and 'create your own'
-                    // sit together as the two outward-facing actions.
-                    Button {
-                        communityOpen = true
-                    } label: {
-                        Image(systemName: "person.2.fill")
-                    }
-                    .accessibilityLabel("Browse community puzzles")
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Menu {
@@ -195,23 +202,19 @@ struct GalleryView: View {
         }
         .onAppear {
             reload()
-            // Capture the returning puzzle id BEFORE the row dataset
-            // arrives — focusReturnedPuzzleIfNeeded fires once the
-            // list rows are present (.onChange picks up the dataset).
-        }
-        .sheet(isPresented: $communityOpen) {
-            CommunityListView(game: game)
+            // If the player exited a puzzle launched from inside a
+            // collection, restore the nav stack to that collection
+            // so the back-arrow lands them where they started. The
+            // CollectionDetailView itself handles the per-row scroll
+            // + tint; we just push the right destination.
+            restoreCollectionNavIfNeeded()
         }
         .task {
             // One-shot community-feed pull on first appear so the
             // inline Community Puzzles section renders real rows
             // (or an empty-placeholder when the pool is still small).
-            // Errors collapse to empty so the section stays visually
-            // stable — the full CommunityListView surfaces network
-            // issues with its own Try-again path.
             if communityEntries == nil {
-                let (entries, _) = await CommunityStore.fetchFeed(sort: .top, limit: 20)
-                await MainActor.run { communityEntries = entries }
+                await refreshCommunityFeed()
             }
         }
     }
@@ -222,9 +225,14 @@ struct GalleryView: View {
     /// later re-open of the gallery doesn't re-trigger.
     private func focusReturnedPuzzleIfNeeded(proxy: ScrollViewProxy) {
         guard let id = game.currentGalleryPuzzleId else { return }
-        let exists = puzzles.contains(where: { $0.id == id })
-                  || favorites.contains(where: { $0.id == id })
-        guard exists else { return }
+        // Skip when the puzzle was launched from inside a collection
+        // — CollectionDetailView owns the focus in that case, and we
+        // don't want to consume the id before it gets pushed.
+        if game.currentGalleryCollectionId != nil { return }
+        let inGallery = puzzles.contains(where: { $0.id == id })
+                     || favorites.contains(where: { $0.id == id })
+        let inCommunity = communityEntries?.contains(where: { $0.id == id }) ?? false
+        guard inGallery || inCommunity else { return }
         game.currentGalleryPuzzleId = nil
         Task { @MainActor in
             // Tiny defer so the List has settled into its initial
@@ -461,23 +469,147 @@ struct GalleryView: View {
                 }
             }
 
-            Section("Community puzzles") {
-                if let list = communityEntries, list.isEmpty {
-                    Text("No community puzzles yet.")
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundStyle(.secondary)
-                } else if communityEntries == nil {
-                    Text("Loading…")
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundStyle(.secondary)
-                } else if let list = communityEntries {
-                    ForEach(list) { entry in
-                        CommunityGalleryRow(entry: entry) {
-                            playCommunityEntry(entry)
-                        }
+            communitySection
+        }
+    }
+
+    @ViewBuilder
+    private var communitySection: some View {
+        Section {
+            // Sort toggle + status as the section's first row so it
+            // sits inside the section card rather than pretending to
+            // be a List header (List headers don't get tap targets
+            // out of the box).
+            HStack(spacing: 10) {
+                Picker("Sort", selection: $communitySort) {
+                    Text("Top").tag(CommunitySort.top)
+                    Text("New").tag(CommunitySort.new)
+                }
+                .pickerStyle(.segmented)
+                .frame(maxWidth: 180)
+                Spacer(minLength: 0)
+                if communityEntries == nil {
+                    ProgressView()
+                        .scaleEffect(0.8)
+                } else {
+                    Button {
+                        Task { await refreshCommunityFeed() }
+                    } label: {
+                        Image(systemName: "arrow.clockwise")
+                            .font(.system(size: 14, weight: .semibold))
                     }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Refresh community feed")
                 }
             }
+            .padding(.vertical, 2)
+            .listRowSeparator(.hidden)
+            .onChange(of: communitySort) { _, _ in
+                Task { await refreshCommunityFeed() }
+            }
+
+            if let err = communityLoadError {
+                Text(err)
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(.secondary)
+            }
+
+            if communityEntries == nil {
+                Text("Loading…")
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(.secondary)
+            } else if let list = communityEntries, list.isEmpty {
+                Text("No community puzzles yet.")
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(.secondary)
+            } else if let list = communityEntries {
+                // id-based diffing so a Top↔New sort flip doesn't
+                // re-key rows by position (which would attach each
+                // row's per-row @State — voting flag, etc. — to the
+                // wrong entry).
+                ForEach(list, id: \.id) { entry in
+                    let entryId = entry.id
+                    CommunityGalleryRow(
+                        entry: Binding(
+                            get: {
+                                communityEntries?.first(where: { $0.id == entryId })
+                                    ?? entry
+                            },
+                            set: { newVal in
+                                guard var arr = communityEntries,
+                                      let i = arr.firstIndex(where: { $0.id == entryId })
+                                else { return }
+                                arr[i] = newVal
+                                communityEntries = arr
+                            }
+                        ),
+                        expanded: expandedCommunityId == entryId,
+                        onToggleExpand: {
+                            withAnimation(.spring(response: 0.32,
+                                                   dampingFraction: 0.85)) {
+                                if expandedCommunityId == entryId {
+                                    expandedCommunityId = nil
+                                } else {
+                                    expandedCommunityId = entryId
+                                }
+                            }
+                        },
+                        onPlay: { playCommunityEntry(entry) }
+                    )
+                    .id(entryId)
+                    .listRowBackground(
+                        highlightedPuzzleId == entryId
+                            ? Color.accentColor.opacity(0.18)
+                            : Color.clear
+                    )
+                }
+            }
+        } header: {
+            Text("Community puzzles")
+        }
+    }
+
+    /// Re-fetch the community feed under the current sort. Surfaces
+    /// network errors as a small inline message rather than blanking
+    /// the section so a momentary outage doesn't look like an empty
+    /// pool.
+    private func refreshCommunityFeed() async {
+        let prev = communityEntries
+        let (fetched, ok) = await CommunityStore.fetchFeed(
+            sort: communitySort, limit: 50
+        )
+        await MainActor.run {
+            if ok {
+                communityEntries = fetched
+                communityLoadError = nil
+            } else {
+                // Keep previous list visible if we had one; otherwise
+                // surface an empty array so the placeholder shows.
+                communityEntries = prev ?? []
+                communityLoadError = "couldn't load community feed — check connection"
+            }
+        }
+    }
+
+    /// If the player just exited a puzzle launched from inside a
+    /// collection, push that collection onto the nav stack so the
+    /// back-arrow lands in the collection (not the gallery root).
+    /// CollectionDetailView's onAppear focus handler does the
+    /// per-row scroll + tint.
+    private func restoreCollectionNavIfNeeded() {
+        guard let cid = game.currentGalleryCollectionId else { return }
+        guard let target = collections.first(where: { $0.id == cid }) else {
+            // Collection was deleted while the puzzle was in flight.
+            // Drop the stale ids so subsequent gallery interactions
+            // (and the focus path) aren't blocked by them.
+            game.currentGalleryCollectionId = nil
+            game.currentGalleryPuzzleId = nil
+            return
+        }
+        // Only push if we're not already there (avoids stacking on a
+        // re-appear).
+        if navPath.last?.id != target.id {
+            navPath = [target]
         }
     }
 
@@ -517,6 +649,8 @@ struct GalleryView: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(col.name)
                     .font(.system(size: 14, weight: .semibold))
+                    .multilineTextAlignment(.leading)
+                    .fixedSize(horizontal: false, vertical: true)
                 Text("\(col.puzzleCount) puzzle\(col.puzzleCount == 1 ? "" : "s")")
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
@@ -532,7 +666,16 @@ struct GalleryView: View {
     private func playCommunityEntry(_ entry: CommunityPuzzleEntry) {
         guard let built = CreatorCodec.rebuild(entry.doc, level: entry.level) else { return }
         let title = entry.doc.name ?? entry.submitterName
-        game.loadCustomPuzzle(built, favoriteURL: nil, fromGallery: true, title: title)
+        // galleryPuzzleId carries the community entry's server id so
+        // the back-arrow can scroll-and-tint the row in the inline
+        // community section on return.
+        game.loadCustomPuzzle(
+            built,
+            favoriteURL: nil,
+            fromGallery: true,
+            galleryPuzzleId: entry.id,
+            title: title
+        )
         started = true
         dismiss()
     }
@@ -630,6 +773,8 @@ struct GalleryRow: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(puzzle.displayName)
                     .font(.system(size: 13, weight: .semibold))
+                    .multilineTextAlignment(.leading)
+                    .fixedSize(horizontal: false, vertical: true)
                 Text("\(puzzle.subtitle) · \(relativeDate(puzzle.createdAt))")
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
@@ -686,46 +831,176 @@ struct GalleryRowWithActions: View {
     }
 }
 
-/// One-off community row: preview swatch + submitter name + Play.
-/// No Edit/Rename/Delete — community puzzles are read-only from
-/// the Gallery's perspective.
+/// Inline community row inside the Gallery list. Two states share
+/// the same row:
+///   • Compact: palette strip + submitter name + small vote summary.
+///     A chevron hints that the row expands. The whole row is one
+///     tap target — tap toggles expansion, never plays.
+///   • Expanded: full-size up/down vote buttons (with optimistic
+///     flip + server reconciliation) + a Play button. Play is the
+///     only path into the actual puzzle.
 struct CommunityGalleryRow: View {
-    let entry: CommunityPuzzleEntry
+    @Binding var entry: CommunityPuzzleEntry
+    let expanded: Bool
+    let onToggleExpand: () -> Void
     let onPlay: () -> Void
+    @State private var voting: Bool = false
+
+    private static let likeGreen  = Color(red: 0.36, green: 0.78, blue: 0.45)
+    private static let dislikeRed = Color(red: 0.92, green: 0.42, blue: 0.42)
 
     var body: some View {
-        HStack(spacing: 10) {
-            Button(action: onPlay) {
-                HStack(spacing: 12) {
-                    HStack(spacing: 2) {
-                        let cells = entry.doc.gradients.first?.cells.prefix(5) ?? []
-                        ForEach(Array(cells.enumerated()), id: \.offset) { (_, cell) in
-                            RoundedRectangle(cornerRadius: 4, style: .continuous)
-                                .fill(OK.toColor(OKLCh(L: cell.L, c: cell.C, h: cell.h)))
-                                .frame(width: 14, height: 30)
-                        }
-                    }
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(entry.submitterName?.isEmpty == false
-                             ? entry.submitterName!
-                             : "lv \(entry.level)")
-                            .font(.system(size: 13, weight: .semibold))
-                        Text("lv \(entry.level) · ▲\(entry.upCount)  ▼\(entry.downCount)")
-                            .font(.system(size: 11))
-                            .foregroundStyle(.secondary)
-                    }
-                    Spacer(minLength: 0)
+        VStack(spacing: 0) {
+            compactHeader
+            if expanded {
+                expandedDetail
+                    .transition(.opacity.combined(with: .move(edge: .top)))
+            }
+        }
+        .padding(.vertical, 6)
+        .contentShape(Rectangle())
+        .onTapGesture { onToggleExpand() }
+    }
+
+    @ViewBuilder
+    private var compactHeader: some View {
+        HStack(spacing: 12) {
+            HStack(spacing: 2) {
+                let cells = entry.doc.gradients.first?.cells.prefix(5) ?? []
+                ForEach(Array(cells.enumerated()), id: \.offset) { (_, cell) in
+                    RoundedRectangle(cornerRadius: 4, style: .continuous)
+                        .fill(OK.toColor(OKLCh(L: cell.L, c: cell.C, h: cell.h)))
+                        .frame(width: 14, height: 30)
                 }
-                .contentShape(Rectangle())
+            }
+            VStack(alignment: .leading, spacing: 2) {
+                Text(displayName)
+                    .font(.system(size: 13, weight: .semibold))
+                    .multilineTextAlignment(.leading)
+                    .fixedSize(horizontal: false, vertical: true)
+                Text("lv \(entry.level)")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+            }
+            Spacer(minLength: 0)
+            HStack(spacing: 8) {
+                Label("\(entry.upCount)", systemImage: "arrowtriangle.up.fill")
+                    .labelStyle(.titleAndIcon)
+                    .foregroundStyle(entry.myVote == 1
+                                     ? Self.likeGreen : Color.secondary)
+                Label("\(entry.downCount)", systemImage: "arrowtriangle.down.fill")
+                    .labelStyle(.titleAndIcon)
+                    .foregroundStyle(entry.myVote == -1
+                                     ? Self.dislikeRed : Color.secondary)
+            }
+            .font(.system(size: 11, weight: .bold, design: .rounded))
+            Image(systemName: expanded ? "chevron.up" : "chevron.down")
+                .font(.system(size: 11, weight: .bold))
+                .foregroundStyle(.tertiary)
+        }
+    }
+
+    @ViewBuilder
+    private var expandedDetail: some View {
+        HStack(alignment: .center, spacing: 12) {
+            voteArrow(direction: +1, color: Self.likeGreen,
+                      system: "arrowtriangle.up.fill",
+                      count: entry.upCount)
+            voteArrow(direction: -1, color: Self.dislikeRed,
+                      system: "arrowtriangle.down.fill",
+                      count: entry.downCount)
+            Spacer(minLength: 0)
+            Button {
+                onPlay()
+            } label: {
+                HStack(spacing: 6) {
+                    Image(systemName: "play.fill")
+                        .font(.system(size: 13, weight: .semibold))
+                    Text("Play")
+                        .font(.system(size: 13, weight: .heavy, design: .rounded))
+                }
+                .foregroundStyle(.white)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 8)
+                .background(Color.accentColor, in: Capsule())
             }
             .buttonStyle(.plain)
-
-            GalleryActionButton(system: "play.fill",
-                                accessibilityLabel: "Play",
-                                tone: .green,
-                                action: onPlay)
         }
-        .padding(.vertical, 8)
+        .padding(.top, 10)
+        .padding(.horizontal, 4)
+        .contentShape(Rectangle())
+        .onTapGesture { /* swallow — buttons handle their own taps */ }
+    }
+
+    @ViewBuilder
+    private func voteArrow(direction: Int, color: Color,
+                           system: String, count: Int) -> some View {
+        let active = entry.myVote == direction
+        Button {
+            cast(direction)
+        } label: {
+            HStack(spacing: 5) {
+                Image(systemName: system)
+                    .font(.system(size: 16, weight: .heavy))
+                    .foregroundStyle(active ? color : Color.secondary)
+                Text("\(count)")
+                    .font(.system(size: 12, weight: .bold,
+                                   design: .rounded))
+                    .foregroundStyle(active ? color : Color.secondary)
+            }
+            .padding(.vertical, 5)
+            .padding(.horizontal, 9)
+            .background(
+                Capsule().fill(active
+                                ? color.opacity(0.14)
+                                : Color.gray.opacity(0.10))
+            )
+        }
+        .buttonStyle(.plain)
+        .disabled(voting)
+    }
+
+    private var displayName: String {
+        if let n = entry.submitterName, !n.isEmpty { return n }
+        return "Untitled"
+    }
+
+    /// Cast or retract a vote (tap-same retracts). Optimistic flip
+    /// updates the binding immediately; server response overwrites,
+    /// failure rolls back to the captured snapshot.
+    private func cast(_ direction: Int) {
+        let next = entry.myVote == direction ? 0 : direction
+        let prior = entry
+        applyOptimistic(next)
+        voting = true
+        Task {
+            let result = await CommunityStore.vote(
+                puzzleId: entry.id, vote: next
+            )
+            await MainActor.run {
+                voting = false
+                switch result {
+                case .success(let resp):
+                    if let up = resp.upCount { entry.upCount = up }
+                    if let down = resp.downCount { entry.downCount = down }
+                    if let score = resp.score { entry.score = score }
+                    entry.myVote = resp.myVote ?? next
+                case .failure:
+                    entry = prior
+                }
+            }
+        }
+    }
+
+    private func applyOptimistic(_ next: Int) {
+        let prev = entry.myVote
+        if prev == next { return }
+        if prev == 1 { entry.upCount = max(0, entry.upCount - 1) }
+        if prev == -1 { entry.downCount = max(0, entry.downCount - 1) }
+        if next == 1 { entry.upCount += 1 }
+        if next == -1 { entry.downCount += 1 }
+        entry.myVote = next
+        entry.score = entry.upCount - entry.downCount
     }
 }
 

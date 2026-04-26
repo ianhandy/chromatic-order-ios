@@ -253,6 +253,9 @@ struct CreatorView: View {
                     .font(.system(size: 18, weight: .semibold))
                 Text(label)
                     .font(.system(size: 12, weight: .semibold, design: .rounded))
+                    .multilineTextAlignment(.center)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
             }
             .frame(maxWidth: .infinity, minHeight: 52)
             .foregroundStyle(fg)
@@ -663,8 +666,8 @@ struct CreatorView: View {
                 Text("Submit this level to the community?")
                     .font(.system(size: 13, weight: .semibold, design: .rounded))
                     .foregroundStyle(Color.white.opacity(0.85))
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.7)
+                    .multilineTextAlignment(.leading)
+                    .fixedSize(horizontal: false, vertical: true)
                 Spacer(minLength: 6)
                 Button("Yes") {
                     showSubmitConfirm = false

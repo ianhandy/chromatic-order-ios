@@ -36,7 +36,7 @@ struct LikeFeedbackWidget: View {
     var body: some View {
         ratingRow
             .padding(.horizontal, 14)
-            .frame(height: height)
+            .frame(minHeight: height)
             .background(Color.white.opacity(0.06), in: Capsule())
             .overlay(
                 Capsule().stroke(Color.white.opacity(0.14), lineWidth: 1)
@@ -49,8 +49,9 @@ struct LikeFeedbackWidget: View {
         HStack(spacing: 8) {
             Text(Strings.LikeFeedback.prompt)
                 .font(.system(size: 18, weight: .bold, design: .rounded))
-                .lineLimit(1)
-                .minimumScaleFactor(0.7)
+                .lineLimit(2)
+                .multilineTextAlignment(.leading)
+                .fixedSize(horizontal: false, vertical: true)
                 .foregroundStyle(Color.white.opacity(0.55))
 
             HStack(spacing: 10) {

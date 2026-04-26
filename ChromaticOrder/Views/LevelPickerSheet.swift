@@ -50,10 +50,11 @@ struct LevelPickerSheet: View {
                 Text(tierInfo.label)
                     .font(.system(size: 9, weight: .bold, design: .rounded))
                     .foregroundStyle(tierColor)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.6)
+                    .multilineTextAlignment(.center)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
             }
-            .frame(height: 56)
+            .frame(minHeight: 56)
             .frame(maxWidth: .infinity)
             .background(
                 RoundedRectangle(cornerRadius: 12, style: .continuous)
