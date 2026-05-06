@@ -1,26 +1,51 @@
 //  Floating bottom-right widget — one-tap per-level feedback.
-//  "good level?" text with 🙂 / 🙁 buttons next to it.
+//  Green up arrow / red down arrow for like / dislike. After a tap,
+//  the widget pivots into a "Want to leave feedback?" prompt so
+//  players who care enough to rate can also go deep, without
+//  blocking players who just want to move on to the next level.
 //
 //  State lifecycle:
-//    unrated   → both buttons available, POST on tap
-//    rated     → picked button stays, the other dims + disables
-//    new level → state resets (game.liked = nil from startLevel)
+//    unrated            → both arrows available, POST on tap
+//    rated (just now)   → arrow row replaced by Yes / No prompt
+//    feedback dismissed → quiet pill showing the picked arrow only
+//    new level          → state resets (game.liked = nil from startLevel)
 //
-//  Deliberately lightweight — the full feedback sheet in the menu
-//  captures the rich per-level data (sliders + puzzle metrics). This
-//  widget is the "leave a quick reaction without opening a menu" path.
+//  The full FeedbackSheet in the hamburger menu is still the
+//  destination — this widget exists to surface that path right at
+//  the moment the player has a reaction to share.
 
 import SwiftUI
 
 struct LikeFeedbackWidget: View {
     @Bindable var game: GameState
+    /// Retained for API compatibility with the ContentView call-site.
+    /// The widget no longer opens the feedback sheet directly; the
+    /// follow-up "Leave feedback?" prompt was removed per player
+    /// feedback that it turned a one-tap rating into a two-step
+    /// dialog. Players who want deeper feedback still have the
+    /// hamburger-menu feedback row.
+    @Binding var feedbackOpen: Bool
     /// Outer height — caller matches this to the "next level" button's
     /// capsule so the two side-by-side affordances line up on one
-    /// baseline. Default keeps the widget self-contained when used in
-    /// isolation.
+    /// baseline.
     var height: CGFloat = 52
 
+    private let likeGreen  = Color(red: 0.36, green: 0.78, blue: 0.45)
+    private let dislikeRed = Color(red: 0.92, green: 0.42, blue: 0.42)
+
     var body: some View {
+        ratingRow
+            .padding(.horizontal, 14)
+            .frame(height: height)
+            .background(Color.white.opacity(0.06), in: Capsule())
+            .overlay(
+                Capsule().stroke(Color.white.opacity(0.14), lineWidth: 1)
+            )
+            .animation(.easeOut(duration: 0.2), value: game.liked)
+    }
+
+    @ViewBuilder
+    private var ratingRow: some View {
         HStack(spacing: 8) {
             Text(Strings.LikeFeedback.prompt)
                 .font(.system(size: 18, weight: .bold, design: .rounded))
@@ -29,16 +54,15 @@ struct LikeFeedbackWidget: View {
                 .foregroundStyle(Color.white.opacity(0.55))
 
             HStack(spacing: 10) {
-                // SF Symbols render reliably on simulator + device;
-                // literal 🙂 / 🙁 glyphs drop to ? on some sim fonts.
-                // Tint carries the smiley/frowny semantics via color
-                // (green like, red dislike) without relying on emoji.
+                // Green up / red down arrows. Filled variants are
+                // unambiguous at small sizes on both light + dark
+                // sims.
                 Button {
                     tap(liked: true)
                 } label: {
-                    Image(systemName: "face.smiling.fill")
-                        .font(.system(size: 22))
-                        .foregroundStyle(Color(red: 0.36, green: 0.78, blue: 0.45))
+                    Image(systemName: "arrowtriangle.up.fill")
+                        .font(.system(size: 22, weight: .heavy))
+                        .foregroundStyle(likeGreen)
                         .opacity(opacity(for: true))
                 }
                 .buttonStyle(.plain)
@@ -47,22 +71,15 @@ struct LikeFeedbackWidget: View {
                 Button {
                     tap(liked: false)
                 } label: {
-                    Image(systemName: "face.dashed.fill")
-                        .font(.system(size: 22))
-                        .foregroundStyle(Color(red: 0.92, green: 0.42, blue: 0.42))
+                    Image(systemName: "arrowtriangle.down.fill")
+                        .font(.system(size: 22, weight: .heavy))
+                        .foregroundStyle(dislikeRed)
                         .opacity(opacity(for: false))
                 }
                 .buttonStyle(.plain)
                 .disabled(game.liked != nil)
             }
         }
-        .padding(.horizontal, 14)
-        .frame(height: height)
-        .background(Color.white.opacity(0.06), in: Capsule())
-        .overlay(
-            Capsule().stroke(Color.white.opacity(0.14), lineWidth: 1)
-        )
-        .animation(.easeOut(duration: 0.2), value: game.liked)
     }
 
     private func tap(liked value: Bool) {

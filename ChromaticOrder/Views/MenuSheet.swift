@@ -16,6 +16,7 @@ struct MenuSheet: View {
     @Binding var creatorOpen: Bool
     @Binding var feedbackOpen: Bool
     @Binding var accessibilityOpen: Bool
+    @Binding var communityOpen: Bool
     @Binding var started: Bool
     @Environment(Transitioner.self) private var transitioner
 
@@ -44,15 +45,35 @@ struct MenuSheet: View {
             }
 
             VStack(alignment: .trailing, spacing: 10) {
-                MenuSheetRow(
-                    icon: "house.fill",
-                    label: "home",
-                    index: 0,
-                    isOpen: menuOpen
-                ) {
-                    menuOpen = false
-                    transitioner.fade {
-                        started = false
+                // Home row morphs into "← gallery" when the current
+                // puzzle was loaded from the Gallery sheet so the
+                // return path matches the entry path. The gallery
+                // auto-re-opens via GameState.openGalleryOnMenuAppear
+                // which MenuView consumes on appear.
+                if game.cameFromGallery {
+                    MenuSheetRow(
+                        icon: "square.grid.2x2.fill",
+                        label: "gallery",
+                        index: 0,
+                        isOpen: menuOpen
+                    ) {
+                        menuOpen = false
+                        game.openGalleryOnMenuAppear = true
+                        transitioner.fade {
+                            started = false
+                        }
+                    }
+                } else {
+                    MenuSheetRow(
+                        icon: "house.fill",
+                        label: "home",
+                        index: 0,
+                        isOpen: menuOpen
+                    ) {
+                        menuOpen = false
+                        transitioner.fade {
+                            started = false
+                        }
                     }
                 }
                 MenuSheetRow(
@@ -68,10 +89,26 @@ struct MenuSheet: View {
                     menuOpen = false
                     accessibilityOpen = true
                 }
+                // Community access is currently surfaced from the
+                // Gallery's top bar instead of the in-game hamburger.
+                // Row kept here behind a flag so the staggered-row
+                // animation indices stay grouped if we re-enable it.
+                let showCommunityRow = false
+                if showCommunityRow {
+                    MenuSheetRow(
+                        icon: "person.2.fill",
+                        label: "community",
+                        index: 2,
+                        isOpen: menuOpen
+                    ) {
+                        menuOpen = false
+                        communityOpen = true
+                    }
+                }
                 MenuSheetRow(
                     icon: "envelope.fill",
                     label: "feedback",
-                    index: 2,
+                    index: 3,
                     isOpen: menuOpen
                 ) {
                     menuOpen = false
@@ -86,7 +123,7 @@ struct MenuSheet: View {
                 // disable instead of unmounting.
                 ShowIncorrectMenuRow(
                     game: game,
-                    index: 3,
+                    index: 4,
                     isOpen: menuOpen,
                     disabled: !canShowIncorrect,
                     onTapPrimary: {
@@ -116,7 +153,7 @@ struct MenuSheet: View {
                 )
                 if let p = game.puzzle {
                     MenuSheetShareRow(
-                        index: 4,
+                        index: 5,
                         isOpen: menuOpen,
                         puzzle: p
                     )
@@ -145,16 +182,20 @@ struct MenuSheet: View {
 }
 
 /// Share variant of the hamburger row — same slide-in-from-right +
-/// label-fade animation pattern as `MenuSheetRow`, but wraps a
-/// SwiftUI `ShareLink` around an HTTPS URL. The URL points at
-/// `https://kroma.ianhandy.com/p/<base64url>` — a Vercel serverless
-/// landing page that emits OG meta tags (iMessage/Slack render a
-/// visual preview card) and JS-redirects the visitor to `kroma://`
-/// on iOS-with-Kromatika, or to the web version otherwise. HTTPS is
-/// required here: custom `kroma://` URLs skip OG fetching so their
-/// cards degrade to raw URL text. SharePreview supplies a rasterized
-/// starting-state image so the sender-side share sheet also shows a
-/// visual card before they pick a destination.
+/// label-fade animation pattern as `MenuSheetRow`. Pre-fetches a
+/// short share URL by POSTing the puzzle JSON to `/api/share` when
+/// the menu opens; the resulting `https://kroma.ianhandy.com/p/<slug>`
+/// is what the `ShareLink` actually shares, so recipients see an
+/// iMessage card titled "Kromatika puzzle (X/10)" instead of a
+/// generic `.kroma` attachment.
+///
+/// Three render states:
+///   1. Preparing (no URL yet, no tap — spinner shown).
+///   2. URL ready — `ShareLink(item: URL)` with `SharePreview` for the
+///      title + preview image.
+///   3. API failed / offline — `ShareLink(item: KromaPuzzleFile)`
+///      fallback so sharing never hard-breaks; recipient gets the
+///      `.kroma` attachment + the app's UTI handler picks it up.
 private struct MenuSheetShareRow: View {
     let index: Int
     let isOpen: Bool
@@ -162,34 +203,45 @@ private struct MenuSheetShareRow: View {
 
     @State private var iconArrived = false
     @State private var labelVisible = false
-    /// File URL of the `.kroma` file we've staged in tmp for this
-    /// puzzle. Shared directly via ShareLink — appears as a real
-    /// file attachment in AirDrop / iMessage / Mail, handled by the
-    /// app's registered UTI on the receiving end.
-    @State private var shareFileURL: URL? = nil
+    @State private var shareURL: URL? = nil
+    @State private var preparing: Bool = false
+    @State private var apiFailed: Bool = false
+    @State private var prepareTask: Task<Void, Never>? = nil
 
     var body: some View {
         let json = (try? CreatorCodec.encodePuzzle(puzzle)) ?? ""
+        let file = KromaPuzzleFile(json: json, difficulty: puzzle.difficulty)
+        let previewImage = PuzzlePreviewRenderer.render(puzzle)
+            ?? Image(systemName: "paintpalette.fill")
+        let title = "Kromatika puzzle (\(puzzle.difficulty)/10)"
+        let preview = SharePreview(title, image: previewImage)
 
         Group {
-            if let fileURL = shareFileURL {
-                ShareLink(
-                    item: fileURL,
-                    subject: Text("A Kromatika puzzle (\(puzzle.difficulty)/10)"),
-                    preview: SharePreview("Kromatika puzzle (\(puzzle.difficulty)/10)")
-                ) { shareLabel(waiting: false) }
+            if let url = shareURL {
+                ShareLink(item: url, subject: Text(title), preview: preview) {
+                    shareLabel(waiting: false)
+                }
+            } else if preparing {
+                // Non-tappable while the slug is being minted — taps
+                // during the brief prep window otherwise fall through
+                // to the file-share fallback, which is the bug we're
+                // fixing.
+                shareLabel(waiting: true)
+            } else if apiFailed {
+                // Offline / API unreachable — degrade to file share
+                // so the user can still send the puzzle, just without
+                // the iMessage card.
+                ShareLink(item: file, subject: Text(title), preview: preview) {
+                    shareLabel(waiting: false)
+                }
             } else {
-                // Tmp file not written yet (should be instant).
-                // Disabled with a spinner until the file URL lands.
-                Button(action: {}) { shareLabel(waiting: true) }
-                    .disabled(true)
+                // Initial state before the menu has ever opened.
+                shareLabel(waiting: false)
             }
-        }
-        .task(id: json) {
-            shareFileURL = writePuzzleFile(json: json, puzzle: puzzle)
         }
         .onChange(of: isOpen) { _, open in
             if open {
+                startPrepare(json: json)
                 withAnimation(.spring(response: 0.52, dampingFraction: 0.84)
                     .delay(Double(index) * 0.09)) {
                     iconArrived = true
@@ -199,6 +251,11 @@ private struct MenuSheetShareRow: View {
                     labelVisible = true
                 }
             } else {
+                prepareTask?.cancel()
+                prepareTask = nil
+                preparing = false
+                shareURL = nil
+                apiFailed = false
                 withAnimation(.easeOut(duration: 0.18)) {
                     labelVisible = false
                 }
@@ -210,8 +267,49 @@ private struct MenuSheetShareRow: View {
         }
     }
 
-    /// Share row label. Shows a tiny spinner overlaid on the arrow
-    /// icon while the tmp file is being staged.
+    private func startPrepare(json: String) {
+        prepareTask?.cancel()
+        shareURL = nil
+        apiFailed = false
+        preparing = true
+        prepareTask = Task { @MainActor in
+            let url = await Self.requestShareURL(json: json)
+            guard !Task.isCancelled else { return }
+            if let url {
+                shareURL = url
+            } else {
+                apiFailed = true
+            }
+            preparing = false
+            prepareTask = nil
+        }
+    }
+
+    private static func requestShareURL(json: String) async -> URL? {
+        guard let endpoint = URL(string: "https://kroma.ianhandy.com/api/share") else {
+            return nil
+        }
+        var request = URLRequest(url: endpoint)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.timeoutInterval = 5
+        guard let body = try? JSONSerialization.data(withJSONObject: ["json": json]) else {
+            return nil
+        }
+        request.httpBody = body
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+            guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
+                return nil
+            }
+            let decoded = try JSONDecoder().decode(ShareSaveResponse.self, from: data)
+            return URL(string: decoded.url)
+        } catch {
+            return nil
+        }
+    }
+
+    /// Share row label.
     @ViewBuilder
     private func shareLabel(waiting: Bool) -> some View {
         HStack(spacing: 14) {
@@ -235,27 +333,11 @@ private struct MenuSheetShareRow: View {
         }
         .offset(x: iconArrived ? 0 : 280)
     }
+}
 
-    /// Stage the puzzle as a `.kroma` file in tmp and return its
-    /// URL. Shared directly to AirDrop / iMessage / Files / etc.
-    /// The registered UTI routes taps on the received file back to
-    /// the app's onOpenURL handler to load the puzzle.
-    private func writePuzzleFile(json: String, puzzle: Puzzle) -> URL? {
-        guard !json.isEmpty, let data = json.data(using: .utf8) else {
-            return nil
-        }
-        let label = "kromatika-puzzle-\(puzzle.difficulty)-of-10"
-        let suffix = UUID().uuidString.prefix(6)
-        let filename = "\(label)-\(suffix).kroma"
-        let url = FileManager.default.temporaryDirectory
-            .appendingPathComponent(filename)
-        do {
-            try data.write(to: url, options: .atomic)
-            return url
-        } catch {
-            return nil
-        }
-    }
+private struct ShareSaveResponse: Decodable {
+    let slug: String
+    let url: String
 }
 
 /// Show-incorrect hamburger row with inline confirmation support.

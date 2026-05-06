@@ -24,20 +24,47 @@ struct GalleryView: View {
     @State private var movingPuzzle: GalleryPuzzle? = nil
     @State private var importing = false
     @State private var importError: String? = nil
+    /// Inline feedback after a Submit-to-Community action from the
+    /// context menu. The message is shown as a short alert so the
+    /// player sees the server's response (pending / already-approved
+    /// / already-rejected / network error) without opening the full
+    /// Creator sheet.
+    @State private var submitAlertMessage: String? = nil
+    @State private var submittingPuzzleId: String? = nil
+    /// Community sheet presented from the social button.
+    @State private var communityOpen = false
+    /// Fetched community feed for the new Community Puzzles section
+    /// shown inline in the Gallery list. nil = still loading; empty
+    /// array = backend returned nothing; populated = show rows.
+    @State private var communityEntries: [CommunityPuzzleEntry]? = nil
     /// New/rename flow for collections. `collectionRenameTarget` is
     /// nil when the alert is for creation; otherwise holds the target.
     @State private var collectionAlertOpen = false
     @State private var collectionRenameTarget: GalleryCollection? = nil
     @State private var collectionNameText: String = ""
     @State private var collectionToDelete: GalleryCollection? = nil
+    /// When the player exits a custom puzzle via the in-game back
+    /// arrow / hamburger gallery row, GameState's
+    /// `currentGalleryPuzzleId` is still set to the puzzle's id. On
+    /// the next appear we scroll to that row and briefly tint its
+    /// background so the player sees where they came back from.
+    @State private var highlightedPuzzleId: String? = nil
 
     var body: some View {
         NavigationStack {
-            Group {
-                if puzzles.isEmpty && favorites.isEmpty && collections.isEmpty {
-                    emptyState
-                } else {
-                    list
+            ScrollViewReader { proxy in
+                Group {
+                    if puzzles.isEmpty && favorites.isEmpty && collections.isEmpty {
+                        emptyState
+                    } else {
+                        list
+                    }
+                }
+                .onChange(of: puzzles.map(\.id) + favorites.map(\.id)) { _, _ in
+                    // Wait until the list has actual rows to scroll to
+                    // — the menu-driven re-open path hits onAppear
+                    // before reload() finishes, so we re-arm here.
+                    focusReturnedPuzzleIfNeeded(proxy: proxy)
                 }
             }
             .navigationTitle("Gallery")
@@ -45,6 +72,18 @@ struct GalleryView: View {
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Close") { dismiss() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    // Social button — jumps to the Community feed
+                    // from the Gallery top bar. Placed left of the
+                    // + so 'browse community' and 'create your own'
+                    // sit together as the two outward-facing actions.
+                    Button {
+                        communityOpen = true
+                    } label: {
+                        Image(systemName: "person.2.fill")
+                    }
+                    .accessibilityLabel("Browse community puzzles")
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Menu {
@@ -133,6 +172,14 @@ struct GalleryView: View {
         } message: {
             Text(importError ?? "")
         }
+        .alert("Community", isPresented: Binding(
+            get: { submitAlertMessage != nil },
+            set: { if !$0 { submitAlertMessage = nil } }
+        )) {
+            Button("OK", role: .cancel) { submitAlertMessage = nil }
+        } message: {
+            Text(submitAlertMessage ?? "")
+        }
         .fileImporter(
             isPresented: $importing,
             // Accept the app's custom UTI plus plain JSON so a .kroma
@@ -146,7 +193,53 @@ struct GalleryView: View {
         ) { result in
             handleImport(result)
         }
-        .onAppear(perform: reload)
+        .onAppear {
+            reload()
+            // Capture the returning puzzle id BEFORE the row dataset
+            // arrives — focusReturnedPuzzleIfNeeded fires once the
+            // list rows are present (.onChange picks up the dataset).
+        }
+        .sheet(isPresented: $communityOpen) {
+            CommunityListView(game: game)
+        }
+        .task {
+            // One-shot community-feed pull on first appear so the
+            // inline Community Puzzles section renders real rows
+            // (or an empty-placeholder when the pool is still small).
+            // Errors collapse to empty so the section stays visually
+            // stable — the full CommunityListView surfaces network
+            // issues with its own Try-again path.
+            if communityEntries == nil {
+                let (entries, _) = await CommunityStore.fetchFeed(sort: .top, limit: 20)
+                await MainActor.run { communityEntries = entries }
+            }
+        }
+    }
+
+    /// Scroll to the row representing the just-played gallery puzzle
+    /// and tint it for ~1.5s so the player visually re-acquires it.
+    /// Consumes `game.currentGalleryPuzzleId` (clears it after) so a
+    /// later re-open of the gallery doesn't re-trigger.
+    private func focusReturnedPuzzleIfNeeded(proxy: ScrollViewProxy) {
+        guard let id = game.currentGalleryPuzzleId else { return }
+        let exists = puzzles.contains(where: { $0.id == id })
+                  || favorites.contains(where: { $0.id == id })
+        guard exists else { return }
+        game.currentGalleryPuzzleId = nil
+        Task { @MainActor in
+            // Tiny defer so the List has settled into its initial
+            // layout before the scroll animates — without it scrollTo
+            // can skip on first present.
+            try? await Task.sleep(nanoseconds: 80_000_000)
+            withAnimation(.easeInOut(duration: 0.35)) {
+                proxy.scrollTo(id, anchor: .center)
+            }
+            highlightedPuzzleId = id
+            try? await Task.sleep(nanoseconds: 1_500_000_000)
+            withAnimation(.easeOut(duration: 0.5)) {
+                highlightedPuzzleId = nil
+            }
+        }
     }
 
     private func handleImport(_ result: Result<[URL], Error>) {
@@ -255,97 +348,133 @@ struct GalleryView: View {
                 }
             }
 
-            if !puzzles.isEmpty {
-                Section("Your puzzles") {
+            Section("Your puzzles") {
+                if puzzles.isEmpty {
+                    Text("No saved puzzles yet. Tap + to create one.")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundStyle(.secondary)
+                } else {
                     ForEach(puzzles) { puzzle in
-                        GalleryRow(puzzle: puzzle)
-                            .contentShape(Rectangle())
-                            .onTapGesture {
+                        GalleryRowWithActions(
+                            puzzle: puzzle,
+                            onPlay: { play(puzzle) },
+                            onEdit: { editingPuzzle = puzzle }
+                        )
+                        .id(puzzle.id)
+                        .listRowBackground(
+                            highlightedPuzzleId == puzzle.id
+                                ? Color.accentColor.opacity(0.18)
+                                : Color.clear
+                        )
+                        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                            Button(role: .destructive) {
+                                try? GalleryStore.delete(puzzle)
+                                reload()
+                            } label: {
+                                Label("Delete", systemImage: "trash")
+                            }
+                            Button {
+                                renameText = puzzle.doc.name ?? ""
+                                renameTarget = puzzle
+                            } label: {
+                                Label("Rename", systemImage: "tag")
+                            }
+                            .tint(.indigo)
+                        }
+                        .contextMenu {
+                            Button {
                                 play(puzzle)
+                            } label: {
+                                Label("Play", systemImage: "play.fill")
                             }
-                            .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                                Button(role: .destructive) {
-                                    try? GalleryStore.delete(puzzle)
-                                    reload()
-                                } label: {
-                                    Label("Delete", systemImage: "trash")
-                                }
-                                Button {
-                                    editingPuzzle = puzzle
-                                } label: {
-                                    Label("Edit", systemImage: "pencil")
-                                }
-                                .tint(.blue)
-                                Button {
-                                    renameText = puzzle.doc.name ?? ""
-                                    renameTarget = puzzle
-                                } label: {
-                                    Label("Rename", systemImage: "tag")
-                                }
-                                .tint(.indigo)
+                            Button {
+                                editingPuzzle = puzzle
+                            } label: {
+                                Label("Edit", systemImage: "pencil")
                             }
-                            .contextMenu {
-                                Button {
-                                    play(puzzle)
-                                } label: {
-                                    Label("Play", systemImage: "play.fill")
-                                }
-                                Button {
-                                    editingPuzzle = puzzle
-                                } label: {
-                                    Label("Edit", systemImage: "pencil")
-                                }
-                                Button {
-                                    renameText = puzzle.doc.name ?? ""
-                                    renameTarget = puzzle
-                                } label: {
-                                    Label("Rename", systemImage: "tag")
-                                }
-                                Button {
-                                    movingPuzzle = puzzle
-                                } label: {
-                                    Label("Move to…", systemImage: "folder")
-                                }
-                                Button(role: .destructive) {
-                                    try? GalleryStore.delete(puzzle)
-                                    reload()
-                                } label: {
-                                    Label("Delete", systemImage: "trash")
-                                }
+                            Button {
+                                renameText = puzzle.doc.name ?? ""
+                                renameTarget = puzzle
+                            } label: {
+                                Label("Rename", systemImage: "tag")
                             }
+                            Button {
+                                movingPuzzle = puzzle
+                            } label: {
+                                Label("Move to…", systemImage: "folder")
+                            }
+                            Button(role: .destructive) {
+                                try? GalleryStore.delete(puzzle)
+                                reload()
+                            } label: {
+                                Label("Delete", systemImage: "trash")
+                            }
+                        }
                     }
                 }
             }
 
-            if !favorites.isEmpty {
-                Section("Favorites") {
+            Section("Favorites") {
+                if favorites.isEmpty {
+                    Text("Favorited puzzles from challenge / zen show up here.")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundStyle(.secondary)
+                } else {
                     ForEach(favorites) { puzzle in
-                        GalleryRow(puzzle: puzzle)
-                            .contentShape(Rectangle())
-                            .onTapGesture {
+                        GalleryRowWithActions(
+                            puzzle: puzzle,
+                            onPlay: { play(puzzle, favoriteURL: puzzle.url) },
+                            // Favorites can't be edited in place —
+                            // they're stored .kroma snapshots, not
+                            // gallery entries. Hide the Edit button
+                            // so the row reflects available actions.
+                            onEdit: nil
+                        )
+                        .id(puzzle.id)
+                        .listRowBackground(
+                            highlightedPuzzleId == puzzle.id
+                                ? Color.accentColor.opacity(0.18)
+                                : Color.clear
+                        )
+                        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                            Button(role: .destructive) {
+                                try? FavoritesStore.delete(puzzle)
+                                reload()
+                            } label: {
+                                Label("Remove", systemImage: "star.slash")
+                            }
+                        }
+                        .contextMenu {
+                            Button {
                                 play(puzzle, favoriteURL: puzzle.url)
+                            } label: {
+                                Label("Play", systemImage: "play.fill")
                             }
-                            .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                                Button(role: .destructive) {
-                                    try? FavoritesStore.delete(puzzle)
-                                    reload()
-                                } label: {
-                                    Label("Remove", systemImage: "star.slash")
-                                }
+                            Button(role: .destructive) {
+                                try? FavoritesStore.delete(puzzle)
+                                reload()
+                            } label: {
+                                Label("Remove from favorites", systemImage: "star.slash")
                             }
-                            .contextMenu {
-                                Button {
-                                    play(puzzle, favoriteURL: puzzle.url)
-                                } label: {
-                                    Label("Play", systemImage: "play.fill")
-                                }
-                                Button(role: .destructive) {
-                                    try? FavoritesStore.delete(puzzle)
-                                    reload()
-                                } label: {
-                                    Label("Remove from favorites", systemImage: "star.slash")
-                                }
-                            }
+                        }
+                    }
+                }
+            }
+
+            Section("Community puzzles") {
+                if let list = communityEntries, list.isEmpty {
+                    Text("No community puzzles yet.")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundStyle(.secondary)
+                } else if communityEntries == nil {
+                    Text("Loading…")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundStyle(.secondary)
+                } else if let list = communityEntries {
+                    ForEach(list) { entry in
+                        CommunityGalleryRow(entry: entry) {
+                            playCommunityEntry(entry)
+                        }
                     }
                 }
             }
@@ -396,14 +525,70 @@ struct GalleryView: View {
         .padding(.vertical, 4)
     }
 
+    /// Load a community-feed puzzle into the game. Shares the same
+    /// loadCustomPuzzle bridge Gallery entries use, with fromGallery=
+    /// true so the in-game hamburger's back row reads "← gallery"
+    /// and returns here instead of the main menu.
+    private func playCommunityEntry(_ entry: CommunityPuzzleEntry) {
+        guard let built = CreatorCodec.rebuild(entry.doc, level: entry.level) else { return }
+        let title = entry.doc.name ?? entry.submitterName
+        game.loadCustomPuzzle(built, favoriteURL: nil, fromGallery: true, title: title)
+        started = true
+        dismiss()
+    }
+
     private func play(_ puzzle: GalleryPuzzle, favoriteURL: URL? = nil) {
         guard let built = CreatorCodec.rebuild(puzzle.doc) else { return }
-        game.loadCustomPuzzle(built, favoriteURL: favoriteURL)
+        game.loadCustomPuzzle(
+            built,
+            favoriteURL: favoriteURL,
+            fromGallery: true,
+            galleryPuzzleId: puzzle.id,
+            title: puzzle.doc.name
+        )
         // Close gallery + drop into game. The dismiss chain routes
         // through the parent sheet's onDismiss; MenuView flips
         // `started` to true there.
         started = true
         dismiss()
+    }
+
+    /// Submit a gallery puzzle to the community moderation queue.
+    /// Server dedupes by content hash — resubmitting a puzzle that's
+    /// already been submitted just echoes back its current status
+    /// so the alert reads 'already pending / approved / rejected'
+    /// instead of queuing duplicates.
+    private func submitToCommunity(_ puzzle: GalleryPuzzle) {
+        guard submittingPuzzleId == nil else { return }
+        guard let built = CreatorCodec.rebuild(puzzle.doc) else {
+            submitAlertMessage = "Couldn't rebuild this puzzle for submission."
+            return
+        }
+        submittingPuzzleId = puzzle.id
+        let level = built.level
+        let submitterName = puzzle.doc.name
+        let doc = puzzle.doc
+        Task {
+            let result = await CommunityStore.submit(
+                doc: doc, level: level, submitterName: submitterName
+            )
+            await MainActor.run {
+                submittingPuzzleId = nil
+                switch result {
+                case .success(let resp):
+                    switch resp.status ?? "pending" {
+                    case "approved":
+                        submitAlertMessage = "Already approved — your puzzle is live in the community pool."
+                    case "rejected":
+                        submitAlertMessage = "This puzzle was previously rejected by the moderator."
+                    default:
+                        submitAlertMessage = "Submitted — awaiting review."
+                    }
+                case .failure(let err):
+                    submitAlertMessage = "Submit failed: \(err.localizedDescription)"
+                }
+            }
+        }
     }
 }
 
@@ -417,12 +602,28 @@ struct GalleryRow: View {
             // Palette swatch — first 6 colors of the first gradient,
             // laid out as a horizontal strip. Gives a visual at-a-
             // glance so the list isn't 40 identical text rows.
+            // Perfect-solve badge floats in the top-left corner when
+            // the player has cleared this puzzle without burning a
+            // heart or peeking the solution.
             HStack(spacing: 2) {
                 let cells = puzzle.doc.gradients.first?.cells.prefix(5) ?? []
                 ForEach(Array(cells.enumerated()), id: \.offset) { (_, cell) in
                     RoundedRectangle(cornerRadius: 4, style: .continuous)
                         .fill(OK.toColor(OKLCh(L: cell.L, c: cell.C, h: cell.h)))
                         .frame(width: 14, height: 30)
+                }
+            }
+            .overlay(alignment: .topLeading) {
+                if GallerySolvedStore.hasPerfected(puzzle.id) {
+                    Image(systemName: "heart.fill")
+                        .font(.system(size: 10, weight: .heavy))
+                        .foregroundStyle(Color(red: 1.0, green: 0.4, blue: 0.4))
+                        .padding(2)
+                        .background(
+                            Circle().fill(Color.black.opacity(0.55))
+                        )
+                        .offset(x: -4, y: -4)
+                        .accessibilityLabel("Perfect solve")
                 }
             }
 
@@ -445,5 +646,113 @@ struct GalleryRow: View {
         let f = RelativeDateTimeFormatter()
         f.unitsStyle = .short
         return f.localizedString(for: d, relativeTo: Date())
+    }
+}
+
+/// Gallery row with inline Play (+ optional Edit) action buttons on
+/// the right side. Replaces the whole-row tap-to-play gesture that
+/// used to be the only way in. Tapping the row's title area still
+/// plays; the buttons give an unambiguous affordance + separate the
+/// Edit path without needing swipe or long-press.
+struct GalleryRowWithActions: View {
+    let puzzle: GalleryPuzzle
+    let onPlay: () -> Void
+    /// nil = row is read-only (favorites don't edit in place).
+    let onEdit: (() -> Void)?
+
+    var body: some View {
+        HStack(spacing: 10) {
+            // Tappable row body — palette strip + title. Wrapped in
+            // a plain Button so voice-over announces the row as one
+            // action while the action buttons on the right stay
+            // individually reachable.
+            Button(action: onPlay) {
+                GalleryRow(puzzle: puzzle)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+
+            HStack(spacing: 6) {
+                GalleryActionButton(system: "play.fill",
+                                    accessibilityLabel: "Play",
+                                    tone: .green) { onPlay() }
+                if let onEdit {
+                    GalleryActionButton(system: "pencil",
+                                        accessibilityLabel: "Edit",
+                                        tone: .blue) { onEdit() }
+                }
+            }
+        }
+    }
+}
+
+/// One-off community row: preview swatch + submitter name + Play.
+/// No Edit/Rename/Delete — community puzzles are read-only from
+/// the Gallery's perspective.
+struct CommunityGalleryRow: View {
+    let entry: CommunityPuzzleEntry
+    let onPlay: () -> Void
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Button(action: onPlay) {
+                HStack(spacing: 12) {
+                    HStack(spacing: 2) {
+                        let cells = entry.doc.gradients.first?.cells.prefix(5) ?? []
+                        ForEach(Array(cells.enumerated()), id: \.offset) { (_, cell) in
+                            RoundedRectangle(cornerRadius: 4, style: .continuous)
+                                .fill(OK.toColor(OKLCh(L: cell.L, c: cell.C, h: cell.h)))
+                                .frame(width: 14, height: 30)
+                        }
+                    }
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(entry.submitterName?.isEmpty == false
+                             ? entry.submitterName!
+                             : "lv \(entry.level)")
+                            .font(.system(size: 13, weight: .semibold))
+                        Text("lv \(entry.level) · ▲\(entry.upCount)  ▼\(entry.downCount)")
+                            .font(.system(size: 11))
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer(minLength: 0)
+                }
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+
+            GalleryActionButton(system: "play.fill",
+                                accessibilityLabel: "Play",
+                                tone: .green,
+                                action: onPlay)
+        }
+        .padding(.vertical, 8)
+    }
+}
+
+private struct GalleryActionButton: View {
+    enum Tone { case green, blue }
+    let system: String
+    let accessibilityLabel: String
+    let tone: Tone
+    let action: () -> Void
+
+    var body: some View {
+        let color: Color = {
+            switch tone {
+            case .green: return Color(red: 0.36, green: 0.78, blue: 0.45)
+            case .blue:  return Color(red: 0.26, green: 0.52, blue: 0.96)
+            }
+        }()
+        Button(action: action) {
+            Image(systemName: system)
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundStyle(Color.white)
+                .frame(width: 38, height: 38)
+                .background(
+                    Circle().fill(color)
+                )
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(accessibilityLabel)
     }
 }

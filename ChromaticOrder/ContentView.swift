@@ -14,9 +14,10 @@ struct ContentView: View {
     @State private var creatorOpen: Bool = false
     @State private var feedbackOpen: Bool = false
     @State private var accessibilityOpen: Bool = false
+    @State private var communityOpen: Bool = false
     /// Set by ChromaticOrderApp.onOpenURL when a .kroma file is tapped.
     /// We watch it and pipe the Puzzle into the game when it changes.
-    @Binding var incomingPuzzle: Puzzle?
+    @Binding var incomingPuzzle: IncomingPuzzle?
     /// Flipped back to false by the hamburger "Back to Menu" action so
     /// the app returns to MenuView without unloading GameState.
     @Binding var started: Bool
@@ -33,6 +34,12 @@ struct ContentView: View {
     /// Choreography for the celebratory perfect-solve heart — see
     /// `PerfectHeartStage` for the stage ordering.
     @State private var perfectHeartStage: PerfectHeartStage = .idle
+    /// Handle for the in-flight perfect-heart animation task so
+    /// `handleNext` (or any other level-advance) can cancel it before
+    /// the delayed `game.checks += 1` fires. Without cancellation the
+    /// task wakes up on the next level and double-counts when
+    /// combined with handleNext's own perfect-solve award.
+    @State private var perfectHeartFlightTask: Task<Void, Never>? = nil
     /// Bumped when the flying heart lands so TopBarView can kick off
     /// its per-heart scale-bump wave.
     @State private var heartWaveTick: Int = 0
@@ -45,6 +52,12 @@ struct ContentView: View {
     /// even after the balloon unmounts (which clears the anchor 0.11s
     /// after the pop but before the 2.2s particle animation ends).
     @State private var popBurstOriginCapture: CGPoint? = nil
+    /// Most recent live balloon-center position resolved from the
+    /// `balloonCenter` preference anchor. Updated every layout pass
+    /// the balloon publishes it, so the pop handler can capture the
+    /// origin synchronously on tap instead of racing the anchor
+    /// against the .popped unmount animation.
+    @State private var balloonCenterLive: CGPoint? = nil
     /// Tint snapshot for the most recent pop so the particle colors
     /// match the balloon the player just popped.
     @State private var popBurstTint: Color = .pink
@@ -86,7 +99,48 @@ struct ContentView: View {
             // preventing the "one board disappears, another appears
             // a frame later" pop the player sees at `handleNext`.
             Group {
-                if game.generating || game.puzzle == nil {
+                if game.generating {
+                    VStack {
+                        ProgressView("Building puzzle…")
+                            .font(.system(size: 14, weight: .bold, design: .rounded))
+                            .tint(.white)
+                            .foregroundStyle(.white.opacity(0.7))
+                    }
+                    .transition(.opacity)
+                } else if game.puzzle == nil && game.mode == .daily && game.dailyUnavailable {
+                    // Server hasn't published a daily for this UTC date
+                    // (or the fetch failed outright). We don't fall back
+                    // to local generation — every player must see the
+                    // same daily — so render a tap-to-retry placeholder.
+                    VStack(spacing: 14) {
+                        Image(systemName: "calendar.badge.exclamationmark")
+                            .font(.system(size: 44, weight: .regular))
+                            .foregroundStyle(.white.opacity(0.55))
+                        Text("no daily yet")
+                            .font(.system(size: 22, weight: .heavy, design: .rounded))
+                            .foregroundStyle(.white.opacity(0.9))
+                        Text("Check back later — today's puzzle hasn't been published yet.")
+                            .font(.system(size: 14, weight: .medium, design: .rounded))
+                            .foregroundStyle(.white.opacity(0.6))
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal, 32)
+                        Button {
+                            game.startLevel(game.level)
+                        } label: {
+                            Text("Try again")
+                                .font(.system(size: 15, weight: .bold, design: .rounded))
+                                .foregroundStyle(.white)
+                                .padding(.horizontal, 20)
+                                .frame(height: 38)
+                                .background(Color.white.opacity(0.12), in: Capsule())
+                                .overlay(
+                                    Capsule().stroke(Color.white.opacity(0.3), lineWidth: 1)
+                                )
+                        }
+                        .padding(.top, 4)
+                    }
+                    .transition(.opacity)
+                } else if game.puzzle == nil {
                     VStack {
                         ProgressView("Building puzzle…")
                             .font(.system(size: 14, weight: .bold, design: .rounded))
@@ -102,6 +156,7 @@ struct ContentView: View {
             }
             .animation(.easeInOut(duration: 0.45), value: game.generating)
             .animation(.easeInOut(duration: 0.45), value: game.puzzle?.level)
+            .animation(.easeInOut(duration: 0.45), value: game.dailyUnavailable)
 
             OnboardingOverlay(game: game)
 
@@ -123,6 +178,7 @@ struct ContentView: View {
                       creatorOpen: $creatorOpen,
                       feedbackOpen: $feedbackOpen,
                       accessibilityOpen: $accessibilityOpen,
+                      communityOpen: $communityOpen,
                       started: $started)
 
             // Solved overlay: Like widget on the bottom-left, Next
@@ -166,7 +222,9 @@ struct ContentView: View {
                     // button in the middle.
                     let solvedRowHeight: CGFloat = 52
                     HStack(alignment: .center, spacing: 8) {
-                        LikeFeedbackWidget(game: game, height: solvedRowHeight)
+                        LikeFeedbackWidget(game: game,
+                                           feedbackOpen: $feedbackOpen,
+                                           height: solvedRowHeight)
                             .layoutPriority(1)
                         Button {
                             if let p = game.puzzle {
@@ -302,10 +360,13 @@ struct ContentView: View {
             else if game.selection != nil { game.clearSelection() }
         }
         .onShake {
-            // Shake to shuffle — replaces the old bottom-right reset
-            // button. Only acts on an in-progress puzzle so a shake
-            // during the solved overlay doesn't wipe the win state.
-            if !game.solved, game.puzzle != nil {
+            // Shake-to-shuffle disabled: too easy to trigger
+            // accidentally (commute, walking, sleeve brushes phone)
+            // and the reset wipes a puzzle in progress with no undo.
+            // Wiring kept so the feature can be re-enabled by a flag
+            // later without re-adding the modifier + ShakeDetector.
+            let enabled = false
+            if enabled, !game.solved, game.puzzle != nil {
                 Haptics.shake()
                 game.handleReset()
             }
@@ -331,46 +392,47 @@ struct ContentView: View {
             if solvedNow && game.isPerfectSolve {
                 perfectBannerVisible = true
                 perfectHeartStage = .onBanner
-                Task { @MainActor in
-                    // Banner stays visible ~1 s, then fades away
-                    // via the .easeInOut on perfectBannerVisible.
+                // Cancel any still-running flight from a previous
+                // solve before starting a new one — avoids the task
+                // waking on the next level and stomping state.
+                perfectHeartFlightTask?.cancel()
+                perfectHeartFlightTask = Task { @MainActor in
                     try? await Task.sleep(nanoseconds: 1_000_000_000)
+                    if Task.isCancelled { return }
                     perfectBannerVisible = false
-                    // Fly the heart from the banner into the top-bar
-                    // hearts row. matchedGeometryEffect tweens the
-                    // position + size; withAnimation wraps the state
-                    // flip so both source/target animate together.
                     if game.mode == .challenge {
                         withAnimation(.spring(response: 0.7,
                                               dampingFraction: 0.75)) {
                             perfectHeartStage = .flying
                         }
                         try? await Task.sleep(nanoseconds: 700_000_000)
-                        // Heart has landed — promote it to a real
-                        // heart in `game.checks` so the row keeps
-                        // showing it after the flying target fades.
-                        // handleNext skips its own perfect-solve +1
-                        // when this flag is set to avoid a double
-                        // increment.
-                        game.checks += 1
-                        game.perfectHeartAlreadyAwarded = true
+                        if Task.isCancelled { return }
+                        // Claim-once token: if handleNext (fast Next
+                        // tap) has already awarded the perfect heart
+                        // it'll have set `perfectHeartAlreadyAwarded`
+                        // to true — in that case we skip the +1 here
+                        // and just finish the animation. Whichever
+                        // path fires first wins; the other is a
+                        // no-op. Clearing happens in startLevel so
+                        // the next perfect solve can claim again.
+                        if !game.perfectHeartAlreadyAwarded {
+                            game.checks += 1
+                            game.perfectHeartAlreadyAwarded = true
+                        }
                         perfectHeartStage = .landed
-                        // Yield two frames so SwiftUI mounts the new
-                        // heart's phaseAnimator BEFORE the trigger
-                        // changes — otherwise the newly-inserted view
-                        // initializes with the post-bump trigger value
-                        // and misses the wave entirely.
                         try? await Task.sleep(nanoseconds: 34_000_000)
+                        if Task.isCancelled { return }
                         heartWaveTick &+= 1
                         try? await Task.sleep(nanoseconds: 600_000_000)
+                        if Task.isCancelled { return }
                         perfectHeartStage = .idle
                     } else {
-                        // Non-challenge modes never had the heart row;
-                        // skip the fly and just clear.
                         perfectHeartStage = .idle
                     }
                 }
             } else if !solvedNow {
+                perfectHeartFlightTask?.cancel()
+                perfectHeartFlightTask = nil
                 perfectBannerVisible = false
                 perfectHeartStage = .idle
                 solveSquishScale = 1.0
@@ -427,6 +489,9 @@ struct ContentView: View {
         }
         .fullScreenCover(isPresented: $creatorOpen) {
             CreatorView(game: game)
+        }
+        .sheet(isPresented: $communityOpen) {
+            CommunityListView(game: game)
         }
         .sheet(isPresented: $feedbackOpen) {
             FeedbackSheet(game: game)
@@ -608,7 +673,15 @@ struct ContentView: View {
                     menuOpen: $menuOpen,
                     perfectHeartNS: perfectHeartNS,
                     perfectHeartStage: perfectHeartStage,
-                    heartWaveTick: heartWaveTick
+                    heartWaveTick: heartWaveTick,
+                    onBackToGallery: {
+                        // Same return path the hamburger's "← gallery"
+                        // row uses — set the menu-appear flag so MenuView
+                        // re-presents the Gallery sheet, then fade back
+                        // to the menu screen.
+                        game.openGalleryOnMenuAppear = true
+                        transitioner.fade { started = false }
+                    }
                 )
                 .padding(.horizontal, 22)
                 Spacer(minLength: 0)
@@ -701,6 +774,13 @@ struct ContentView: View {
                         zenTutorialBaselineLevel = nil
                     } else if tutorialExit == .floating {
                         // Second tap — pop the floating balloon.
+                        // Capture the balloon's LAST KNOWN center
+                        // before state change so the particle burst
+                        // has a reliable origin even if the anchor
+                        // unmounts in the same render tick.
+                        if let center = balloonCenterLive {
+                            popBurstOriginCapture = center
+                        }
                         tutorialExit = .popped
                         Haptics.pop()
                         GlassyAudio.shared.playPop()
@@ -710,6 +790,13 @@ struct ContentView: View {
                             GameCenter.Achievement.poppedBalloon
                         )
                     }
+                },
+                onSwipe: { dx, dy in
+                    // Swipe dismiss — mark seen + send the balloon
+                    // gliding off along the swipe vector.
+                    if let f = tutorialFlag { TutorialStore.markSeen(f) }
+                    zenTutorialBaselineLevel = nil
+                    tutorialExit = .swipedAway(dx: dx, dy: dy)
                 },
                 knotAnchorKey: "balloonKnot",
                 cornerArrow: flag == .zenIntro
@@ -730,27 +817,56 @@ struct ContentView: View {
         Color.clear
             .overlayPreferenceValue(TutorialAnchorsKey.self) { anchors in
                 GeometryReader { geo in
-                    Color.clear
-                        .onChange(of: popBurstTick) { _, tick in
-                            // Capture origin the moment a new burst fires
-                            // while the "balloonCenter" anchor is still live.
-                            if tick > 0, let centerA = anchors["balloonCenter"] {
-                                let center = geo[centerA]
-                                popBurstOriginCapture = CGPoint(x: center.midX,
-                                                                y: center.midY)
+                    ZStack {
+                        // Continuously mirror the balloon's resolved
+                        // center into `balloonCenterLive` so the tap
+                        // handler can capture it synchronously. The
+                        // previous onChange(of: popBurstTick) approach
+                        // raced the .popped unmount animation — by the
+                        // time the tick observation fired, the
+                        // balloon's anchor preference could already
+                        // be stale, leaving the burst with nil origin
+                        // and no particles. Reading it here every
+                        // render cycle keeps `balloonCenterLive`
+                        // fresh while the balloon is alive.
+                        Color.clear
+                            .onAppear {
+                                if let a = anchors["balloonCenter"] {
+                                    let r = geo[a]
+                                    balloonCenterLive = CGPoint(x: r.midX, y: r.midY)
+                                }
                             }
+                            .onChange(of: anchors["balloonCenter"] != nil) { _, has in
+                                if has, let a = anchors["balloonCenter"] {
+                                    let r = geo[a]
+                                    balloonCenterLive = CGPoint(x: r.midX, y: r.midY)
+                                } else {
+                                    balloonCenterLive = nil
+                                }
+                            }
+                            .onChange(of: popBurstTick) { _, tick in
+                                // Second-chance capture for bursts that
+                                // fired without a pre-captured origin.
+                                if tick > 0, popBurstOriginCapture == nil,
+                                   let a = anchors["balloonCenter"] {
+                                    let r = geo[a]
+                                    popBurstOriginCapture = CGPoint(
+                                        x: r.midX, y: r.midY
+                                    )
+                                }
+                            }
+                        if let origin = popBurstOriginCapture, popBurstTick > 0 {
+                            BalloonPopParticles(
+                                origin: origin,
+                                tint: popBurstTint,
+                                containerHeight: geo.size.height,
+                                onFinished: {
+                                    popBurstTick = 0
+                                    popBurstOriginCapture = nil
+                                }
+                            )
+                            .id(popBurstTick)
                         }
-                    if let origin = popBurstOriginCapture, popBurstTick > 0 {
-                        BalloonPopParticles(
-                            origin: origin,
-                            tint: popBurstTint,
-                            containerHeight: geo.size.height,
-                            onFinished: {
-                                popBurstTick = 0
-                                popBurstOriginCapture = nil
-                            }
-                        )
-                        .id(popBurstTick)
                     }
                 }
             }
@@ -841,8 +957,8 @@ struct ContentView: View {
     /// hands the puzzle to GameState, then resets the binding so the
     /// same puzzle doesn't re-trigger on a later backgrounding.
     private func loadIncomingPuzzleIfAny() {
-        guard let puzzle = incomingPuzzle else { return }
-        game.loadCustomPuzzle(puzzle)
+        guard let incoming = incomingPuzzle else { return }
+        game.loadCustomPuzzle(incoming.puzzle, title: incoming.title)
         creatorOpen = false
         feedbackOpen = false
         menuOpen = false

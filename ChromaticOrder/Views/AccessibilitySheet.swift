@@ -158,6 +158,7 @@ struct AccessibilitySheet: View {
                 } footer: {
                     Text("Clears your current level and hearts. Ratings are kept.")
                 }
+
             }
             .navigationTitle("Accessibility")
             .navigationBarTitleDisplayMode(.inline)

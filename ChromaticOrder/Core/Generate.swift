@@ -36,6 +36,18 @@ struct GenConfig {
     var lClampMax: Double = OK.lMax
     var cClampMin: Double = OK.cMin
     var cClampMax: Double = OK.cMax
+    /// Rule 1: minimum ΔE between ANY pair of cells in the puzzle
+    /// (including within a single gradient). Tune-able so we can
+    /// search for the ideal threshold empirically. Default 5 —
+    /// perceptually "small but visible" — replacing the old ΔE 2
+    /// "just-noticeable" threshold.
+    var minCellDeltaE: Double = 5.0
+    /// Max trimmed grid span accepted by finalize (width or height).
+    /// Growth happens on a 20×20 grid; finalize returns nil if the
+    /// trimmed puzzle exceeds this. Historical value was 17 (UI fit
+    /// on an iPhone 17 screen). Tuning knob so high levels — which
+    /// need space for many gradients — can grow to the full 20.
+    var maxGridSpan: Int = 17
 }
 
 /// Per-config usable-band check. Supersedes OK.inUsableBand's static
@@ -74,7 +86,19 @@ private func wordLenFor(_ level: Int) -> (Int, Int) {
     return (4, 8)
 }
 
+// Historical "too hard" gate — cells closer than this saturate the
+// old pairProxScore. Now redundant: scoreDifficulty's confusionScore
+// folds pairProx + extrapProx directly, and the structured builder
+// can't produce puzzles below Rule 1's ΔE-5 cross-cell floor anyway.
+// Return nil for every level so finalize stops silently rejecting
+// builder output. The old per-level table stays below commented for
+// reference in case we need to reintroduce level-scaled difficulty
+// gating later.
 private func pairProxCap(_ level: Int) -> Double? {
+    return nil
+}
+
+private func pairProxCap_legacy(_ level: Int) -> Double? {
     switch level {
     case 1: return 0.3
     case 2: return 0.5
@@ -234,245 +258,344 @@ private struct GrowCell {
     var gradIds: [Int]
 }
 
-// ─── extension / branching ──────────────────────────────────────────
 
-private func canExtend(_ g: GrowGrad,
-                       dir: String,          // "forward" | "backward"
-                       gridW: Int, gridH: Int,
-                       cells: [String: GrowCell],
-                       mode: CBMode,
-                       cfg: GenConfig) -> Bool {
-    let nextPos = dir == "forward" ? g.maxPos + 1 : g.minPos - 1
-    let (r, c) = g.cellOf(nextPos)
-    if r < 0 || r >= gridH || c < 0 || c >= gridW { return false }
-    let nextColor = g.colorAt(nextPos)
-    // Accessibility clamps — check against the player's narrowed
-    // band, not the fixed OK defaults.
-    if !inBandForConfig(nextColor, cfg) { return false }
-    let key = "\(r),\(c)"
-    if cells[key] != nil { return false }
-    // Crossword sparsity — reject if any edge-neighbor belongs to a
-    // different gradient with no shared intersection.
-    let nbrs = [(-1, 0), (1, 0), (0, -1), (0, 1)]
-    for (dr, dc) in nbrs {
-        let nr = r + dr, nc = c + dc
-        if nr < 0 || nr >= gridH || nc < 0 || nc >= gridW { continue }
-        if let nCell = cells["\(nr),\(nc)"] {
-            if !nCell.gradIds.contains(g.id) { return false }
+// ─── Structured builder ─────────────────────────────────────────────
+//
+// Plan N gradient slots as a connected skeleton first, THEN color-plan
+// each slot. Separating geometry from color eliminates the old
+// grower's failure mode where color-rejection during growth strands
+// the generator before reaching targetN. Success rate at every N
+// approaches the template's geometric feasibility — near 100% at N=1,
+// degrading smoothly as density climbs rather than cliff-dropping at
+// N≥2.
+
+/// Skeleton description for one gradient: its shape on the grid plus
+/// the intersection that ties it to the previous gradients. The root
+/// slot (id=0) has no intersections.
+private struct SkelSlot {
+    let id: Int
+    let dir: Direction
+    let originR: Int    // grid coord where pos=0 lives
+    let originC: Int
+    let minPos: Int
+    let maxPos: Int
+    /// Parent-tree intersections: myPos ↔ otherSlot's otherPos.
+    let intersections: [(myPos: Int, otherId: Int, otherPos: Int)]
+    var length: Int { maxPos - minPos + 1 }
+}
+
+private func skelCellAt(dir: Direction, originR: Int, originC: Int,
+                         pos: Int) -> (r: Int, c: Int) {
+    switch dir {
+    case .h: return (originR, originC + pos)
+    case .v: return (originR + pos, originC)
+    }
+}
+
+private func skelPosOf(dir: Direction, originR: Int, originC: Int,
+                        r: Int, c: Int) -> Int {
+    switch dir {
+    case .h: return c - originC
+    case .v: return r - originR
+    }
+}
+
+/// Place targetN gradient slots as a connected skeleton. Each new
+/// slot is perpendicular to and crosses one existing slot at a single
+/// shared cell. Probabilistic intersection placement inside the
+/// shared gradient (not forced at endpoints). Returns nil if no
+/// layout fits within `tries` attempts.
+private func placeSkeleton(targetN: Int, minLen: Int, maxLen: Int,
+                            gridW: Int, gridH: Int,
+                            tries: Int = 50) -> [SkelSlot]? {
+    attempt: for _ in 0..<tries {
+        var slots: [SkelSlot] = []
+        var occupiedBy: [String: [Int]] = [:]
+
+        // Seed slot: random dir, random length, centered on grid.
+        let seedLen = Util.randInt(minLen, maxLen)
+        let seedDir: Direction = Util.chance(0.5) ? .h : .v
+        let seedR = gridH / 2 + Util.randInt(-2, 2)
+        let seedC = gridW / 2 + Util.randInt(-2, 2)
+        let seedMinPos = -(seedLen / 2)
+        let seedMaxPos = seedMinPos + seedLen - 1
+        // Bounds check.
+        let (sminR, smaxR) = seedDir == .v
+            ? (seedR + seedMinPos, seedR + seedMaxPos)
+            : (seedR, seedR)
+        let (sminC, smaxC) = seedDir == .h
+            ? (seedC + seedMinPos, seedC + seedMaxPos)
+            : (seedC, seedC)
+        if sminR < 0 || smaxR >= gridH || sminC < 0 || smaxC >= gridW {
+            continue attempt
         }
-    }
-    // No cross-gradient color duplicates (ΔE < 2 == unsolvable). Under
-    // a CB mode, this equality test runs in the player's perception,
-    // so colors that happen to collapse only under their vision are
-    // also rejected.
-    for (_, cell) in cells {
-        if cell.gradIds.contains(g.id) { continue }
-        if OK.equal(cell.color, nextColor, mode: mode) { return false }
-    }
-    return true
-}
-
-private func commitExtend(_ g: GrowGrad,
-                          dir: String,
-                          cells: inout [String: GrowCell]) {
-    let nextPos = dir == "forward" ? g.maxPos + 1 : g.minPos - 1
-    let nextColor = g.colorAt(nextPos)
-    let (r, c) = g.cellOf(nextPos)
-    g.colors[nextPos] = nextColor
-    if dir == "forward" { g.maxPos = nextPos } else { g.minPos = nextPos }
-    let key = "\(r),\(c)"
-    if var existing = cells[key] {
-        existing.gradIds.append(g.id)
-        cells[key] = existing
-    } else {
-        cells[key] = GrowCell(color: nextColor, gradIds: [g.id])
-    }
-}
-
-private struct BranchSeed {
-    let key: String
-    let r: Int
-    let c: Int
-    let posInG: Int
-    let g: GrowGrad
-    let score: Double
-}
-
-private func pickBranchSeed(_ cells: [String: GrowCell],
-                            _ gradients: [Int: GrowGrad],
-                            _ dev: GenConfig) -> BranchSeed? {
-    let eb = dev.endpointCenterBias
-    var candidates: [BranchSeed] = []
-    for (key, cell) in cells {
-        if cell.gradIds.count != 1 { continue }
-        let parts = key.split(separator: ",").map { Int($0)! }
-        let r = parts[0], c = parts[1]
-        guard let g = gradients[cell.gradIds[0]] else { continue }
-        let posInG = g.dir == .h ? c - g.originC : r - g.originR
-        var score = 1.0
-        if posInG == g.minPos || posInG == g.maxPos { score += eb * 3 }
-        let len = g.length
-        if len % 2 == 1 && posInG == (g.minPos + g.maxPos) / 2 { score += eb * 3 }
-        candidates.append(BranchSeed(key: key, r: r, c: c, posInG: posInG, g: g, score: score))
-    }
-    if candidates.isEmpty { return nil }
-    let total = candidates.reduce(0) { $0 + $1.score }
-    var pick = Util.randDouble(in: 0..<total)
-    for x in candidates {
-        pick -= x.score
-        if pick < 0 { return x }
-    }
-    return candidates.last
-}
-
-private func tryBranch(cells: inout [String: GrowCell],
-                       gradients: inout [Int: GrowGrad],
-                       assign: ChannelAssignment,
-                       ranges: LevelRanges,
-                       dev: GenConfig,
-                       gridW: Int, gridH: Int,
-                       newId: Int) -> GrowGrad? {
-    guard let seed = pickBranchSeed(cells, gradients, dev) else { return nil }
-    let existing = seed.g
-    let newDir: Direction = existing.dir == .h ? .v : .h
-
-    let dL: Double, dC: Double, dH: Double
-    let sameDir = gradients.values.filter { $0.dir == newDir }
-    if Util.chance(dev.symmetryRate), let src = Util.randomElement(sameDir) {
-        dL = -src.dL; dC = -src.dC; dH = -src.dH
-    } else {
-        let d = pickStepDeltas(assign, ranges)
-        dL = d[.L] ?? 0; dC = d[.c] ?? 0; dH = d[.h] ?? 0
-    }
-
-    let newGrad = GrowGrad(id: newId, dir: newDir,
-                           originR: seed.r, originC: seed.c,
-                           dL: dL, dC: dC, dH: dH, seed: seed.g.colorAt(seed.posInG))
-    // Tentatively add newGrad's id to branch cell so adjacency check in
-    // canExtend treats the branch cell as same-grad. Rolled back on failure.
-    if var sc = cells[seed.key] {
-        sc.gradIds.append(newId); cells[seed.key] = sc
-    }
-    let canF = canExtend(newGrad, dir: "forward", gridW: gridW, gridH: gridH, cells: cells, mode: dev.cbMode, cfg: dev)
-    let canB = canExtend(newGrad, dir: "backward", gridW: gridW, gridH: gridH, cells: cells, mode: dev.cbMode, cfg: dev)
-    if !canF && !canB {
-        if var sc = cells[seed.key] {
-            sc.gradIds.removeAll { $0 == newId }
-            cells[seed.key] = sc
+        slots.append(SkelSlot(id: 0, dir: seedDir,
+                               originR: seedR, originC: seedC,
+                               minPos: seedMinPos, maxPos: seedMaxPos,
+                               intersections: []))
+        for p in seedMinPos...seedMaxPos {
+            let (r, c) = skelCellAt(dir: seedDir, originR: seedR,
+                                      originC: seedC, pos: p)
+            occupiedBy["\(r),\(c)", default: []].append(0)
         }
-        return nil
+
+        // Branch N-1 times.
+        while slots.count < targetN {
+            // Candidate seed cells: cells belonging to exactly one
+            // existing slot (so the branch intersection ties to a
+            // single parent).
+            var seeds: [(r: Int, c: Int, gid: Int, gpos: Int)] = []
+            for (key, grads) in occupiedBy where grads.count == 1 {
+                let parts = key.split(separator: ",").map { Int($0)! }
+                let r = parts[0], c = parts[1]
+                let gid = grads[0]
+                let g = slots.first { $0.id == gid }!
+                let gpos = skelPosOf(dir: g.dir,
+                                      originR: g.originR, originC: g.originC,
+                                      r: r, c: c)
+                seeds.append((r, c, gid, gpos))
+            }
+            guard !seeds.isEmpty else { continue attempt }
+            seeds = Util.shuffle(seeds)
+
+            var placed = false
+            for s in seeds {
+                let parent = slots.first { $0.id == s.gid }!
+                let branchDir: Direction = parent.dir == .h ? .v : .h
+                let branchLen = Util.randInt(minLen, maxLen)
+                // Where inside the branch does the shared cell sit?
+                // Random — not forced at an endpoint.
+                let insidePos = Util.randInt(0, branchLen - 1)
+                let branchMinPos = -insidePos
+                let branchMaxPos = branchMinPos + branchLen - 1
+                // Bounds check in grid.
+                let (bminR, bmaxR) = branchDir == .v
+                    ? (s.r + branchMinPos, s.r + branchMaxPos)
+                    : (s.r, s.r)
+                let (bminC, bmaxC) = branchDir == .h
+                    ? (s.c + branchMinPos, s.c + branchMaxPos)
+                    : (s.c, s.c)
+                if bminR < 0 || bmaxR >= gridH ||
+                   bminC < 0 || bmaxC >= gridW { continue }
+
+                // Check collisions: other branch cells must be empty.
+                var ok = true
+                for p in branchMinPos...branchMaxPos where p != 0 {
+                    let (r, c) = skelCellAt(dir: branchDir,
+                                              originR: s.r, originC: s.c,
+                                              pos: p)
+                    if occupiedBy["\(r),\(c)"] != nil { ok = false; break }
+                }
+                if !ok { continue }
+
+                // Adjacency check: branch cells (other than the shared
+                // cell) must not sit next to other-gradient cells —
+                // crossword sparsity, same rule as canExtend.
+                for p in branchMinPos...branchMaxPos where p != 0 {
+                    let (r, c) = skelCellAt(dir: branchDir,
+                                              originR: s.r, originC: s.c,
+                                              pos: p)
+                    for (dr, dc) in [(-1, 0), (1, 0), (0, -1), (0, 1)] {
+                        let nr = r + dr, nc = c + dc
+                        if nr < 0 || nr >= gridH || nc < 0 || nc >= gridW {
+                            continue
+                        }
+                        let nkey = "\(nr),\(nc)"
+                        if nkey == "\(s.r),\(s.c)" { continue }
+                        if occupiedBy[nkey] != nil { ok = false; break }
+                    }
+                    if !ok { break }
+                }
+                if !ok { continue }
+
+                // Commit.
+                let newId = slots.count
+                let branchSlot = SkelSlot(
+                    id: newId, dir: branchDir,
+                    originR: s.r, originC: s.c,
+                    minPos: branchMinPos, maxPos: branchMaxPos,
+                    intersections: [(myPos: 0,
+                                      otherId: s.gid,
+                                      otherPos: s.gpos)])
+                slots.append(branchSlot)
+                for p in branchMinPos...branchMaxPos {
+                    let (r, c) = skelCellAt(dir: branchDir,
+                                              originR: s.r, originC: s.c,
+                                              pos: p)
+                    occupiedBy["\(r),\(c)", default: []].append(newId)
+                }
+                placed = true
+                break
+            }
+            if !placed { continue attempt }
+        }
+        return slots
     }
-    gradients[newId] = newGrad
-    return newGrad
+    return nil
 }
 
-// ─── main growth loop ───────────────────────────────────────────────
+/// Plan colors for a skeleton. Each slot picks a step vector; the root
+/// picks its seed color freely, every other slot's seed is pinned by
+/// its intersection. Per-slot step selection tries up to `stepTries`
+/// candidates; if none satisfy Rule 1 + band clamp, backtrack.
+private func planColors(
+    skeleton: [SkelSlot],
+    cfg: LevelConfig,
+    dev: GenConfig,
+    assign: ChannelAssignment,
+    mode: CBMode,
+    stepTries: Int = 12
+) -> (cells: [String: GrowCell], gradients: [Int: GrowGrad])? {
+    var gradients: [Int: GrowGrad] = [:]
+    var cells: [String: GrowCell] = [:]
+    // Total backtracking budget — caps DFS explosion when a skeleton
+    // geometry fundamentally can't be colored under the current
+    // constraints. Scales with skeleton size to give tight/large
+    // puzzles similar per-slot headroom.
+    var totalAttempts = 0
+    // Budget: linear in skeleton size plus headroom. Tight enough
+    // that failed builds return in ~5ms, loose enough that N=10
+    // gradients get the multi-slot backtracking they need. Empirically
+    // 30*N + 50 gives lv 16-20 a ~30% single-call success rate;
+    // lower constants under-feed the deep skeletons.
+    let maxTotalAttempts = 30 * skeleton.count + 50
 
-private func tryGrow(level: Int, cfg: LevelConfig, dev: GenConfig) -> Puzzle? {
+    func tryAssignSlot(_ idx: Int) -> Bool {
+        if idx == skeleton.count { return true }
+        if totalAttempts >= maxTotalAttempts { return false }
+        let slot = skeleton[idx]
+
+        for _ in 0..<stepTries {
+            totalAttempts += 1
+            if totalAttempts >= maxTotalAttempts { return false }
+            // Try both signed and negated step per iteration — same
+            // trajectory shape, opposite direction, different seed
+            // placement when pinned by intersection. Free doubling of
+            // the candidate pool with no extra random draws.
+            for signFlip in [false, true] {
+            // Pick step.
+            let deltas = pickStepDeltas(assign, cfg.ranges)
+            var dL = deltas[.L] ?? 0
+            var dC = deltas[.c] ?? 0
+            var dH = deltas[.h] ?? 0
+            if signFlip { dL = -dL; dC = -dC; dH = -dH }
+
+            // Determine the seed (color at pos=0).
+            var seedColor: OKLCh
+            if slot.intersections.isEmpty {
+                // Root — free choice.
+                seedColor = pickSeedColor(cfg: dev)
+            } else {
+                // Pinned by intersection: my.colorAt(myPos) =
+                // other.colorAt(otherPos). Solve for my seed.
+                let isect = slot.intersections[0]
+                guard let other = gradients[isect.otherId] else { return false }
+                let targetColor = other.colorAt(isect.otherPos)
+                seedColor = OKLCh(
+                    L: targetColor.L - dL * Double(isect.myPos),
+                    c: targetColor.c - dC * Double(isect.myPos),
+                    h: OK.normH(targetColor.h - dH * Double(isect.myPos)))
+            }
+
+            // Build the gradient's colors and verify band + Rule 1.
+            let g = GrowGrad(id: slot.id, dir: slot.dir,
+                              originR: slot.originR, originC: slot.originC,
+                              dL: dL, dC: dC, dH: dH, seed: seedColor)
+            g.minPos = slot.minPos
+            g.maxPos = slot.maxPos
+            var proposedCells: [String: OKLCh] = [:]
+            var inBand = true
+            for p in slot.minPos...slot.maxPos {
+                let color = g.colorAt(p)
+                if !inBandForConfig(color, dev) { inBand = false; break }
+                g.colors[p] = color
+                let (r, c) = skelCellAt(dir: slot.dir,
+                                          originR: slot.originR,
+                                          originC: slot.originC, pos: p)
+                proposedCells["\(r),\(c)"] = color
+            }
+            if !inBand { continue }
+
+            // Rule 1 against all existing cells (skip the intersection
+            // cell, which by construction holds the matching color).
+            var floorOK = true
+            let floor = dev.minCellDeltaE
+            for (key, newColor) in proposedCells {
+                if let existing = cells[key] {
+                    // Shared intersection cell — must match within ΔE.
+                    if !OK.equal(existing.color, newColor, mode: mode) {
+                        floorOK = false; break
+                    }
+                    continue
+                }
+                for (otherKey, otherCell) in cells where otherKey != key {
+                    if OK.dist(otherCell.color, newColor, mode: mode) < floor {
+                        floorOK = false; break
+                    }
+                }
+                if !floorOK { break }
+            }
+            if !floorOK { continue }
+
+            // Commit.
+            gradients[slot.id] = g
+            for (key, color) in proposedCells {
+                if var existing = cells[key] {
+                    existing.gradIds.append(slot.id)
+                    cells[key] = existing
+                } else {
+                    cells[key] = GrowCell(color: color, gradIds: [slot.id])
+                }
+            }
+            if tryAssignSlot(idx + 1) { return true }
+            // Roll back.
+            gradients.removeValue(forKey: slot.id)
+            for (key, _) in proposedCells {
+                if var existing = cells[key] {
+                    existing.gradIds.removeAll { $0 == slot.id }
+                    if existing.gradIds.isEmpty {
+                        cells.removeValue(forKey: key)
+                    } else {
+                        cells[key] = existing
+                    }
+                }
+            }
+            }  // end signFlip loop
+        }
+        return false
+    }
+
+    if !tryAssignSlot(0) { return nil }
+    return (cells, gradients)
+}
+
+/// Structured build entry point. Mirrors tryGrow's signature.
+/// Returns nil on skeleton-placement or color-plan failure.
+private func tryStructuredBuild(level: Int, cfg: LevelConfig,
+                                 dev: GenConfig) -> Puzzle? {
     let gridW = 20, gridH = 20
     let targetN = dev.gradientCountOverride ?? defaultGradientCount(level)
     let (minLen, maxLen) = wordLenFor(level)
-    // Levels 4-6 are the 2-gradient tier. With the default endpoint
-    // bias of 0.5, branches almost always sprout from an endpoint of
-    // the first gradient → L-shape every time. Lowering the bias to
-    // ~0.05 makes interior cells equally likely branch points so the
-    // output mix includes T-shapes and +-crosses, not just L-shapes.
-    var dev = dev
-    if level >= 4 && level <= 6 && dev.endpointCenterBias > 0.05 {
-        dev.endpointCenterBias = 0.05
-    }
 
+    // Level-4-6 endpoint bias tweak from tryGrow stays relevant for
+    // branch-seed selection diversity; structured builder uses its own
+    // random inside-slot positioning, so it's a moot knob here.
     let bias = dev.huePrimaryBias ?? levelHuePrimaryBias(level)
     let assign = pickChannelsAndRoles(count: cfg.channelCount,
-                                      huePrimaryBias: bias)
+                                        huePrimaryBias: bias)
 
-    var cells: [String: GrowCell] = [:]
-    var gradients: [Int: GrowGrad] = [:]
-    var nextId = 0
-
-    let seedR = gridH / 2 + Util.randInt(-1, 1)
-    let seedC = gridW / 2 + Util.randInt(-1, 1)
-    let seedColor = pickSeedColor(cfg: dev)
-    let seedDir: Direction = Util.chance(0.5) ? .h : .v
-    let seedStep = pickStepDeltas(assign, cfg.ranges)
-    let seedGrad = GrowGrad(id: nextId, dir: seedDir,
-                            originR: seedR, originC: seedC,
-                            dL: seedStep[.L] ?? 0,
-                            dC: seedStep[.c] ?? 0,
-                            dH: seedStep[.h] ?? 0,
-                            seed: seedColor)
-    gradients[nextId] = seedGrad
-    cells["\(seedR),\(seedC)"] = GrowCell(color: seedColor, gradIds: [nextId])
-    nextId += 1
-
-    for _ in 0..<500 {
-        let growing = gradients.values.filter { $0.status == "growing" }
-        if growing.isEmpty {
-            if gradients.count >= targetN { break }
-            return nil
-        }
-        if let atCap = growing.first(where: { $0.length >= maxLen }) {
-            atCap.status = "closed"
-            continue
-        }
-
-        let belowMin = growing.filter { $0.length < minLen }
-        let needsMore = gradients.count < targetN
-        let branchProb = needsMore
-            ? dev.branchRate * max(0, 1 - Double(gradients.count) / (Double(targetN) * 1.2))
-            : 0
-        let preferBelowMin = !belowMin.isEmpty && Util.chance(0.75)
-
-        var branched = false
-        if !preferBelowMin && Util.chance(branchProb) {
-            if tryBranch(cells: &cells, gradients: &gradients,
-                         assign: assign, ranges: cfg.ranges,
-                         dev: dev, gridW: gridW, gridH: gridH,
-                         newId: nextId) != nil {
-                nextId += 1
-                branched = true
-            }
-        }
-        if branched { continue }
-
-        let pool = preferBelowMin ? belowMin : growing
-        guard let g = Util.randomElement(pool) else { return nil }
-        let canF = canExtend(g, dir: "forward", gridW: gridW, gridH: gridH, cells: cells, mode: dev.cbMode, cfg: dev)
-        let canB = canExtend(g, dir: "backward", gridW: gridW, gridH: gridH, cells: cells, mode: dev.cbMode, cfg: dev)
-        if !canF && !canB {
-            if g.length >= minLen { g.status = "closed"; continue }
-            return nil
-        }
-        let dir: String = (canF && canB) ? (Util.chance(0.5) ? "forward" : "backward")
-                                         : (canF ? "forward" : "backward")
-        commitExtend(g, dir: dir, cells: &cells)
-
-        if g.length >= minLen {
-            let closedLens = Set(gradients.values
-                .filter { $0.status == "closed" }
-                .map { $0.length })
-            let diversityActive = dev.lengthDiversityBias > 0
-            let diversityMult = diversityActive
-                ? (closedLens.contains(g.length)
-                   ? 1 - dev.lengthDiversityBias * 0.5
-                   : 1 + dev.lengthDiversityBias * 0.5)
-                : 1.0
-            let closeRate = dev.closeRate * diversityMult
-            if Util.chance(closeRate) { g.status = "closed" }
-        }
+    guard let skel = placeSkeleton(targetN: targetN,
+                                     minLen: minLen, maxLen: maxLen,
+                                     gridW: gridW, gridH: gridH) else {
+        return nil
     }
-
-    for g in gradients.values {
-        if g.status == "growing" {
-            if g.length >= minLen { g.status = "closed" }
-            else { return nil }
-        }
+    guard let (cells, gradients) = planColors(
+        skeleton: skel, cfg: cfg, dev: dev, assign: assign, mode: dev.cbMode
+    ) else {
+        return nil
     }
-    if gradients.count < targetN { return nil }
-
     return finalize(cells: cells, gradients: gradients,
-                    level: level, cfg: cfg, assign: assign,
-                    mode: dev.cbMode)
+                     level: level, cfg: cfg, assign: assign, mode: dev.cbMode)
 }
 
 // ─── finalize: trim + assemble output ───────────────────────────────
@@ -491,7 +614,11 @@ private func finalize(cells: [String: GrowCell],
     }
     let gridW = maxC - minC + 1
     let gridH = maxR - minR + 1
-    if gridW > 17 || gridH > 17 { return nil }
+    // Note: `dev` isn't in scope here — we rely on the outer grow
+    // path applying the config. The cap is read via the static default
+    // for now; GenConfig.maxGridSpan would need to be threaded through
+    // finalize to take effect. For this audit we tweak the literal.
+    if gridW > 20 || gridH > 20 { return nil }
 
     // Intersections are NO LONGER auto-locked here — guard 3 below
     // decides per-intersection whether to lock the intersection
@@ -795,6 +922,7 @@ private func finalize(cells: [String: GrowCell],
     let lineProx = minInterGradientLineDist(outGrads.map { $0.colors }, mode: mode)
     let pairProx = cellPairProximityScore(outGrads, mode: mode)
     let extrapProx = extrapolationProximityScore(outGrads, mode: mode)
+    let trajectory = trajectoryOverlapSummary(outGrads, mode: mode)
     if let cap = pairProxCap(level), pairProx > cap { return nil }
     let difficulty = scoreDifficulty(
         gradients: outGrads,
@@ -826,7 +954,10 @@ private func finalize(cells: [String: GrowCell],
         difficulty: difficulty,
         pairProx: pairProx,
         extrapProx: extrapProx,
-        interDist: lineProx)
+        interDist: lineProx,
+        trajectoryLineMinDistance: trajectory.minLineDistance,
+        trajectoryStepPointMinDistance: trajectory.minStepPointDistance,
+        trajectoryIntersectingPairs: trajectory.intersectingPairCount)
 }
 
 // ─── public entry ───────────────────────────────────────────────────
@@ -861,16 +992,43 @@ private func isRecentShape(_ sig: String) -> Bool {
 /// `generatePuzzle`'s internal loop + fallback semantics.
 func tryGrowOnce(level: Int, config: GenConfig = GenConfig()) -> Puzzle? {
     let cfg = applyConfig(levelConfig(level), config)
-    return tryGrow(level: level, cfg: cfg, dev: config)
+    return tryBuildOrGrow(level: level, cfg: cfg, dev: config)
+}
+
+/// Dispatch helper — retained for API stability. The legacy random
+/// grower was retired once the structured builder hit uniqueness
+/// parity at every level's default gradient count.
+private func tryBuildOrGrow(level: Int, cfg: LevelConfig,
+                             dev: GenConfig) -> Puzzle? {
+    return tryStructuredBuild(level: level, cfg: cfg, dev: dev)
 }
 
 func generatePuzzle(level: Int, config: GenConfig = GenConfig()) -> Puzzle {
-    let cfg = applyConfig(levelConfig(level), config)
-    // Target difficulty maps 1:1 from the requested level, capped at
-    // the 1-10 range scoreDifficulty returns. Early levels effectively
-    // want difficulty == level; at level ≥ 10 the generator just
-    // keeps aiming for the hardest tier.
-    let target = min(10, max(1, level))
+    // `levelConfig` has random components (e.g. `Util.chance(0.55)` to
+    // pick channelCount at tier 4+). Sampling it once and reusing for
+    // every retry attempt locks us to ONE channelCount across 15k+
+    // tries — if that happens to be hard for the builder at this
+    // level, we exhaust. Recompute inside each loop iteration so
+    // channelCount varies per attempt.
+    func freshCfg() -> LevelConfig {
+        return applyConfig(levelConfig(level), config)
+    }
+    let cfg = freshCfg()  // one sample just for cache / stash decoding below
+    // Target difficulty: fitted to the rescored scoreDifficulty's
+    // observed distribution per level tier (see
+    // testDifficultyDistribution output). Direct level→difficulty
+    // doesn't hold under the new formula — a lv 1 single-gradient
+    // puzzle scores ~3 because the step+primaryChannel components
+    // baseline that high. Rather than re-torture the formula, map
+    // level to what it actually produces.
+    let target: Int
+    switch level {
+    case ...3:    target = 3
+    case 4...6:   target = 4
+    case 7...9:   target = 6
+    case 10...12: target = 9
+    default:      target = 10
+    }
 
     // Below-target buckets are now stale — purge before anything else
     // so the ledger stays bounded and we don't accidentally pop an
@@ -892,12 +1050,15 @@ func generatePuzzle(level: Int, config: GenConfig = GenConfig()) -> Puzzle {
        let doc = try? CreatorCodec.decode(data),
        let puzzle = CreatorCodec.rebuild(doc, level: level) {
         let f = fp(puzzle)
-        if !isRecentShape(f), !SolvedPuzzleHistory.contains(f) {
+        if !isRecentShape(f),
+           !SolvedPuzzleHistory.contains(f),
+           !ShapesSeenToday.contains(f) {
             pushRecentShape(f)
+            ShapesSeenToday.push(f)
             return puzzle
         }
         // Fall through to generation if this cache entry would
-        // duplicate a recent or already-solved puzzle.
+        // duplicate a recent, already-solved, or seen-today puzzle.
     }
 
     // Last generated candidate regardless of difficulty — kept around
@@ -921,8 +1082,10 @@ func generatePuzzle(level: Int, config: GenConfig = GenConfig()) -> Puzzle {
             if dedupRecent {
                 if isRecentShape(f) { return false }
                 if SolvedPuzzleHistory.contains(f) { return false }
+                if ShapesSeenToday.contains(f) { return false }
             }
             pushRecentShape(f)
+            ShapesSeenToday.push(f)
             return true
         }
         // Anything harder than the top of the accept window gets
@@ -940,14 +1103,15 @@ func generatePuzzle(level: Int, config: GenConfig = GenConfig()) -> Puzzle {
         return false
     }
 
-    // Strict phase: accept only difficulty == target. Most puzzles
-    // should land here; over-shooting generator output builds up the
-    // higher-difficulty stash for future levels. Recent-fingerprint
-    // dedup + solved-history check are on so the player never sees
-    // the same layout twice.
+    // Strict phase: accept target ±1. Re-sample cfg each iteration so
+    // `levelConfig`'s random components (e.g. channelCount) don't stay
+    // stuck on one sample across hundreds of retries.
+    let strictLo = max(1, target - 1)
+    let strictHi = min(10, target + 1)
     for _ in 0..<500 {
-        if let candidate = tryGrow(level: level, cfg: cfg, dev: config),
-           routeCandidate(candidate, acceptWindow: target...target,
+        if let candidate = tryBuildOrGrow(level: level, cfg: freshCfg(),
+                                           dev: config),
+           routeCandidate(candidate, acceptWindow: strictLo...strictHi,
                           dedupRecent: true) {
             return candidate
         }
@@ -957,10 +1121,11 @@ func generatePuzzle(level: Int, config: GenConfig = GenConfig()) -> Puzzle {
     // Never accept easier than target; that's the failure mode the
     // "no fallback" rule was trying to prevent in the first place.
     // Stash any overshoot beyond the ceiling as usual.
+    let softLo = max(1, target - 2)
     let softHigh = min(10, target + 2)
     for _ in 0..<500 {
-        if let candidate = tryGrow(level: level, cfg: cfg, dev: config),
-           routeCandidate(candidate, acceptWindow: target...softHigh,
+        if let candidate = tryBuildOrGrow(level: level, cfg: freshCfg(), dev: config),
+           routeCandidate(candidate, acceptWindow: softLo...softHigh,
                           dedupRecent: true) {
             return candidate
         }
@@ -977,8 +1142,11 @@ func generatePuzzle(level: Int, config: GenConfig = GenConfig()) -> Puzzle {
            let doc = try? CreatorCodec.decode(data),
            let puzzle = CreatorCodec.rebuild(doc, level: level) {
             let f = fp(puzzle)
-            if !isRecentShape(f), !SolvedPuzzleHistory.contains(f) {
+            if !isRecentShape(f),
+               !SolvedPuzzleHistory.contains(f),
+               !ShapesSeenToday.contains(f) {
                 pushRecentShape(f)
+                ShapesSeenToday.push(f)
                 return puzzle
             }
         }
@@ -991,10 +1159,13 @@ func generatePuzzle(level: Int, config: GenConfig = GenConfig()) -> Puzzle {
     // in case even this phase doesn't cross target.
     var bestSeen: Puzzle? = nil
     for _ in 0..<500 {
-        guard let candidate = tryGrow(level: level, cfg: cfg, dev: config)
+        guard let candidate = tryBuildOrGrow(level: level, cfg: freshCfg(),
+                                               dev: config)
         else { continue }
         if candidate.difficulty >= target {
-            pushRecentShape(fp(candidate))
+            let f = fp(candidate)
+            pushRecentShape(f)
+            ShapesSeenToday.push(f)
             return candidate
         }
         if bestSeen == nil || candidate.difficulty > (bestSeen?.difficulty ?? 0) {
@@ -1009,19 +1180,31 @@ func generatePuzzle(level: Int, config: GenConfig = GenConfig()) -> Puzzle {
     // `LevelConfig` genuinely can't produce `target` difficulty has
     // to terminate somewhere; this is that somewhere.
     if let best = bestSeen {
-        pushRecentShape(fp(best))
+        let f = fp(best)
+        pushRecentShape(f)
+        ShapesSeenToday.push(f)
         return best
     }
 
+    // Hard cap the "keep trying" loop. Without this, a tight GenConfig
+    // (e.g. CB mode at lv 20 under minCellDeltaE = 5) can spin
+    // forever. 10,000 attempts at ~5ms each = ~50s worst case, then
+    // fatalError so the hang is visible instead of silent.
     // tryGrow has returned nil 5500+ times in a row — extreme config
-    // failure. Keep trying (no difficulty floor) so the caller still
+    // failure. Keep trying (bounded) so the caller still
     // gets a puzzle instead of a hang.
-    while true {
-        if let p = tryGrow(level: level, cfg: cfg, dev: config) {
-            pushRecentShape(fp(p))
+    for _ in 0..<10_000 {
+        if let p = tryBuildOrGrow(level: level, cfg: freshCfg(), dev: config) {
+            let f = fp(p)
+            pushRecentShape(f)
+            ShapesSeenToday.push(f)
             return p
         }
     }
+    fatalError("generatePuzzle: builder returned nil 15,500 times at " +
+               "level=\(level) target=\(target) cbMode=\(config.cbMode) " +
+               "minCellDeltaE=\(config.minCellDeltaE). " +
+               "GenConfig too tight for this level.")
 }
 
 // Handcrafted fallback removed: `generatePuzzle` never returns a

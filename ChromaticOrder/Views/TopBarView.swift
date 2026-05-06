@@ -27,6 +27,11 @@ struct TopBarView: View {
     /// Bump counter from ContentView — each increment triggers a
     /// staggered per-heart scale-bump wave across the existing hearts.
     let heartWaveTick: Int
+    /// Optional handler invoked when the player taps the back arrow
+    /// shown in place of the level chip while playing a custom puzzle
+    /// loaded from the gallery. Caller is responsible for closing the
+    /// game screen and restoring the gallery sheet (see ContentView).
+    var onBackToGallery: (() -> Void)? = nil
     @State private var levelPickerOpen: Bool = false
 
     // Palette for the dark-mode top bar. Primary text is near-white
@@ -79,7 +84,31 @@ struct TopBarView: View {
 
     @ViewBuilder
     private var levelChip: some View {
-        if game.mode != .daily {
+        // Custom puzzles loaded from the Gallery override every mode's
+        // chip — the player came in via a specific entry, so the slot
+        // surfaces a return arrow back to that entry instead of the
+        // mode-specific level / "daily" affordance. The chevron text
+        // gives a hint without reserving extra horizontal space.
+        if game.cameFromGallery, let onBack = onBackToGallery {
+            Button(action: onBack) {
+                HStack(spacing: 4) {
+                    Image(systemName: "chevron.left")
+                        .font(.system(size: 13, weight: .heavy))
+                        .foregroundStyle(Self.primaryText)
+                    Text("gallery")
+                        .font(.system(size: 13, weight: .heavy, design: .rounded))
+                        .foregroundStyle(Self.primaryText)
+                }
+                .padding(.horizontal, 12)
+                .frame(height: Self.buttonHeight)
+                .background(Color.white.opacity(0.08), in: Capsule())
+                .overlay(
+                    Capsule().stroke(Color.white.opacity(0.25), lineWidth: 1)
+                )
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Back to gallery")
+        } else if game.mode != .daily {
             let t = game.tier
             Button {
                 guard game.mode == .zen else { return }
@@ -133,66 +162,119 @@ struct TopBarView: View {
 
     @ViewBuilder
     private var centerModeLabel: some View {
-        switch game.mode {
-        case .zen:
-            Text("zen")
-                .font(.system(size: 28, weight: .heavy, design: .rounded))
+        // Custom-loaded puzzles (community / gallery / favorites that
+        // ship with a name) override the mode wordmark so the player
+        // sees the level's title instead of the generic "zen" label.
+        // Long titles get a gentle width cap + truncation so the
+        // top-bar layout stays balanced.
+        if let title = game.customTitle, !title.isEmpty {
+            Text(title)
+                .font(.system(size: 22, weight: .heavy, design: .rounded))
                 .foregroundStyle(Self.primaryText)
-        case .daily:
-            Text("today")
-                .font(.system(size: 28, weight: .heavy, design: .rounded))
-                .foregroundStyle(Self.primaryText)
-        case .challenge:
-            // Hearts cap at five on-screen; any extra hearts show
-            // as a compact "+N" suffix so a full bar of checks
-            // doesn't grow past the center column. Each heart plays
-            // a staggered scale-bump wave whenever `heartWaveTick`
-            // bumps (driven by the perfect-heart landing from above).
-            HStack(spacing: 4) {
-                if game.checks > 0 {
-                    let displayed = min(game.checks, 5)
-                    let extra = max(0, game.checks - 5)
-                    ForEach(0..<displayed, id: \.self) { idx in
-                        Image(systemName: "heart.fill")
-                            .font(.system(size: 18))
-                            .foregroundStyle(Color(red: 1.0, green: 0.4, blue: 0.4))
-                            .phaseAnimator([1.0, 1.35, 1.0],
-                                           trigger: heartWaveTick) { content, s in
-                                content.scaleEffect(s)
-                            } animation: { _ in
-                                .spring(response: 0.30,
-                                        dampingFraction: 0.55)
-                                    .delay(Double(idx) * 0.07)
-                            }
-                    }
-                    if extra > 0 {
-                        Text("+\(extra)")
-                            .font(.system(size: 15, weight: .bold, design: .rounded))
-                            .foregroundStyle(Color(red: 1.0, green: 0.4, blue: 0.4))
-                    }
-                } else {
+                .lineLimit(1)
+                .truncationMode(.tail)
+                .frame(maxWidth: 220)
+        } else {
+            switch game.mode {
+            case .zen:
+                Text("zen")
+                    .font(.system(size: 28, weight: .heavy, design: .rounded))
+                    .foregroundStyle(Self.primaryText)
+            case .daily:
+                Text("today")
+                    .font(.system(size: 28, weight: .heavy, design: .rounded))
+                    .foregroundStyle(Self.primaryText)
+            case .challenge:
+                heartsRow
+            }
+        }
+    }
+
+    /// Individual items rendered by the hearts-row ForEach. A flat
+    /// array of these (instead of a ForEach + trailing conditional
+    /// `+N` Text) was the simplest fix for a SwiftUI diffing quirk
+    /// where the trailing branch sometimes failed to render once the
+    /// heart count climbed past 5.
+    private enum HeartItem: Hashable, Identifiable {
+        case zero
+        case heart(Int)      // index into the row (0..<5)
+        case overflow(Int)   // how many hearts beyond 5
+        var id: String {
+            switch self {
+            case .zero: return "zero"
+            case .heart(let i): return "h\(i)"
+            case .overflow(let n): return "o\(n)"
+            }
+        }
+    }
+
+    private var heartRowItems: [HeartItem] {
+        let checks = max(0, game.checks)
+        if checks == 0 { return [.zero] }
+        let displayed = min(checks, 5)
+        let extra = max(0, checks - 5)
+        var items: [HeartItem] = (0..<displayed).map { HeartItem.heart($0) }
+        if extra > 0 { items.append(.overflow(extra)) }
+        return items
+    }
+
+    @ViewBuilder
+    private var heartsRow: some View {
+        let heartRed = Color(red: 1.0, green: 0.4, blue: 0.4)
+        HStack(spacing: 4) {
+            ForEach(heartRowItems) { item in
+                switch item {
+                case .zero:
                     Text("0 \u{2665}")
                         .font(.system(size: 15, weight: .bold, design: .rounded))
                         .foregroundStyle(Self.secondaryText)
-                }
-                // Flying-in heart from the "perfect" banner. Only in
-                // the row while the flight is running — at `.landed`
-                // the ContentView bumps `game.checks` so the row's
-                // real hearts now include the new one, and the
-                // matched-geometry target can unmount without the
-                // row appearing to lose a heart.
-                if perfectHeartStage == .flying {
+                        .transition(.opacity)
+                case .heart(let idx):
                     Image(systemName: "heart.fill")
                         .font(.system(size: 18))
-                        .foregroundStyle(Color(red: 1.0, green: 0.4, blue: 0.4))
-                        .matchedGeometryEffect(
-                            id: "perfectHeart",
-                            in: perfectHeartNS,
-                            isSource: false
-                        )
+                        .foregroundStyle(heartRed)
+                        .phaseAnimator([1.0, 1.35, 1.0],
+                                       trigger: heartWaveTick) { content, s in
+                            content.scaleEffect(s)
+                        } animation: { _ in
+                            .spring(response: 0.30,
+                                    dampingFraction: 0.55)
+                                .delay(Double(idx) * 0.07)
+                        }
+                        .transition(.asymmetric(
+                            insertion: .scale(scale: 0.4).combined(with: .opacity),
+                            removal: .scale(scale: 0.4).combined(with: .opacity)
+                        ))
+                case .overflow(let n):
+                    Text("+\(n)")
+                        .font(.system(size: 18, weight: .heavy, design: .rounded))
+                        .foregroundStyle(heartRed)
+                        .fixedSize()
+                        .accessibilityLabel("plus \(n) more")
+                        .transition(.asymmetric(
+                            insertion: .scale(scale: 0.4).combined(with: .opacity),
+                            removal: .opacity
+                        ))
+                        .id("overflow-\(n)")
                 }
             }
+            // Flying-in heart from the "perfect" banner. Sits at the
+            // end of the row during `.flying`; on `.landed` the
+            // ContentView promotes it to a real heart in
+            // `game.checks` so the row keeps showing it.
+            if perfectHeartStage == .flying {
+                Image(systemName: "heart.fill")
+                    .font(.system(size: 18))
+                    .foregroundStyle(heartRed)
+                    .matchedGeometryEffect(
+                        id: "perfectHeart",
+                        in: perfectHeartNS,
+                        isSource: false
+                    )
+            }
         }
+        .animation(.spring(response: 0.42, dampingFraction: 0.72),
+                   value: heartRowItems)
     }
 
     @ViewBuilder

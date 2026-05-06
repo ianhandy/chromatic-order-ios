@@ -310,10 +310,13 @@ enum LikedPuzzleStore {
     /// optionally filtered to a specific challenge level. Returns
     /// nil on 404 (empty pool) or any network / decode error — the
     /// generator path will then fall through to local generation.
+    /// The returned `id` is the server's stable puzzle ID, used by
+    /// `CommunitySeenIds` for per-install dedup so the same popular
+    /// puzzle doesn't resurface repeatedly.
     /// Marked `nonisolated` so the detached generator task can call
     /// it without bouncing through the main actor — no shared state
     /// is touched here, only URL machinery and a JSON decode.
-    nonisolated static func fetchCommunityRandom(level: Int?) async -> (json: String, level: Int)? {
+    nonisolated static func fetchCommunityRandom(level: Int?) async -> (id: String, json: String, level: Int)? {
         var comps = URLComponents(string: "https://kroma.ianhandy.com/api/liked/random")
         if let level {
             comps?.queryItems = [URLQueryItem(name: "level", value: String(level))]
@@ -333,7 +336,7 @@ enum LikedPuzzleStore {
                 let likeCount: Int
             }
             let decoded = try JSONDecoder().decode(RandomResponse.self, from: data)
-            return (decoded.json, decoded.level)
+            return (decoded.id, decoded.json, decoded.level)
         } catch {
             return nil
         }

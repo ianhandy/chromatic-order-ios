@@ -82,7 +82,10 @@ enum Strings {
     /// bad-level frowny). Kept terse — the row is competing with the
     /// solved-grid overlay for attention.
     enum LikeFeedback {
-        static let prompt = "good level?"
+        // "good level?" got cut off in narrower widget layouts, where
+        // the trailing arrow buttons crowd the prompt against the
+        // capsule edge. The shorter form survives the squeeze.
+        static let prompt = "good?"
     }
 
     // MARK: – Tutorial tooltips

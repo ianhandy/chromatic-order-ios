@@ -43,28 +43,42 @@ struct LevelConfig {
 
 func levelConfig(_ level: Int) -> LevelConfig {
     // Tier 1: Trivial (lv 1-3). 1 channel, obvious steps, anchored endpoint.
+    // Hue-step floor raised from 22° → 34° (lv 1) after Round 3 feedback
+    // where low-level hue-primary puzzles still registered as "very
+    // similar colors" to players even post stepScore weight bump. Per-
+    // step hue now sits solidly above the perceptual collapse zone for
+    // mid-chroma seeds.
     if level <= 3 {
         let t = Double(level - 1) / 2.0
         let hi = 0.10 - 0.005 * t
         let lo = 0.06 - 0.005 * t
-        let hHi = 32 - 2 * t, hLo = 22 - 2 * t
+        let hHi = 50 - 3 * t, hLo = 34 - 3 * t
         return LevelConfig(
             channelCount: 1,
             ranges: .init(L: lo...hi, c: lo...(hi - 0.01), h: hLo...hHi),
             anchorEndpoints: 1
         )
     }
+    // Tier 2: Easy (lv 4-6). Hue floor bumped 20° → 26° and ceiling
+    // 30° → 40° so the random step draw clears the "looks the same"
+    // band even on the low end. Feedback round 3: player diff avg
+    // 5.5 vs gen 3.5 across 4 reports — players felt Easy was Medium,
+    // driven by narrow-hue ambiguity rather than cross-gradient prox.
     if level <= 6 {
         return LevelConfig(
             channelCount: Util.chance(0.85) ? 1 : 2,
-            ranges: .init(L: 0.05...0.09, c: 0.05...0.08, h: 20...30),
+            ranges: .init(L: 0.05...0.09, c: 0.05...0.08, h: 26...40),
             anchorEndpoints: 0
         )
     }
+    // Tier 3: Medium (lv 7-9). Modest hue-floor bump 17° → 20° —
+    // single-report feedback at lv 7 showed |player-gen|=4; widening
+    // the floor pulls very-similar draws out of the distribution
+    // without collapsing the intended Medium difficulty band.
     if level <= 9 {
         return LevelConfig(
             channelCount: Util.chance(0.65) ? 1 : 2,
-            ranges: .init(L: 0.045...0.08, c: 0.045...0.07, h: 17...27),
+            ranges: .init(L: 0.045...0.08, c: 0.045...0.07, h: 20...30),
             anchorEndpoints: 0
         )
     }
@@ -131,9 +145,29 @@ func scoreDifficulty(
     extrapProx: Double = 0,
     mode: CBMode = .none
 ) -> Int {
-    let totalCells = gradients.reduce(0) { $0 + $1.len }
-    let freeRatio = Double(bankCount) / Double(max(totalCells, 1))
     let chScore: Double = channelCount == 1 ? 0 : channelCount == 2 ? 0.4 : 1.0
+
+    // Direct work measure: how many pieces the player has to place.
+    // Replaces the old `freeRatio` + `countBonus` pair. bankCount is
+    // the unambiguous signal of "how much arranging left to do."
+    let bankSizeScore = Util.clamp(Double(bankCount) / 20, 0, 1.5)
+
+    // Hint credits — cells the player doesn't have to figure out.
+    // Locked cells are direct hints; shared intersections pin a single
+    // color across two gradients at once. Count intersection cells
+    // uniquely (a cell shared by 2 gradients appears twice in the flat
+    // per-gradient list).
+    var lockedUniqueKeys: Set<Int> = []
+    var intersectionUniqueKeys: Set<Int> = []
+    for g in gradients {
+        for spec in g.cells {
+            let key = spec.r * 64 + spec.c
+            if spec.locked { lockedUniqueKeys.insert(key) }
+            if spec.isIntersection { intersectionUniqueKeys.insert(key) }
+        }
+    }
+    let lockHintScore = Util.clamp(Double(lockedUniqueKeys.count) / 10, 0, 1.5)
+    let intersectionScore = Util.clamp(Double(intersectionUniqueKeys.count) / 4, 0, 1.0)
 
     var totalStep = 0.0
     var stepN = 0
@@ -148,8 +182,6 @@ func scoreDifficulty(
     let avgStep = stepN > 0 ? totalStep / Double(stepN) : 20
     let stepScore = Util.clamp(1.0 - (avgStep - 2) / 18, 0, 1)
 
-    let pairProxScore = Util.clamp(pairProx / 6, 0, 1.5)
-    let extrapProxScore = Util.clamp(extrapProx / 20, 0, 1.5)
     // Primary-channel weight. Hue used to be 0 on the assumption that
     // humans distinguish hues well — but that's only true when the
     // hue RANGE is wide. "All red" puzzles (narrow-hue, same-chroma)
@@ -173,20 +205,18 @@ func scoreDifficulty(
     }
     let primaryChScore = primaryChBase + hueBonus
 
+    // Confusion score: how likely two gradients' colors get mistaken
+    // for each other. Combines pairProx (cell-pair proximity) and
+    // extrapProx (extended-line crossings) into one saturating term.
+    let confusionScore = Util.clamp(pairProx / 6 + extrapProx / 20, 0, 1.5)
+
     let raw =
-        freeRatio * 1.0 +
-        chScore * 1.5 +
-        // stepScore weight was 1.5 — bumped to 3.0 so small per-step
-        // color distances (especially small hue steps within a
-        // gradient) carry twice the difficulty signal. Too many
-        // tier-1 puzzles were shipping with near-identical-looking
-        // colors because stepScore saturated low.
-        stepScore * 3.0 +
-        // pairProxScore was 2.5 — bumped to 4.5 so tight cross-
-        // gradient hue correlation reads as harder.
-        pairProxScore * 4.5 +
-        extrapProxScore * 0.8 +
-        primaryChScore * 1.5 +
-        max(0, Double(gradients.count - 2)) * 0.5
+        bankSizeScore * 3.0
+      + stepScore * 3.0
+      + confusionScore * 4.5
+      + chScore * 1.5
+      + primaryChScore * 1.5
+      - lockHintScore * 1.5            // pre-revealed cells reduce work
+      - intersectionScore * 0.5        // shared cells propagate info
     return Util.clamp(Int(raw.rounded()), 1, 10)
 }

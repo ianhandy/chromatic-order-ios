@@ -95,4 +95,22 @@ struct Puzzle {
     var pairProx: Double
     var extrapProx: Double
     var interDist: Double
+    /// Minimum line-segment distance (ΔE) across all gradient pairs
+    /// using extrapolated-endpoint trajectories. ≥ ΔE 2 means no pair
+    /// visibly intersects. Populated by `finalize` in Generate.swift.
+    /// nil for puzzles decoded from older formats.
+    var trajectoryLineMinDistance: Double? = nil
+    /// Minimum step-point distance (ΔE) across all gradient pairs.
+    /// Step-points include extrapolated endpoints — a hit here means
+    /// at least one real OR hypothetical-next cell on one gradient is
+    /// indistinguishable from a cell on another.
+    var trajectoryStepPointMinDistance: Double? = nil
+    /// Count of gradient pairs whose extended trajectories come within
+    /// ΔE 2 of each other.
+    var trajectoryIntersectingPairs: Int? = nil
+    /// Smallest subset of the current lock set that would keep the
+    /// puzzle uniquely solvable. Populated on demand (expensive —
+    /// O(n² × solver); only compute for analysis, not every generated
+    /// puzzle). nil when never computed.
+    var minimumLockCount: Int? = nil
 }

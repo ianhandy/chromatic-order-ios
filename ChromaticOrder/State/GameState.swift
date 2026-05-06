@@ -276,12 +276,43 @@ final class GameState {
     private(set) var puzzleBoundsMinC = 0
     private(set) var puzzleBoundsMaxC = 0
     var generating: Bool = true
+    /// True when daily-mode fetch returned no row (server 404, or
+    /// network/decode miss). UI renders an empty state instead of a
+    /// board. Reset at the top of every `startLevel` so a retry /
+    /// mode switch clears the flag.
+    var dailyUnavailable: Bool = false
+    /// True when the currently-loaded puzzle came from the Gallery
+    /// sheet (either user-saved or a favorite). Drives the in-game
+    /// hamburger's Home row to read 'Gallery' and route back to the
+    /// Gallery sheet instead of the main menu, matching the expected
+    /// "return to where I came from" behavior. Cleared whenever a
+    /// generator puzzle takes over via `startLevel`.
+    var cameFromGallery: Bool = false
+    /// When the current puzzle was loaded from a specific Gallery
+    /// row, this carries that row's stable id. On a perfect-solve
+    /// we record the id in `GallerySolvedStore` so the Gallery list
+    /// can paint a heart on rows the player has completed clean.
+    /// Cleared on every startLevel (generator path) and on fresh
+    /// loadCustomPuzzle calls from non-gallery sources.
+    var currentGalleryPuzzleId: String? = nil
+    /// Set by the in-game "← Gallery" hamburger row. MenuView reads
+    /// this on appear and auto-presents its Gallery sheet, then
+    /// clears the flag. Avoids routing a signal through a separate
+    /// environment object or AppStorage key for a one-shot hop.
+    var openGalleryOnMenuAppear: Bool = false
     /// Set when the current puzzle has been favorited (or loaded
     /// from favorites). nil otherwise. Drives the top-bar star's
     /// filled-vs-outline state and lets `toggleFavorite()` know
     /// which file to remove on un-favorite. Cleared on every
     /// `startLevel` so a new generated puzzle starts unfavorited.
     var currentFavoriteURL: URL?
+    /// Title to display in the top-bar's center wordmark in place of
+    /// "zen" — set when a community-submitted puzzle is loaded so the
+    /// player sees the submitter's chosen name instead of the generic
+    /// mode label. nil → fall back to the regular mode wordmark.
+    /// Cleared on every `startLevel` (generator path) and on
+    /// non-community `loadCustomPuzzle` calls.
+    var customTitle: String? = nil
 
     // Interaction
     var selection: BoardSelection?
@@ -297,6 +328,16 @@ final class GameState {
             // state (new puzzle, handleReset, etc.).
             if solved && !oldValue {
                 solvedAt = Date()
+                // Record perfect solves of gallery puzzles so the
+                // Gallery list can paint a heart on the completed
+                // row. Only fires on first transition to solved
+                // (oldValue == false) and only for actual gallery
+                // plays (currentGalleryPuzzleId set). isPerfectSolve
+                // is computed from heartLostThisLevel + showedIncorrect
+                // so this captures clean solves only.
+                if let gid = currentGalleryPuzzleId, isPerfectSolve {
+                    GallerySolvedStore.markPerfected(gid)
+                }
             } else if !solved {
                 solvedAt = nil
             }
@@ -319,12 +360,14 @@ final class GameState {
     // Zoom + pan state.
     //   zoomScale = 1.0 is the default/fit-to-screen view; cannot zoom
     //   further OUT than that (no empty space around the grid).
-    //   >1.0 scales the grid up. GridView clamps the upper bound to
-    //   whatever makes 3 cells span the short viewport axis — the max
-    //   "zoom into the grid" that's still useful for single-cell
-    //   targeting.
+    //   >1.0 scales the grid up. GridView clamps two ceilings:
+    //     • Pinch: 3 cells span the screen width — the all-the-way-in
+    //       limit, lets a single cell fill ~⅓ of the viewport.
+    //     • Double-tap: ~8 cells span the short axis — a softer
+    //       intermediate preset that keeps surrounding context.
     //   Pinch gesture updates zoomScale live; double-tap toggles
-    //   between 1.0 and the max. Pan enabled whenever zoomScale > 1.
+    //   between 1.0 and the double-tap preset. Pan enabled whenever
+    //   zoomScale > 1.
     var zoomScale: CGFloat = 1.0
     var panOffset: CGSize = .zero
 
@@ -365,13 +408,21 @@ final class GameState {
     // How far above the finger the drag ghost floats. Purely visual —
     // placement still uses the raw finger position via effectivePoint
     // below. Was 64pt historically; that lifted the ghost so far up
-    /// Rendered on-screen cell size (including any zoom factor).
-    /// GridView reports this on every layout so the drag-ghost lift
-    /// and hit-test offset scale with whatever the player currently
-    /// sees — tiny cells on a dense Expert puzzle vs. pinched-in 3×
-    /// zoom cells both need different offsets to keep the swatch
-    /// above the thumb.
-    var renderedCellSize: CGFloat = 40
+    /// Cell pitch in unscaled (1.0× zoom) layout coordinates. GridView
+    /// updates this once per layout — only when the actual underlying
+    /// cell size changes (resize, orientation, grid bounds), NOT on
+    /// every pinch tick. The screen-space cell size is then derived
+    /// from this against `zoomScale` so a zoom change doesn't have to
+    /// push state into GameState every frame, which used to cascade
+    /// into an extra view-graph pass per pinch event.
+    var unscaledCellPitch: CGFloat = 40
+
+    /// On-screen cell size after the active zoom. Derived rather than
+    /// stored: any code reading this — drag-ghost lift, magnetism's
+    /// upward bias, hit-test offsets — automatically picks up zoom
+    /// changes through SwiftUI's normal observation of `zoomScale`,
+    /// so we don't pay for an extra state mutation per pinch frame.
+    var renderedCellSize: CGFloat { unscaledCellPitch * zoomScale }
 
     /// Vertical offset from the finger to the center of the drag
     /// ghost. Scales modestly with `renderedCellSize` so dense grids
@@ -416,13 +467,26 @@ final class GameState {
         // -32pt which pulled too aggressively across gaps. When the
         // player has disabled magnetism in Accessibility, drop the
         // inflation to 0 so only direct-hit cells accept drops.
+        //
+        // Upward bias: ghost-aiming players (who track the lifted
+        // swatch instead of the finger) tend to release with their
+        // finger ABOVE the target. Catch them by extending the magnet
+        // rect upward by ~half the ghost lift. Lateral and downward
+        // halos stay the tight ±12pt — only the top edge stretches,
+        // so adjacent-row cells in dense grids don't steal each
+        // other's drops.
         let catchInset: CGFloat = magnetismEnabled ? -12 : 0
+        let upwardBias: CGFloat = magnetismEnabled ? ghostLift * 0.5 : 0
         var bestIdx: CellIndex? = nil
         var bestDist = CGFloat.infinity
         for (idx, rect) in cellFrames {
             let cell = puzzle.board[idx.r][idx.c]
             guard cell.kind == .cell, !cell.locked else { continue }
-            let catchRect = rect.insetBy(dx: catchInset, dy: catchInset)
+            let catchRect = CGRect(
+                x: rect.minX + catchInset,
+                y: rect.minY + catchInset - upwardBias,
+                width: rect.width - 2 * catchInset,
+                height: rect.height - 2 * catchInset + upwardBias)
             guard catchRect.contains(point) else { continue }
             let dx = rect.midX - point.x
             let dy = rect.midY - point.y
@@ -652,26 +716,53 @@ final class GameState {
         applyAccessibilityIfChanged()
     }
 
-    /// Double-tap jumps between the default fit-view (1.0) and the
-    /// player's max zoom. Caller passes the current maxZoom since
-    /// GridView computes it from the container size.
+    /// Double-tap snaps to the nearest of {1.0, max}. From any state
+    /// closer to 1.0 (small accidental pinch, fully zoomed-out, the
+    /// fit view) the player gets the preset; from anything past the
+    /// midpoint (fully zoomed-in via pinch, or already at the preset)
+    /// they get the reset to fit. PanOffset is cleared either way —
+    /// double-tap is a "go to a known state" gesture, so a user-
+    /// applied pan from a previous session shouldn't carry over.
     func toggleZoom(max: CGFloat) {
-        if zoomScale > 1.0001 {
-            zoomScale = 1.0
-            panOffset = .zero
-        } else {
+        let midpoint = (1.0 + max) / 2
+        if zoomScale < midpoint {
             zoomScale = max
+        } else {
+            zoomScale = 1.0
         }
+        panOffset = .zero
     }
 
     /// Set zoom directly — used by the pinch gesture. `max` is the
-    /// current maxZoom so we never allow zooming past "3 cells fill
-    /// the screen." Clamped below at 1.0 (can't zoom out past
-    /// fit-view; there's no purpose to empty space around the grid).
+    /// current pinchMaxZoom (3 cells fill the screen width) so we
+    /// never allow zooming past it. Clamped below at 1.0 (can't zoom
+    /// out past fit-view; there's no purpose to empty space around
+    /// the grid).
     func setZoom(_ value: CGFloat, max: CGFloat) {
         let clamped = min(max, Swift.max(1.0, value))
         zoomScale = clamped
         if clamped <= 1.0001 { panOffset = .zero }
+    }
+
+    /// True when the touch lands on (or in the gutter immediately
+    /// adjacent to) a LIVE cell — used by the grid pan gesture to
+    /// decide whether to yield to the cell's own drag/tap. Dead
+    /// cells render as transparent black space, so their frames
+    /// don't count: panning should be allowed in any black area
+    /// outside a real cell, including the cell-shaped voids
+    /// surrounding the puzzle. Cell frames are reported with the
+    /// 2pt cell margin baked in (CellView's frame is cellPx +
+    /// 2*margin), so the thin gutter directly between two adjacent
+    /// live cells gets covered automatically — there's no gap to
+    /// pan in between touching cells, which matches the player's
+    /// intuition.
+    func landedOnCell(_ point: CGPoint) -> Bool {
+        guard let puzzle else { return false }
+        for (idx, frame) in cellFrames where frame.contains(point) {
+            let cell = puzzle.board[idx.r][idx.c]
+            if cell.kind == .cell { return true }
+        }
+        return false
     }
 
     /// Apply a pan delta while zoomed; no-op when not zoomed so the
@@ -840,6 +931,19 @@ final class GameState {
 
     func startLevel(_ lv: Int) {
         generating = true
+        dailyUnavailable = false
+        // Starting a level via the generator means we're no longer
+        // in a gallery-custom-play context; clear the flag so the
+        // next Home tap goes to the main menu instead of re-opening
+        // Gallery.
+        cameFromGallery = false
+        currentGalleryPuzzleId = nil
+        customTitle = nil
+        // Clear the once-claim perfect-heart token so the next
+        // perfect solve can award a fresh +1. Both handleNext and
+        // the ContentView flight task gate on this flag so only
+        // one path awards per solve.
+        perfectHeartAlreadyAwarded = false
         solved = false
         selection = nil
         dragSource = nil
@@ -924,42 +1028,59 @@ final class GameState {
             // first-run board layout.
             if activeMode != .daily, tutorialSeed == nil,
                Double.random(in: 0..<1) < 0.30 {
-                if let community = await LikedPuzzleStore.fetchCommunityRandom(level: lv),
-                   let data = community.json.data(using: .utf8),
-                   let doc = try? CreatorCodec.decode(data),
-                   let built = CreatorCodec.rebuild(doc),
-                   // Reject legacy community puzzles whose gradients
-                   // are perceptually palindromic — those were liked
-                   // before the generator rejected them locally, but
-                   // they're just as ambiguous in anyone else's hands.
-                   // On rejection, fall through to local generation so
-                   // the player still gets a puzzle at this level.
-                   !hasPalindromicGradient(built.gradients, mode: activeCBMode) {
-                    // Reject community puzzles the player has already
-                    // solved or that match a recently-shown layout.
+                // Retry a few times on the weighted-random endpoint so
+                // a seen-before hit (by server ID or matching a solved
+                // / today-seen fingerprint) gets a fresh draw instead
+                // of forcing local fallback. Pool exhaustion — the
+                // player has played every liked puzzle available — is
+                // fine: we drop out of the loop and generate locally.
+                for _ in 0..<5 {
+                    guard let community = await LikedPuzzleStore.fetchCommunityRandom(level: lv)
+                    else { break }
+                    if CommunitySeenIds.contains(community.id) { continue }
+                    guard let data = community.json.data(using: .utf8),
+                          let doc = try? CreatorCodec.decode(data),
+                          let built = CreatorCodec.rebuild(doc),
+                          // Reject legacy community puzzles whose gradients
+                          // are perceptually palindromic — those were liked
+                          // before the generator rejected them locally, but
+                          // they're just as ambiguous in anyone else's hands.
+                          !hasPalindromicGradient(built.gradients, mode: activeCBMode)
+                    else { continue }
                     let f = PuzzleShape.fingerprint(
                         of: built.gradients,
                         gridW: built.gridW, gridH: built.gridH)
-                    if !SolvedPuzzleHistory.contains(f) {
-                        puz = built
-                    }
+                    if SolvedPuzzleHistory.contains(f) { continue }
+                    if ShapesSeenToday.contains(f) { continue }
+                    CommunitySeenIds.push(community.id)
+                    ShapesSeenToday.push(f)
+                    puz = built
+                    break
                 }
             }
             // Daily mode fetches from the shared server so every
             // player plays the same puzzle for a given UTC date.
             // Skipped when a first-run tooltip still owns the board
-            // layout (tutorialSeed != nil), and when the network
-            // fetch fails — in both cases we fall through to the
-            // local seeded generator below.
+            // layout (tutorialSeed != nil) — in that case the
+            // deterministic tutorial seed path below still runs. When
+            // the fetch misses (404 = no daily published, or any
+            // network failure), daily mode surfaces an empty state
+            // instead of silently diverging into local generation.
             var dailyLevelOverride: Int? = nil
+            var dailyMissing = false
             if puz == nil, activeMode == .daily, tutorialSeed == nil {
                 let key = Daily.dateKey()
                 if let fetched = await DailyFetcher.fetch(for: key) {
                     puz = fetched.puzzle
                     dailyLevelOverride = fetched.level
+                } else {
+                    dailyMissing = true
                 }
             }
-            if puz == nil {
+            // Local generator only runs for non-daily modes. Daily
+            // puzzles must come from the server so every player sees
+            // the same board — no fallback.
+            if puz == nil, !dailyMissing {
                 // Dev-only routing through the targeted-difficulty
                 // generator. Flip via:
                 //   UserDefaults.standard.set(true,
@@ -982,12 +1103,16 @@ final class GameState {
                         : generatePuzzle(level: lv, config: cfg)
                 }
             }
-            let finalPuz = puz!
+            let finalPuz = puz
             let finalDailyLevel = dailyLevelOverride
+            let finalDailyMissing = dailyMissing
             await MainActor.run { [weak self] in
                 guard let self else { return }
                 self.puzzle = finalPuz
-                self.recomputePuzzleBounds()
+                self.dailyUnavailable = finalDailyMissing
+                if finalPuz != nil {
+                    self.recomputePuzzleBounds()
+                }
                 self.generating = false
                 // If the server returned a different level than the
                 // client predicted (curve disagreement or server-side
@@ -1202,13 +1327,15 @@ final class GameState {
             // directly, so advancing in challenge is the only way to
             // open higher zen levels.
             challengeMaxLevel = max(challengeMaxLevel, nextLv)
-            // Hearts only come from perfect solves now — the old
-            // every-3-levels regen is gone. Rewards precision over
-            // persistence.
+            // Claim-once token shared with the ContentView perfect-
+            // heart flight task. Whichever path fires first awards
+            // the +1 and flips the flag; the other is a no-op. The
+            // flag is cleared at the top of `startLevel` so the next
+            // perfect solve can claim again.
             if isPerfectSolve && !perfectHeartAlreadyAwarded {
                 checks += 1
+                perfectHeartAlreadyAwarded = true
             }
-            perfectHeartAlreadyAwarded = false
             _ = justCompleted
         }
         StatsStore.recordSolve(
@@ -1360,6 +1487,11 @@ final class GameState {
             zenLevel = level
             saveProgress()
         }
+        // Run-complete is challenge-only state. Without this clear,
+        // switching from a finished challenge run into zen / daily
+        // leaves the overlay armed and the next mode opens with the
+        // "run ended" screen still showing.
+        runComplete = false
         let wasDaily = mode == .daily
         mode = target
         switch target {
@@ -1417,7 +1549,7 @@ final class GameState {
     /// generator's level ladder (and its per-puzzle scoring doesn't
     /// make sense for a one-off), so entering a custom puzzle from
     /// challenge forces a switch back to zen first.
-    func loadCustomPuzzle(_ p: Puzzle, favoriteURL: URL? = nil) {
+    func loadCustomPuzzle(_ p: Puzzle, favoriteURL: URL? = nil, fromGallery: Bool = false, galleryPuzzleId: String? = nil, title: String? = nil) {
         if mode != .zen {
             mode = .zen
             level = zenLevel
@@ -1435,6 +1567,22 @@ final class GameState {
         showedIncorrect = false
         engagedThisLevel = false
         currentFavoriteURL = favoriteURL
+        // Signal the hamburger-menu Home row to read 'Gallery' and
+        // route back to the Gallery sheet instead of the main menu.
+        // Cleared automatically on any subsequent `startLevel` call
+        // (the generator path owns the non-custom lifecycle).
+        cameFromGallery = fromGallery
+        // Stash the gallery id (if any) so a perfect solve can
+        // record this row in GallerySolvedStore. Always overwrite
+        // so a fresh custom load from a non-gallery source clears
+        // stale state from a prior gallery play.
+        currentGalleryPuzzleId = fromGallery ? galleryPuzzleId : nil
+        // Title overrides the top-bar's "zen" wordmark while a custom
+        // puzzle is loaded — community submissions pass the
+        // submitter-chosen name through here. Empty/whitespace strings
+        // collapse to nil so the wordmark falls back cleanly.
+        let trimmed = title?.trimmingCharacters(in: .whitespacesAndNewlines)
+        customTitle = (trimmed?.isEmpty == false) ? trimmed : nil
         puzzleStartTime = Date()
         mistakeCount = 0
         moveCount = 0
