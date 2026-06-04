@@ -71,18 +71,23 @@ private func applyConfig(_ cfg: LevelConfig, _ dev: GenConfig) -> LevelConfig {
 }
 
 private func defaultGradientCount(_ level: Int) -> Int {
-    if level <= 3 { return 1 }      // Trivial
-    if level <= 6 { return 2 }      // Easy
-    if level <= 9 { return 3 }      // Mild
-    if level <= 12 { return 5 }     // Medium
-    if level <= 15 { return 7 }     // Hard
-    return 10                       // Expert
+    // Gentle ramp: +1 roughly every 3 levels, capped at 7. The old
+    // curve jumped 3 → 5 → 7 → 10; the cliffs (and the 10-gradient
+    // Master wall) are gone so consecutive levels never add more than
+    // one gradient at a time.
+    if level <= 3 { return 1 }
+    if level <= 6 { return 2 }
+    if level <= 9 { return 3 }
+    if level <= 12 { return 4 }
+    if level <= 15 { return 5 }
+    if level <= 18 { return 6 }
+    return 7                        // Expert ceiling (was 10)
 }
 
 private func wordLenFor(_ level: Int) -> (Int, Int) {
-    if level <= 2 { return (3, 5) }
-    if level <= 5 { return (3, 6) }
-    if level <= 8 { return (4, 7) }
+    if level <= 4 { return (3, 5) }
+    if level <= 10 { return (3, 6) }
+    if level <= 16 { return (4, 7) }
     return (4, 8)
 }
 
@@ -148,34 +153,33 @@ func hasPalindromicGradient(_ gradients: [PuzzleGradient],
 /// for a given zen/challenge level. tryGrow rejects any layout whose
 /// computed difficulty falls outside this window and retries, so
 /// Easy levels can't ship Medium-feel puzzles (cap was too loose) and
-/// Master can't ship Medium-feel ones either (no floor before). Bands
+/// Expert can't ship Easy-feel ones either (no floor before). Bands
 /// overlap by one step at adjacent tier boundaries — the shared
 /// difficulty value lives in whichever tier the level belongs to, and
 /// the overlap gives the grower enough room to converge within 2,500
 /// attempts before falling back.
 private func levelDifficultyBand(_ level: Int) -> ClosedRange<Int> {
     switch level {
-    case 1...3:    return 1...2    // Trivial
-    case 4...6:    return 2...3    // Easy
-    case 7...9:    return 3...5    // Medium
-    case 10...12:  return 5...7    // Hard
-    case 13...15:  return 7...9    // Expert
-    default:       return 8...10   // Master
+    case 1...5:    return 1...2    // Trivial
+    case 6...10:   return 2...4    // Easy
+    case 11...15:  return 4...6    // Medium
+    case 16...20:  return 6...8    // Hard
+    default:       return 7...9    // Expert ceiling — no Master band,
+                                   // so the top caps at 9 not 10.
     }
 }
 
 // Player feedback at lv 4-5 challenge mode flagged "hue-only on
 // constant L/C" puzzles as feeling cheap against the timer. Lower
 // hue-primary bias at the easy end so L or c take the primary role
-// more often; ramp hue dominance back in for Expert / Master.
+// more often; ramp hue dominance back in toward the Expert ceiling.
 private func levelHuePrimaryBias(_ level: Int) -> Double {
     switch level {
-    case ...3: return 0.30
-    case 4...6: return 0.25
-    case 7...9: return 0.50
-    case 10...12: return 0.65
-    case 13...15: return 0.75
-    default: return 0.85
+    case ...5: return 0.28
+    case 6...10: return 0.32
+    case 11...15: return 0.48
+    case 16...20: return 0.62
+    default: return 0.75      // Expert ceiling (was 0.85 at Master)
     }
 }
 

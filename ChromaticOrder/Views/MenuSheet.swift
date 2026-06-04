@@ -226,6 +226,15 @@ private struct MenuSheetShareRow: View {
                 shareLabel(waiting: false)
             }
         }
+        // Entrance slide lives on the Group itself, NOT inside
+        // `shareLabel`. The three inner branches (preparing / url /
+        // failed) swap view identity as the share URL is minted, and
+        // when the offset modifier rode along inside those branches the
+        // swap reset the in-flight slide animation — so the button
+        // snapped into place ahead of the staggered menu rows. Pinning
+        // the offset to the stable container keeps the index-5 slide
+        // intact regardless of which inner state is showing.
+        .offset(x: iconArrived ? 0 : 280)
         .onChange(of: isOpen) { _, open in
             if open {
                 startPrepare(json: json)
@@ -321,7 +330,8 @@ private struct MenuSheetShareRow: View {
             .background(Circle().fill(Color.black.opacity(0.55)))
             .overlay(Circle().stroke(Color.white.opacity(0.28), lineWidth: 1))
         }
-        .offset(x: iconArrived ? 0 : 280)
+        // NOTE: the entrance slide offset is applied to the enclosing
+        // Group in `body`, not here — see the comment there.
     }
 }
 

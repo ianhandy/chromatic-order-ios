@@ -13,22 +13,25 @@ struct LevelTierInfo {
 }
 
 enum Tiers {
-    // Tier labels shifted up one slot to match player perception —
-    // the old "Mild" (lv 7-9) consistently got rated as a Medium feel
-    // by playtesters, so the whole scale moves: Mild → Medium,
-    // Medium → Hard, Hard → Expert, Expert → Master. Generator config
-    // per level untouched; only the label the player sees changes.
-    static let labels = ["Trivial", "Easy", "Medium", "Hard", "Expert", "Master"]
-    static let hexes  = ["#2a9d4e", "#38a832", "#b8a400", "#d97700", "#cc3333", "#900"]
+    // Five tiers, five levels each — the curve was stretched from the
+    // old 3-levels-per-tier pacing so each step up is gentler. The old
+    // "Master" tier (lv 16+: 10 gradients, 8-15° hue, smallest ΔE) was
+    // near-impossible, so it's gone entirely: Expert is now the
+    // sustained ceiling and levels past 21 plateau at fair-but-hard
+    // Expert parameters rather than ramping into the wall.
+    static let labels = ["Trivial", "Easy", "Medium", "Hard", "Expert"]
+    static let hexes  = ["#2a9d4e", "#38a832", "#b8a400", "#d97700", "#cc3333"]
 }
 
 func levelTier(_ level: Int) -> LevelTierInfo {
-    let i = min(max(0, level - 1) / 3, Tiers.labels.count - 1)
+    let i = min(max(0, level - 1) / 5, Tiers.labels.count - 1)
     return LevelTierInfo(index: i, label: Tiers.labels[i], colorHex: Tiers.hexes[i])
 }
 
-// Per-step OKLCh range for the primary-role channel. Matches the JS
-// ranges exactly; 3 levels per tier, parameters shift gradually.
+// Per-step OKLCh range for the primary-role channel. Parameters now
+// interpolate continuously from level 1 to the Expert ceiling at level
+// 21 so the difficulty ramp is smooth rather than stepping per 3-level
+// tier.
 struct LevelRanges {
     let L: ClosedRange<Double>
     let c: ClosedRange<Double>
@@ -42,64 +45,41 @@ struct LevelConfig {
 }
 
 func levelConfig(_ level: Int) -> LevelConfig {
-    // Tier 1: Trivial (lv 1-3). 1 channel, obvious steps, anchored endpoint.
-    // Hue-step floor raised from 22° → 34° (lv 1) after Round 3 feedback
-    // where low-level hue-primary puzzles still registered as "very
-    // similar colors" to players even post stepScore weight bump. Per-
-    // step hue now sits solidly above the perceptual collapse zone for
-    // mid-chroma seeds.
-    if level <= 3 {
-        let t = Double(level - 1) / 2.0
-        let hi = 0.10 - 0.005 * t
-        let lo = 0.06 - 0.005 * t
-        let hHi = 50 - 3 * t, hLo = 34 - 3 * t
-        return LevelConfig(
-            channelCount: 1,
-            ranges: .init(L: lo...hi, c: lo...(hi - 0.01), h: hLo...hHi),
-            anchorEndpoints: 1
-        )
+    // Continuous difficulty ramp. `f` runs 0 → 1 from level 1 to the
+    // Expert ceiling at level 21+; past that it stays clamped at 1, so
+    // the curve plateaus at fair-but-hard Expert parameters instead of
+    // pushing into the old Master band.
+    //
+    // The easy anchor (f=0) is the old Trivial start. The hard anchor
+    // (f=1) is the old EXPERT (lv 13-15) values — deliberately NOT the
+    // old Master band (L 0.022, hue 8°), which is what made the top
+    // tier near-impossible. Hue floor stays above the perceptual-
+    // collapse zone the whole way up.
+    let f = Util.clamp(Double(level - 1) / 20.0, 0, 1)
+    func lerp(_ a: Double, _ b: Double) -> Double { a + (b - a) * f }
+
+    let lLo = lerp(0.06, 0.030), lHi = lerp(0.10, 0.055)
+    let cLo = lerp(0.05, 0.030), cHi = lerp(0.09, 0.050)
+    let hLo = lerp(34, 10),      hHi = lerp(50, 18)
+
+    // Channel count steps up gradually: a single channel through all of
+    // Trivial, with 2- and (late) 3-channel puzzles phasing in. Even at
+    // the Expert ceiling 3 channels is only a coin flip, never forced.
+    let channelCount: Int
+    switch level {
+    case ...5:    channelCount = 1
+    case 6...10:  channelCount = Util.chance(0.85) ? 1 : 2
+    case 11...15: channelCount = Util.chance(0.55) ? 1 : 2
+    case 16...20: channelCount = Util.chance(0.55) ? 2 : (Util.chance(0.5) ? 3 : 1)
+    default:      channelCount = Util.chance(0.5) ? 2 : 3
     }
-    // Tier 2: Easy (lv 4-6). Hue floor bumped 20° → 26° and ceiling
-    // 30° → 40° so the random step draw clears the "looks the same"
-    // band even on the low end. Feedback round 3: player diff avg
-    // 5.5 vs gen 3.5 across 4 reports — players felt Easy was Medium,
-    // driven by narrow-hue ambiguity rather than cross-gradient prox.
-    if level <= 6 {
-        return LevelConfig(
-            channelCount: Util.chance(0.85) ? 1 : 2,
-            ranges: .init(L: 0.05...0.09, c: 0.05...0.08, h: 26...40),
-            anchorEndpoints: 0
-        )
-    }
-    // Tier 3: Medium (lv 7-9). Modest hue-floor bump 17° → 20° —
-    // single-report feedback at lv 7 showed |player-gen|=4; widening
-    // the floor pulls very-similar draws out of the distribution
-    // without collapsing the intended Medium difficulty band.
-    if level <= 9 {
-        return LevelConfig(
-            channelCount: Util.chance(0.65) ? 1 : 2,
-            ranges: .init(L: 0.045...0.08, c: 0.045...0.07, h: 20...30),
-            anchorEndpoints: 0
-        )
-    }
-    if level <= 12 {
-        return LevelConfig(
-            channelCount: Util.chance(0.55) ? 2 : 1,
-            ranges: .init(L: 0.04...0.07, c: 0.04...0.06, h: 13...22),
-            anchorEndpoints: 0
-        )
-    }
-    if level <= 15 {
-        return LevelConfig(
-            channelCount: Util.chance(0.45) ? 3 : 2,
-            ranges: .init(L: 0.03...0.055, c: 0.03...0.05, h: 10...18),
-            anchorEndpoints: 0
-        )
-    }
+
     return LevelConfig(
-        channelCount: Util.chance(0.5) ? 3 : 2,
-        ranges: .init(L: 0.022...0.045, c: 0.022...0.045, h: 8...15),
-        anchorEndpoints: 0
+        channelCount: channelCount,
+        // Anchor an endpoint through the whole Trivial tier so the very
+        // first levels always hand the player a fixed reference cell.
+        ranges: .init(L: lLo...lHi, c: cLo...cHi, h: hLo...hHi),
+        anchorEndpoints: level <= 5 ? 1 : 0
     )
 }
 

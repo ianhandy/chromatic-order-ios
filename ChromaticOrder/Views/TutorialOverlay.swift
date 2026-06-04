@@ -216,96 +216,100 @@ struct TutorialBalloon: View {
 
     @ViewBuilder
     private var balloonVisual: some View {
-        let bodyH = Self.balloonSize.height + Self.knotHeight
+        // The tutorial "balloon" is now a floating soap bubble: a
+        // translucent sphere with a bright rim and a couple of specular
+        // glints, text suspended inside. No knot, no dangling string —
+        // it reads as a bubble that drifts upward when let go, matching
+        // the game's glassy theme rather than a party balloon.
+        let d = Self.balloonSize.width      // bubble diameter
+        let r = d / 2
         ZStack {
-            // Balloon body — radial gradient so the dome reads as an
-            // inflated rubber sphere with a soft sheen in the upper
-            // left, fading to a deeper shade at the lower right. All
-            // four stops derive from `tint` so per-tutorial colors
-            // still drive the hue; alpha does the light-to-dark work.
-            BalloonBodyShape()
+            // Bubble body — mostly transparent with the tint pooling at
+            // the rim, so the puzzle backdrop shows through the middle
+            // the way light passes through a real bubble film.
+            Circle()
                 .fill(
                     RadialGradient(
                         colors: [
-                            tint.opacity(0.95),
-                            tint.opacity(0.75),
-                            tint.opacity(0.45),
-                            tint.opacity(0.25),
+                            tint.opacity(0.30),
+                            tint.opacity(0.16),
+                            tint.opacity(0.10),
+                            tint.opacity(0.26),
                         ],
-                        center: UnitPoint(x: 0.32, y: 0.22),
-                        startRadius: 6,
-                        endRadius: Self.balloonSize.width * 0.95
+                        center: UnitPoint(x: 0.36, y: 0.30),
+                        startRadius: 2,
+                        endRadius: r * 1.02
                     )
                 )
                 .overlay(
-                    BalloonBodyShape()
-                        .stroke(Color.white.opacity(0.45), lineWidth: 1)
+                    // Iridescent rim — bright on the lit side, fading
+                    // into the tint on the far side.
+                    Circle().strokeBorder(
+                        AngularGradient(
+                            colors: [
+                                Color.white.opacity(0.85),
+                                Color.white.opacity(0.25),
+                                tint.opacity(0.45),
+                                Color.white.opacity(0.55),
+                                Color.white.opacity(0.85),
+                            ],
+                            center: .center
+                        ),
+                        lineWidth: 1.5
+                    )
                 )
-                .frame(width: Self.balloonSize.width, height: bodyH)
-                .shadow(color: .black.opacity(0.28), radius: 12, y: 5)
-            // Specular highlight — small bright ellipse in the
-            // upper-left quadrant reinforces the radial gradient's
-            // sheen origin so the balloon reads as glossy rubber.
+                .frame(width: d, height: d)
+                .shadow(color: tint.opacity(0.30), radius: 14, y: 4)
+            // Primary specular glint — soft streak in the upper-left.
             Ellipse()
-                .fill(Color.white.opacity(0.22))
-                .frame(width: Self.balloonSize.width * 0.28,
-                       height: Self.balloonSize.height * 0.20)
-                .offset(x: -Self.balloonSize.width * 0.15,
-                        y: -Self.balloonSize.height * 0.25)
+                .fill(Color.white.opacity(0.55))
+                .frame(width: d * 0.20, height: d * 0.12)
+                .rotationEffect(.degrees(-38))
+                .offset(x: -d * 0.22, y: -d * 0.24)
+                .blur(radius: 0.5)
                 .allowsHitTesting(false)
-            // Text centered on the balloon's widest point. The old
-            // offset was pulled up by stringLength/2 as if the
-            // ZStack included the string, but the string sits on a
-            // sibling offset (below) — so subtracting stringLength
-            // here shoved the text into the upper lobe. Use a small
-            // negative nudge so the text reads as sitting on the
-            // balloon's visual center-of-mass (widest point ~42%
-            // down the body).
+            // Secondary tiny glint for that wet-bubble read.
+            Circle()
+                .fill(Color.white.opacity(0.45))
+                .frame(width: d * 0.06, height: d * 0.06)
+                .offset(x: -d * 0.30, y: -d * 0.08)
+                .allowsHitTesting(false)
+            // Text suspended in the bubble. A drop shadow keeps it
+            // legible against the translucent film + busy backdrop.
             Text(text)
                 .font(.system(size: 13, weight: .bold, design: .rounded))
                 .foregroundStyle(.white)
                 .multilineTextAlignment(.center)
                 .lineSpacing(2)
                 .fixedSize(horizontal: false, vertical: true)
-                .padding(.horizontal, 10)
-                .frame(width: Self.balloonSize.width - 8,
-                       height: Self.balloonSize.height * 0.55,
-                       alignment: .center)
-                .offset(y: -Self.balloonSize.height * 0.06)
-            // Up-left corner pointer — only rendered when the parent
-            // wires it in (e.g. the zen-intro tutorial). Sits inside
-            // the balloon's upper-left lobe so it reads as part of
-            // the bubble surface rather than another floating chrome
-            // element.
+                .padding(.horizontal, 12)
+                .frame(width: d - 14, alignment: .center)
+                .shadow(color: .black.opacity(0.50), radius: 3, y: 1)
+            // Up-left corner pointer — only when the parent wires it in
+            // (zen-intro). Sits inside the bubble's upper-left arc.
             if cornerArrow {
                 Image(systemName: "arrow.up.left")
                     .font(.system(size: 18, weight: .heavy))
                     .foregroundStyle(.white)
                     .shadow(color: .black.opacity(0.30), radius: 1.5, y: 1)
-                    .offset(x: -Self.balloonSize.width * 0.25,
-                            y: -Self.balloonSize.height * 0.32)
+                    .offset(x: -d * 0.26, y: -d * 0.26)
                     .allowsHitTesting(false)
             }
-            // Dangling string below the knot
-            BalloonDanglingString(swayPhase: swayPhase)
-                .stroke(Color.white.opacity(0.70),
-                        style: StrokeStyle(lineWidth: 2.5, lineCap: .round))
-                .frame(width: 30, height: Self.stringLength)
-                .offset(y: bodyH / 2 + Self.stringLength / 2)
-            // Knot position anchor
+            // Pointer anchor — bottom of the bubble. The overlay's
+            // string-to-target curve starts here (zen-intro arrow to
+            // the level chip); kept so that pointer still tracks.
             Color.clear
                 .frame(width: 1, height: 1)
-                .offset(y: bodyH / 2)
+                .offset(y: r)
                 .transformAnchorPreference(
                     key: TutorialAnchorsKey.self,
                     value: .bounds
                 ) { [knotAnchorKey] value, anchor in
                     value[knotAnchorKey] = anchor
                 }
-            // Balloon center anchor — for pop-particle burst
+            // Bubble center anchor — origin for the pop-particle burst.
             Color.clear
                 .frame(width: 1, height: 1)
-                .offset(y: -Self.stringLength / 2)
                 .transformAnchorPreference(
                     key: TutorialAnchorsKey.self,
                     value: .bounds
@@ -313,15 +317,6 @@ struct TutorialBalloon: View {
                     value["balloonCenter"] = anchor
                 }
         }
-    }
-
-    /// Current sway phase based on age — used by the dangling string
-    /// to wave in sync with the balloon body.
-    private var swayPhase: Double {
-        guard let birth = appearAt else { return 0 }
-        let alive = exit == .alive || exit == .floating
-        guard alive else { return 0 }
-        return Date().timeIntervalSince(birth)
     }
 
     /// One-tick snapshot of the balloon's current visual pose —
@@ -380,16 +375,19 @@ struct TutorialBalloon: View {
             let dt = t.timeIntervalSince(started)
             switch exit {
             case .floating:
-                // Gentle upward drift — accel-to-coast so the release
-                // reads as "let go of something buoyant" rather than
-                // a sudden constant-speed jump. Still tappable.
-                let disp = Self.accelThenCoast(dt: dt, terminalV: 60)
-                let drift = sin(dt * 0.9 + age) * 18
+                // Just-let-go bubble: it hangs near-still for a beat,
+                // then very gradually builds upward speed. The long
+                // 2.2s acceleration ramp is what sells "released, now
+                // slowly rising" instead of an immediate drift. Still
+                // tappable while it lingers.
+                let disp = Self.accelThenCoast(dt: dt, terminalV: 95,
+                                               accelDuration: 2.2)
+                let drift = sin(dt * 0.9 + age) * 16
                 floatX = CGFloat(drift)
                 floatY = -CGFloat(disp)
                 floatAngle = sin(dt * 1.2) * 4
-                exitOpacity = max(0, 1 - dt / 4.0)
-                if dt > 4.5 && !finishedFired {
+                exitOpacity = max(0, 1 - dt / 5.0)
+                if dt > 5.5 && !finishedFired {
                     DispatchQueue.main.async {
                         guard !self.finishedFired else { return }
                         self.finishedFired = true
@@ -397,17 +395,19 @@ struct TutorialBalloon: View {
                     }
                 }
             case .released:
-                // Ceiling-bound release — uses the same accel-to-coast
-                // profile but with a higher terminal so the balloon
-                // exits noticeably faster than a gentle float.
-                let disp = Self.accelThenCoast(dt: dt, terminalV: 260,
-                                               accelDuration: 0.30)
-                let drift = sin(dt * 1.3 + age) * 28
+                // Auto-dismiss (level change / menu / first placement).
+                // Same let-go feel as .floating — hangs, then builds
+                // speed — just with a higher terminal and slightly
+                // shorter ramp so it clears the screen a bit sooner
+                // without ever popping into a constant-speed jump.
+                let disp = Self.accelThenCoast(dt: dt, terminalV: 150,
+                                               accelDuration: 1.5)
+                let drift = sin(dt * 1.3 + age) * 24
                 floatX = CGFloat(drift)
                 floatY = -CGFloat(disp)
                 floatAngle = sin(dt * 1.8) * 6
-                exitOpacity = max(0, 1 - dt / 2.8)
-                if dt > 3.0 && !finishedFired {
+                exitOpacity = max(0, 1 - dt / 3.2)
+                if dt > 3.4 && !finishedFired {
                     DispatchQueue.main.async {
                         guard !self.finishedFired else { return }
                         self.finishedFired = true
@@ -467,106 +467,6 @@ struct TutorialBalloon: View {
             scale: popScale,
             opacity: exitOpacity
         )
-    }
-}
-
-/// Classic balloon silhouette — round dome at the top, gentle taper
-/// to a narrow neck, and a small tied-knot nub at the bottom. Drawn
-/// as a single continuous Path so fill + stroke line up without seams.
-///
-/// Top arcs use the standard `kappa = 0.5522847…` Bezier control-
-/// length for quarter-circle approximation so the apex reads as a
-/// genuine dome rather than a pointy teardrop. The widest point sits
-/// at 45% down the body height — further down than a perfect sphere
-/// to give the balloon its characteristic heavy-bottom profile.
-struct BalloonBodyShape: Shape {
-    func path(in rect: CGRect) -> Path {
-        let knotH: CGFloat = 8
-        let bodyH = rect.height - knotH
-        let w = rect.width
-        let cx = rect.midX
-        let topY = rect.minY
-        let wideY = topY + bodyH * 0.45
-        let bottomY = topY + bodyH
-        let halfW = w * 0.50
-        let neckHalfW = w * 0.055
-
-        // Bezier-circle constant — control-point offset that makes a
-        // cubic curve trace a near-perfect quarter circle.
-        let kappa: CGFloat = 0.5522847
-        let topArcH = wideY - topY
-
-        var p = Path()
-        p.move(to: CGPoint(x: cx, y: topY))
-
-        // ── Right side ──────────────────────────────────────────
-
-        // Top-right dome: tangent leaves the apex horizontally
-        // (control1 at y = topY) and arrives at the widest point
-        // vertically (control2 at x = cx + halfW). That yields a
-        // proper circular dome shape with no pinch or flat spot.
-        p.addCurve(
-            to: CGPoint(x: cx + halfW, y: wideY),
-            control1: CGPoint(x: cx + halfW * kappa, y: topY),
-            control2: CGPoint(x: cx + halfW, y: wideY - topArcH * kappa)
-        )
-        // Bottom-right taper to neck
-        p.addCurve(
-            to: CGPoint(x: cx + neckHalfW, y: bottomY),
-            control1: CGPoint(x: cx + halfW * 0.96, y: wideY + bodyH * 0.32),
-            control2: CGPoint(x: cx + neckHalfW * 2.2, y: bottomY - bodyH * 0.06)
-        )
-
-        // ── Knot nub (integrated into the path) ────────────────
-
-        let knotBottomY = bottomY + knotH
-        // Right side of knot — small curve bulging right then down
-        p.addCurve(
-            to: CGPoint(x: cx, y: knotBottomY),
-            control1: CGPoint(x: cx + neckHalfW + 3, y: bottomY + knotH * 0.15),
-            control2: CGPoint(x: cx + 2, y: knotBottomY)
-        )
-        // Left side of knot — mirror curve back up
-        p.addCurve(
-            to: CGPoint(x: cx - neckHalfW, y: bottomY),
-            control1: CGPoint(x: cx - 2, y: knotBottomY),
-            control2: CGPoint(x: cx - neckHalfW - 3, y: bottomY + knotH * 0.15)
-        )
-
-        // ── Left side (mirror) ──────────────────────────────────
-
-        // Bottom-left taper
-        p.addCurve(
-            to: CGPoint(x: cx - halfW, y: wideY),
-            control1: CGPoint(x: cx - neckHalfW * 2.2, y: bottomY - bodyH * 0.06),
-            control2: CGPoint(x: cx - halfW * 0.96, y: wideY + bodyH * 0.32)
-        )
-        // Top-left dome (mirror) — same circle-arc approximation.
-        p.addCurve(
-            to: CGPoint(x: cx, y: topY),
-            control1: CGPoint(x: cx - halfW, y: wideY - topArcH * kappa),
-            control2: CGPoint(x: cx - halfW * kappa, y: topY)
-        )
-        p.closeSubpath()
-        return p
-    }
-}
-
-/// Dangling string below the balloon's knot. Sways gently in sync
-/// with the balloon body via a time-varying Bezier control point.
-struct BalloonDanglingString: Shape {
-    var swayPhase: Double
-
-    func path(in rect: CGRect) -> Path {
-        var p = Path()
-        let top = CGPoint(x: rect.midX, y: rect.minY)
-        let bottom = CGPoint(x: rect.midX, y: rect.maxY)
-        let swayOffset = sin(swayPhase * 0.65) * 8.0
-        let ctrl = CGPoint(x: rect.midX + swayOffset,
-                           y: rect.midY + rect.height * 0.15)
-        p.move(to: top)
-        p.addQuadCurve(to: bottom, control: ctrl)
-        return p
     }
 }
 

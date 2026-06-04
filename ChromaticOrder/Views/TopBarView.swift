@@ -192,25 +192,32 @@ struct TopBarView: View {
     /// heart count climbed past 5.
     private enum HeartItem: Hashable, Identifiable {
         case zero
-        case heart(Int)      // index into the row (0..<5)
-        case overflow(Int)   // how many hearts beyond 5
+        case heart(Int)      // individual heart at index (0..<threshold)
+        case counter(Int)    // single heart merged with the total count
         var id: String {
             switch self {
             case .zero: return "zero"
             case .heart(let i): return "h\(i)"
-            case .overflow(let n): return "o\(n)"
+            // Constant id (count excluded) so the counter view keeps its
+            // identity as the number changes — that's what lets the
+            // digit roll gently via `.contentTransition(.numericText)`
+            // instead of being torn down and popped back in.
+            case .counter: return "counter"
             }
         }
     }
 
+    /// Above this many hearts the row stops drawing individual icons and
+    /// switches to a single heart fused with a count that rolls up/down.
+    private static let heartIconCap = 5
+
     private var heartRowItems: [HeartItem] {
         let checks = max(0, game.checks)
         if checks == 0 { return [.zero] }
-        let displayed = min(checks, 5)
-        let extra = max(0, checks - 5)
-        var items: [HeartItem] = (0..<displayed).map { HeartItem.heart($0) }
-        if extra > 0 { items.append(.overflow(extra)) }
-        return items
+        if checks <= Self.heartIconCap {
+            return (0..<checks).map { HeartItem.heart($0) }
+        }
+        return [.counter(checks)]
     }
 
     @ViewBuilder
@@ -240,17 +247,33 @@ struct TopBarView: View {
                             insertion: .scale(scale: 0.4).combined(with: .opacity),
                             removal: .scale(scale: 0.4).combined(with: .opacity)
                         ))
-                case .overflow(let n):
-                    Text("+\(n)")
-                        .font(.system(size: 18, weight: .heavy, design: .rounded))
-                        .foregroundStyle(heartRed)
-                        .fixedSize()
-                        .accessibilityLabel("plus \(n) more")
-                        .transition(.asymmetric(
-                            insertion: .scale(scale: 0.4).combined(with: .opacity),
-                            removal: .opacity
-                        ))
-                        .id("overflow-\(n)")
+                case .counter(let n):
+                    // One heart fused directly with the count. The
+                    // number rolls gently to its next value via the
+                    // numeric content transition rather than popping.
+                    HStack(spacing: 3) {
+                        Image(systemName: "heart.fill")
+                            .font(.system(size: 18))
+                            .foregroundStyle(heartRed)
+                            .phaseAnimator([1.0, 1.35, 1.0],
+                                           trigger: heartWaveTick) { content, s in
+                                content.scaleEffect(s)
+                            } animation: { _ in
+                                .spring(response: 0.30, dampingFraction: 0.55)
+                            }
+                        Text("\(n)")
+                            .font(.system(size: 18, weight: .heavy, design: .rounded))
+                            .foregroundStyle(heartRed)
+                            .monospacedDigit()
+                            .contentTransition(.numericText(value: Double(n)))
+                            .fixedSize()
+                    }
+                    .accessibilityElement()
+                    .accessibilityLabel("\(n) hearts")
+                    .transition(.asymmetric(
+                        insertion: .scale(scale: 0.4).combined(with: .opacity),
+                        removal: .opacity
+                    ))
                 }
             }
             // Flying-in heart from the "perfect" banner. Sits at the

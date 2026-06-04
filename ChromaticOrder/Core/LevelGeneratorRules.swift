@@ -55,10 +55,12 @@ enum LevelGeneratorRules {
     // MARK: – Daily puzzle
 
     enum Daily {
-        /// Fixed challenge level used for the daily puzzle. Seed-
-        /// based level rotation is paused until the higher-tier
-        /// difficulty curve is dialed in.
-        static let fixedLevel: Int = 10
+        /// Fixed challenge level used for the daily puzzle. Bumped
+        /// 10 → 14 when the difficulty curve was stretched to five
+        /// levels per tier: old level 10 sat in the Hard band, and
+        /// level 14 lands in the same difficulty window (Medium tier)
+        /// under the new curve, so the daily keeps its intended feel.
+        static let fixedLevel: Int = 14
     }
 
     // MARK: – Challenge progression
