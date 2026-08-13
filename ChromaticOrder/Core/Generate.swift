@@ -48,6 +48,15 @@ struct GenConfig {
     /// on an iPhone 17 screen). Tuning knob so high levels — which
     /// need space for many gradients — can grow to the full 20.
     var maxGridSpan: Int = 17
+    /// Reproducible mode. Normally generation is path-dependent on
+    /// per-install state — it can pop a puzzle built during an earlier run
+    /// out of `StashedPuzzleStore`, and it rejects candidates that match
+    /// the recent / solved / seen-today ledgers. Both make the same seed
+    /// produce different boards on different installs, which is fine for
+    /// zen and challenge but fatal for the date-seeded daily fallback.
+    /// With this set, generation reads and writes none of that state, so
+    /// seed + level + config fully determine the board.
+    var deterministic: Bool = false
 }
 
 /// Per-config usable-band check. Supersedes OK.inUsableBand's static
@@ -147,6 +156,42 @@ func hasPalindromicGradient(_ gradients: [PuzzleGradient],
         if mirror { return true }
     }
     return false
+}
+
+/// Collapse the `locked` flag across every copy of a shared cell so a
+/// coordinate's given-ness is single-valued.
+///
+/// A crossing cell is stored once PER GRADIENT, so the same board
+/// coordinate carries one `GradientCellSpec` copy per gradient running
+/// through it. The two consumers of those specs read the flag
+/// differently: the board grid OR-merges it (locked in any copy means
+/// the cell renders pre-filled and counts as a given), while the bank
+/// builder banks any position whose copy is unlocked. A flag set on one
+/// copy only therefore yields a bank holding one more swatch than there
+/// are empty cells. The player can never empty the bank, and the check
+/// button (disabled until every bank slot is empty) never becomes
+/// available, so the board is unwinnable except by skipping.
+///
+/// OR rather than AND: these locks come from the uniqueness guards, and
+/// clearing one would hand back the ambiguity the guard existed to
+/// remove. Revealing the shared cell in both runs is the safe direction.
+func normalizeSharedCellLocks(_ gradients: inout [PuzzleGradient]) {
+    var lockedCoords: Set<CellIndex> = []
+    for g in gradients {
+        for spec in g.cells where spec.locked {
+            lockedCoords.insert(CellIndex(r: spec.r, c: spec.c))
+        }
+    }
+    guard !lockedCoords.isEmpty else { return }
+    for gi in gradients.indices {
+        for ci in gradients[gi].cells.indices
+        where !gradients[gi].cells[ci].locked {
+            let spec = gradients[gi].cells[ci]
+            if lockedCoords.contains(CellIndex(r: spec.r, c: spec.c)) {
+                gradients[gi].cells[ci].locked = true
+            }
+        }
+    }
 }
 
 /// Inclusive difficulty band `scoreDifficulty` (1–10) must land inside
@@ -360,6 +405,11 @@ private func placeSkeleton(targetN: Int, minLen: Int, maxLen: Int,
                 seeds.append((r, c, gid, gpos))
             }
             guard !seeds.isEmpty else { continue attempt }
+            // Sort before shuffling. `occupiedBy` is a Dictionary, and Swift
+            // randomises iteration order per instance — so without a
+            // canonical base order the shuffle permutes a different array
+            // each run and the same RNG seed yields a different puzzle.
+            seeds.sort { ($0.r, $0.c, $0.gid) < ($1.r, $1.c, $1.gid) }
             seeds = Util.shuffle(seeds)
 
             var placed = false
@@ -520,10 +570,36 @@ private func planColors(
             }
             if !inBand { continue }
 
+            let floor = dev.minCellDeltaE
+
+            // Rule 1 WITHIN the proposal. The committed-cell loop below
+            // compares each proposed cell against `cells` only, so a
+            // gradient was never measured against the rest of itself,
+            // and the root slot (which runs when `cells` is still
+            // empty) was never measured at all. That gap is not exotic:
+            // the per-step ranges narrow as the level climbs (hue 34-50
+            // degrees at level 1 down to 10-18 at the Expert ceiling),
+            // and a 10 degree hue step at the low end of the seed
+            // chroma band is only about ΔE 2.6, so two CONSECUTIVE
+            // cells of one run could sit at half the floor. Measured
+            // before this check, the closest pair on a level 10+ board
+            // was an adjacent same-gradient pair about 70-85% of the
+            // time, worst case ΔE 2.5 (the just-noticeable threshold is
+            // about 2).
+            var selfOK = true
+            let ownColors = (slot.minPos...slot.maxPos).compactMap { g.colors[$0] }
+            selfCheck: for i in 0..<ownColors.count {
+                for j in (i + 1)..<ownColors.count
+                where OK.dist(ownColors[i], ownColors[j], mode: mode) < floor {
+                    selfOK = false
+                    break selfCheck
+                }
+            }
+            if !selfOK { continue }
+
             // Rule 1 against all existing cells (skip the intersection
             // cell, which by construction holds the matching color).
             var floorOK = true
-            let floor = dev.minCellDeltaE
             for (key, newColor) in proposedCells {
                 if let existing = cells[key] {
                     // Shared intersection cell — must match within ΔE.
@@ -599,7 +675,8 @@ private func tryStructuredBuild(level: Int, cfg: LevelConfig,
         return nil
     }
     return finalize(cells: cells, gradients: gradients,
-                     level: level, cfg: cfg, assign: assign, mode: dev.cbMode)
+                     level: level, cfg: cfg, assign: assign, mode: dev.cbMode,
+                     minCellDeltaE: dev.minCellDeltaE)
 }
 
 // ─── finalize: trim + assemble output ───────────────────────────────
@@ -608,7 +685,8 @@ private func finalize(cells: [String: GrowCell],
                       gradients: [Int: GrowGrad],
                       level: Int, cfg: LevelConfig,
                       assign: ChannelAssignment,
-                      mode: CBMode) -> Puzzle? {
+                      mode: CBMode,
+                      minCellDeltaE: Double) -> Puzzle? {
     var minR = Int.max, maxR = Int.min, minC = Int.max, maxC = Int.min
     for key in cells.keys {
         let parts = key.split(separator: ",").map { Int($0)! }
@@ -636,9 +714,14 @@ private func finalize(cells: [String: GrowCell],
     //     disambiguator.
     // Endpoint anchors (optional, tier-1 config only) are applied as
     // usual.
+    // Gradient id order, not Dictionary order: Swift randomises the latter
+    // per instance, which would shuffle the output's gradient array (and so
+    // the bank) between runs of the same seed.
+    let orderedGradients = gradients.keys.sorted().compactMap { gradients[$0] }
+
     var lockedSet: Set<String> = []
     if cfg.anchorEndpoints >= 1 {
-        for g in gradients.values {
+        for g in orderedGradients {
             let (r, c) = g.cellOf(g.minPos)
             lockedSet.insert("\(r - minR),\(c - minC)")
         }
@@ -646,7 +729,7 @@ private func finalize(cells: [String: GrowCell],
 
     // Flatten to PuzzleGradient with local coords.
     var outGrads: [PuzzleGradient] = []
-    for g in gradients.values {
+    for g in orderedGradients {
         let len = g.length
         var colors: [OKLCh] = []
         var specs: [GradientCellSpec] = []
@@ -667,6 +750,37 @@ private func finalize(cells: [String: GrowCell],
         outGrads.append(PuzzleGradient(
             id: g.id, dir: g.dir, len: len,
             cells: specs, colors: colors))
+    }
+
+    // Rule 1 backstop: no two distinct cells of the assembled board may
+    // sit closer than the configured floor. `planColors` enforces this
+    // while it plans, but it is one path among several (backtracking,
+    // pinned intersection seeds, any future builder), and a leak there
+    // ships a board whose cells the player cannot tell apart. Cheap
+    // insurance: one O(n^2) pass over at most ~40 cells, roughly 800
+    // distance calls, and it runs BEFORE guard 4's 2^N mask enumerator
+    // so a doomed candidate costs the retry loop as little as possible.
+    // The pass is linear in attempts (one sweep per finalize call), so
+    // the hot loop stays where it was.
+    //
+    // Colors are deduped per coordinate with first-writer-wins, which
+    // is exactly how the board grid and the bank resolve a shared cell
+    // that carries a slightly different (within ΔE 2) copy in each of
+    // its two gradients. Distance runs under the caller's CB mode so a
+    // color-blind player gets the same separation guarantee, not a
+    // guarantee about someone else's eyes.
+    var sweepColors: [OKLCh] = []
+    var sweepSeen: Set<CellIndex> = []
+    for g in outGrads {
+        for spec in g.cells where sweepSeen.insert(CellIndex(r: spec.r, c: spec.c)).inserted {
+            sweepColors.append(spec.color)
+        }
+    }
+    for i in 0..<sweepColors.count {
+        for j in (i + 1)..<sweepColors.count
+        where OK.dist(sweepColors[i], sweepColors[j], mode: mode) < minCellDeltaE {
+            return nil
+        }
     }
 
     // Uniqueness guard 3 + minimum-lock intersection policy. For each
@@ -717,7 +831,13 @@ private func finalize(cells: [String: GrowCell],
             intersectionMap["\(spec.r),\(spec.c)", default: []].append((gi, spec.pos))
         }
     }
-    for (_, memberships) in intersectionMap where memberships.count >= 2 {
+    // Sorted key order, not Dictionary order: this loop LOCKS cells as it
+    // goes, and an earlier lock changes whether a later group still needs
+    // one — so hash order would make the starting board depend on heap
+    // layout rather than on the seed.
+    for key in intersectionMap.keys.sorted() {
+        let memberships = intersectionMap[key] ?? []
+        guard memberships.count >= 2 else { continue }
         var arms: [Arm] = []
         for m in memberships {
             let g = outGrads[m.gi]
@@ -728,7 +848,10 @@ private func finalize(cells: [String: GrowCell],
         }
         let lenGroups = Dictionary(grouping: arms) { $0.cellIdx.count }
         var addedArmLock = false
-        for (_, sameLen) in lenGroups where sameLen.count >= 2 {
+        // Same reason: shortest arm-length group first, deterministically.
+        for length in lenGroups.keys.sorted() {
+            let sameLen = lenGroups[length] ?? []
+            guard sameLen.count >= 2 else { continue }
             let unlocked = sameLen.filter { arm in
                 let g = outGrads[arm.gi]
                 return !arm.cellIdx.contains { g.cells[$0].locked }
@@ -876,6 +999,14 @@ private func finalize(cells: [String: GrowCell],
         // still ambiguous — reject instead of shipping it.
         if validMasks().count > 1 { return nil }
     }
+
+    // Every lock is now placed, so collapse the flag across the two
+    // copies of each shared cell before anything reads it. The arm-lock
+    // path and guard 4 above both lock a single gradient's copy, and the
+    // board (OR-merge) and the bank (per-copy) would otherwise disagree
+    // about whether that coordinate is a given. See
+    // `normalizeSharedCellLocks` for what that costs the player.
+    normalizeSharedCellLocks(&outGrads)
 
     // Build board grid with solution colors + locks.
     var board: [[BoardCell]] = Array(
@@ -1036,12 +1167,23 @@ func generatePuzzle(level: Int, config: GenConfig = GenConfig()) -> Puzzle {
 
     // Below-target buckets are now stale — purge before anything else
     // so the ledger stays bounded and we don't accidentally pop an
-    // easier puzzle back out.
-    StashedPuzzleStore.purgeBelow(difficulty: target)
+    // easier puzzle back out. Reproducible runs touch none of it.
+    if !config.deterministic {
+        StashedPuzzleStore.purgeBelow(difficulty: target)
+    }
 
     // Helper: position—aware fingerprint for a puzzle.
     func fp(_ p: Puzzle) -> String {
         PuzzleShape.fingerprint(of: p.gradients, gridW: p.gridW, gridH: p.gridH)
+    }
+
+    /// Record a returned puzzle in the "don't hand this out again soon"
+    /// ledgers. Reproducible runs skip it: writing per-install state is
+    /// exactly what makes the same seed diverge between installs.
+    func noteShape(_ f: String) {
+        guard !config.deterministic else { return }
+        pushRecentShape(f)
+        ShapesSeenToday.push(f)
     }
 
     // Cache hit first — a previous run may have produced a puzzle at
@@ -1049,7 +1191,8 @@ func generatePuzzle(level: Int, config: GenConfig = GenConfig()) -> Puzzle {
     // the decode cost instead of the full regeneration. Skip the pop
     // when the cached fingerprint matches a recently-used or already-
     // solved puzzle.
-    if let cachedJSON = StashedPuzzleStore.pop(difficulty: target),
+    if !config.deterministic,
+       let cachedJSON = StashedPuzzleStore.pop(difficulty: target),
        let data = cachedJSON.data(using: .utf8),
        let doc = try? CreatorCodec.decode(data),
        let puzzle = CreatorCodec.rebuild(doc, level: level) {
@@ -1057,8 +1200,7 @@ func generatePuzzle(level: Int, config: GenConfig = GenConfig()) -> Puzzle {
         if !isRecentShape(f),
            !SolvedPuzzleHistory.contains(f),
            !ShapesSeenToday.contains(f) {
-            pushRecentShape(f)
-            ShapesSeenToday.push(f)
+            noteShape(f)
             return puzzle
         }
         // Fall through to generation if this cache entry would
@@ -1083,20 +1225,22 @@ func generatePuzzle(level: Int, config: GenConfig = GenConfig()) -> Puzzle {
         lastSeen = candidate
         let f = fp(candidate)
         if acceptWindow.contains(candidate.difficulty) {
-            if dedupRecent {
+            // Reproducible runs skip both the dedup rejections and the
+            // ledger writes: what the player has already seen is exactly
+            // the per-install state that would fork the seed.
+            if dedupRecent && !config.deterministic {
                 if isRecentShape(f) { return false }
                 if SolvedPuzzleHistory.contains(f) { return false }
                 if ShapesSeenToday.contains(f) { return false }
             }
-            pushRecentShape(f)
-            ShapesSeenToday.push(f)
+            noteShape(f)
             return true
         }
         // Anything harder than the top of the accept window gets
         // stashed at its actual difficulty so a later, harder level
         // can pop it. Anything easier is discarded — retrying is a
         // better bet than shipping a too-easy puzzle now.
-        if candidate.difficulty > acceptWindow.upperBound {
+        if candidate.difficulty > acceptWindow.upperBound, !config.deterministic {
             if let json = try? CreatorCodec.encodePuzzle(candidate) {
                 StashedPuzzleStore.stash(
                     puzzleJSON: json,
@@ -1140,7 +1284,7 @@ func generatePuzzle(level: Int, config: GenConfig = GenConfig()) -> Puzzle {
     // Still honour dedup at this tier — if the only stashed candidate
     // matches a recent or solved fingerprint, fall through to the
     // emergency loop.
-    for d in target...min(10, target + 3) {
+    for d in target...min(10, target + 3) where !config.deterministic {
         if let cachedJSON = StashedPuzzleStore.pop(difficulty: d),
            let data = cachedJSON.data(using: .utf8),
            let doc = try? CreatorCodec.decode(data),
@@ -1149,8 +1293,7 @@ func generatePuzzle(level: Int, config: GenConfig = GenConfig()) -> Puzzle {
             if !isRecentShape(f),
                !SolvedPuzzleHistory.contains(f),
                !ShapesSeenToday.contains(f) {
-                pushRecentShape(f)
-                ShapesSeenToday.push(f)
+                noteShape(f)
                 return puzzle
             }
         }
@@ -1168,8 +1311,7 @@ func generatePuzzle(level: Int, config: GenConfig = GenConfig()) -> Puzzle {
         else { continue }
         if candidate.difficulty >= target {
             let f = fp(candidate)
-            pushRecentShape(f)
-            ShapesSeenToday.push(f)
+            noteShape(f)
             return candidate
         }
         if bestSeen == nil || candidate.difficulty > (bestSeen?.difficulty ?? 0) {
@@ -1185,8 +1327,7 @@ func generatePuzzle(level: Int, config: GenConfig = GenConfig()) -> Puzzle {
     // to terminate somewhere; this is that somewhere.
     if let best = bestSeen {
         let f = fp(best)
-        pushRecentShape(f)
-        ShapesSeenToday.push(f)
+        noteShape(f)
         return best
     }
 
@@ -1200,8 +1341,7 @@ func generatePuzzle(level: Int, config: GenConfig = GenConfig()) -> Puzzle {
     for _ in 0..<10_000 {
         if let p = tryBuildOrGrow(level: level, cfg: freshCfg(), dev: config) {
             let f = fp(p)
-            pushRecentShape(f)
-            ShapesSeenToday.push(f)
+            noteShape(f)
             return p
         }
     }

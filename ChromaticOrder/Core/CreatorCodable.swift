@@ -48,6 +48,9 @@ struct CreatorPuzzleDoc: Codable {
 }
 
 enum CreatorCodec {
+#if canImport(UIKit)
+    // Creator-only: these speak to CreatorState, a SwiftUI model, so they are
+    // excluded from the macOS logic test bundle that compiles this file.
     /// Serialize the laid gradients from a CreatorState. Keeps colors
     /// in full OKLCh precision (no sRGB round-trip loss).
     /// @MainActor because CreatorState is isolated to the main actor
@@ -82,6 +85,8 @@ enum CreatorCodec {
         let data = try encode(state, difficulty: difficulty, name: name)
         return String(data: data, encoding: .utf8) ?? ""
     }
+
+#endif
 
     /// Encode a fully built `Puzzle` (CreatorBuilder.build output) into
     /// the share/submit JSON — preserves per-cell `locked` state and
@@ -121,6 +126,7 @@ enum CreatorCodec {
         return String(data: data, encoding: .utf8) ?? ""
     }
 
+#if canImport(UIKit)
     /// Pre-populate a CreatorState from a saved doc so the gallery's
     /// "Edit" flow can open the creator with the existing layout.
     /// Canvas dims come from the state's static constants, so docs
@@ -142,6 +148,8 @@ enum CreatorCodec {
         )
         state.cancelDrag()
     }
+
+#endif
 
     /// Round-trip: rehydrate a CreatorState from a share payload.
     /// Unknown versions throw; caller should show "this share needs a
@@ -194,6 +202,16 @@ enum CreatorCodec {
                 cells: specs, colors: colors))
         }
 
+        // Shared cells arrive with one `locked` flag per gradient, and
+        // a doc written before the generator normalised them (or hand-
+        // edited, or produced by a future exporter) can disagree with
+        // itself. The board build below OR-merges the flag while the
+        // bank build banks any unlocked copy, so a split flag would
+        // hand the player a bank that can never be emptied. Collapse it
+        // first, exactly as `finalize` does, so shared and daily
+        // puzzles get the same guarantee as generated ones.
+        normalizeSharedCellLocks(&outGrads)
+
         // Board grid — dead everywhere except the gradient cells.
         var board: [[BoardCell]] = Array(
             repeating: Array(repeating: .dead, count: doc.gridW),
@@ -233,7 +251,11 @@ enum CreatorCodec {
                 }
             }
         }
-        bank.shuffle()
+        // Route through Util so a seeded generation scope (daily fallback,
+        // tutorial seed) also fixes the bank's order. `Util.shuffle` falls
+        // back to the system RNG when no seed is installed, which is the
+        // behaviour every other caller wants.
+        bank = Util.shuffle(bank)
 
         // Gate: every gradient must have at least one free cell.
         guard outGrads.allSatisfy({ g in g.cells.contains(where: { !$0.locked }) }) else {

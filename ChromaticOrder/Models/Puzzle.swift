@@ -52,6 +52,12 @@ struct BankItem: Identifiable, Hashable {
 /// puzzle as "bad", its signature is appended to a local dislike
 /// ledger, and the generator's `finalize()` consults the ledger to
 /// reject candidates whose shape the player has already flagged.
+/// A board coordinate. Lives here rather than beside the game state because
+/// the puzzle model, the generator and the solver all speak in these, and
+/// those have to build without UIKit so the logic test bundle can run on the
+/// Mac instead of waiting for a simulator.
+struct CellIndex: Hashable { let r: Int; let c: Int }
+
 enum PuzzleShape {
     /// Coarse signature — direction + length only. Used by the dislike
     /// feedback ledger where position doesn't matter.
