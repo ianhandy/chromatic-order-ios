@@ -22,6 +22,11 @@ struct CellView: View {
     var body: some View {
         let filled = cell.kind == .cell && cell.placed != nil
         let placed = cell.placed
+        // What gets PAINTED. `placed` stays the true color and is what
+        // the drag gesture below hands to beginDrag. Dragging the
+        // display color out of a cell would write the testing filter's
+        // compressed value into the board and corrupt the puzzle.
+        let shown = placed.map(game.display)
         let radius = cellPx * 0.26
 
         ZStack {
@@ -44,7 +49,7 @@ struct CellView: View {
                 // no peeks, each placement right on the first try)
                 // scales the bleed with puzzle difficulty so tougher
                 // puzzles reward the clean solve more visibly.
-                if filled, let color = placed, game.solved,
+                if filled, let color = shown, game.solved,
                    !game.reduceMotion, game.solvedGlowEnabled {
                     let diff = Double(game.puzzle?.difficulty ?? 1)
                     // Perfect solves scale the bleed hard — at max
@@ -64,7 +69,7 @@ struct CellView: View {
                     .frame(width: cellPx, height: cellPx)
                 }
                 // Color layer (front)
-                if filled, let color = placed {
+                if filled, let color = shown {
                     ColorFace(color: color,
                               selected: isSelected,
                               wrong: isWrong,
@@ -99,7 +104,7 @@ struct CellView: View {
                 // fade-in so the player can SEE the placement land here
                 // before they release. No outline; the tint itself is the
                 // cue. Removed on the next frame when magnetism moves on.
-                if isDropTarget, !cell.locked, let held = game.heldColor {
+                if isDropTarget, !cell.locked, let held = game.heldColor.map(game.display) {
                     // Gradual fade-in so the tint swells into view as
                     // the ghost snaps — 220ms feels like the cell is
                     // *becoming* the placed color, not flashing.
@@ -115,7 +120,10 @@ struct CellView: View {
                 // High contrast against the cell's own color, reads as
                 // "this cell is fixed." Hidden once the puzzle is
                 // solved so the completed grid is just color.
-                if cell.locked, filled, !game.solved, let color = placed {
+                // Complement of the SHOWN color, not the true one: under
+                // the testing filter a marker derived from the true
+                // color would leak what the compressed cell really is.
+                if cell.locked, filled, !game.solved, let color = shown {
                     Circle()
                         .fill(OK.toColor(OK.opposite(color), opacity: 0.9))
                         .frame(width: cellPx * 0.22, height: cellPx * 0.22)
@@ -205,7 +213,7 @@ struct CellView: View {
     private var isWrong: Bool {
         guard cell.kind == .cell, !cell.locked,
               let placed = cell.placed, let sol = cell.solution else { return false }
-        return game.showIncorrect && !OK.equal(placed, sol)
+        return game.showIncorrect && !game.sameColor(placed, sol)
     }
 }
 

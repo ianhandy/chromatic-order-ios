@@ -117,15 +117,25 @@ enum OK {
         return (L, A, B)
     }
 
+    /// OKLab → OKLCh. Inverse of `toLab`. Anything that does arithmetic
+    /// on colors has to do it in OKLab (the Cartesian form, since
+    /// averaging hue angles is wrong across the 0/360 seam), so
+    /// it needs a way back to the cylindrical form the rest of the app
+    /// stores. Hue is arbitrary at c = 0 and atan2(0, 0) = 0 gives it a
+    /// stable answer there.
+    static func fromLab(L: Double, a: Double, b: Double) -> OKLCh {
+        let c = (a * a + b * b).squareRoot()
+        var h = atan2(b, a) * 180 / .pi
+        if h < 0 { h += 360 }
+        return OKLCh(L: L, c: c, h: h)
+    }
+
     /// Linear sRGB → OKLCh. Inverse of toLinearRGB. Used mostly by
     /// CBTransform.simulate when callers want the OKLCh form of a
     /// transformed color (e.g., for rendering a simulated preview).
     static func fromLinearRGB(_ rgb: (r: Double, g: Double, b: Double)) -> OKLCh {
         let lab = linearRGBToLab(rgb)
-        let c = (lab.a * lab.a + lab.b * lab.b).squareRoot()
-        var h = atan2(lab.b, lab.a) * 180 / .pi
-        if h < 0 { h += 360 }
-        return OKLCh(L: lab.L, c: c, h: h)
+        return fromLab(L: lab.L, a: lab.a, b: lab.b)
     }
 
     static func inGamut(_ color: OKLCh) -> Bool {

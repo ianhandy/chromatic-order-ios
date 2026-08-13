@@ -11,6 +11,11 @@
 //    so the puzzle stays solvable.
 //  • Reduce motion — turns off continuous sway + burst animations.
 //
+//  The last section ("for testing only") is the odd one out: it is not
+//  an accessibility aid but a test-harness knob that compresses the
+//  board's colors and loosens the same-color test used when judging
+//  answers. See TestingFilter.swift.
+//
 //  All changes defer regeneration until the sheet closes (same pattern
 //  as the menu's CB cycle) so mid-adjustment sliders don't thrash the
 //  canvas.
@@ -157,6 +162,34 @@ struct AccessibilitySheet: View {
                     }
                 } footer: {
                     Text("Clears your current level and hearts. Ratings are kept.")
+                }
+
+                // Last section on purpose. This is not an accessibility
+                // aid: it makes the board harder to read AND changes
+                // how the game judges answers, so it sits below every
+                // real setting with a header that says so.
+                Section {
+                    Toggle("enabled", isOn: $game.testingEnabled)
+                    if game.testingEnabled {
+                        labeledSlider(
+                            label: "similarity compression",
+                            value: $game.testingSimilarity,
+                            range: TestingFilter.similarityRange,
+                            step: 0.05,
+                            format: { String(format: "%.2f", $0) }
+                        )
+                        labeledSlider(
+                            label: "same if closer than",
+                            value: $game.testingSameThreshold,
+                            range: TestingFilter.thresholdRange,
+                            step: 0.5,
+                            format: { String(format: "%.1f ΔE", $0) }
+                        )
+                    }
+                } header: {
+                    Text("for testing only")
+                } footer: {
+                    Text("harness aid for probing how much perceptual headroom a level has. compression pulls every puzzle color toward the board's average, shrinking every difference by (1 - compression), so 0.9 makes the whole board look like one color. the threshold changes how the game judges your answers: two colors closer than it count as the same color, so a placement that is merely near enough passes the check. off leaves the game exactly as it plays normally.")
                 }
 
             }

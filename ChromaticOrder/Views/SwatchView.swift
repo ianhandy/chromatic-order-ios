@@ -37,7 +37,7 @@ struct BankSlotView: View {
 
             // Drop-target flash tint (fills the slot in the held color
             // when magnetism picks this slot — no outline).
-            if isDropTarget, let held = game.heldColor {
+            if isDropTarget, let held = game.heldColor.map(game.display) {
                 RoundedRectangle(cornerRadius: radius, style: .continuous)
                     .fill(OK.toColor(held, opacity: 0.9))
                     .frame(width: size, height: size)
@@ -47,7 +47,10 @@ struct BankSlotView: View {
             // Live swatch (when this slot holds one)
             if let item {
                 SwatchChip(
-                    color: item.color,
+                    // Display color only. The drag below carries
+                    // `item.color`, the real one, so what lands in a
+                    // cell is unaffected by the testing filter.
+                    color: game.display(item.color),
                     size: size,
                     radius: radius,
                     picked: isPicked,
