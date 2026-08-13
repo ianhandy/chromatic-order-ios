@@ -118,6 +118,51 @@ targets:
             CFBundleTypeRole: Viewer
             CFBundleURLSchemes:
               - kroma
+  # Logic-only tests, built for the Mac with no host app.
+  #
+  # The generator, solver and colour maths import no UIKit, so they compile
+  # for macOS and can be tested without a simulator at all: no boot, no
+  # install, no app launch, and no competing with anything else for the
+  # device. That matters beyond speed. Simulator runs in this project have
+  # failed preflight checks needing an uninstall, and one long audit was
+  # silently invalidated when a reinstall replaced the test bundle mid-run,
+  # because a hosted bundle lives inside the app it tests.
+  #
+  # Sources are compiled straight into the bundle rather than imported from
+  # the app, which is what frees it from the host. Anything needing GameState,
+  # SwiftUI views or the bundled campaign resource stays in ChromaticOrderTests.
+  KromaLogicTests:
+    type: bundle.unit-test
+    platform: macOS
+    deploymentTarget: "13.0"
+    sources:
+      - path: ChromaticOrder/Models/Puzzle.swift
+      - path: ChromaticOrder/Core/OKLCh.swift
+      - path: ChromaticOrder/Core/CBMode.swift
+      - path: ChromaticOrder/Core/CBTransform.swift
+      - path: ChromaticOrder/Core/Gradient.swift
+      - path: ChromaticOrder/Core/Level.swift
+      - path: ChromaticOrder/Core/LevelGeneratorRules.swift
+      - path: ChromaticOrder/Core/Generate.swift
+      - path: ChromaticOrder/Core/TargetedGenerate.swift
+      - path: ChromaticOrder/Core/PuzzleSolver.swift
+      - path: ChromaticOrder/Core/Proximity.swift
+      - path: ChromaticOrder/Core/SeededRNG.swift
+      - path: ChromaticOrder/Core/Util.swift
+      - path: ChromaticOrder/Core/CreatorCodable.swift
+      - path: ChromaticOrder/Core/StashedPuzzleStore.swift
+      - path: ChromaticOrder/Core/ShapesSeenToday.swift
+      - path: ChromaticOrder/Core/SolvedPuzzleHistory.swift
+      - path: ChromaticOrder/Core/LikedPuzzleStore.swift
+      - path: KromaLogicTests
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.ianhandy.kroma.logictests
+        GENERATE_INFOPLIST_FILE: YES
+        MACOSX_DEPLOYMENT_TARGET: "13.0"
+        SUPPORTED_PLATFORMS: macosx
+        CODE_SIGNING_ALLOWED: NO
+
   ChromaticOrderTests:
     type: bundle.unit-test
     platform: iOS
@@ -132,6 +177,14 @@ targets:
         BUNDLE_LOADER: $(TEST_HOST)
         TEST_HOST: $(BUILT_PRODUCTS_DIR)/ChromaticOrder.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/ChromaticOrder
 schemes:
+  KromaLogicTests:
+    build:
+      targets:
+        KromaLogicTests: [test]
+    test:
+      config: Debug
+      targets:
+        - KromaLogicTests
   ChromaticOrder:
     build:
       targets:

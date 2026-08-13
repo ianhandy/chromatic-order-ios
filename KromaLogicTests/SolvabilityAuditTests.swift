@@ -3,7 +3,6 @@
 //  (OK.equal with no CB mode — matches GameState.handleCheck).
 
 import XCTest
-@testable import ChromaticOrder
 
 final class SolvabilityAuditTests: XCTestCase {
 
@@ -19,7 +18,22 @@ final class SolvabilityAuditTests: XCTestCase {
     /// swatches have DIFFERENT colors but each is within ΔE 2 of
     /// BOTH cells' solutions — a true cross-cell swap that changes
     /// the visible placement. Solver must return 2.
-    func testSolverDetectsTrueCrossCellAmbiguity() throws {
+    /// The cross-cell swap this fixture builds is visible to the solver's
+    /// adjacency layer and then killed by Rule 2, and this pins both halves.
+    ///
+    /// It used to assert two placements outright. That was written before Rule
+    /// 2 (step consistency) landed. With Rule 2 on, the swapped arrangement
+    /// carries the negated step vector and the canonical one does not match the
+    /// spec delta either, so the fixture describes a board with NO valid
+    /// placement, and the test failed from then on. Asserting the pair of
+    /// behaviours says more than the original did: the ambiguity is real at the
+    /// per-cell matching level, and Rule 2 is precisely what rules it out.
+    ///
+    /// Worth knowing while reading this: Rule 2 compares each placement against
+    /// the AUTHORED step vector, which a player cannot see. So solver
+    /// uniqueness is a weaker promise than a board a person can actually
+    /// resolve. `CampaignFairnessTests` carries that stronger notion.
+    func testStepConsistencyRulesOutTheCrossCellSwap() throws {
         // bank and solution points placed in OKLab coords so we control
         // ΔE directly. L does the separation between the two banks;
         // ±b (via hue 90°/270° with tiny c) does the perpendicular
@@ -51,15 +65,18 @@ final class SolvabilityAuditTests: XCTestCase {
         // need the solver to FLAG it if it does happen.
         puzzle.bank = [BankItem(id: 0, color: bankA),
                        BankItem(id: 1, color: bankB)]
-        XCTAssertEqual(PuzzleSolver.countValidPlacements(puzzle, limit: 4), 2)
-
-        // The diagnose() method should return a report classifying
-        // this as a bankCrossMatch (bank items differ from any cell's
-        // spec.color) and flag the two differing cells.
-        let report = try XCTUnwrap(PuzzleSolver.diagnose(puzzle))
-        XCTAssertEqual(report.kind, .bankCrossMatch)
-        XCTAssertEqual(report.differingCells.count, 2)
-        XCTAssertEqual(Set(report.involvedGradientIds), [0])
+        // Without Rule 2 the two arrangements really are indistinguishable
+        // cell by cell, which is what this fixture was built to demonstrate.
+        XCTAssertEqual(
+            PuzzleSolver.countValidPlacements(puzzle, limit: 4,
+                                              enforceStepConsistency: false), 2)
+        // With Rule 2 on, neither survives: the swap negates the step vector
+        // and the crafted bank pair does not reproduce the spec delta either,
+        // so the fixture describes a board with no valid placement at all.
+        XCTAssertEqual(PuzzleSolver.countValidPlacements(puzzle, limit: 4), 0)
+        XCTAssertNil(PuzzleSolver.diagnose(puzzle),
+                     "with no valid placement there is no pair of arrangements "
+                     + "to compare, so there is nothing to describe")
     }
 
     /// Palindromic gradient: solution[0] ≈ solution[len-1] etc. The
@@ -71,7 +88,11 @@ final class SolvabilityAuditTests: XCTestCase {
     /// equivalence class despite both being valid at both cells), the
     /// solver should return 2 AND classify as palindromicGradient when
     /// the alternate placement is a full reversal.
-    func testDiagnoseLabelsBankCrossMatchVsPalindrome() throws {
+    /// `diagnose` reports nothing for this fixture, which is the correct
+    /// answer once Rule 2 is enforced: with no valid placement at all there is
+    /// no pair of arrangements to compare. Kept as the companion to the test
+    /// above rather than deleted, because the pairing is the lesson.
+    func testDiagnoseFindsNothingOnceStepConsistencyApplies() throws {
         // Reuse the crossCell puzzle from the prior test. Palindromic-
         // gradient is covered by the full generator loop (guard 3.5
         // rejects these, so we'd need to bypass the generator to
@@ -92,10 +113,15 @@ final class SolvabilityAuditTests: XCTestCase {
         var puzzle = makePuzzle(gradients: [g])
         puzzle.bank = [BankItem(id: 0, color: bankA),
                        BankItem(id: 1, color: bankB)]
-        let report = try XCTUnwrap(PuzzleSolver.diagnose(puzzle))
-        // Involved gradient is id=7 in this puzzle.
-        XCTAssertEqual(report.involvedGradientIds, [7])
-        XCTAssertEqual(report.differingCells.count, 2)
+        // Same fixture as above, so the same conclusion: Rule 2 leaves it with
+        // no valid placement, and diagnose has nothing to report. Kept as the
+        // companion to that test because the pairing is the lesson, not
+        // because the assertion is interesting on its own.
+        XCTAssertNil(PuzzleSolver.diagnose(puzzle))
+        XCTAssertEqual(
+            PuzzleSolver.countValidPlacements(puzzle, limit: 4,
+                                              enforceStepConsistency: false), 2,
+            "the cross match is still visible to the per-cell matching layer")
     }
 
     // MARK: Rule 2 — adjacency step-consistency
