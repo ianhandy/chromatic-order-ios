@@ -32,7 +32,10 @@ struct OnboardingOverlay: View {
     }
 
     private var shouldShow: Bool {
-        game.mode == .zen
+        // Campaign levels do their own teaching, one line at a time, so the
+        // generic zen hint would just talk over them.
+        game.campaignIndex == nil
+            && game.mode == .zen
             && game.level == 1
             && !game.solved
             && !game.generating

@@ -17,6 +17,7 @@ struct MenuView: View {
 
     @State private var accessibilityOpen = false
     @State private var galleryOpen = false
+    @State private var campaignOpen = false
     @State private var leaderboardOpen = false
     @State private var statsOpen = false
     /// True when the player has tapped "challenge" with a saved run
@@ -54,6 +55,7 @@ struct MenuView: View {
     /// audio mapping (hue → pentatonic degree, L → octave) picks a
     /// different pitch for each button. Colors also serve as a subtle
     /// visual accent if we ever want to surface them.
+    private static let campaignColor  = OKLCh(L: 0.66, c: 0.15, h: 205)
     private static let zenColor       = OKLCh(L: 0.62, c: 0.14, h: 150)
     private static let challengeColor = OKLCh(L: 0.55, c: 0.18, h: 28)
     private static let dailyColor     = OKLCh(L: 0.60, c: 0.16, h: 95)
@@ -164,6 +166,11 @@ struct MenuView: View {
                     // while keeping the letterforms readable.
                     .minimumScaleFactor(0.6)
                     .padding(.bottom, 40)
+                // Campaign sits first: it's the on-ramp, and a new player
+                // should meet it before the generator's endless modes.
+                menuButton(campaignLabel, tone: Self.campaignColor) {
+                    campaignOpen = true
+                }
                 menuButton(Strings.Menu.zen, tone: Self.zenColor) {
                     pick(mode: .zen)
                 }
@@ -217,6 +224,9 @@ struct MenuView: View {
         .sheet(isPresented: $galleryOpen) {
             GalleryView(game: game, started: $started)
         }
+        .sheet(isPresented: $campaignOpen) {
+            CampaignView(game: game, started: $started)
+        }
         .sheet(isPresented: $leaderboardOpen) {
             LeaderboardView(leaderboardID: GameCenter.dailyTimeLeaderboardID)
                 .ignoresSafeArea()
@@ -234,6 +244,12 @@ struct MenuView: View {
             if game.openGalleryOnMenuAppear {
                 game.openGalleryOnMenuAppear = false
                 galleryOpen = true
+            }
+            // Same one-shot hop for the campaign, so leaving a campaign
+            // level lands back on the level list.
+            if game.openCampaignOnMenuAppear {
+                game.openCampaignOnMenuAppear = false
+                campaignOpen = true
             }
         }
         .task {
@@ -401,6 +417,14 @@ struct MenuView: View {
                 ripples[idx].lifeSec = target
             }
         }
+    }
+
+    /// "campaign" until the player is into it, then "campaign 14/100" so the
+    /// menu itself shows how far the on-ramp has been walked.
+    private var campaignLabel: String {
+        let done = CampaignStore.clearedCount
+        guard done > 0 else { return Strings.Menu.campaign }
+        return "\(Strings.Menu.campaign) \(done)/\(CampaignCatalog.count)"
     }
 
     private func pick(mode: GameMode) {

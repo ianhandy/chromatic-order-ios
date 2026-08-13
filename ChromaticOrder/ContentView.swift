@@ -107,10 +107,10 @@ struct ContentView: View {
                     }
                     .transition(.opacity)
                 } else if game.puzzle == nil && game.mode == .daily && game.dailyUnavailable {
-                    // Server hasn't published a daily for this UTC date
-                    // (or the fetch failed outright). We don't fall back
-                    // to local generation — every player must see the
-                    // same daily — so render a tap-to-retry placeholder.
+                    // Server hasn't published a daily for this UTC date AND
+                    // the date-seeded local fallback also came up empty —
+                    // which shouldn't happen, since that path is the same
+                    // generator zen uses. Kept as a tap-to-retry backstop.
                     VStack(spacing: 14) {
                         Image(systemName: "calendar.badge.exclamationmark")
                             .font(.system(size: 44, weight: .regular))
@@ -159,11 +159,21 @@ struct ContentView: View {
 
             OnboardingOverlay(game: game)
 
+            // Campaign coaching line — one per level that introduces
+            // something, shown once ever, tap to clear.
+            if let tip = game.campaignTip {
+                CampaignTipBanner(text: tip) { game.campaignTip = nil }
+            }
+
             // Edge vignette — viewport-level, above content. Gated
             // on the Accessibility toggle so players who find the
             // color halo distracting can disable it.
             if game.edgeVignetteEnabled {
-                EdgeVignetteView(color: game.heldColor,
+                // Filtered like the swatch itself: the vignette paints
+                // the held puzzle color over a third of the screen, so
+                // leaving it unfiltered would be a hole in the
+                // compression exactly where the player is looking.
+                EdgeVignetteView(color: game.heldColor.map(game.display),
                                  reduceMotion: game.reduceMotion)
                     .allowsHitTesting(false)
             }
@@ -238,18 +248,27 @@ struct ContentView: View {
                         .buttonStyle(.plain)
                         .accessibilityLabel("Save image")
                         Button {
+                            // Campaign: last level clears the campaign, so
+                            // check before advancing — after handleNext the
+                            // index has already moved on.
+                            let wasFinale = game.campaignIndex == CampaignCatalog.count
                             game.handleNext()
                             // Daily is a single run per date — after
                             // submitting the score, take the player
                             // back to the menu rather than regenerating
-                            // the same solved board in place.
-                            if game.mode == .daily {
+                            // the same solved board in place. Finishing the
+                            // campaign lands back on the level list the same
+                            // way, since there's nothing after it.
+                            if game.mode == .daily || (wasFinale && game.campaignComplete) {
+                                if wasFinale { game.openCampaignOnMenuAppear = true }
                                 transitioner.fade { started = false }
                             }
                         } label: {
                             Text(game.mode == .daily
                                  ? "back to menu"
-                                 : "next level")
+                                 : (game.campaignIndex == CampaignCatalog.count
+                                    ? "finish campaign"
+                                    : "next level"))
                                 .font(.system(size: 18, weight: .bold, design: .rounded))
                                 .lineLimit(1)
                                 .minimumScaleFactor(0.7)
@@ -348,7 +367,11 @@ struct ContentView: View {
             // finger so the color never hides under a thumb.
             if let src = game.dragSource, let loc = game.dragLocation {
                 let lifted = CGPoint(x: loc.x, y: loc.y - game.ghostLift)
-                DragGhost(color: src.color, location: lifted)
+                // Display color: an unfiltered ghost would tell the
+                // tester exactly which swatch they are holding, which
+                // is the one comparison the compression most needs to
+                // cover.
+                DragGhost(color: game.display(src.color), location: lifted)
                     .allowsHitTesting(false)
             }
         }
@@ -908,6 +931,11 @@ struct ContentView: View {
     ///   zen       → zenIntro
     ///   daily     → dailyIntro
     private func maybeShowTutorialForCurrentMode() {
+        // Campaign levels teach with their own one-line tips, and the zen
+        // balloon ("tap here to change levels") points at a control the
+        // campaign doesn't even use. Leave the flag unseen so it still
+        // fires the first time the player opens zen proper.
+        guard game.campaignIndex == nil else { return }
         let flag: TutorialFlag? = {
             switch game.mode {
             case .challenge: return .firstLaunch

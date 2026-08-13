@@ -62,6 +62,21 @@ struct MenuSheet: View {
                             started = false
                         }
                     }
+                } else if game.campaignIndex != nil {
+                    // Campaign levels came from the level list, so send the
+                    // player back to it rather than the top-level menu.
+                    MenuSheetRow(
+                        icon: "list.number",
+                        label: "campaign",
+                        index: 0,
+                        isOpen: menuOpen
+                    ) {
+                        menuOpen = false
+                        game.openCampaignOnMenuAppear = true
+                        transitioner.fade {
+                            started = false
+                        }
+                    }
                 } else {
                     MenuSheetRow(
                         icon: "house.fill",

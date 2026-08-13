@@ -89,7 +89,21 @@ struct TopBarView: View {
         // surfaces a return arrow back to that entry instead of the
         // mode-specific level / "daily" affordance. The chevron text
         // gives a hint without reserving extra horizontal space.
-        if game.cameFromGallery, let onBack = onBackToGallery {
+        if let index = game.campaignIndex {
+            // Campaign: the chip carries the level's place in the campaign
+            // rather than a zen tier, and doesn't open the zen level picker
+            // (that would drop the player out of the authored run).
+            Text("\(index)/\(CampaignCatalog.count)")
+                .font(.system(size: 15, weight: .heavy, design: .rounded))
+                .foregroundStyle(Self.primaryText)
+                .padding(.horizontal, 10)
+                .frame(height: Self.buttonHeight)
+                .background(Color.white.opacity(0.08), in: Capsule())
+                .overlay(
+                    Capsule().stroke(Color.white.opacity(0.25), lineWidth: 1)
+                )
+                .accessibilityLabel("Campaign level \(index) of \(CampaignCatalog.count)")
+        } else if game.cameFromGallery, let onBack = onBackToGallery {
             Button(action: onBack) {
                 Image(systemName: "chevron.left")
                     .font(.system(size: 14, weight: .heavy))

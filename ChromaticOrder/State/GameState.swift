@@ -91,7 +91,6 @@ enum Daily {
     }
 }
 
-struct CellIndex: Hashable { let r: Int; let c: Int }
 
 // Drop targets include both board cells and bank slots now — players
 // can drag swatches between slots or back to the toolbox, just like
@@ -123,6 +122,10 @@ private let motionKey   = "chromaticOrderReduceMotion"
 private let cbModeKey   = "chromaticOrderCBMode"
 private let a11yKey     = "chromaticOrderAccessibility"
 private let challengeRunKey = "chromaticOrderChallengeRun"
+/// Test-harness filter settings. Deliberately NOT folded into a11yKey:
+/// these make the game harder on purpose and change how it scores, so
+/// they have no business riding along with the accessibility bundle.
+private let testingKey  = "chromaticOrderTestingFilter"
 
 @MainActor
 @Observable
@@ -267,6 +270,23 @@ final class GameState {
     /// ProMotion-smooth motion, lower to reduce CPU load.
     var menuFps: Int
 
+    // ─── Test-harness filter (see TestingFilter.swift) ─────────────
+    /// Master switch for the "for testing only" settings section. Off
+    /// by default, and every read path guards on it, so a normal
+    /// player's game is bit-for-bit what it was before the filter
+    /// existed.
+    var testingEnabled: Bool
+    /// How hard puzzle colors are squeezed toward `testingReference`
+    /// before they're drawn. Scales every ΔE on the board by
+    /// (1 - similarity).
+    var testingSimilarity: Double
+    /// ΔE under which the game's judging counts two colors as the same.
+    var testingSameThreshold: Double
+    /// Compression target: the mean of the CURRENT board's solution
+    /// colors, refreshed once per board load. Not persisted (it's
+    /// derived from the puzzle, not a setting) and not player-editable.
+    private(set) var testingReference: OKLCh?
+
     // Live puzzle
     var puzzle: Puzzle?
     /// Cached bounding box of active cells. Recomputed only when a
@@ -288,6 +308,27 @@ final class GameState {
     /// "return to where I came from" behavior. Cleared whenever a
     /// generator puzzle takes over via `startLevel`.
     var cameFromGallery: Bool = false
+    /// 1-based index of the campaign level on the board, or nil when the
+    /// current puzzle isn't a campaign level. Set by `loadCampaignLevel`
+    /// and cleared by every other load path, so the campaign's own solve /
+    /// skip / home behaviour only applies while a campaign level is up.
+    var campaignIndex: Int? = nil
+    /// Bumped by every board load. The generator runs in a detached task,
+    /// so a load that happens while one is in flight (opening a campaign
+    /// level or a gallery puzzle right after launch, say) would otherwise
+    /// have its board stomped when the older generation finally lands.
+    /// Generation captures the token and drops its result if it's stale.
+    private var loadToken: Int = 0
+    /// Flipped true when the player clears the final campaign level, so
+    /// the UI can say so once instead of trying to advance past the end.
+    var campaignComplete: Bool = false
+    /// Coaching line for the current campaign level, shown once. Cleared
+    /// when the player dismisses it or the board changes.
+    var campaignTip: String? = nil
+    /// One-shot flag mirroring `openGalleryOnMenuAppear` — set by the
+    /// in-game Home row so the main menu re-opens the campaign picker
+    /// instead of dropping the player on the top-level menu.
+    var openCampaignOnMenuAppear: Bool = false
     /// When the current puzzle was loaded from a specific Gallery
     /// row, this carries that row's stable id. On a perfect-solve
     /// we record the id in `GallerySolvedStore` so the Gallery list
@@ -538,6 +579,10 @@ final class GameState {
         self.hapticsEnabled = a11y.hapticsEnabled
         self.timerVisible = a11y.timerVisible
         self.menuFps = a11y.menuFps
+        let testing = Self.loadTestingFilter()
+        self.testingEnabled = testing.enabled
+        self.testingSimilarity = testing.similarity
+        self.testingSameThreshold = testing.sameThreshold
         // Audio + haptic flag sync is deferred to
         // ChromaticOrderApp.onAppear — setting GlassyAudio.musicEnabled
         // here triggers engine.start() before the audio converter
@@ -649,6 +694,12 @@ final class GameState {
     /// sheet don't thrash the board.
     func applyAccessibilityIfChanged() {
         saveAccessibility()
+        // The testing knobs ride the same sheet, so they persist on the
+        // same close. None of them affect generation (compression is
+        // display-only, the threshold only affects judging), so they
+        // deliberately stay out of the `changed` test below: moving
+        // them must not reroll the board the tester is measuring.
+        saveTestingFilter()
         // cbMode lives in its own UserDefaults key; the picker binds
         // straight to $game.cbMode so we never hit cycleCBMode() from
         // the sheet path. Persist it here too or the player's choice
@@ -686,8 +737,104 @@ final class GameState {
         timerVisible = d.timerVisible
         menuFps = d.menuFps
         cbMode = .none
+        // The testing filter is not an accessibility setting, but a
+        // player who wandered into that section and made the board
+        // unreadable will reach for this button, so it clears too.
+        let t = Self.testingDefaults
+        testingEnabled = t.enabled
+        testingSimilarity = t.similarity
+        testingSameThreshold = t.sameThreshold
         saveAccessibility()
+        saveTestingFilter()
         saveCBMode()
+    }
+
+    // ─── Test-harness filter ───────────────────────────────────────
+
+    /// Live filter assembled from the persisted knobs plus the current
+    /// board's reference color. Cheap to build (a struct of four
+    /// values), so the two funnels below just make one per call rather
+    /// than keeping a stored copy in sync with five separate setters.
+    var testingFilter: TestingFilter {
+        TestingFilter(
+            enabled: testingEnabled,
+            similarity: testingSimilarity,
+            sameThreshold: testingSameThreshold,
+            reference: testingReference
+        )
+    }
+
+    /// THE funnel for drawing a puzzle color. Cells, swatches, the drag
+    /// ghost and the drop tints all paint `OK.toColor(game.display(x))`
+    /// instead of `OK.toColor(x)`, so the filter has exactly one place
+    /// to live and no view can accidentally opt out of it. Menu chrome,
+    /// accents and tints are NOT routed through here, because the filter
+    /// is about the colors the player has to compare, not the furniture.
+    ///
+    /// The value returned is for display only. Placement, drag payloads,
+    /// and every correctness check keep using the true color.
+    func display(_ color: OKLCh) -> OKLCh {
+        testingFilter.display(color)
+    }
+
+    /// THE funnel for "is this the right color?", used by handleCheck,
+    /// the zen auto-solve, the per-cell wrong outlines, and the mistake
+    /// counter. One shared answer means the UI can never mark a cell
+    /// wrong that the check would accept.
+    func sameColor(_ a: OKLCh, _ b: OKLCh, mode: CBMode = .none) -> Bool {
+        testingFilter.same(a, b, mode: mode)
+    }
+
+    /// Recompute the compression target for the board that just loaded.
+    /// Done once per board on purpose: a per-cell reference would chase
+    /// the colors it is pulling and the compression would never settle.
+    /// Runs even when the filter is off so flipping the toggle mid-board
+    /// takes effect immediately.
+    private func refreshTestingReference() {
+        guard let p = puzzle else {
+            testingReference = nil
+            return
+        }
+        var solutions: [OKLCh] = []
+        for r in 0..<p.gridH {
+            for c in 0..<p.gridW where p.board[r][c].kind == .cell {
+                if let sol = p.board[r][c].solution { solutions.append(sol) }
+            }
+        }
+        testingReference = TestingFilter.meanColor(of: solutions)
+    }
+
+    /// What a fresh install (or a reset) starts with: switched off, but
+    /// preloaded with the compression a tester usually wants so that
+    /// flipping the toggle on does something visible immediately.
+    /// Threshold 2 matches `OK.equal`, so enabling the filter changes
+    /// what the board LOOKS like without also changing verdicts until
+    /// the tester moves that slider too.
+    static let testingDefaults = TestingFilter(
+        enabled: false, similarity: 0.6, sameThreshold: 2.0
+    )
+
+    private static func loadTestingFilter() -> TestingFilter {
+        let d = testingDefaults
+        guard let data = UserDefaults.standard.data(forKey: testingKey),
+              let dict = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
+        else { return d }
+        return TestingFilter(
+            enabled: (dict["enabled"] as? Bool) ?? d.enabled,
+            similarity: (dict["similarity"] as? Double) ?? d.similarity,
+            sameThreshold: (dict["sameThreshold"] as? Double) ?? d.sameThreshold
+        )
+    }
+
+    private func saveTestingFilter() {
+        let dict: [String: Any] = [
+            "enabled": testingEnabled,
+            "similarity": testingSimilarity,
+            "sameThreshold": testingSameThreshold,
+        ]
+        if let data = try? JSONSerialization.data(withJSONObject: dict) {
+            UserDefaults.standard.set(data, forKey: testingKey)
+        }
     }
 
     private static func loadCBMode() -> CBMode {
@@ -918,7 +1065,14 @@ final class GameState {
     /// current puzzle. Call this whenever a new board *layout* is
     /// loaded — not needed for swatch placement/movement since
     /// `.kind` never changes during play.
+    ///
+    /// The testing filter's reference color is refreshed from here for
+    /// exactly that reason: this is already the one "a new board
+    /// arrived" hook every load path goes through, and hanging the
+    /// reference off it means a future load path can't forget to
+    /// update it.
     func recomputePuzzleBounds() {
+        refreshTestingReference()
         guard let p = puzzle else { return }
         var mnR = p.gridH, mxR = 0, mnC = p.gridW, mxC = 0
         for r in 0..<p.gridH {
@@ -946,6 +1100,10 @@ final class GameState {
         currentGalleryPuzzleId = nil
         currentGalleryCollectionId = nil
         customTitle = nil
+        // Generator puzzles are never campaign levels.
+        campaignIndex = nil
+        campaignTip = nil
+        campaignComplete = false
         // Clear the once-claim perfect-heart token so the next
         // perfect solve can award a fresh +1. Both handleNext and
         // the ContentView flight task gate on this flag so only
@@ -1016,6 +1174,8 @@ final class GameState {
         // try the community pool. Daily is excluded — its seed must
         // yield the same puzzle for every player.
         let activeMode = mode
+        loadToken += 1
+        let generationToken = loadToken
         Task.detached(priority: .userInitiated) { [weak self] in
             var cfg = GenConfig()
             cfg.cbMode = activeCBMode
@@ -1069,10 +1229,7 @@ final class GameState {
             // player plays the same puzzle for a given UTC date.
             // Skipped when a first-run tooltip still owns the board
             // layout (tutorialSeed != nil) — in that case the
-            // deterministic tutorial seed path below still runs. When
-            // the fetch misses (404 = no daily published, or any
-            // network failure), daily mode surfaces an empty state
-            // instead of silently diverging into local generation.
+            // deterministic tutorial seed path below still runs.
             var dailyLevelOverride: Int? = nil
             var dailyMissing = false
             if puz == nil, activeMode == .daily, tutorialSeed == nil {
@@ -1084,10 +1241,22 @@ final class GameState {
                     dailyMissing = true
                 }
             }
-            // Local generator only runs for non-daily modes. Daily
-            // puzzles must come from the server so every player sees
-            // the same board — no fallback.
-            if puz == nil, !dailyMissing {
+            // Server miss (404 = nothing published for today, or the
+            // player is offline) falls through to the local generator
+            // below, which for daily mode is seeded off the UTC date —
+            // see `dailySeed` above. That keeps the day's puzzle
+            // deterministic and identical for every client on this
+            // build instead of handing out a random board or an empty
+            // screen. Clients on different builds can diverge; the
+            // server pool is still the source of truth when it answers.
+            if puz == nil {
+                // Daily's local fallback must be reproducible: same date,
+                // same board, every launch. Reproducible mode keeps the
+                // generator off the stash + seen-shape ledgers, which are
+                // per-install state that would otherwise fork the seed.
+                if activeMode == .daily, dailyMissing {
+                    cfg.deterministic = true
+                }
                 // Dev-only routing through the targeted-difficulty
                 // generator. Flip via:
                 //   UserDefaults.standard.set(true,
@@ -1115,8 +1284,16 @@ final class GameState {
             let finalDailyMissing = dailyMissing
             await MainActor.run { [weak self] in
                 guard let self else { return }
+                // A newer load (campaign level, gallery puzzle, mode switch)
+                // has taken the board since this generation started — drop
+                // the result instead of overwriting what the player is
+                // looking at.
+                guard self.isCurrentLoad(generationToken) else { return }
                 self.puzzle = finalPuz
-                self.dailyUnavailable = finalDailyMissing
+                // "Unavailable" now means the date-seeded local fallback
+                // also came up empty, not merely that the server had
+                // nothing to serve.
+                self.dailyUnavailable = finalDailyMissing && finalPuz == nil
                 if finalPuz != nil {
                     self.recomputePuzzleBounds()
                 }
@@ -1236,6 +1413,12 @@ final class GameState {
     }
 
     func handleNext() {
+        // Campaign owns its own progression: authored levels in a fixed
+        // order, one unlock per clear. Nothing below this applies.
+        if let index = campaignIndex {
+            advanceCampaign(from: index)
+            return
+        }
         let justCompleted = level
         // Capture "clean solve" signal before we clear flags — a
         // puzzle counts as clean when the player made zero mistakes
@@ -1385,6 +1568,12 @@ final class GameState {
 
     func handleSkip() {
         if engagedThisLevel { showedIncorrect = false }
+        // A campaign level has no alternate board to roll into, so skip
+        // means "hand me this one again, fresh".
+        if campaignIndex != nil {
+            restartCampaignLevel()
+            return
+        }
         startLevel(level)
     }
 
@@ -1397,7 +1586,7 @@ final class GameState {
         let allGood = p.gradients.allSatisfy { g in
             g.cells.allSatisfy { spec in
                 if let placed = p.board[spec.r][spec.c].placed {
-                    return OK.equal(placed, spec.color)
+                    return sameColor(placed, spec.color)
                 }
                 return false
             }
@@ -1550,6 +1739,10 @@ final class GameState {
         startLevel(level)
     }
 
+    /// True while `token` is still the most recent board load. The detached
+    /// generator checks this before publishing its result.
+    fileprivate func isCurrentLoad(_ token: Int) -> Bool { token == loadToken }
+
     /// Jump into a player-authored puzzle. Bypasses the generator and
     /// level progression — treated as a one-off "custom" session.
     /// Always plays in zen mode: challenge is reserved for the
@@ -1563,6 +1756,9 @@ final class GameState {
             checks = 0
             saveProgress()
         }
+        // Invalidate any generation still in flight so it can't land on top
+        // of this board a moment from now.
+        loadToken += 1
         generating = false
         solved = false
         selection = nil
@@ -1573,6 +1769,10 @@ final class GameState {
         showIncorrect = false
         showedIncorrect = false
         engagedThisLevel = false
+        // Any custom load leaves the campaign; `loadCampaignLevel` re-tags
+        // the session right after calling through here.
+        campaignIndex = nil
+        campaignTip = nil
         currentFavoriteURL = favoriteURL
         // Signal the hamburger-menu Home row to read 'Gallery' and
         // route back to the Gallery sheet instead of the main menu.
@@ -1596,6 +1796,55 @@ final class GameState {
         moveCount = 0
         puzzle = p
         recomputePuzzleBounds()
+    }
+
+    // ─── Campaign ──────────────────────────────────────────────────
+
+    /// Load a campaign level by 1-based index. Campaign levels are
+    /// authored, not generated, so this rides the custom-puzzle path and
+    /// then tags the session with `campaignIndex` — that tag is what makes
+    /// solve advance to the next level instead of rerolling a zen board.
+    @discardableResult
+    func loadCampaignLevel(_ index: Int) -> Bool {
+        guard let entry = CampaignCatalog.level(index),
+              let puz = entry.puzzle() else { return false }
+        loadCustomPuzzle(puz, title: entry.name)
+        campaignIndex = index
+        campaignComplete = false
+        CampaignStore.lastPlayed = index
+        // Tips are one-shot per level: they teach a mechanic, and a player
+        // replaying an old level doesn't need to be told again.
+        if let tip = entry.tip, !CampaignStore.hasSeenTip(index) {
+            campaignTip = tip
+            CampaignStore.markTipSeen(index)
+        } else {
+            campaignTip = nil
+        }
+        return true
+    }
+
+    /// Player cleared a campaign level: record it and move on. Returns
+    /// false when there is nothing after this one.
+    @discardableResult
+    private func advanceCampaign(from index: Int) -> Bool {
+        CampaignStore.markCleared(index)
+        StatsStore.recordSolve(
+            mode: "campaign",
+            clean: mistakeCount == 0 && !showedIncorrect,
+            solveSeconds: timeSpentSec,
+            cbMode: cbMode.rawValue
+        )
+        showedIncorrect = false
+        if loadCampaignLevel(index + 1) { return true }
+        campaignComplete = true
+        return false
+    }
+
+    /// Reload the current campaign level from the catalog — the campaign's
+    /// answer to "skip", since there is no other puzzle at this level.
+    func restartCampaignLevel() {
+        guard let index = campaignIndex else { return }
+        loadCampaignLevel(index)
     }
 
     /// Toggle the current puzzle's favorite status. Saves a .kroma
@@ -1664,7 +1913,7 @@ final class GameState {
         let allGood = p.gradients.allSatisfy { g in
             g.cells.allSatisfy { spec in
                 if let placed = p.board[spec.r][spec.c].placed {
-                    return OK.equal(placed, spec.color)
+                    return sameColor(placed, spec.color)
                 }
                 return false
             }
@@ -1722,7 +1971,10 @@ final class GameState {
         // shuffles, bank→bank swaps, and cell→bank moves don't call
         // this function so they're automatically excluded.
         moveCount += 1
-        if OK.equal(placed, solution) {
+        // Same notion of "right" the check uses: with a raised
+        // threshold a near-miss the check will accept must not also
+        // count as a mistake and buzz the player.
+        if sameColor(placed, solution) {
             Haptics.placeCorrect()
             // First-placement dismisses the onboarding hint forever —
             // the player figured out the drag, no more need for the tip.
@@ -1959,7 +2211,7 @@ final class GameState {
                 guard cell.kind == .cell, !cell.locked,
                       let placed = cell.placed,
                       let sol = cell.solution else { continue }
-                if !OK.equal(placed, sol, mode: cbMode) { return true }
+                if !sameColor(placed, sol, mode: cbMode) { return true }
             }
         }
         return false

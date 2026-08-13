@@ -22,6 +22,7 @@ enum Strings {
 
     enum Menu {
         static let title = "kromatika"
+        static let campaign = "campaign"
         static let zen = "zen"
         static let challenge = "challenge"
         static let todaysPuzzle = "today's puzzle"

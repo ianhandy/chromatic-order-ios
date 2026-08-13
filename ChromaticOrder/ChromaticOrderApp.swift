@@ -71,11 +71,23 @@ struct ChromaticOrderApp: App {
                 Task.detached {
                     await LikedPuzzleStore.refreshRemoteDislikedSignatures()
                 }
-                // First-launch redirect — drop new players straight
-                // into challenge mode. The challenge tutorial
-                // overlay takes over from there, explaining the
-                // basics / hearts / level system / accessibility.
-                if !TutorialStore.hasSeen(.firstLaunch) {
+                // First-launch redirect — a brand new player opens onto
+                // campaign level 1 ("Bar": two given cells, one swatch to
+                // place), and the campaign's own per-level tips carry the
+                // teaching from there. Challenge used to own this slot, but
+                // it opens on a full generated board with hearts at stake,
+                // which is a lot to meet cold.
+                //
+                // `.firstLaunch` stays unseen deliberately: its tooltip is
+                // written for the challenge board, so it fires the first
+                // time the player actually picks challenge.
+                if !TutorialStore.hasSeen(.firstLaunch),
+                   CampaignStore.clearedCount == 0,
+                   game.loadCampaignLevel(1) {
+                    started = true
+                } else if !TutorialStore.hasSeen(.firstLaunch) {
+                    // Campaign resource missing or unreadable — fall back to
+                    // the old behaviour rather than opening on nothing.
                     game.enterMode(.challenge)
                     started = true
                 }
