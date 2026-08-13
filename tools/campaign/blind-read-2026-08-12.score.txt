@@ -1,0 +1,46 @@
+read as intended (or a fair synonym): 61/100
+read as something else:               37/100
+read as nothing:                      2/100
+
+MISREADS — cold reader saw something different:
+   13 called Track        → read as 'rectangle'
+   21 called Chair        → read as 'staircase'
+   22 called Bed          → read as 'cup'
+   25 called Key          → read as 'z shape'
+   26 called Lamp         → read as 'i beam'
+   29 called Window       → read as 'goggles'
+   34 called Boat         → read as 'crane'
+   40 called Clock        → read as 'number 8'
+   41 called Bell         → read as 'tree'
+   42 called Cup          → read as 'trash bin'
+   43 called Bottle       → read as 'factory'
+   45 called Book         → read as 'eyeglasses'
+   48 called Wrench       → read as 'electrical plug'
+   49 called Candle       → read as 'letter i'
+   52 called Lantern      → read as 'toaster'
+   54 called Crab         → read as 'cow'
+   56 called Bird         → read as 'person'
+   57 called Owl          → read as 'wall outlet'
+   60 called Bunny        → read as 'beetle'
+   61 called Frog         → read as 'h shape'
+   62 called Turtle       → read as 'dog'
+   63 called Whale        → read as 'truck'
+   67 called Butterfly    → read as 'fork'
+   69 called Penguin      → read as 'donut'
+   71 called Lighthouse   → read as 'archway'
+   72 called Windmill     → read as 'key'
+   80 called Cathedral    → read as 'electric plug'
+   81 called Ferris       → read as 'robot'
+   83 called Observatory  → read as 'barn'
+   84 called Garden       → read as 'tables'
+   85 called Harbor       → read as 'signposts'
+   87 called Trainyard    → read as 'tables'
+   88 called Cityscape    → read as 'fence'
+   90 called Circuit      → read as 'boot'
+   94 called Palace       → read as 'eyeglasses'
+   97 called Citadel      → read as 'stove'
+   99 called Vault        → read as 'first-aid kit'
+
+UNREADABLE — cold reader saw no object:
+   65 called Ant
+   75 called Church
