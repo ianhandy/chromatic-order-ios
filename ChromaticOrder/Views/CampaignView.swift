@@ -1,153 +1,129 @@
-//  Campaign level picker. Seven chapters, 100 authored levels, unlocked one
-//  at a time. Each row shows the shape's name and a swatch strip pulled
-//  from the level's own palette, so the list reads as a colour journal of
-//  everything the player has solved.
-
 import SwiftUI
 
+/// A deliberately quiet campaign picker: chapter progress and local level
+/// numbers are enough context before the actual board opens.
 struct CampaignView: View {
     @Bindable var game: GameState
     @Binding var started: Bool
     @Environment(\.dismiss) private var dismiss
 
-    /// Re-read on every appear: clearing a level while this sheet is closed
-    /// has to show up when it re-opens.
-    @State private var cleared: Set<Int> = CampaignStore.cleared()
-
-    private var nextUp: Int { CampaignStore.nextUp }
+    private let columns = Array(
+        repeating: GridItem(.flexible(minimum: 44, maximum: 64), spacing: 8),
+        count: 5
+    )
 
     var body: some View {
         NavigationStack {
-            List {
-                headerSection
-                ForEach(CampaignCatalog.chapters) { chapter in
-                    Section {
-                        ForEach(CampaignCatalog.levels(in: chapter)) { level in
-                            row(for: level)
-                        }
-                    } header: {
-                        chapterHeader(chapter)
+            ScrollView {
+                LazyVStack(alignment: .leading, spacing: 32) {
+                    continueButton
+
+                    ForEach(CampaignCatalog.chapters) { chapter in
+                        chapterSection(chapter)
                     }
                 }
+                .padding(.horizontal, 20)
+                .padding(.vertical, 24)
             }
-            .listStyle(.insetGrouped)
             .navigationTitle("campaign")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("close") { dismiss() }
+                        .font(.system(size: 17, weight: .semibold, design: .rounded))
                 }
             }
         }
-        .onAppear { cleared = CampaignStore.cleared() }
     }
 
-    // ─── Sections ──────────────────────────────────────────────────
-
-    private var headerSection: some View {
-        Section {
-            Button {
-                play(nextUp)
-            } label: {
-                HStack {
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text(CampaignStore.isComplete ? "replay the last shape" : "continue")
-                            .font(.system(size: 17, weight: .semibold, design: .rounded))
-                        if let level = CampaignCatalog.level(nextUp) {
-                            Text("\(nextUp). \(level.name) · \(level.chapter)")
-                                .font(.system(size: 13, design: .rounded))
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-                    Spacer()
-                    Text("\(cleared.count)/\(CampaignCatalog.count)")
-                        .font(.system(size: 13, weight: .medium, design: .rounded))
-                        .foregroundStyle(.secondary)
-                }
-            }
-        } footer: {
-            Text("100 shapes, in order. Each one adds a little to what the "
-                 + "last one taught you.")
-        }
-    }
-
-    private func chapterHeader(_ chapter: CampaignChapter) -> some View {
-        let done = chapter.levelRange.filter { cleared.contains($0) }.count
-        return VStack(alignment: .leading, spacing: 2) {
+    private var continueButton: some View {
+        Button { play(CampaignStore.nextUp) } label: {
             HStack {
-                Text(chapter.title.lowercased())
-                    .font(.system(size: 14, weight: .semibold, design: .rounded))
+                Text(CampaignStore.isComplete ? "replay" : "continue")
+                    .font(.system(size: 19, weight: .bold, design: .rounded))
                 Spacer()
-                Text("\(done)/\(chapter.count)")
-                    .font(.system(size: 12, design: .rounded))
+                Image(systemName: "arrow.right")
+                    .font(.system(size: 17, weight: .bold))
+            }
+            .foregroundStyle(.primary)
+            .padding(.horizontal, 18)
+            .frame(maxWidth: .infinity, minHeight: 52)
+            .background(Color.primary.opacity(0.08), in: RoundedRectangle(cornerRadius: 16,
+                                                                            style: .continuous))
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(CampaignStore.isComplete ? "replay" : "continue")
+    }
+
+    private func chapterSection(_ chapter: CampaignChapter) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .firstTextBaseline) {
+                Text(chapter.title.lowercased())
+                    .font(.system(size: 20, weight: .bold, design: .rounded))
+                Spacer()
+                Text("\(CampaignStore.chapterCompletion(chapter))/\(chapter.count)")
+                    .font(.system(size: 15, weight: .semibold, design: .rounded))
                     .foregroundStyle(.secondary)
             }
-            Text(chapter.blurb)
-                .font(.system(size: 11, design: .rounded))
-                .foregroundStyle(.secondary)
-                .textCase(nil)
+
+            LazyVGrid(columns: columns, spacing: 8) {
+                ForEach(CampaignCatalog.levels(in: chapter)) { level in
+                    levelButton(level)
+                }
+            }
         }
-        .padding(.vertical, 2)
     }
 
-    private func row(for level: CampaignLevel) -> some View {
-        let unlocked = level.index <= 1 || cleared.contains(level.index)
-            || cleared.contains(level.index - 1)
-        let isDone = cleared.contains(level.index)
+    private func levelButton(_ level: CampaignLevel) -> some View {
+        let unlocked = CampaignStore.isUnlocked(level.index)
+        let complete = CampaignStore.isCleared(level.index)
+        let current = level.index == CampaignStore.nextUp
+        let localNumber = CampaignStore.localNumber(for: level.index) ?? level.index
+
         return Button {
             guard unlocked else { return }
             play(level.index)
         } label: {
-            HStack(spacing: 12) {
-                Text("\(level.index)")
-                    .font(.system(size: 13, weight: .medium, design: .monospaced))
-                    .foregroundStyle(.secondary)
-                    .frame(width: 30, alignment: .trailing)
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(level.name)
-                        .font(.system(size: 16, weight: .medium, design: .rounded))
-                        .foregroundStyle(unlocked ? .primary : .secondary)
-                    Text("\(level.gradientCount) gradient\(level.gradientCount == 1 ? "" : "s")"
-                         + " · \(level.bankCount) to place")
-                        .font(.system(size: 11, design: .rounded))
+            ZStack(alignment: .topTrailing) {
+                Text("\(localNumber)")
+                    .font(.system(size: 17, weight: .bold, design: .rounded))
+                    .foregroundStyle(unlocked ? .primary : .secondary)
+                    .frame(maxWidth: .infinity, minHeight: 48)
+                    .background(fill(complete: complete, unlocked: unlocked),
+                                in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 14, style: .continuous)
+                            .stroke(current ? Color.primary.opacity(0.65) : .clear,
+                                    lineWidth: current ? 2 : 0)
+                    }
+
+                if complete {
+                    Image(systemName: "checkmark")
+                        .font(.system(size: 11, weight: .bold))
+                        .padding(6)
+                } else if !unlocked {
+                    Image(systemName: "lock.fill")
+                        .font(.system(size: 10, weight: .bold))
                         .foregroundStyle(.secondary)
+                        .padding(6)
                 }
-                Spacer()
-                if unlocked {
-                    paletteStrip(level)
-                }
-                Image(systemName: isDone ? "checkmark.circle.fill"
-                      : (unlocked ? "chevron.right" : "lock.fill"))
-                    .font(.system(size: isDone ? 15 : 12, weight: .semibold))
-                    .foregroundStyle(isDone ? Color.green.opacity(0.8) : .secondary)
             }
         }
+        .buttonStyle(.plain)
         .disabled(!unlocked)
+        .accessibilityLabel("level \(localNumber)")
+        .accessibilityValue(complete ? "complete" : (unlocked ? "available" : "locked"))
     }
 
-    /// Five colours sampled across the level's own gradients — a thumbnail
-    /// of the palette without rendering the whole board.
-    private func paletteStrip(_ level: CampaignLevel) -> some View {
-        let colors: [OKLCh] = level.doc.gradients.prefix(5).compactMap { grad in
-            guard let cell = grad.cells.first else { return nil }
-            return OKLCh(L: cell.L, c: cell.C, h: cell.h)
-        }
-        return HStack(spacing: 2) {
-            ForEach(Array(colors.enumerated()), id: \.offset) { _, color in
-                RoundedRectangle(cornerRadius: 2)
-                    .fill(OK.toColor(color))
-                    .frame(width: 8, height: 14)
-            }
-        }
+    private func fill(complete: Bool, unlocked: Bool) -> Color {
+        if complete { return Color.green.opacity(0.24) }
+        if unlocked { return Color.primary.opacity(0.10) }
+        return Color.primary.opacity(0.04)
     }
-
-    // ─── Actions ───────────────────────────────────────────────────
 
     private func play(_ index: Int) {
-        guard game.loadCampaignLevel(index) else { return }
+        guard CampaignStore.isUnlocked(index), game.loadCampaignLevel(index) else { return }
         GlassyAudio.shared.playBloom()
-        // Same order the gallery uses: flip `started` first so the game view
-        // is already mounted behind the sheet as it slides away.
         started = true
         dismiss()
     }

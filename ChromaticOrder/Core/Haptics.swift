@@ -36,6 +36,13 @@ enum Haptics {
         light.impactOccurred(intensity: 0.8)
     }
 
+    /// A single soft impact for a swatch that springs back after an invalid
+    /// drag release. Called only at release, never while tracking a drag.
+    static func cancelledReturn() {
+        guard isEnabled else { return }
+        light.impactOccurred(intensity: 0.55)
+    }
+
     static func place() {
         guard isEnabled else { return }
         medium.impactOccurred()

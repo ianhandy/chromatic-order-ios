@@ -31,6 +31,18 @@ enum TutorialFlag: String, CaseIterable {
     }
 }
 
+/// Identity for one mounted tutorial presentation. A flag can be shown more
+/// than once, so delayed dismissal callbacks must match the exact instance
+/// that created them rather than the flag alone.
+struct TutorialPresentationToken: Equatable {
+    let flag: TutorialFlag
+    let id: Int
+
+    func matches(activeFlag: TutorialFlag?, activePresentationID: Int) -> Bool {
+        flag == activeFlag && id == activePresentationID
+    }
+}
+
 enum TutorialStore {
     private static func key(_ flag: TutorialFlag) -> String {
         "tutorial_\(flag.rawValue)_v1"

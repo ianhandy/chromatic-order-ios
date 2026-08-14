@@ -17,6 +17,8 @@ struct BankSlotView: View {
             return p.bank[slot]
         }()
         let radius = size * 0.28
+        let returning = game.bankReturnSlot == slot
+        let reduceMotion = game.reduceMotion
 
         ZStack {
             // Empty-slot placeholder — same footprint as a swatch so the
@@ -70,6 +72,22 @@ struct BankSlotView: View {
             }
         )
         .contentShape(Rectangle())
+        // A rejected bank drag never moved the item in state: animate the
+        // original slot itself so it visibly compresses, overshoots, and
+        // settles back in place. Reduce Motion keeps the exact same state
+        // transition without the animated bounce.
+        .keyframeAnimator(
+            initialValue: 1.0,
+            trigger: game.bankReturnAnimationID
+        ) { content, scale in
+            content.scaleEffect(returning && !reduceMotion ? scale : 1)
+        } keyframes: { _ in
+            KeyframeTrack {
+                CubicKeyframe(0.82, duration: 0.08)
+                SpringKeyframe(1.13, duration: 0.16, spring: .bouncy)
+                SpringKeyframe(1.0, duration: 0.22, spring: .smooth)
+            }
+        }
         // Unified gesture — tap vs drag decided by translation so a
         // drag release doesn't also fire tapSlot (which caused stray
         // swatch-picks on liftoff).

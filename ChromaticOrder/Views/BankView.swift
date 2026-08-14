@@ -23,6 +23,14 @@ struct BankView: View {
 
     var body: some View {
         VStack(spacing: 8) {
+            if !instrText.isEmpty {
+                Text(instrText)
+                    .font(.system(size: 17, weight: .medium, design: .rounded))
+                    .foregroundStyle(.white.opacity(0.65))
+                    .multilineTextAlignment(.center)
+                    .frame(maxWidth: .infinity)
+            }
+
             if (game.mode == .challenge || game.mode == .daily), !game.solved {
                 // Check only makes sense once every swatch is on the
                 // board — a half-filled grid can never pass, and

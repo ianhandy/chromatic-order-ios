@@ -33,11 +33,28 @@ enum CampaignStore {
     /// Highest cleared level, 0 when the player hasn't finished one yet.
     static var highestCleared: Int { cleared().max() ?? 0 }
 
-    /// A level is open if it's the first, already cleared, or the one right
-    /// after the player's furthest clear. Replaying is always allowed;
-    /// skipping ahead isn't, because each level leans on the last.
+    /// Every chapter begins as a replayable entry point. Within a chapter,
+    /// a level opens once it or its immediately preceding level is cleared.
     static func isUnlocked(_ index: Int) -> Bool {
-        index <= 1 || isCleared(index) || isCleared(index - 1)
+        guard let chapter = CampaignCatalog.chapter(containing: index) else {
+            return false
+        }
+        return index == chapter.first || isCleared(index) || isCleared(index - 1)
+    }
+
+    /// Compact Explore labels count levels within their chapter, not across
+    /// the whole campaign.
+    static func localNumber(for index: Int) -> Int? {
+        guard let chapter = CampaignCatalog.chapter(containing: index) else {
+            return nil
+        }
+        return index - chapter.first + 1
+    }
+
+    static func chapterCompletion(_ chapter: CampaignChapter) -> Int {
+        chapter.levelRange.reduce(into: 0) { count, index in
+            if isCleared(index) { count += 1 }
+        }
     }
 
     /// Where "continue" should drop the player: the first level they

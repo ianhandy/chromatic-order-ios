@@ -18,12 +18,12 @@ struct CampaignTipBanner: View {
             // drag. The bank grows upward from the bottom, so this rides the
             // gap between them rather than the screen edge.
             Spacer()
-            Text(text)
-                .font(.system(size: 14, weight: .medium, design: .rounded))
+            Text(text.lowercased())
+                .font(.system(size: 17, weight: .medium, design: .rounded))
                 .foregroundStyle(.white.opacity(0.92))
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 18)
-                .padding(.vertical, 12)
+                .padding(.vertical, 14)
                 .background(
                     RoundedRectangle(cornerRadius: 14, style: .continuous)
                         .fill(Color.black.opacity(0.72))
@@ -38,9 +38,7 @@ struct CampaignTipBanner: View {
                 .opacity(shown ? 1 : 0)
                 .offset(y: shown ? 0 : 10)
         }
-        .allowsHitTesting(true)
-        .contentShape(Rectangle())
-        .onTapGesture { dismiss() }
+        .allowsHitTesting(false)
         .onAppear {
             withAnimation(.easeOut(duration: 0.35).delay(0.25)) { shown = true }
         }

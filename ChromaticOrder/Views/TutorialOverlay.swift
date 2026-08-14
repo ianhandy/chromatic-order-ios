@@ -75,45 +75,26 @@ struct TutorialArrowShape: Shape {
 // ─── Balloon tutorials ──────────────────────────────────────────────
 
 /// Exit choreography the balloon plays before unmounting.
-///   alive         — idle sway, accepts taps / drag deflection
-///   floating      — released by first tap, drifts up slowly, still tappable
+///   alive         — idle sway
 ///   released      — floats up and off-screen (auto-dismiss), then calls `onFinished`
-///   swipedAway(dx:dy:) — swiped by the player with direction vector (dx, dy);
-///                        accelerates from standstill to terminal speed along
-///                        that vector, then coasts off-screen indefinitely
-///   popped        — quick scale-up + fade, then calls `onFinished`
 enum TutorialBalloonExit: Equatable {
     case alive
-    case floating
     case released
-    case swipedAway(dx: Double, dy: Double)
-    case popped
 }
 
 /// Cartoon-balloon-shaped tutorial bubble. Replaces the flat
 /// TutorialTooltip when reduce-motion is off. Physics are deliberately
-/// lightweight — sway + float-away + finger-deflect — the balloon is
-/// not a full particle simulation, just enough to read as "floating
-/// thing with some whimsy." Reduce-motion users see the flat tooltip.
+/// lightweight — passive sway + float-away — just enough to read as a
+/// floating thing with some whimsy. Reduce-motion users see the flat tooltip.
 struct TutorialBalloon: View {
     let text: String
     let tint: Color
     /// `.alive` while the tutorial is live; flips to `.released` on
-    /// normal dismissal (menu open, first-placement, level change) or
-    /// `.popped` when the player taps the balloon.
+    /// normal dismissal (menu open, first-placement, level change).
     let exit: TutorialBalloonExit
     /// Called when the balloon's exit animation completes so the
     /// parent can unmount it + clear the flag.
     let onFinished: () -> Void
-    /// Fires the moment the balloon is tapped (before the pop animation
-    /// plays out). Parent uses it to mark the tutorial seen so the pop
-    /// is treated as a real dismiss.
-    let onTap: () -> Void
-    /// Fires when the player swipes the balloon past the dismiss
-    /// threshold. `dx/dy` carry the swipe's predicted end translation
-    /// (points), which the parent maps to `exit = .swipedAway(dx:dy:)`
-    /// so the balloon glides off along that vector.
-    var onSwipe: (Double, Double) -> Void = { _, _ in }
     /// Anchor-preference key under which to publish the knot's
     /// on-screen position. The parent overlay reads this together
     /// with the level chip anchor to draw the connecting string +
@@ -128,29 +109,18 @@ struct TutorialBalloon: View {
     @State private var exitStartedAt: Date? = nil
     /// Guards `onFinished()` so at most one call fires per lifecycle.
     @State private var finishedFired: Bool = false
-    /// Live drag offset — tracks the player's finger while they're
-    /// dragging the balloon around. On release, we read this (plus
-    /// the predicted end location) to decide whether to treat the
-    /// gesture as a swipe-away or a short wiggle that snaps back.
-    @State private var dragOffset: CGSize = .zero
-
-    private static let balloonSize = CGSize(width: 120, height: 150)
+    private static let balloonSize = CGSize(width: 150, height: 170)
     private static let knotHeight: CGFloat = 10
     /// Length of the dangling string below the knot.
     private static let stringLength: CGFloat = 50
 
     var body: some View {
-        // TimelineView drives the per-frame sway + float-away + deflect
-        // decay math. Body of the closure just reads the latest pose
-        // from `computePose` so there's no control flow inside the
-        // ViewBuilder closure. Drag offset is added on top so the
-        // balloon tracks the player's finger while they're swiping
-        // without disturbing the sway math underneath.
+        // TimelineView drives passive per-frame sway and float-away
+        // motion. The closure only reads the latest pose from `computePose`.
         TimelineView(.animation(minimumInterval: 1.0 / 60.0)) { ctx in
             let pose = computePose(at: ctx.date)
             balloonVisual
-                .offset(x: pose.offset.width + dragOffset.width,
-                        y: pose.offset.height + dragOffset.height)
+                .offset(x: pose.offset.width, y: pose.offset.height)
                 .rotationEffect(.degrees(pose.angle))
                 .scaleEffect(pose.scale)
                 .opacity(pose.opacity)
@@ -158,46 +128,7 @@ struct TutorialBalloon: View {
         }
         .frame(width: Self.balloonSize.width,
                height: Self.balloonSize.height + Self.knotHeight + Self.stringLength + 12)
-        .contentShape(Rectangle())
-        // Only hit-test while alive or floating — after release/pop/
-        // swipe the balloon must not eat the player's taps.
-        .allowsHitTesting(exit == .alive || exit == .floating)
-        // Swipe-to-float: drag in any direction to push the balloon,
-        // release to send it gliding off along the swipe vector with
-        // the accel-to-coast motion profile. Short drags that don't
-        // clear the swipe threshold just snap back.
-        .simultaneousGesture(
-            DragGesture(minimumDistance: 6)
-                .onChanged { value in
-                    if exit == .alive || exit == .floating {
-                        dragOffset = value.translation
-                    }
-                }
-                .onEnded { value in
-                    guard exit == .alive || exit == .floating else {
-                        dragOffset = .zero
-                        return
-                    }
-                    let dx = value.predictedEndTranslation.width
-                    let dy = value.predictedEndTranslation.height
-                    let mag = sqrt(dx * dx + dy * dy)
-                    if mag > 40 {
-                        // Fly off in the swipe direction.
-                        onSwipe(Double(dx), Double(dy))
-                        dragOffset = .zero
-                    } else {
-                        // Didn't clear swipe threshold — snap back.
-                        withAnimation(.spring(response: 0.32, dampingFraction: 0.7)) {
-                            dragOffset = .zero
-                        }
-                    }
-                }
-        )
-        .onTapGesture {
-            if exit == .alive || exit == .floating {
-                onTap()
-            }
-        }
+        .allowsHitTesting(false)
         // Initialise appearAt once at mount so computePose has a
         // stable birth date without scheduling async state mutations
         // from inside the TimelineView body (which can cause "modifying
@@ -205,8 +136,7 @@ struct TutorialBalloon: View {
         // background and the timeline fires multiple frames rapidly).
         .onAppear { if appearAt == nil { appearAt = Date() } }
         // Capture the exit-start timestamp the moment the balloon
-        // transitions out of its idle state — covers .floating,
-        // .released, and .popped in one handler.
+        // transitions out of its idle state.
         .onChange(of: exit) { _, newExit in
             if newExit != .alive && exitStartedAt == nil {
                 exitStartedAt = Date()
@@ -277,13 +207,13 @@ struct TutorialBalloon: View {
             // Text suspended in the bubble. A drop shadow keeps it
             // legible against the translucent film + busy backdrop.
             Text(text)
-                .font(.system(size: 13, weight: .bold, design: .rounded))
+                .font(.system(size: 17, weight: .bold, design: .rounded))
                 .foregroundStyle(.white)
                 .multilineTextAlignment(.center)
                 .lineSpacing(2)
                 .fixedSize(horizontal: false, vertical: true)
-                .padding(.horizontal, 12)
-                .frame(width: d - 14, alignment: .center)
+                .padding(.horizontal, 14)
+                .frame(width: d - 18, alignment: .center)
                 .shadow(color: .black.opacity(0.50), radius: 3, y: 1)
             // Up-left corner pointer — only when the parent wires it in
             // (zen-intro). Sits inside the bubble's upper-left arc.
@@ -307,20 +237,11 @@ struct TutorialBalloon: View {
                 ) { [knotAnchorKey] value, anchor in
                     value[knotAnchorKey] = anchor
                 }
-            // Bubble center anchor — origin for the pop-particle burst.
-            Color.clear
-                .frame(width: 1, height: 1)
-                .transformAnchorPreference(
-                    key: TutorialAnchorsKey.self,
-                    value: .bounds
-                ) { value, anchor in
-                    value["balloonCenter"] = anchor
-                }
         }
     }
 
     /// One-tick snapshot of the balloon's current visual pose —
-    /// composition of idle sway and exit animation (release / pop).
+    /// composition of idle sway and release animation.
     private struct BalloonPose {
         var offset: CGSize
         var angle: Double
@@ -328,11 +249,9 @@ struct TutorialBalloon: View {
         var opacity: Double
     }
 
-    /// Motion profile shared by .floating and .swipedAway: the balloon
-    /// starts almost standstill, accelerates smoothly to terminal
-    /// velocity over `accelDuration`, then coasts at that speed
-    /// forever. Returns the cumulative displacement along one axis at
-    /// time `dt` given a terminal velocity (pt/s).
+    /// The released balloon starts almost standstill, accelerates smoothly
+    /// to terminal velocity over `accelDuration`, then coasts. Returns the
+    /// cumulative displacement along one axis at time `dt`.
     private static func accelThenCoast(dt: TimeInterval, terminalV: Double,
                                        accelDuration: TimeInterval = 0.35) -> Double {
         if dt <= 0 { return 0 }
@@ -353,12 +272,11 @@ struct TutorialBalloon: View {
         let isIdle = exit == .alive
         // Sway — bigger amplitude + slower frequency reads as a
         // lighter, floatier balloon instead of a tethered ornament.
-        // Alive at full, floating at reduced amp, other exits still.
+        // Alive balloons sway; exit motion is still.
         let swayAmp: Double = {
             switch exit {
             case .alive:    return 1.0
-            case .floating: return 0.6
-            default:        return 0
+            case .released: return 0
             }
         }()
         let swayX = swayAmp * sin(age * 0.65) * 9.0
@@ -368,37 +286,14 @@ struct TutorialBalloon: View {
         var floatX: CGFloat = 0
         var floatY: CGFloat = 0
         var floatAngle: Double = 0
-        var popScale: CGFloat = 1
         var exitOpacity: Double = 1
         if !isIdle {
             let started = exitStartedAt ?? t
             let dt = t.timeIntervalSince(started)
             switch exit {
-            case .floating:
-                // Just-let-go bubble: it hangs near-still for a beat,
-                // then very gradually builds upward speed. The long
-                // 2.2s acceleration ramp is what sells "released, now
-                // slowly rising" instead of an immediate drift. Still
-                // tappable while it lingers.
-                let disp = Self.accelThenCoast(dt: dt, terminalV: 95,
-                                               accelDuration: 2.2)
-                let drift = sin(dt * 0.9 + age) * 16
-                floatX = CGFloat(drift)
-                floatY = -CGFloat(disp)
-                floatAngle = sin(dt * 1.2) * 4
-                exitOpacity = max(0, 1 - dt / 5.0)
-                if dt > 5.5 && !finishedFired {
-                    DispatchQueue.main.async {
-                        guard !self.finishedFired else { return }
-                        self.finishedFired = true
-                        self.onFinished()
-                    }
-                }
             case .released:
                 // Auto-dismiss (level change / menu / first placement).
-                // Same let-go feel as .floating — hangs, then builds
-                // speed — just with a higher terminal and slightly
-                // shorter ramp so it clears the screen a bit sooner
+                // It hangs, then builds speed so it clears the screen
                 // without ever popping into a constant-speed jump.
                 let disp = Self.accelThenCoast(dt: dt, terminalV: 150,
                                                accelDuration: 1.5)
@@ -408,46 +303,6 @@ struct TutorialBalloon: View {
                 floatAngle = sin(dt * 1.8) * 6
                 exitOpacity = max(0, 1 - dt / 3.2)
                 if dt > 3.4 && !finishedFired {
-                    DispatchQueue.main.async {
-                        guard !self.finishedFired else { return }
-                        self.finishedFired = true
-                        self.onFinished()
-                    }
-                }
-            case .swipedAway(let dx, let dy):
-                // Player swiped the balloon away: glide indefinitely
-                // along the swipe vector using the accel-to-coast
-                // profile — near-standstill, quickly gain momentum,
-                // then coast at terminal speed until off-screen.
-                let mag = max(1, sqrt(dx * dx + dy * dy))
-                let nx = dx / mag
-                let ny = dy / mag
-                // Terminal speed scales with swipe strength (capped)
-                // so a flick sends it faster than a nudge.
-                let terminalV = min(560, max(220, mag * 2.2))
-                let disp = Self.accelThenCoast(dt: dt, terminalV: terminalV,
-                                               accelDuration: 0.35)
-                floatX = CGFloat(nx * disp)
-                floatY = CGFloat(ny * disp)
-                floatAngle = sin(dt * 1.4) * 4
-                // Keep visible — the player released it into flight,
-                // letting it fade awkwardly would undermine the
-                // "float that way indefinitely" contract. Unmount
-                // after it's well off-screen.
-                if dt > 6.0 && !finishedFired {
-                    DispatchQueue.main.async {
-                        guard !self.finishedFired else { return }
-                        self.finishedFired = true
-                        self.onFinished()
-                    }
-                }
-            case .popped:
-                // Snappy pop — body scales up briefly and the alpha
-                // collapses faster than before so the particles take
-                // over as the primary "something happened" cue.
-                popScale = 1 + CGFloat(dt) * 5.5
-                exitOpacity = max(0, 1 - dt / 0.09)
-                if dt > 0.11 && !finishedFired {
                     DispatchQueue.main.async {
                         guard !self.finishedFired else { return }
                         self.finishedFired = true
@@ -464,7 +319,7 @@ struct TutorialBalloon: View {
                 height: swayY + Double(floatY)
             ),
             angle: swayAngle + floatAngle,
-            scale: popScale,
+            scale: 1,
             opacity: exitOpacity
         )
     }
@@ -524,144 +379,6 @@ struct BalloonStringToTargetShape: Shape {
             knot = CGPoint(x: newValue.first.first, y: newValue.first.second)
             target = CGPoint(x: newValue.second.first, y: newValue.second.second)
         }
-    }
-}
-
-// ─── Pop-particle burst ─────────────────────────────────────────────
-
-/// Single physical fragment thrown outward when a balloon pops.
-/// Kept as a value type so the particle array can be swapped wholesale
-/// in one mutation per frame instead of poking individual particles.
-struct PopParticle: Identifiable {
-    let id = UUID()
-    var position: CGPoint
-    var velocity: CGVector
-    var angle: Double
-    var angularVelocity: Double
-    var size: CGFloat
-    var color: Color
-    let spawnDate: Date
-}
-
-/// Short-lived confetti explosion. Spawns 18 fragments at `origin`,
-/// scatters them with randomized outward velocities, and lets gravity
-/// drag them to the bottom of the container. The burst unmounts
-/// itself via `onFinished` once every fragment has fallen off-screen
-/// or the max life elapses.
-struct BalloonPopParticles: View {
-    let origin: CGPoint
-    let tint: Color
-    let containerHeight: CGFloat
-    let onFinished: () -> Void
-
-    @State private var particles: [PopParticle] = []
-    @State private var started: Bool = false
-    @State private var lastTick: Date? = nil
-
-    private static let spawnCount = 26
-    private static let maxLife: TimeInterval = 1.8
-    /// Downward acceleration in pt/s². Tuned by eye — slower than real
-    /// gravity so the arc feels floaty / rubbery rather than like lead.
-    private static let gravity: Double = 900
-
-    var body: some View {
-        TimelineView(.animation(minimumInterval: 1.0 / 60.0)) { ctx in
-            particleBodies(at: ctx.date)
-                .onChange(of: ctx.date) { _, newDate in
-                    advance(to: newDate)
-                }
-        }
-        .allowsHitTesting(false)
-    }
-
-    @ViewBuilder
-    private func particleBodies(at _: Date) -> some View {
-        ZStack {
-            ForEach(particles) { p in
-                RoundedRectangle(cornerRadius: p.size * 0.35,
-                                 style: .continuous)
-                    .fill(p.color)
-                    .frame(width: p.size, height: p.size * 0.55)
-                    .rotationEffect(.degrees(p.angle))
-                    .position(p.position)
-                    .opacity(opacity(for: p))
-            }
-        }
-    }
-
-    /// Physics integration — pulled out of the TimelineView builder
-    /// so there's no control-flow inside the ViewBuilder closure.
-    /// Runs once per tick; splits first-tick spawn from steady-state
-    /// motion so particles only get initialized once.
-    private func advance(to now: Date) {
-        if !started {
-            started = true
-            lastTick = now
-            particles = spawnParticles()
-            return
-        }
-        let dt = max(0, min(1.0 / 30.0, now.timeIntervalSince(lastTick ?? now)))
-        lastTick = now
-        var live: [PopParticle] = []
-        live.reserveCapacity(particles.count)
-        for var p in particles {
-            p.velocity.dy += Self.gravity * dt
-            p.position.x += p.velocity.dx * dt
-            p.position.y += p.velocity.dy * dt
-            p.angle += p.angularVelocity * dt
-            if p.position.y < containerHeight + 40,
-               now.timeIntervalSince(p.spawnDate) < Self.maxLife {
-                live.append(p)
-            }
-        }
-        particles = live
-        if particles.isEmpty && started {
-            onFinished()
-        }
-    }
-
-    private func spawnParticles() -> [PopParticle] {
-        let spawn = Date()
-        return (0..<Self.spawnCount).map { _ in
-            // Full-circle radial burst — each fragment flies out at a
-            // random angle so the effect reads as a popped balloon
-            // exploding in all directions rather than a unidirectional
-            // spray. Small upward bias (subtract π/2 * 0.12) so the
-            // top half of the burst is slightly denser, matching how
-            // rubber balloon fragments actually behave when popped.
-            let angleRad = Double.random(in: 0..<(2 * .pi)) - .pi / 2 * 0.12
-            let speed = Double.random(in: 300...640)
-            let vx = cos(angleRad) * speed
-            let vy = sin(angleRad) * speed
-            return PopParticle(
-                position: origin,
-                velocity: CGVector(dx: vx, dy: vy),
-                angle: Double.random(in: -180...180),
-                angularVelocity: Double.random(in: -540...540),
-                size: CGFloat.random(in: 8...16),
-                color: fragmentColor(),
-                spawnDate: spawn
-            )
-        }
-    }
-
-    /// Each fragment is a slight variation of the balloon's tint plus
-    /// a few white / pale-pink accents so the confetti doesn't read
-    /// as a monochrome blob.
-    private func fragmentColor() -> Color {
-        let roll = Int.random(in: 0..<6)
-        switch roll {
-        case 0:  return .white
-        case 1:  return Color(red: 1.00, green: 0.85, blue: 0.92)
-        default: return tint
-        }
-    }
-
-    private func opacity(for p: PopParticle) -> Double {
-        let age = Date().timeIntervalSince(p.spawnDate)
-        let fadeFrom = Self.maxLife - 0.5
-        if age < fadeFrom { return 1 }
-        return max(0, 1 - (age - fadeFrom) / 0.5)
     }
 }
 

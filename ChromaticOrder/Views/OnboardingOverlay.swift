@@ -13,7 +13,7 @@ struct OnboardingOverlay: View {
         if !seen, shouldShow {
             VStack {
                 Text("drag a swatch onto any cell")
-                    .font(.system(size: 13, weight: .semibold, design: .rounded))
+                    .font(.system(size: 17, weight: .semibold, design: .rounded))
                     .tracking(0.6)
                     .textCase(.lowercase)
                     .foregroundStyle(.white)
@@ -28,6 +28,9 @@ struct OnboardingOverlay: View {
             }
             .transition(.opacity)
             .allowsHitTesting(false)
+            .onChange(of: game.gameplayGuidanceDismissalID) { _, _ in
+                seen = true
+            }
         }
     }
 

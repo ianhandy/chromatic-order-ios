@@ -42,33 +42,18 @@ struct ContentView: View {
     /// Bumped when the flying heart lands so TopBarView can kick off
     /// its per-heart scale-bump wave.
     @State private var heartWaveTick: Int = 0
-    /// Bumped every time a new pop burst is triggered so the
-    /// particle overlay re-renders as a fresh view each time rather
-    /// than trying to reuse stale particle state.
-    @State private var popBurstTick: Int = 0
-    /// Captured balloon-center screen position when the pop fires.
-    /// Stored separately from the live anchor so particles can continue
-    /// even after the balloon unmounts (which clears the anchor 0.11s
-    /// after the pop but before the 2.2s particle animation ends).
-    @State private var popBurstOriginCapture: CGPoint? = nil
-    /// Most recent live balloon-center position resolved from the
-    /// `balloonCenter` preference anchor. Updated every layout pass
-    /// the balloon publishes it, so the pop handler can capture the
-    /// origin synchronously on tap instead of racing the anchor
-    /// against the .popped unmount animation.
-    @State private var balloonCenterLive: CGPoint? = nil
-    /// Tint snapshot for the most recent pop so the particle colors
-    /// match the balloon the player just popped.
-    @State private var popBurstTint: Color = .pink
     /// Active tutorial overlay, if any. Shown over the game view on
     /// first-time mode entries (challenge / zen / daily).
     @State private var tutorialFlag: TutorialFlag? = nil
+    /// Monotonically increasing identity for each mounted tutorial. Delayed
+    /// exit callbacks capture this so an old presentation cannot unmount a
+    /// newer presentation of the same flag.
+    @State private var tutorialPresentationID: Int = 0
     /// Exit choreography for the active tutorial balloon. `.alive`
     /// while it's on-screen; flips to `.released` on normal dismissal
     /// (menu open, level change, first placement) so the balloon
-    /// floats away, or `.popped` when the player taps it for the
-    /// quick pop animation. Parent unmounts the balloon only after
-    /// the exit animation reports completion via `onFinished`.
+    /// floats away. Parent unmounts the balloon only after the exit
+    /// animation reports completion via `onFinished`.
     @State private var tutorialExit: TutorialBalloonExit = .alive
     /// Level captured when a zen tutorial tooltip appears; the
     /// tooltip auto-dismisses once the player uses the level picker
@@ -336,14 +321,12 @@ struct ContentView: View {
             // keep the board layout stable so this positioning
             // actually clears the cells every time.
             if let flag = tutorialFlag {
-                tutorialTooltipLayer(for: flag)
+                tutorialTooltipLayer(for: flag,
+                                     presentationID: tutorialPresentationID)
                     .zIndex(30)
                     .transition(.opacity)
                 balloonStringOverlay
             }
-
-            popBurstOverlay
-                .zIndex(32)
 
             // Challenge run-over overlay. Fires when the player
             // loses their last heart in challenge mode. Covers the
@@ -377,6 +360,7 @@ struct ContentView: View {
         }
         .contentShape(Rectangle())
         .onTapGesture {
+            game.dismissGameplayGuidance()
             if menuOpen { menuOpen = false }
             else if game.selection != nil { game.clearSelection() }
         }
@@ -458,6 +442,9 @@ struct ContentView: View {
                 perfectHeartStage = .idle
                 solveSquishScale = 1.0
             }
+        }
+        .onChange(of: game.gameplayGuidanceDismissalID) { _, _ in
+            dismissTutorialImmediately()
         }
         .animation(.easeInOut(duration: 0.35), value: game.runComplete)
         .onChange(of: incomingPuzzle != nil) { _, hasIncoming in
@@ -732,19 +719,21 @@ struct ContentView: View {
     /// those tooltips sit just under the top bar.
     ///
     /// Reduce-motion players see the old flat `TutorialTooltip`;
-    /// everyone else gets the balloon with sway + float-away + tap-
-    /// pop physics via `TutorialBalloon`.
+    /// everyone else gets the balloon with passive sway + float-away
+    /// motion via `TutorialBalloon`.
     @ViewBuilder
-    private func tutorialTooltipLayer(for flag: TutorialFlag) -> some View {
+    private func tutorialTooltipLayer(for flag: TutorialFlag,
+                                      presentationID: Int) -> some View {
         if game.reduceMotion {
-            flatTutorialLayer(for: flag)
+            flatTutorialLayer(for: flag, presentationID: presentationID)
         } else {
-            balloonTutorialLayer(for: flag)
+            balloonTutorialLayer(for: flag, presentationID: presentationID)
         }
     }
 
     @ViewBuilder
-    private func flatTutorialLayer(for flag: TutorialFlag) -> some View {
+    private func flatTutorialLayer(for flag: TutorialFlag,
+                                   presentationID: Int) -> some View {
         let released = tutorialExit != .alive
         VStack(spacing: 0) {
             TutorialTooltip(text: tooltipText(for: flag))
@@ -758,14 +747,15 @@ struct ContentView: View {
         .onChange(of: tutorialExit) { _, newVal in
             if newVal != .alive {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.28) {
-                    finishTutorialUnmount()
+                    finishTutorialUnmount(for: flag, presentationID: presentationID)
                 }
             }
         }
     }
 
     @ViewBuilder
-    private func balloonTutorialLayer(for flag: TutorialFlag) -> some View {
+    private func balloonTutorialLayer(for flag: TutorialFlag,
+                                      presentationID: Int) -> some View {
         // Balloon position is fixed the same way the flat tooltip was
         // (top-center under the top bar). Per-flag color tint reads as
         // "slight tint" over a dark backdrop. The connector string to
@@ -781,40 +771,8 @@ struct ContentView: View {
                 text: tooltipText(for: flag),
                 tint: tint,
                 exit: tutorialExit,
-                onFinished: { finishTutorialUnmount() },
-                onTap: {
-                    if tutorialExit == .alive {
-                        // First tap — release: mark seen and let the
-                        // balloon float up slowly. Still tappable for
-                        // the second tap to pop.
-                        if let f = tutorialFlag { TutorialStore.markSeen(f) }
-                        tutorialExit = .floating
-                        zenTutorialBaselineLevel = nil
-                    } else if tutorialExit == .floating {
-                        // Second tap — pop the floating balloon.
-                        // Capture the balloon's LAST KNOWN center
-                        // before state change so the particle burst
-                        // has a reliable origin even if the anchor
-                        // unmounts in the same render tick.
-                        if let center = balloonCenterLive {
-                            popBurstOriginCapture = center
-                        }
-                        tutorialExit = .popped
-                        Haptics.pop()
-                        GlassyAudio.shared.playPop()
-                        popBurstTint = tint
-                        popBurstTick &+= 1
-                        GameCenter.shared.reportAchievement(
-                            GameCenter.Achievement.poppedBalloon
-                        )
-                    }
-                },
-                onSwipe: { dx, dy in
-                    // Swipe dismiss — mark seen + send the balloon
-                    // gliding off along the swipe vector.
-                    if let f = tutorialFlag { TutorialStore.markSeen(f) }
-                    zenTutorialBaselineLevel = nil
-                    tutorialExit = .swipedAway(dx: dx, dy: dy)
+                onFinished: {
+                    finishTutorialUnmount(for: flag, presentationID: presentationID)
                 },
                 knotAnchorKey: "balloonKnot",
                 cornerArrow: flag == .zenIntro
@@ -822,73 +780,6 @@ struct ContentView: View {
             .padding(.top, 78)
             Spacer(minLength: 0)
         }
-    }
-
-    /// Overlay that renders a falling-confetti burst whenever the
-    /// player pops a tutorial balloon. The origin is captured via
-    /// `onChange(of: popBurstTick)` while the balloon is still mounted
-    /// (anchor available), then stored in `popBurstOriginCapture` so
-    /// the 2.2-second particle animation can finish even after the
-    /// balloon unmounts (which clears the anchor after ~0.11s).
-    @ViewBuilder
-    private var popBurstOverlay: some View {
-        Color.clear
-            .overlayPreferenceValue(TutorialAnchorsKey.self) { anchors in
-                GeometryReader { geo in
-                    ZStack {
-                        // Continuously mirror the balloon's resolved
-                        // center into `balloonCenterLive` so the tap
-                        // handler can capture it synchronously. The
-                        // previous onChange(of: popBurstTick) approach
-                        // raced the .popped unmount animation — by the
-                        // time the tick observation fired, the
-                        // balloon's anchor preference could already
-                        // be stale, leaving the burst with nil origin
-                        // and no particles. Reading it here every
-                        // render cycle keeps `balloonCenterLive`
-                        // fresh while the balloon is alive.
-                        Color.clear
-                            .onAppear {
-                                if let a = anchors["balloonCenter"] {
-                                    let r = geo[a]
-                                    balloonCenterLive = CGPoint(x: r.midX, y: r.midY)
-                                }
-                            }
-                            .onChange(of: anchors["balloonCenter"] != nil) { _, has in
-                                if has, let a = anchors["balloonCenter"] {
-                                    let r = geo[a]
-                                    balloonCenterLive = CGPoint(x: r.midX, y: r.midY)
-                                } else {
-                                    balloonCenterLive = nil
-                                }
-                            }
-                            .onChange(of: popBurstTick) { _, tick in
-                                // Second-chance capture for bursts that
-                                // fired without a pre-captured origin.
-                                if tick > 0, popBurstOriginCapture == nil,
-                                   let a = anchors["balloonCenter"] {
-                                    let r = geo[a]
-                                    popBurstOriginCapture = CGPoint(
-                                        x: r.midX, y: r.midY
-                                    )
-                                }
-                            }
-                        if let origin = popBurstOriginCapture, popBurstTick > 0 {
-                            BalloonPopParticles(
-                                origin: origin,
-                                tint: popBurstTint,
-                                containerHeight: geo.size.height,
-                                onFinished: {
-                                    popBurstTick = 0
-                                    popBurstOriginCapture = nil
-                                }
-                            )
-                            .id(popBurstTick)
-                        }
-                    }
-                }
-            }
-            .allowsHitTesting(false)
     }
 
     /// Overlay drawn at the ZStack root so the connector string from
@@ -945,6 +836,7 @@ struct ContentView: View {
         }()
         guard let flag else { return }
         if !TutorialStore.hasSeen(flag), tutorialFlag != flag {
+            tutorialPresentationID += 1
             tutorialFlag = flag
             zenTutorialBaselineLevel = (flag == .zenIntro) ? game.level : nil
         }
@@ -953,7 +845,7 @@ struct ContentView: View {
     /// Begin the dismissal choreography for the active tutorial —
     /// marks it seen and flips the balloon into `.released` so it
     /// floats up and away. The balloon calls back into
-    /// `finishTutorialUnmount()` when its exit animation completes so
+    /// `finishTutorialUnmount(for:)` when its exit animation completes so
     /// the flag actually clears. No-op if nothing is active.
     private func releaseTutorial() {
         guard tutorialFlag != nil else { return }
@@ -961,15 +853,29 @@ struct ContentView: View {
             if let f = tutorialFlag { TutorialStore.markSeen(f) }
             tutorialExit = .released
         }
-        // If already .floating (user tapped balloon first, then
-        // clicked the target), leave it floating — it'll drift away
-        // on its own.
+    }
+
+    /// Gameplay actions must clear guidance in the same state update so they
+    /// are never delayed by the balloon's optional dismissal choreography.
+    private func dismissTutorialImmediately() {
+        if let flag = tutorialFlag { TutorialStore.markSeen(flag) }
+        // Invalidate callbacks captured by the current presentation before
+        // clearing it. This matters if the same flag is reset and re-presented.
+        tutorialPresentationID += 1
+        tutorialFlag = nil
+        tutorialExit = .alive
+        zenTutorialBaselineLevel = nil
     }
 
     /// Called by the tutorial view (balloon or flat) once its exit
     /// animation is done. Actually clears the flag + resets the exit
     /// state so a future mode switch can show the next tutorial.
-    private func finishTutorialUnmount() {
+    private func finishTutorialUnmount(for flag: TutorialFlag, presentationID: Int) {
+        let token = TutorialPresentationToken(flag: flag, id: presentationID)
+        guard tutorialPresentationID == presentationID,
+              token.matches(activeFlag: tutorialFlag,
+                            activePresentationID: tutorialPresentationID)
+        else { return }
         tutorialFlag = nil
         tutorialExit = .alive
         zenTutorialBaselineLevel = nil

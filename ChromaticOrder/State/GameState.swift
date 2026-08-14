@@ -325,6 +325,10 @@ final class GameState {
     /// Coaching line for the current campaign level, shown once. Cleared
     /// when the player dismisses it or the board changes.
     var campaignTip: String? = nil
+    /// Monotonically changes whenever real gameplay begins. ContentView
+    /// observes it to release its non-decision tutorial bubble; state owns
+    /// the campaign tip so both kinds of guidance leave through one path.
+    var gameplayGuidanceDismissalID = 0
     /// One-shot flag mirroring `openGalleryOnMenuAppear` — set by the
     /// in-game Home row so the main menu re-opens the campaign picker
     /// instead of dropping the player on the top-level menu.
@@ -366,6 +370,10 @@ final class GameState {
     var dragSource: DragSource?
     var dragLocation: CGPoint?
     var dropTarget: DropTarget?
+    /// A bank swatch released away from a valid target stays in its original
+    /// slot. This event identifies that slot for its one-shot return motion.
+    var bankReturnSlot: Int?
+    var bankReturnAnimationID = 0
     var activeColor: OKLCh?
     var solved: Bool = false {
         didSet {
@@ -1114,6 +1122,7 @@ final class GameState {
         dragSource = nil
         dragLocation = nil
         dropTarget = nil
+        bankReturnSlot = nil
         activeColor = nil
         showIncorrect = false
         engagedThisLevel = false
@@ -1578,6 +1587,7 @@ final class GameState {
     }
 
     func handleCheck() {
+        dismissGameplayGuidance()
         guard let p = puzzle, !solved else { return }
         // Daily skips the heart budget entirely — it's a one-shot
         // puzzle per day, and there's no "run" to end. Challenge
@@ -1765,6 +1775,7 @@ final class GameState {
         dragSource = nil
         dragLocation = nil
         dropTarget = nil
+        bankReturnSlot = nil
         activeColor = nil
         showIncorrect = false
         showedIncorrect = false
@@ -1808,7 +1819,7 @@ final class GameState {
     func loadCampaignLevel(_ index: Int) -> Bool {
         guard let entry = CampaignCatalog.level(index),
               let puz = entry.puzzle() else { return false }
-        loadCustomPuzzle(puz, title: entry.name)
+        loadCustomPuzzle(puz, title: entry.name.lowercased())
         campaignIndex = index
         campaignComplete = false
         CampaignStore.lastPlayed = index
@@ -2100,7 +2111,16 @@ final class GameState {
 
     // ─── tap handling ───────────────────────────────────────────────
 
+    /// Gameplay starts with the intended action, never with a separate
+    /// tutorial-dismissal tap. Decision dialogs intentionally do not use
+    /// this path.
+    func dismissGameplayGuidance() {
+        campaignTip = nil
+        gameplayGuidanceDismissalID &+= 1
+    }
+
     func tapSlot(_ slot: Int) {
+        dismissGameplayGuidance()
         guard !solved, let p = puzzle, slot < p.bank.count else { return }
 
         // Already-selected-as-source case
@@ -2126,6 +2146,7 @@ final class GameState {
     }
 
     func tapCell(at r: Int, _ c: Int) {
+        dismissGameplayGuidance()
         guard !solved, let p = puzzle else { return }
         let cell = p.board[r][c]
         guard cell.kind == .cell, !cell.locked else { return }
@@ -2158,6 +2179,8 @@ final class GameState {
     // ─── drag plumbing ──────────────────────────────────────────────
 
     func beginDrag(_ source: DragSource, at loc: CGPoint) {
+        dismissGameplayGuidance()
+        bankReturnSlot = nil
         dragSource = source
         dragLocation = loc
         selection = nil
@@ -2189,8 +2212,15 @@ final class GameState {
             case (.cell(let from), .slot(let to)):
                 placeCellIntoSlot(from, slot: to)
             }
-        } else if moved, case .cell(let from) = source.kind {
-            cellToBank(from)
+        } else if moved {
+            switch source.kind {
+            case .bank(let slot):
+                bankReturnSlot = slot
+                bankReturnAnimationID &+= 1
+                Haptics.cancelledReturn()
+            case .cell(let from):
+                cellToBank(from)
+            }
         }
     }
 
