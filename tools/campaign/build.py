@@ -1291,6 +1291,73 @@ def unmet_claims(shape, colors, locked, name) -> list[str]:
     return failed
 
 
+# ─── Difficulty target ─────────────────────────────────────────────
+
+# How hard each level is *meant* to be, as the number of cells a typical eye
+# leaves wrong on a first pass, ramping inside each chapter and resetting a
+# little lower at each chapter opening. Same sawtooth the bank curve draws,
+# stated in the units a player actually experiences.
+#
+# Wrong cells rather than boards-solved, for two reasons. It is what a campaign
+# level costs the player: these boards auto-solve with no Check and no hearts,
+# so a first pass that is not right is a hunt back through what you placed, and
+# its length is the difficulty. And it is a mean rather than a proportion, so 40
+# trials pin it to a few hundredths where the same trials leave a success rate
+# swinging ten points, which matters when the number is being used to choose
+# between candidates.
+BOOK2_DIFFICULTY = {
+    "Workshop":    (1.2, 2.4),
+    "Orchestra":   (1.6, 2.8),
+    "Circuitry":   (2.0, 3.2),
+    "Interiors":   (2.4, 3.6),
+    "Grand Works": (2.8, 4.0),
+}
+
+# How far the search may move a level's bank size off its chapter's, how many
+# palettes to weigh at each of those sizes, the band inside which a board is
+# near enough to stop looking, and the trials each measurement runs.
+BANK_WINDOW = 8
+TUNE_PALETTES = 3
+TUNE_TOLERANCE = 0.35
+TUNE_TRIALS = 40
+# The noise-free gate needs only a few, since the only randomness left at zero
+# noise is which way a genuine tie falls.
+CONTROL_TRIALS = 4
+
+
+def difficulty_target(level: int) -> float | None:
+    """Wrong-cell target for this level, or None where none is set."""
+    title, first, last, _blurb = shapes.chapter_of(level)
+    band = BOOK2_DIFFICULTY.get(title)
+    if band is None:
+        return None
+    return lerp(band[0], band[1], (level - first) / max(1, last - first))
+
+
+def measure_difficulty(entry: dict) -> tuple[bool, float]:
+    """(a perfect eye lands it, cells a typical eye leaves wrong).
+
+    Both conditions, because the second one alone would happily call a board
+    that nobody can finish "appropriately hard". A board the noise-free solver
+    cannot land is not a difficulty, it is a defect, whether that is a genuine
+    ambiguity or one of the reasoning player's documented blind spots, and
+    either way it is not what a level should be selected for.
+
+    Imported lazily: `playtest` is a heavy module and every level that is not
+    being tuned should not pay to import it.
+    """
+    import playtest
+    level = playtest._level_from_entry(entry)
+    control = playtest.Settings("noise-free control", sigma=0.0, k=0.0, t=0.0,
+                                misclick=0.0)
+    if playtest.run_level(level, control, CONTROL_TRIALS, "reason").success < 1.0:
+        return False, 0.0
+    typical = playtest.Settings("typical eye", sigma=2.0, k=0.0, t=1.5,
+                                misclick=0.0)
+    return True, playtest.run_level(level, typical, TUNE_TRIALS,
+                                    "reason").mean_wrong
+
+
 # ─── Level assembly ────────────────────────────────────────────────
 
 def build_level(level: int, name: str, artwork: str, tip: str | None,
@@ -1298,8 +1365,116 @@ def build_level(level: int, name: str, artwork: str, tip: str | None,
     shape = art.parse(artwork, name)
     cfg = curve(level)
     FAILS.clear()          # so the failure report below describes THIS level
-    attempts = 0
-    for attempt in range(4000):
+    target = difficulty_target(level)
+
+    if target is None:
+        for entry in valid_entries(level, shape, name, tip, cfg):
+            if verbose:
+                print(f"  level {level:3d} {name:12s} {shape.grid_w}x{shape.grid_h} "
+                      f"grads={entry['gradientCount']} cells={entry['cellCount']} "
+                      f"bank={entry['bankCount']} "
+                      f"minDE={entry['minPairDeltaE']:.1f} "
+                      f"tries={entry['attempts']}")
+            return entry
+        raise _no_palette(level, name)
+
+    # Everything `valid_entries` yields is a legal board. Nothing about it says
+    # how hard the board turned out, and that varies a long way between boards
+    # that are equally legal. Pliers and Level are neighbours built to the same
+    # bank size and read at 8% and 68% to a typical eye, a spread far louder
+    # than the curve it sits on, so a level lands wherever its first valid
+    # palette happened to fall.
+    #
+    # So search instead of settling: walk outward from the chapter's bank size,
+    # weigh a few palettes at each, and keep whichever board comes nearest the
+    # level's difficulty target. Bank size is searched because it is the knob
+    # that actually moves difficulty, and the window keeps the chapter's ramp
+    # in charge of the shape of the curve while letting a level that is far off
+    # it be pulled back. Selection only ever swaps one already-valid board for
+    # another, so it cannot invent an unfair one, and it pulls toward the middle
+    # of the distribution rather than exploiting its ends, which is the honest
+    # way to use a simulated player whose ordering is trustworthy but whose
+    # absolute numbers are asserted.
+    def weigh(bank: int) -> tuple[float, dict, float] | None:
+        """Nearest-to-target board at this bank size, over a few palettes."""
+        local = None
+        weighed = examined = 0
+        for entry in valid_entries(level, shape, name, tip,
+                                   dict(cfg, bank_target=bank)):
+            examined += 1
+            if examined > TUNE_PALETTES * 4:
+                break        # this size keeps failing the gate; move on
+            landed, wrong = measure_difficulty(entry)
+            if not landed:
+                if verbose:
+                    print(f"    bank {bank:2d}: a perfect eye misses this board")
+                continue
+            entry["typicalWrong"] = round(wrong, 2)
+            miss = abs(wrong - target)
+            if local is None or miss < local[0]:
+                local = (miss, entry, wrong)
+            weighed += 1
+            if verbose:
+                print(f"    bank {bank:2d} palette {weighed}: wrong {wrong:5.2f} "
+                      f"vs target {target:.2f}")
+            if weighed >= TUNE_PALETTES:
+                break
+        return local
+
+    # Walk rather than scan: one swatch fewer is always one decision fewer, so
+    # difficulty is monotone in bank size and the direction to move is known
+    # from the sign of the miss. The walk stops when it lands inside the
+    # tolerance, when it steps outside the window, or when it turns back onto a
+    # size it has already weighed, which means the target sits between two
+    # neighbouring bank sizes and no third one will do better.
+    base = cfg["bank_target"]
+    cells = len(shape.all_cells)
+    low, high = max(1, base - BANK_WINDOW), min(cells - 1, base + BANK_WINDOW)
+    bank = min(max(base, low), high)
+    best: tuple[float, dict, float] | None = None   # (miss, entry, wrong)
+    seen: set[int] = set()
+    while bank not in seen:
+        seen.add(bank)
+        local = weigh(bank)
+        if local is None:
+            break            # no legal board at this size; keep what we have
+        if best is None or local[0] < best[0]:
+            best = local
+        if local[0] <= TUNE_TOLERANCE:
+            break
+        step = -1 if local[2] > target else 1     # too hard, give a cell back
+        if not low <= bank + step <= high:
+            break
+        bank += step
+
+    if best is None:
+        raise _no_palette(level, name)
+    entry = best[1]
+    if verbose:
+        print(f"  level {level:3d} {name:12s} {shape.grid_w}x{shape.grid_h} "
+              f"grads={entry['gradientCount']} cells={entry['cellCount']} "
+              f"bank={entry['bankCount']} minDE={entry['minPairDeltaE']:.1f} "
+              f"wrong={entry['typicalWrong']:.2f} target={target:.2f}")
+    return entry
+
+
+def _no_palette(level: int, name: str) -> RuntimeError:
+    claim_fails = {k: v for k, v in FAILS.items() if k.startswith("tip_claim:")}
+    return RuntimeError(
+        f"level {level} ({name}): no valid palette"
+        + (f" — tip claims blocking it: {claim_fails}" if claim_fails else ""))
+
+
+def valid_entries(level: int, shape, name: str, tip: str | None, cfg: dict,
+                  budget: int = 4000):
+    """Yield every board for this level that clears every rule, in seed order.
+
+    Split out of `build_level` so the same search can be run more than once
+    with a different bank size. The attempt index seeds both the palette and
+    the relax ramp, so a given attempt paints identically whatever bank it is
+    asked for, and only the given cells move between runs.
+    """
+    for attempt in range(budget):
         attempts = attempt + 1
         rng = random.Random(level * 7919 + attempt)
         relax = 1.0 - min(0.45, attempt / 3000.0)
@@ -1382,16 +1557,7 @@ def build_level(level: int, name: str, artwork: str, tip: str | None,
         # which matters because it is allowed to give ground.
         if level > COLOUR_CURVE_END:
             entry["sepRatio"] = round(scaled["sep_ratio"], 3)
-        if verbose:
-            print(f"  level {level:3d} {name:12s} {shape.grid_w}x{shape.grid_h} "
-                  f"grads={len(shape.gradients)} cells={len(board)} "
-                  f"bank={entry['bankCount']} minDE={min_pair:.1f} "
-                  f"tries={attempts}")
-        return entry
-    claim_fails = {k: v for k, v in FAILS.items() if k.startswith("tip_claim:")}
-    raise RuntimeError(
-        f"level {level} ({name}): no valid palette after {attempts} attempts"
-        + (f" — tip claims blocking it: {claim_fails}" if claim_fails else ""))
+        yield entry
 
 
 def check_teaching_order(levels: list[dict]) -> list[str]:

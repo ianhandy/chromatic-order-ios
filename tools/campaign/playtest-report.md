@@ -42,14 +42,14 @@ Fair levels only, ranked by mean success across the played conditions. `sep` is 
 | 95 | Carousel | Mastery | 28 | 4.3 | 4.4 | 4.3 | 4% | 13% | 3% | 0% | 0% | 2% |
 | 77 | Pyramid | Landmarks | 19 | 11.1 | 6.5 | 6.5 | 5% | 23% | 2% | 0% | 0% | 2% |
 | 96 | Organ | Mastery | 28 | 4.8 | 4.6 | 4.6 | 6% | 23% | 3% | 0% | 2% | 2% |
-| 178 | Landing | Interiors | 25 | 4.6 | 4.3 | 4.3 | 6% | 28% | 0% | 0% | 2% | 0% |
 | 83 | Observatory | Landmarks | 22 | 8.9 | 6.0 | 6.0 | 7% | 28% | 0% | 2% | 2% | 2% |
 | 89 | Cascade | Mastery | 16 | 6.4 | 4.5 | 4.5 | 8% | 33% | 2% | 0% | 0% | 3% |
-| 137 | Saxophone | Orchestra | 21 | 4.3 | 4.2 | 4.3 | 8% | 35% | 3% | 0% | 0% | 0% |
 | 100 | Mandala | Mastery | 30 | 5.8 | 4.0 | 4.0 | 8% | 42% | 0% | 0% | 0% | 0% |
-| 140 | Piano | Orchestra | 22 | 7.0 | 4.7 | 4.7 | 9% | 25% | 7% | 2% | 0% | 10% |
 | 81 | Ferris | Landmarks | 22 | 9.2 | 6.7 | 6.7 | 10% | 42% | 3% | 0% | 2% | 3% |
-| 171 | Skylight | Interiors | 22 | 4.2 | 4.2 | 4.2 | 10% | 37% | 8% | 0% | 0% | 5% |
+| 86 | Waterfall | Landmarks | 24 | 8.5 | 5.8 | 5.8 | 11% | 35% | 8% | 2% | 0% | 10% |
+| 70 | Fox | Creatures | 15 | 6.5 | 7.2 | 6.5 | 15% | 55% | 10% | 2% | 0% | 7% |
+| 80 | Cathedral | Landmarks | 21 | 10.2 | 6.7 | 6.7 | 15% | 42% | 13% | 5% | 3% | 12% |
+| 177 | Banister | Interiors | 23 | 4.1 | 4.4 | 4.4 | 17% | 63% | 17% | 2% | 0% | 5% |
 
 
 ## Where the difficulty comes from, at `typical eye`
@@ -67,8 +67,6 @@ sigma=2 k=0 t=1.5 misclick=0, worst first, with the three channel measurements a
 | 94 | Palace | 27 | 4.3 | 2.1 | 4.3 | 2.1 | 4.3 | 0% | 21.18 | 6.53 |
 | 97 | Citadel | 29 | 5.7 | 2.8 | 4.3 | 2.1 | 4.6 | 0% | 27.35 | 8.88 |
 | 100 | Mandala | 30 | 5.8 | 2.9 | 4.0 | 2.0 | 4.0 | 0% | 10.28 | 8.48 |
-| 178 | Landing | 25 | 4.6 | 2.3 | 4.3 | 2.2 | 4.3 | 0% | 9.93 | 5.55 |
-| 200 | Ironworks | 28 | 4.4 | 2.2 | 4.4 | 2.2 | 4.4 | 0% | 7.33 | 5.27 |
 | 75 | Church | 19 | 5.8 | 2.9 | 4.9 | 2.4 | 4.9 | 2% | 12.83 | 5.10 |
 | 77 | Pyramid | 19 | 11.1 | 5.6 | 6.5 | 3.2 | 6.5 | 2% | 11.37 | 3.23 |
 | 89 | Cascade | 16 | 6.4 | 3.2 | 4.5 | 2.3 | 4.5 | 2% | 9.10 | 4.05 |
@@ -76,8 +74,10 @@ sigma=2 k=0 t=1.5 misclick=0, worst first, with the three channel measurements a
 | 84 | Garden | 22 | 8.3 | 4.1 | 4.6 | 2.3 | 4.6 | 3% | 15.13 | 4.27 |
 | 95 | Carousel | 28 | 4.3 | 2.1 | 4.4 | 2.2 | 4.3 | 3% | 6.70 | 3.52 |
 | 96 | Organ | 28 | 4.8 | 2.4 | 4.6 | 2.3 | 4.6 | 3% | 11.27 | 4.13 |
-| 137 | Saxophone | 21 | 4.3 | 2.2 | 4.2 | 2.1 | 4.3 | 3% | 8.67 | 3.55 |
-| 138 | Bagpipes | 21 | 4.6 | 2.3 | 4.6 | 2.3 | 4.6 | 3% | 9.48 | 4.70 |
+| 86 | Waterfall | 24 | 8.5 | 4.3 | 5.8 | 2.9 | 5.8 | 8% | 5.78 | 2.27 |
+| 92 | Lattice | 27 | 6.7 | 3.3 | 4.5 | 2.3 | 4.5 | 8% | 5.92 | 5.80 |
+| 192 | Telescope | 24 | 4.2 | 2.1 | 4.2 | 2.1 | 4.2 | 8% | 4.12 | 3.75 |
+| 200 | Ironworks | 23 | 4.2 | 2.1 | 4.2 | 2.1 | 4.2 | 8% | 4.35 | 3.08 |
 
 
 ## Per chapter
@@ -93,11 +93,11 @@ Mean success by chapter over fair levels, chapters in play order. Difficulty int
 | Creatures | 53-70 | 2 | 8.2 | 7.3 | 94% | 78% | 53% | 29% | 40% | 43% |
 | Landmarks | 71-88 | 1 | 8.0 | 5.7 | 94% | 52% | 19% | 4% | 5% | 13% |
 | Mastery | 89-100 | 0 | 5.8 | 4.5 | 92% | 47% | 7% | 0% | 0% | 4% |
-| Workshop | 101-120 | 0 | 5.1 | 4.9 | 100% | 89% | 45% | 12% | 11% | 34% |
-| Orchestra | 121-140 | 0 | 5.4 | 5.0 | 100% | 88% | 40% | 12% | 8% | 29% |
-| Circuitry | 141-160 | 0 | 4.9 | 4.5 | 100% | 91% | 35% | 6% | 5% | 26% |
-| Interiors | 161-180 | 0 | 4.6 | 4.4 | 100% | 85% | 28% | 4% | 4% | 18% |
-| Grand Works | 181-200 | 0 | 4.5 | 4.4 | 100% | 90% | 23% | 4% | 2% | 17% |
+| Workshop | 101-120 | 0 | 5.1 | 4.8 | 100% | 96% | 47% | 11% | 9% | 37% |
+| Orchestra | 121-140 | 0 | 5.2 | 4.9 | 100% | 94% | 39% | 7% | 6% | 28% |
+| Circuitry | 141-160 | 0 | 4.9 | 4.5 | 100% | 94% | 34% | 5% | 3% | 23% |
+| Interiors | 161-180 | 0 | 4.7 | 4.4 | 100% | 93% | 26% | 3% | 2% | 18% |
+| Grand Works | 181-200 | 0 | 4.5 | 4.4 | 100% | 92% | 20% | 2% | 1% | 14% |
 
 
 ## Which measurement predicts failure?
@@ -106,34 +106,34 @@ Correlation with success rate at `typical eye` over the 196 fair levels. Positiv
 
 | quantity | Pearson r | Spearman rho |
 |---|---|---|
-| between-run separation | +0.365 | +0.557 |
-| within-run step | +0.644 | +0.646 |
-| unpinned runs (count) | -0.409 | -0.478 |
-| hardest bank margin | +0.317 | +0.654 |
-| bank size | -0.818 | -0.795 |
+| between-run separation | +0.390 | +0.567 |
+| within-run step | +0.679 | +0.641 |
+| unpinned runs (count) | -0.389 | -0.435 |
+| hardest bank margin | +0.337 | +0.641 |
+| bank size | -0.824 | -0.773 |
 
 
 Bank size is in the table as a confound check: late levels have both tighter colours and more decisions, so a channel measurement only earns its keep if it beats plain counting. Success is a whole-board test, so it punishes size twice over (thirty decisions at 99% each still lose a quarter of the time). The table below removes that by asking the same question per cell.
 
 | quantity | Pearson r vs per-cell error | Spearman rho |
 |---|---|---|
-| between-run separation | -0.192 | -0.476 |
-| within-run step | -0.318 | -0.552 |
-| unpinned runs (count) | +0.794 | +0.555 |
-| hardest bank margin | -0.176 | -0.558 |
-| bank size | +0.493 | +0.695 |
+| between-run separation | -0.185 | -0.493 |
+| within-run step | -0.289 | -0.548 |
+| unpinned runs (count) | +0.820 | +0.519 |
+| hardest bank margin | -0.169 | -0.546 |
+| bank size | +0.444 | +0.632 |
 
 
-Negative is what a difficulty measurement should be here: more separation, fewer errors. Note that `within-run step` and `hardest bank margin` are the same number on 160 of the 196 fair levels, because the closest pair in the bank is almost always two neighbours on one run. The step is the more useful of the two to author against, since it is the quantity the generator can set directly.
+Negative is what a difficulty measurement should be here: more separation, fewer errors. Note that `within-run step` and `hardest bank margin` are the same number on 161 of the 196 fair levels, because the closest pair in the bank is almost always two neighbours on one run. The step is the more useful of the two to author against, since it is the quantity the generator can set directly.
 
 
 Banded by between-run separation against the perceptual noise:
 
 | band | levels | mean success | mean wrong cells |
 |---|---|---|---|
-| under 2 sigma (coin flip) | 1 | 10% | 5.35 |
-| 2 to 3 sigma (strained) | 101 | 32% | 3.75 |
-| 3 to 5 sigma (workable) | 57 | 52% | 3.60 |
+| under 2 sigma (coin flip) | 1 | 23% | 3.30 |
+| 2 to 3 sigma (strained) | 100 | 31% | 3.34 |
+| 3 to 5 sigma (workable) | 58 | 50% | 3.54 |
 | over 5 sigma (comfortable) | 37 | 88% | 0.73 |
 
 
@@ -141,9 +141,9 @@ Banded by within-run step against the perceptual noise:
 
 | band | levels | mean success | mean wrong cells |
 |---|---|---|---|
-| under 2 sigma (coin flip) | 1 | 10% | 5.35 |
-| 2 to 3 sigma (strained) | 128 | 32% | 4.06 |
-| 3 to 5 sigma (workable) | 57 | 75% | 1.61 |
+| under 2 sigma (coin flip) | 1 | 23% | 3.30 |
+| 2 to 3 sigma (strained) | 129 | 32% | 3.69 |
+| 3 to 5 sigma (workable) | 56 | 75% | 1.62 |
 | over 5 sigma (comfortable) | 10 | 100% | 0.00 |
 
 
@@ -152,10 +152,10 @@ Banded by within-run step against the perceptual noise:
 | condition | sigma | k | t | misclick | mean success (fair) | fair levels above 90% |
 |---|---|---|---|---|---|---|
 | noise-free control | 0 | 0 | 0 | 0 | 98% | 193 |
-| sharp eye | 1 | 0 | 1.5 | 0 | 85% | 137 |
+| sharp eye | 1 | 0 | 1.5 | 0 | 87% | 149 |
 | typical eye | 2 | 0 | 1.5 | 0 | 48% | 46 |
-| tired eye | 3 | 0 | 1.5 | 0 | 27% | 23 |
-| compressed 50% | 1 | 0.5 | 1.5 | 0 | 29% | 30 |
+| tired eye | 3 | 0 | 1.5 | 0 | 26% | 23 |
+| compressed 50% | 1 | 0.5 | 1.5 | 0 | 28% | 30 |
 | typical eye + fumbles | 2 | 0 | 1.5 | 0.02 | 39% | 23 |
 
 
