@@ -9,13 +9,21 @@ import XCTest
 
 final class CampaignAuditTests: XCTestCase {
 
+    private func source(_ relativePath: String) throws -> String {
+        let repository = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+        return try String(contentsOf: repository.appendingPathComponent(relativePath),
+                          encoding: .utf8)
+    }
+
     /// The bundle under test is the host app's, so the resource lookup here
     /// exercises exactly the path CampaignCatalog uses at runtime.
     func testCampaignLoads() throws {
-        XCTAssertEqual(CampaignCatalog.count, 100,
-                       "campaign.json should carry 100 levels")
-        XCTAssertEqual(CampaignCatalog.chapters.count, 7)
-        // Chapters must tile 1...100 with no gaps or overlaps, since the
+        XCTAssertEqual(CampaignCatalog.count, 200,
+                       "campaign.json should carry 200 levels")
+        XCTAssertEqual(CampaignCatalog.chapters.count, 12)
+        // Chapters must tile 1...200 with no gaps or overlaps, since the
         // picker groups every level under exactly one of them.
         var expected = 1
         for chapter in CampaignCatalog.chapters {
@@ -24,7 +32,7 @@ final class CampaignAuditTests: XCTestCase {
             XCTAssertGreaterThanOrEqual(chapter.last, chapter.first)
             expected = chapter.last + 1
         }
-        XCTAssertEqual(expected, 101, "chapters should cover through level 100")
+        XCTAssertEqual(expected, 201, "chapters should cover through level 200")
 
         for (offset, level) in CampaignCatalog.levels.enumerated() {
             XCTAssertEqual(level.index, offset + 1, "levels must be in order")
@@ -170,13 +178,25 @@ final class CampaignAuditTests: XCTestCase {
                                      "level \(i + 1) leaps in swatch count even smoothed")
         }
 
-        // Averaged over a chapter, the trend must be upward.
+        // Averaged over a chapter, the trend must be upward — within a book.
+        // Book two opens on a deliberate reset: its shapes are far denser than
+        // Mastery's, and holding book one's swatch count through them asked a
+        // player for thirty blind decisions per board, which measured as three
+        // boards in a hundred read correctly on a first pass. The reset is the
+        // sawtooth at book scale, so it is asserted rather than merely allowed.
+        let bookOneEnd = 100
+        let bookStart = CampaignCatalog.chapters.first { $0.first > bookOneEnd }?.title
         var previousAverage = 0.0
         for chapter in CampaignCatalog.chapters {
             let levels = CampaignCatalog.levels(in: chapter)
             let average = Double(levels.reduce(0) { $0 + $1.bankCount }) / Double(levels.count)
-            XCTAssertGreaterThan(average, previousAverage,
-                                 "chapter \(chapter.title) doesn't step up")
+            if chapter.title == bookStart {
+                XCTAssertLessThan(average, previousAverage,
+                                  "book two should open easier than book one closed")
+            } else {
+                XCTAssertGreaterThan(average, previousAverage,
+                                     "chapter \(chapter.title) doesn't step up")
+            }
             previousAverage = average
         }
     }
@@ -192,7 +212,7 @@ final class CampaignAuditTests: XCTestCase {
 
         XCTAssertTrue(game.loadCampaignLevel(1))
         XCTAssertEqual(game.campaignIndex, 1)
-        XCTAssertEqual(game.customTitle, CampaignCatalog.level(1)?.name)
+        XCTAssertEqual(game.customTitle, CampaignCatalog.level(1)?.name.lowercased())
         XCTAssertNotNil(game.puzzle)
         XCTAssertFalse(game.generating, "authored levels don't wait on the generator")
         XCTAssertNotNil(game.campaignTip, "level 1 introduces the drag")
@@ -205,14 +225,14 @@ final class CampaignAuditTests: XCTestCase {
         game.handleNext()
         XCTAssertEqual(game.campaignIndex, 2)
         XCTAssertTrue(CampaignStore.isCleared(1))
-        XCTAssertEqual(game.customTitle, CampaignCatalog.level(2)?.name)
+        XCTAssertEqual(game.customTitle, CampaignCatalog.level(2)?.name.lowercased())
         XCTAssertFalse(game.campaignComplete)
 
         // A tip only ever shows once.
         XCTAssertTrue(game.loadCampaignLevel(1))
         XCTAssertNil(game.campaignTip)
 
-        // The finale ends the campaign rather than advancing past 100.
+        // The finale ends the campaign rather than advancing past the end.
         XCTAssertTrue(game.loadCampaignLevel(CampaignCatalog.count))
         game.handleNext()
         XCTAssertTrue(game.campaignComplete)
@@ -304,7 +324,7 @@ final class CampaignAuditTests: XCTestCase {
         try await Task.sleep(for: .seconds(2))
 
         XCTAssertEqual(game.campaignIndex, 1, "campaign tag was cleared")
-        XCTAssertEqual(game.customTitle, expected.name)
+        XCTAssertEqual(game.customTitle, expected.name.lowercased())
         let puzzle = try XCTUnwrap(game.puzzle)
         XCTAssertEqual(puzzle.gridW, expected.doc.gridW,
                        "a generated board replaced the campaign level")
@@ -469,6 +489,10 @@ final class CampaignAuditTests: XCTestCase {
     func testProgressGating() throws {
         CampaignStore.resetAll()
         XCTAssertTrue(CampaignStore.isUnlocked(1))
+        for chapter in CampaignCatalog.chapters {
+            XCTAssertTrue(CampaignStore.isUnlocked(chapter.first),
+                          "the first level of every chapter is replayable")
+        }
         XCTAssertFalse(CampaignStore.isUnlocked(2))
         XCTAssertEqual(CampaignStore.nextUp, 1)
 
@@ -478,6 +502,158 @@ final class CampaignAuditTests: XCTestCase {
         XCTAssertFalse(CampaignStore.isUnlocked(3))
         XCTAssertEqual(CampaignStore.nextUp, 2)
         XCTAssertFalse(CampaignStore.isComplete)
+        CampaignStore.resetAll()
+    }
+
+    @MainActor
+    func testGameplayTapAndDragDismissCampaignGuidanceWithoutConsumingAction() throws {
+        CampaignStore.resetAll()
+        let game = GameState()
+        XCTAssertTrue(game.loadCampaignLevel(1))
+        let slot = try XCTUnwrap(game.puzzle?.bank.indices.first {
+            game.puzzle?.bank[$0] != nil
+        })
+
+        XCTAssertNotNil(game.campaignTip)
+        let tapDismissal = game.gameplayGuidanceDismissalID
+        game.tapSlot(slot)
+        XCTAssertNil(game.campaignTip)
+        XCTAssertEqual(game.gameplayGuidanceDismissalID, tapDismissal + 1)
+        XCTAssertEqual(game.selection?.kind, .bank(slot))
+
+        CampaignStore.resetAll()
+        XCTAssertTrue(game.loadCampaignLevel(1))
+        let item = try XCTUnwrap(game.puzzle?.bank[slot])
+        XCTAssertNotNil(game.campaignTip)
+        let dragDismissal = game.gameplayGuidanceDismissalID
+        game.beginDrag(DragSource(kind: .bank(slot), color: item.color), at: .zero)
+        XCTAssertNil(game.campaignTip)
+        XCTAssertEqual(game.gameplayGuidanceDismissalID, dragDismissal + 1)
+        XCTAssertEqual(game.dragSource?.kind, .bank(slot))
+        CampaignStore.resetAll()
+    }
+
+    func testCampaignTipBannerDoesNotInterceptGameplay() throws {
+        let banner = try source("ChromaticOrder/Views/CampaignTipBanner.swift")
+        XCTAssertTrue(banner.contains(".allowsHitTesting(false)"))
+        XCTAssertFalse(banner.contains(".onTapGesture"),
+                       "the banner must not consume a dismiss-only tap")
+        XCTAssertFalse(banner.contains(".contentShape(Rectangle())"),
+                       "the banner must not install a full-screen hit target")
+    }
+
+    func testTutorialBalloonDoesNotInterceptGameplay() throws {
+        let source = try source("ChromaticOrder/Views/TutorialOverlay.swift")
+        let start = try XCTUnwrap(source.range(of: "struct TutorialBalloon: View"))
+        let end = try XCTUnwrap(source.range(of: "struct BalloonStringToTargetShape"))
+        let balloon = String(source[start.lowerBound..<end.lowerBound])
+
+        XCTAssertTrue(balloon.contains(".allowsHitTesting(false)"))
+        XCTAssertFalse(balloon.contains(".simultaneousGesture("),
+                       "non-decision guidance must not own gameplay drags")
+        XCTAssertFalse(balloon.contains(".onTapGesture"),
+                       "non-decision guidance must not own gameplay taps")
+    }
+
+    func testGameplayDismissalImmediatelyUnmountsTutorial() throws {
+        let content = try source("ChromaticOrder/ContentView.swift")
+        XCTAssertTrue(content.contains(
+            ".onChange(of: game.gameplayGuidanceDismissalID) { _, _ in\n            dismissTutorialImmediately()"
+        ))
+        XCTAssertTrue(content.contains("private func dismissTutorialImmediately()"))
+        XCTAssertTrue(content.contains("tutorialFlag = nil"))
+        XCTAssertTrue(content.contains("tutorialPresentationID == presentationID"),
+                      "a delayed callback must identify the exact presentation instance")
+        XCTAssertFalse(content.contains(
+            ".onChange(of: game.gameplayGuidanceDismissalID) { _, _ in\n            releaseTutorial()"
+        ), "gameplay must not leave tutorial guidance animating for seconds")
+    }
+
+    func testStaleTutorialCompletionCannotUnmountSameFlagRePresentation() throws {
+        let first = TutorialPresentationToken(flag: .firstLaunch, id: 1)
+        let represented = TutorialPresentationToken(flag: .firstLaunch, id: 3)
+
+        XCTAssertFalse(first.matches(activeFlag: represented.flag,
+                                     activePresentationID: represented.id))
+        XCTAssertTrue(represented.matches(activeFlag: represented.flag,
+                                          activePresentationID: represented.id))
+        XCTAssertFalse(represented.matches(activeFlag: .dailyIntro,
+                                           activePresentationID: represented.id))
+    }
+
+    func testLegacyOnboardingUsesUnifiedGameplayDismissalPath() throws {
+        let onboarding = try source("ChromaticOrder/Views/OnboardingOverlay.swift")
+        XCTAssertTrue(onboarding.contains("game.gameplayGuidanceDismissalID"))
+        XCTAssertTrue(onboarding.contains("seen = true"))
+        XCTAssertTrue(onboarding.contains(".allowsHitTesting(false)"))
+    }
+
+    func testMeaningfulGuidanceAvoidsThirteenPointType() throws {
+        for path in [
+            "ChromaticOrder/Views/BankView.swift",
+            "ChromaticOrder/Views/OnboardingOverlay.swift",
+            "ChromaticOrder/Views/TutorialOverlay.swift",
+        ] {
+            let text = try source(path)
+            XCTAssertFalse(text.contains(".font(.system(size: 13"),
+                           "meaningful coaching remains 13pt in \(path)")
+        }
+    }
+
+    @MainActor
+    func testInvalidBankDragReturnsToOriginalSlotWithoutMutatingState() throws {
+        CampaignStore.resetAll()
+        let game = GameState()
+        XCTAssertTrue(game.loadCampaignLevel(1))
+        let slot = try XCTUnwrap(game.puzzle?.bank.indices.first {
+            game.puzzle?.bank[$0] != nil
+        })
+        let beforeBank = try XCTUnwrap(game.puzzle?.bank)
+        let beforeSelection = game.selection
+        let beforeMoves = game.moveCount
+        let item = try XCTUnwrap(beforeBank[slot])
+
+        game.beginDrag(DragSource(kind: .bank(slot), color: item.color), at: .zero)
+        game.endDrag(moved: true)
+
+        XCTAssertEqual(game.puzzle?.bank, beforeBank)
+        XCTAssertEqual(game.selection, beforeSelection)
+        XCTAssertEqual(game.moveCount, beforeMoves)
+        XCTAssertEqual(game.bankReturnSlot, slot)
+        CampaignStore.resetAll()
+    }
+
+    func testCampaignExplorePresentationUsesChapterLocalNumberingAndCounts() throws {
+        CampaignStore.resetAll()
+        for chapter in CampaignCatalog.chapters {
+            XCTAssertEqual(CampaignStore.chapterCompletion(chapter), 0)
+            XCTAssertEqual(CampaignStore.localNumber(for: chapter.first), 1)
+            XCTAssertEqual(CampaignStore.localNumber(for: chapter.last), chapter.count)
+        }
+
+        let chapter = try XCTUnwrap(CampaignCatalog.chapters.dropFirst().first)
+        CampaignStore.markCleared(chapter.first)
+        XCTAssertEqual(CampaignStore.chapterCompletion(chapter), 1)
+        CampaignStore.resetAll()
+    }
+
+    @MainActor
+    func testCampaignLevelHeaderUsesLowercaseAuthoredName() throws {
+        let game = GameState()
+        let entry = try XCTUnwrap(CampaignCatalog.level(1))
+        XCTAssertTrue(game.loadCampaignLevel(entry.index))
+        XCTAssertEqual(game.customTitle, entry.name.lowercased())
+        CampaignStore.resetAll()
+    }
+
+    @MainActor
+    func testGameplayCheckDismissesCampaignGuidance() throws {
+        CampaignStore.resetAll()
+        let game = GameState()
+        XCTAssertTrue(game.loadCampaignLevel(1))
+        XCTAssertNotNil(game.campaignTip)
+        game.handleCheck()
+        XCTAssertNil(game.campaignTip)
         CampaignStore.resetAll()
     }
 }

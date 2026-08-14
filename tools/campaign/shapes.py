@@ -1,4 +1,4 @@
-"""The campaign: 100 hand-drawn shapes in seven chapters.
+"""The campaign: 200 hand-drawn shapes in twelve chapters.
 
 Every shape is drawn with horizontal and vertical strokes only, because a
 gradient in kromatika is always a straight run of cells. `+` marks a cell
@@ -57,6 +57,11 @@ CHAPTERS = [
     ("Creatures", 53, 70, "Chroma joins in. Neighbours start to look alike."),
     ("Landmarks", 71, 88, "Wide scenes with long ramps to keep straight."),
     ("Mastery", 89, 100, "Everything at once, with barely any given cells."),
+    ("Workshop", 101, 120, "Tools built from connected runs and shared joints."),
+    ("Orchestra", 121, 140, "Instruments with more parts to sort and align."),
+    ("Circuitry", 141, 160, "Dense networks where each crossing carries information."),
+    ("Interiors", 161, 180, "Rooms and structures assembled one section at a time."),
+    ("Grand Works", 181, 200, "Large machines and landmarks at the campaign's limit."),
 ]
 
 # ─── Chapter 1 — First Steps (1-6) ─────────────────────────────────
@@ -911,7 +916,13 @@ b+bb+bb+b
 """, "Last one. Nine rows, six ramps, every crossing earning its keep."),
 ]
 
-ALL = CH1 + CH2 + CH3 + CH4 + CH5 + CH6 + CH7
+from book2.ch08_workshop import SHAPES as CH8
+from book2.ch09_orchestra import SHAPES as CH9
+from book2.ch10_circuitry import SHAPES as CH10
+from book2.ch11_interiors import SHAPES as CH11
+from book2.ch12_grand_works import SHAPES as CH12
+
+ALL = CH1 + CH2 + CH3 + CH4 + CH5 + CH6 + CH7 + CH8 + CH9 + CH10 + CH11 + CH12
 
 
 def chapter_of(level: int) -> tuple[str, int, int, str]:

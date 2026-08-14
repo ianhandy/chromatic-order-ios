@@ -1413,7 +1413,7 @@ CSV_HEADER = [
 
 def write_csv(path: Path, results: list[LevelResult], strategy: str) -> None:
     with path.open("w", newline="") as fh:
-        w = csv.writer(fh)
+        w = csv.writer(fh, lineterminator="\n")
         w.writerow(CSV_HEADER)
         for r in results:
             lv, st = r.level, r.settings
@@ -1546,9 +1546,10 @@ def build_report(levels: list[Level], results: list[LevelResult],
           f"{base[lv.index].mean_guesses:.2f}"] for lv in worst]))
 
     out.append("\n## Per chapter\n")
-    out.append("Mean success by chapter over fair levels, chapters in play order, "
-               "so the columns should fall smoothly. A cliff is a pacing bug. "
-               "`unfair` counts the levels excluded as provably ambiguous.\n")
+    out.append("Mean success by chapter over fair levels, chapters in play order. "
+               "Difficulty intentionally follows a sawtooth: it can peak at a "
+               "chapter's end, ease at the next chapter's opening, then build "
+               "again. `unfair` counts levels excluded as provably ambiguous.\n")
     chapters: list[str] = []
     for lv in sorted(levels, key=lambda l: l.index):
         if lv.chapter not in chapters:

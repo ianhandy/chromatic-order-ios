@@ -419,7 +419,7 @@ struct MenuView: View {
         }
     }
 
-    /// "campaign" until the player is into it, then "campaign 14/100" so the
+    /// "campaign" until the player is into it, then "campaign 14/200" so the
     /// menu itself shows how far the on-ramp has been walked.
     private var campaignLabel: String {
         let done = CampaignStore.clearedCount

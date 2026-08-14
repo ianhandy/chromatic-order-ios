@@ -41,7 +41,23 @@ ROOT = Path(__file__).resolve().parents[2]
 OUT_JSON = ROOT / "ChromaticOrder" / "Resources" / "campaign.json"
 OUT_SHEET = Path(__file__).resolve().parent / "campaign-sheet.png"
 
-TOTAL_LEVELS = 100
+TOTAL_LEVELS = 200
+
+# The colour curve finishes at level 100, and the second hundred inherits its
+# end state rather than continuing to tighten.
+#
+# This is a measured limit, not a stylistic choice. Level 100's step floor of
+# 5.4 delta-E is already the smallest step the long runs can pay for: a nine
+# cell frame at 6.0 per step needs about 46 delta-E of travel, which leaves the
+# sRGB gamut entirely, and pushing the floor to 6.2 or 5.8 made Reactor
+# unbuildable. Simulated play puts a typical player near 84% at these steps and
+# collapsing to about 20% below three times the eye's noise. So there is no room
+# below here that is both reachable in sRGB and fair to a person.
+#
+# Book two therefore gets harder structurally instead: more gradients, denser
+# crossing graphs, bigger boards. Those raise the bookkeeping load without
+# asking the eye to make a finer call than it already makes on level 100.
+COLOUR_CURVE_END = 100
 
 # Playable sub-band. Tighter than OK's full usable band so ramps never
 # sit against the edge where sRGB clipping starts flattening steps.
@@ -57,7 +73,10 @@ def lerp(a: float, b: float, t: float) -> float:
 
 def curve(level: int) -> dict:
     """Per-level difficulty knobs."""
-    t = (level - 1) / (TOTAL_LEVELS - 1)
+    # Clamped, so levels 1-100 are byte for byte what they were before book two
+    # existed and 101-200 hold at the level-100 palette settings. See
+    # COLOUR_CURVE_END for why the curve stops rather than continuing.
+    t = min(1.0, (level - 1) / (COLOUR_CURVE_END - 1))
     ch = shapes.chapter_of(level)[0]
     # Perceptual floor between any two cells on the board. Starts far
     # above "obviously different" and lands just above the procedural
@@ -82,6 +101,43 @@ def curve(level: int) -> dict:
     # a target, not a promise: `choose_locks` will hand out more given cells
     # when that is what makes a board deducible.
     bank_target = round(lerp(1, 30, t ** 1.15))
+    if level > COLOUR_CURVE_END:
+        # Book two needs its own bank curve, because `t` is clamped and would
+        # otherwise hold all hundred of its levels at 30 — the far end of book
+        # one's ramp, held flat for a hundred levels. That is not a difficulty
+        # curve, and it is the single thing that made book two unplayable.
+        #
+        # Bank size is the knob that matters here, by a wide margin. Measured
+        # over all of book two at fixed palettes and fixed shapes, changing
+        # nothing but how many cells are given: a typical eye's first pass goes
+        # from 3% of boards correct at 30 swatches to 30% at 20 and 52% at 16,
+        # and the cells it leaves wrong go from 14.0 to 3.3 to 1.6.
+        #
+        # That last number is the real cost, because campaign levels play as
+        # zen: no Check, no hearts, the board simply clicks when it is right.
+        # A wrong first pass is not a loss, it is a blind hunt back through
+        # everything already placed, with nothing on screen saying which cells
+        # are wrong. Fourteen of those is not a hard level, it is an unreadable
+        # one. Perfect-eye play tells the same story from the other end: at 30
+        # the reasoning solver itself misses 13 boards, at 20 and below it
+        # misses none, so those misses were thirty near-certain decisions
+        # compounding rather than anything wrong with the boards.
+        #
+        # Colour cannot carry this instead: a field spanning ten columns can
+        # afford (L_HI - L_LO) * 0.88 * 100 / 10 = 4.6 delta-E per step, and
+        # lightness is the widest channel there is. Searching forty palettes
+        # per level instead of taking the first lifts the step by 0.08, and
+        # widening the band to the app's own limit lifts a typical eye by one
+        # point while making two levels unbuildable. Book two already has the
+        # steps sRGB allows at these spans.
+        #
+        # Sawtoothed on purpose: each chapter opens easier than the last one
+        # closed, then ramps to its own finale.
+        _title, first, last, _blurb = shapes.chapter_of(level)
+        stage = [c[0] for c in shapes.CHAPTERS
+                 if c[1] > COLOUR_CURVE_END].index(ch)
+        u = (level - first) / max(1, last - first)
+        bank_target = round(lerp(14 + stage, 20 + 2 * stage, u))
     # The gap a cell must have from every other colour on the board when
     # deduction cannot reach it, so the player is never asked to trust their
     # eye on a call finer than this. Deduced cells are allowed to be tighter,
@@ -104,7 +160,15 @@ def curve(level: int) -> dict:
     # so any floor above that step makes every lattice unbuildable, and yet
     # lattices measured fine (100% with a perfect eye). Tying the demand to the
     # step makes it self-scaling instead.
-    sep_ratio = 0.9 if ch == "Landmarks" else 0.0
+    #
+    # Book two's chapters get it too, at a slightly gentler ratio. Their boards
+    # are built from exactly the morphology that failed in Landmarks (a bus with
+    # runs tapping into it, a row of columns, a lattice of members), and with the
+    # colour curve now flat, partition is the only fairness lever left. It is not
+    # a hard demand there: `build_level` walks the ratio down as attempts run
+    # out, so a shape that genuinely cannot pay for it still builds, and reports
+    # that it did.
+    sep_ratio = 0.9 if ch == "Landmarks" else (0.8 if level > COLOUR_CURVE_END else 0.0)
     if ch == "First Steps":
         channels = ["L"]
         two_channel = 0.0
@@ -1242,6 +1306,17 @@ def build_level(level: int, name: str, artwork: str, tip: str | None,
         scaled = dict(cfg)
         scaled["de_floor"] = max(5.2, cfg["de_floor"] * relax)
         scaled["step_floor"] = max(4.2, cfg["step_floor"] * relax)
+        # The partition demand is a preference, not a floor: Reactor showed that
+        # a dense shape can fail every painting attempt under it. Walk it down
+        # so such a shape still ships, and record what it actually got.
+        #
+        # Book two only. Landmarks already pays the full 0.9 on every level, and
+        # letting it decay there re-solved Castle, Temple and Garden against a
+        # weaker rule than they had shipped under (Castle's closest pair fell
+        # from 6.11 to 5.45 delta-E). Giving ground is for boards that have not
+        # already proved they can hold it.
+        if level > COLOUR_CURVE_END:
+            scaled["sep_ratio"] = max(0.0, cfg["sep_ratio"] - attempt / 1500.0)
         colors = paint(shape, scaled, rng)
         if colors is None:
             continue
@@ -1301,6 +1376,12 @@ def build_level(level: int, name: str, artwork: str, tip: str | None,
             "attempts": attempts,
             "doc": doc,
         }
+        # Book two only, so the first hundred's JSON keys stay exactly as they
+        # shipped and a rebuild diff still proves the curve clamp changed
+        # nothing there. This records what the partition demand actually got,
+        # which matters because it is allowed to give ground.
+        if level > COLOUR_CURVE_END:
+            entry["sepRatio"] = round(scaled["sep_ratio"], 3)
         if verbose:
             print(f"  level {level:3d} {name:12s} {shape.grid_w}x{shape.grid_h} "
                   f"grads={len(shape.gradients)} cells={len(board)} "
@@ -1366,7 +1447,7 @@ def _build_one(task):
 
 
 def build_all(verbose=True, workers=None) -> dict:
-    """Build all 100 levels, in parallel by default.
+    """Build the whole campaign, in parallel by default.
 
     Levels are independent: each one's palette search is seeded from its own
     index and attempt number, and nothing carries over between them. The

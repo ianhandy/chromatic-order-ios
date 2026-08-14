@@ -1,4 +1,4 @@
-//  The intro campaign: 100 hand-authored levels shipped in the bundle as
+//  The campaign: 200 hand-authored levels shipped in the bundle as
 //  `campaign.json`. Each level is a named shape drawn out of gradients —
 //  "Tee", "Anchor", "Mandala" — that teaches one more thing about reading
 //  a ramp than the level before it.
@@ -59,7 +59,7 @@ struct CampaignFile: Codable {
 }
 
 enum CampaignCatalog {
-    /// Parsed once and held: 100 levels of JSON is ~170 KB, and the level
+    /// Parsed once and held: the bundled JSON is small enough to keep in memory, and the level
     /// picker wants random access to all of it.
     private static let file: CampaignFile? = {
         guard let url = Bundle.main.url(forResource: "campaign", withExtension: "json") else {
