@@ -93,6 +93,7 @@ struct ContinuousGridMenuField: View {
 
     @State private var flares: [GridFlare] = []
     @State private var lastAmbientFlareSpawn: Double = 0
+    @State private var lastAudioFlareSpawn: Double = 0
     /// Grid dimensions observed during the last Canvas draw. Used by
     /// the collision resolver (which runs off the render loop) so it
     /// can compute each flare's current head cell in the same
@@ -101,10 +102,14 @@ struct ContinuousGridMenuField: View {
     @State private var cachedRows: Int = 0
 
     var body: some View {
-        TimelineView(.animation(minimumInterval: 1.0 / Double(max(15, fps)))) { timeline in
-            Canvas { ctx, size in
-                draw(ctx: ctx, size: size, time: timeline.date)
+        GeometryReader { geometry in
+            TimelineView(.animation(minimumInterval: 1.0 / Double(max(15, fps)))) { timeline in
+                Canvas { ctx, size in
+                    draw(ctx: ctx, size: size, time: timeline.date)
+                }
             }
+            .onAppear { cacheGridSize(geometry.size) }
+            .onChange(of: geometry.size) { _, size in cacheGridSize(size) }
         }
         .task {
             // Flare head collisions — tight cadence so fast flares
@@ -113,65 +118,11 @@ struct ContinuousGridMenuField: View {
             // each takes half the other's speed, anchored at the
             // collision point.
             while !Task.isCancelled {
-                try? await Task.sleep(nanoseconds: 33_000_000)   // ~30 Hz
+                try? await Task.sleep(nanoseconds: 66_000_000)   // ~15 Hz
                 let now = Date().timeIntervalSinceReferenceDate
                 resolveFlareCollisions(now: now,
                                         cols: cachedCols,
                                         rows: cachedRows)
-            }
-        }
-        .task {
-            // Flare wake-ripples — each live flare drops a tiny
-            // ripple behind its head twice per second. Ring speed
-            // scales with the flare's own speed, mapped to a range
-            // that's 1/4..1/2 of the finger-drag ripple speed so
-            // the wakes stay quieter than the player-driven ones
-            // but still visibly radiate out as the line moves.
-            while !Task.isCancelled {
-                try? await Task.sleep(nanoseconds: 500_000_000)  // 2 Hz / flare
-                guard cachedCols > 0, cachedRows > 0 else { continue }
-                let now = Date().timeIntervalSinceReferenceDate
-                for f in flares {
-                    let dt = now - f.spawnEpoch
-                    if dt < 0 || dt > f.lifeSec { continue }
-                    let axisLen = f.kind == .row ? cachedCols : cachedRows
-                    let resolvedAxis = Int(f.axisNorm * Double(
-                        f.kind == .row ? cachedRows : cachedCols
-                    )) % max(1, f.kind == .row ? cachedRows : cachedCols)
-                    let startCell = f.startCell ?? (f.direction > 0
-                        ? -2.0 : Double(axisLen + 1))
-                    let headPos = startCell + f.direction * dt * f.speed
-                    guard headPos >= 0,
-                          headPos <= Double(axisLen - 1) else { continue }
-                    let screenX: CGFloat
-                    let screenY: CGFloat
-                    switch f.kind {
-                    case .row:
-                        screenY = CGFloat(resolvedAxis) * Self.pitch
-                            + Self.pitch / 2
-                        screenX = CGFloat(headPos) * Self.pitch
-                            + Self.pitch / 2
-                    case .col:
-                        screenX = CGFloat(resolvedAxis) * Self.pitch
-                            + Self.pitch / 2
-                        screenY = CGFloat(headPos) * Self.pitch
-                            + Self.pitch / 2
-                    }
-                    // Map flare speed 4..18 → ripple speed 1.5..3.0
-                    // cells/sec — 1/2..1 of the finger-drag ripple
-                    // speed (3 cells/sec). Long lifetime so the
-                    // ring expands past the flare's axis halo
-                    // before fading.
-                    let norm = max(0, min(1, (f.speed - 4) / 14))
-                    let wakeSpeed = 1.5 + norm * 1.5
-                    ripples.append(GridRipple(
-                        origin: CGPoint(x: screenX, y: screenY),
-                        speed: wakeSpeed,
-                        spawnEpoch: now,
-                        lifeSec: 5.0,
-                        strength: 6.0
-                    ))
-                }
             }
         }
         .task {
@@ -183,11 +134,8 @@ struct ContinuousGridMenuField: View {
                 let now = Date().timeIntervalSinceReferenceDate
                 flares.removeAll { now - $0.spawnEpoch > $0.lifeSec }
                 ripples.removeAll { now - $0.spawnEpoch > $0.lifeSec }
-                // Hard caps — safety net for extreme bursts. Normal
-                // playback peaks at ~30 flares; generous ceiling avoids
-                // pruning visible elements during fast musical passages.
-                if flares.count > 60 { flares.removeFirst(flares.count - 60) }
-                if ripples.count > 120 { ripples.removeFirst(ripples.count - 120) }
+                if flares.count > 12 { flares.removeFirst(flares.count - 12) }
+                if ripples.count > 16 { ripples.removeFirst(ripples.count - 16) }
                 // Ambient flare every 2–3.5 s so the field has
                 // movement even when no audio is triggering flares.
                 let interval = Double.random(in: 2.0...3.5)
@@ -200,6 +148,11 @@ struct ContinuousGridMenuField: View {
         .onReceive(NotificationCenter.default.publisher(for: .kromaNotePlayed)) { note in
             let semi = (note.userInfo?["semitone"] as? Int)
             let now = Date().timeIntervalSinceReferenceDate
+            // Chords can post several notes in the same instant. One
+            // visual accent per quarter-second keeps the music legible
+            // without multiplying full-grid work for every voice.
+            guard now - lastAudioFlareSpawn >= 0.40 else { return }
+            lastAudioFlareSpawn = now
             flares.append(randomFlare(now: now, semitone: semi))
         }
         .allowsHitTesting(false)
@@ -207,7 +160,7 @@ struct ContinuousGridMenuField: View {
 
     // ─── Drawing ────────────────────────────────────────────────────
 
-    private static let cellPx: CGFloat = 22
+    private static let cellPx: CGFloat = 28
     private static let gap: CGFloat = 3
     private static let pitch: CGFloat = cellPx + gap
     /// Falloff radius (in cells) for flare streaks. Wider = thicker,
@@ -221,11 +174,19 @@ struct ContinuousGridMenuField: View {
         let t = time.timeIntervalSinceReferenceDate
         let cols = Int(ceil(size.width / Self.pitch)) + 1
         let rows = Int(ceil(size.height / Self.pitch)) + 1
-        // Stash dims for the collision task. Writing @State from a
-        // Canvas closure is fine as long as we only do it when the
-        // value actually changed — avoids spurious re-renders.
-        if cachedCols != cols { cachedCols = cols }
-        if cachedRows != rows { cachedRows = rows }
+        let activeFlares = flares.filter {
+            let age = t - $0.spawnEpoch
+            return age >= 0 && age <= $0.lifeSec
+        }
+        let activeRipples = ripples.filter {
+            let age = t - $0.spawnEpoch
+            return age >= 0 && age <= $0.lifeSec
+        }
+        // Most cells are showing the same base L/chroma with only a
+        // slightly different hue. Quantizing that decorative drift to 2°
+        // lets a frame reuse a few dozen converted Colors instead of doing
+        // a full OKLCh→sRGB conversion for every cell.
+        var baseColorCache: [Int: Color] = [:]
 
         for r in 0..<rows {
             for c in 0..<cols {
@@ -242,7 +203,7 @@ struct ContinuousGridMenuField: View {
                 /// muddying cells untouched by any flare.
                 var flareHueOffset: Double = 0
 
-                for f in flares {
+                for f in activeFlares {
                     let dt = t - f.spawnEpoch
                     if dt < 0 || dt > f.lifeSec { continue }
                     // Soft end-of-life fade so the flare doesn't
@@ -317,7 +278,7 @@ struct ContinuousGridMenuField: View {
                     }
                 }
 
-                for rip in ripples {
+                for rip in activeRipples {
                     let dt = t - rip.spawnEpoch
                     if dt < 0 || dt > rip.lifeSec { continue }
                     let env = envelope(dt: dt, life: rip.lifeSec)
@@ -369,7 +330,7 @@ struct ContinuousGridMenuField: View {
                 // cutting through — no flare dampen here.
                 var rippleDx: CGFloat = 0
                 var rippleDy: CGFloat = 0
-                for rip in ripples {
+                for rip in activeRipples {
                     let dt = t - rip.spawnEpoch
                     if dt < 0 || dt > rip.lifeSec { continue }
                     let env = envelope(dt: dt, life: rip.lifeSec)
@@ -411,9 +372,33 @@ struct ContinuousGridMenuField: View {
                     height: drawPx
                 )
                 let path = Path(roundedRect: rect, cornerRadius: drawPx * 0.22)
-                ctx.fill(path, with: .color(OK.toColor(boosted, opacity: alpha)))
+                let fillColor: Color
+                if boost < 0.005 {
+                    let hueBucket = Int((OK.normH(base.h) / 2.0).rounded())
+                    if let cached = baseColorCache[hueBucket] {
+                        fillColor = cached
+                    } else {
+                        let converted = OK.toColor(
+                            OKLCh(L: base.L, c: base.c, h: Double(hueBucket) * 2.0),
+                            opacity: 0.20
+                        )
+                        baseColorCache[hueBucket] = converted
+                        fillColor = converted
+                    }
+                } else {
+                    fillColor = OK.toColor(boosted, opacity: alpha)
+                }
+                ctx.fill(path, with: .color(fillColor))
             }
         }
+    }
+
+    /// The collision task needs the visible grid dimensions, but a Canvas
+    /// draw closure must remain side-effect free. Geometry changes are the
+    /// correct lifecycle boundary for updating this state.
+    private func cacheGridSize(_ size: CGSize) {
+        cachedCols = Int(ceil(size.width / Self.pitch)) + 1
+        cachedRows = Int(ceil(size.height / Self.pitch)) + 1
     }
 
     /// Where along the axis the flare's head currently sits, in cells.
@@ -492,7 +477,7 @@ struct ContinuousGridMenuField: View {
             }
             return Double.random(in: 4...18)
         }()
-        let life = Double.random(in: 8.0...12.0)
+        let life = Double.random(in: 6.0...9.0)
         // Per-flare hue tint — distinct flares paint distinct
         // streaks. ±45° covers about a hue-bucket on either side
         // of the base, wide enough to read as "a different color"

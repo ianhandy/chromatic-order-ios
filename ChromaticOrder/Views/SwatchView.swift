@@ -9,7 +9,6 @@ struct BankSlotView: View {
     let slot: Int
     let size: CGFloat
     @Bindable var game: GameState
-    @State private var sway: CGFloat = 0
 
     var body: some View {
         let item: BankItem? = {
@@ -55,9 +54,7 @@ struct BankSlotView: View {
                     color: game.display(item.color),
                     size: size,
                     radius: radius,
-                    picked: isPicked,
-                    swayPhase: sway,
-                    animateSway: !isPicked && !isDragSource && !game.reduceMotion
+                    picked: isPicked
                 )
                 .opacity(isDragSource ? 0.15 : 1)
             }
@@ -117,14 +114,6 @@ struct BankSlotView: View {
                     }
                 }
         )
-        .onAppear {
-            guard !game.reduceMotion else { return }
-            let dur = 4.0 + Double((slot * 37) % 25) / 10.0
-            withAnimation(.easeInOut(duration: dur).repeatForever(autoreverses: true)
-                          .delay(-Double((slot * 13) % 40) / 10.0)) {
-                sway = 1
-            }
-        }
         // The slot is driven entirely by a DragGesture, which VoiceOver
         // cannot perform — so it needs an explicit action as well as a
         // name. "Picked up" is the same fact the swatch's lift and
@@ -157,13 +146,19 @@ struct BankSlotView: View {
 }
 
 // Visual-only swatch used inside a slot. Doesn't know about state.
+//
+// There used to be an idle "sway" here: every slot started a
+// repeatForever animation on mount that drove `sin(phase * 2π)` inside
+// an `.offset`. SwiftUI interpolates the offset between the values the
+// body produced at each end of the animation, and both ends of a full
+// sine period are zero — so the sway rendered nothing while keeping one
+// never-ending animation alive per bank slot. Removed; the chip looks
+// exactly as it did.
 private struct SwatchChip: View {
     let color: OKLCh
     let size: CGFloat
     let radius: CGFloat
     let picked: Bool
-    let swayPhase: CGFloat
-    let animateSway: Bool
 
     var body: some View {
         RoundedRectangle(cornerRadius: radius, style: .continuous)
@@ -172,12 +167,7 @@ private struct SwatchChip: View {
             .shadow(color: picked ? .black.opacity(0.18) : .black.opacity(0.12),
                     radius: picked ? 10 : 4, y: picked ? 4 : 2)
             .scaleEffect(picked ? 1.12 : 1)
-            .offset(
-                x: animateSway ? sin(swayPhase * .pi * 2) * 1.6 : 0,
-                y: picked
-                    ? -6
-                    : (animateSway ? -abs(sin(swayPhase * .pi * 2)) * 2.5 : 0)
-            )
+            .offset(y: picked ? -6 : 0)
             .animation(.easeOut(duration: 0.38), value: picked)
     }
 }

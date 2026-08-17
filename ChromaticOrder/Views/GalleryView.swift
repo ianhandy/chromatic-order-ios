@@ -63,12 +63,25 @@ struct GalleryView: View {
     /// the next appear we scroll to that row and briefly tint its
     /// background so the player sees where they came back from.
     @State private var highlightedPuzzleId: String? = nil
+    /// In-flight disk load. Held so a re-entrant reload (delete, then
+    /// the swipe's own reload, then a dismissed Creator) cancels the
+    /// older pass instead of racing it to the @State assignment.
+    @State private var loadTask: Task<Void, Never>? = nil
+    /// False until the first load lands. Gates the empty state so the
+    /// gallery never claims to be empty before it has read the disk.
+    @State private var didLoad = false
 
     var body: some View {
         NavigationStack(path: $navPath) {
             ScrollViewReader { proxy in
                 Group {
-                    if puzzles.isEmpty && favorites.isEmpty && collections.isEmpty {
+                    if !didLoad {
+                        // Deliberately blank rather than a spinner: the
+                        // read normally finishes inside the sheet's own
+                        // presentation animation, and a spinner that
+                        // appears for two frames reads as a stutter.
+                        Color.clear
+                    } else if puzzles.isEmpty && favorites.isEmpty && collections.isEmpty {
                         emptyState
                     } else {
                         list
@@ -122,13 +135,13 @@ struct GalleryView: View {
                 CollectionDetailView(game: game, started: $started, collection: col)
             }
         }
-        .fullScreenCover(isPresented: $creatorOpen, onDismiss: reload) {
+        .fullScreenCover(isPresented: $creatorOpen, onDismiss: { reload() }) {
             CreatorView(game: game, saveOnPlay: true)
         }
-        .fullScreenCover(item: $editingPuzzle, onDismiss: reload) { puzzle in
+        .fullScreenCover(item: $editingPuzzle, onDismiss: { reload() }) { puzzle in
             CreatorView(game: game, saveOnPlay: false, editing: puzzle)
         }
-        .sheet(item: $movingPuzzle, onDismiss: reload) { puzzle in
+        .sheet(item: $movingPuzzle, onDismiss: { reload() }) { puzzle in
             MoveToCollectionSheet(puzzle: puzzle, currentCollection: nil)
         }
         .alert("Rename puzzle", isPresented: Binding(
@@ -203,13 +216,17 @@ struct GalleryView: View {
             handleImport(result)
         }
         .onAppear {
-            reload()
             // If the player exited a puzzle launched from inside a
             // collection, restore the nav stack to that collection
             // so the back-arrow lands them where they started. The
             // CollectionDetailView itself handles the per-row scroll
-            // + tint; we just push the right destination.
-            restoreCollectionNavIfNeeded()
+            // + tint; we just push the right destination — once the
+            // load has actually produced the collection list.
+            reload(restoringNav: true)
+        }
+        .onDisappear {
+            loadTask?.cancel()
+            loadTask = nil
         }
         .task {
             // One-shot community-feed pull on first appear so the
@@ -615,10 +632,42 @@ struct GalleryView: View {
         }
     }
 
-    private func reload() {
-        puzzles = GalleryStore.all()
-        favorites = FavoritesStore.all()
-        collections = GalleryStore.collections()
+    /// Everything the gallery list renders, assembled in one pass so
+    /// the three stores can be read off the main thread together and
+    /// applied as a single state update.
+    private struct GalleryContents {
+        let puzzles: [GalleryPuzzle]
+        let favorites: [GalleryPuzzle]
+        let collections: [GalleryCollection]
+    }
+
+    /// Re-read the three on-disk stores. Each entry is a separate JSON
+    /// file that has to be read and decoded, so a gallery with a few
+    /// dozen puzzles was a visible hitch when this ran inline on
+    /// `onAppear`. The work moves to a background task and lands in one
+    /// assignment; a newer call cancels the older one.
+    ///
+    /// `restoringNav` is set only by the appear path — the collection
+    /// re-push has to wait for `collections` to be populated, or it
+    /// would find no match and discard the ids that drive it.
+    private func reload(restoringNav: Bool = false) {
+        loadTask?.cancel()
+        loadTask = Task { @MainActor in
+            let loaded = await Task.detached(priority: .userInitiated) {
+                GalleryContents(
+                    puzzles: GalleryStore.all(),
+                    favorites: FavoritesStore.all(),
+                    collections: GalleryStore.collections()
+                )
+            }.value
+            guard !Task.isCancelled else { return }
+            puzzles = loaded.puzzles
+            favorites = loaded.favorites
+            collections = loaded.collections
+            didLoad = true
+            if restoringNav { restoreCollectionNavIfNeeded() }
+            loadTask = nil
+        }
     }
 
     private func commitCollectionName() {

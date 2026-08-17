@@ -49,7 +49,10 @@ struct CellView: View {
                 // no peeks, each placement right on the first try)
                 // scales the bleed with puzzle difficulty so tougher
                 // puzzles reward the clean solve more visibly.
-                if filled, let color = shown, game.solved,
+                // `solvedEffectsActive` bounds it in time: the pulse
+                // is a repeatForever per cell, so a board left on
+                // screen would otherwise animate every cell forever.
+                if filled, let color = shown, game.solved, game.solvedEffectsActive,
                    !game.reduceMotion, game.solvedGlowEnabled {
                     let diff = Double(game.puzzle?.difficulty ?? 1)
                     // Perfect solves scale the bleed hard — at max
@@ -67,6 +70,10 @@ struct CellView: View {
                         perfectBoost: perfectBoost
                     )
                     .frame(width: cellPx, height: cellPx)
+                    // Retiring the bleed is an animated fade, not a
+                    // cut — ContentView flips the flag inside a
+                    // withAnimation so this transition has a curve.
+                    .transition(.opacity)
                 }
                 // Color layer (front)
                 if filled, let color = shown {

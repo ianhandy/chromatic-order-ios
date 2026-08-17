@@ -47,17 +47,18 @@ struct MenuView: View {
     /// menu text out and stretches ripple lifetimes as it rises. A
     /// tap or button press smoothly resets it back to 0.
     @State private var chill: Double = 0
-    /// Timestamp of the last ripple spawn; the chill task uses the
-    /// gap between "now" and this to ramp chill down if the player
-    /// has stopped interacting.
-    @State private var lastChillActivity: Date = .distantPast
-
+    /// Timestamp of the previous drag tick. The chill ramp advances by
+    /// the gap between ticks instead of by a polling task: a dragging
+    /// finger already delivers events at display rate, and a resting
+    /// one delivers none — which is exactly when chill should stop
+    /// rising. Nil between drags.
+    @State private var lastChillTick: Date? = nil
 
     var body: some View {
         ZStack {
             Color.black.ignoresSafeArea()
 
-            if game.menuBackdropEnabled && !shouldReduceMotion {
+            if game.menuBackdropEnabled && !shouldReduceMotion && !isPresentingDestination {
                 // Backdrop starts at 50% opacity and ramps up with the
                 // chill ramp — so as the menu text fades out (driven
                 // by the same `chill` variable), the backdrop
@@ -101,7 +102,6 @@ struct MenuView: View {
                                 }()
                                 if !tooClose {
                                     lastRipplePoint = loc
-                                    lastChillActivity = now
                                     let lifeMultiplier = 1.0 + chill * 3.0
                                     ripples.append(GridRipple(
                                         origin: loc,
@@ -118,6 +118,28 @@ struct MenuView: View {
                                 // original value. Runs on every
                                 // drag tick so the effect evolves
                                 // smoothly as the drag continues.
+                                // Chill ramp — rises toward 1 over ~6 s
+                                // of cumulative dripping, holds when the
+                                // finger stops, and only a tap or a
+                                // button press brings it back down. The
+                                // gap cap discards the long idle stretch
+                                // between two separate drags so chill
+                                // never jumps.
+                                let gap = lastChillTick.map {
+                                    now.timeIntervalSince($0)
+                                } ?? 0
+                                lastChillTick = now
+                                if gap > 0, gap < 0.5, chill < 1 {
+                                    let nextChill = min(1.0, chill + gap / 6.0)
+                                    chill = nextChill
+                                    if nextChill >= 1.0 {
+                                        // Full fade-out achieved — the
+                                        // menu text is completely gone.
+                                        GameCenter.shared.reportAchievement(
+                                            GameCenter.Achievement.chillMaxed
+                                        )
+                                    }
+                                }
                                 if let start = dragStartTime {
                                     let dur = now.timeIntervalSince(start)
                                     if dur > 1.0 {
@@ -128,6 +150,7 @@ struct MenuView: View {
                             .onEnded { value in
                                 lastRipplePoint = nil
                                 dragStartTime = nil
+                                lastChillTick = nil
                                 // Treat near-stationary ends as a
                                 // tap — gently reset chill so text
                                 // fades back in and ripple lifetimes
@@ -286,32 +309,6 @@ struct MenuView: View {
                 campaignOpen = true
             }
         }
-        .task {
-            // Chill ramp — while the player is dripping ripples onto
-            // the screen without touching menu buttons, chill rises
-            // and holds. Button presses and bare taps reset it
-            // directly; this task only handles the rise + idle hold.
-            while !Task.isCancelled {
-                try? await Task.sleep(nanoseconds: 60_000_000)
-                let now = Date()
-                let sinceActivity = now.timeIntervalSince(lastChillActivity)
-                if sinceActivity < 0.5 {
-                    // Actively rippling — rise toward 1 over ~6 s
-                    // of continuous play. Slow enough the player
-                    // has to commit; fast enough to notice.
-                    chill = min(1.0, chill + 0.06 / 6.0)
-                    if chill >= 1.0 {
-                        // Full fade-out achieved — the menu text is
-                        // completely gone.
-                        GameCenter.shared.reportAchievement(
-                            GameCenter.Achievement.chillMaxed
-                        )
-                    }
-                }
-                // If no activity and no reset, chill holds — a tap
-                // is still required to bring the text back.
-            }
-        }
     }
 
     /// Variant of the daily row shown once the player has solved
@@ -420,7 +417,16 @@ struct MenuView: View {
         systemReduceMotion || game.reduceMotion
     }
 
+    /// A presented sheet completely covers the menu. Removing the
+    /// decorative backdrop while it is covered stops its display link,
+    /// Canvas work, and audio-triggered visual bookkeeping until the
+    /// player returns.
+    private var isPresentingDestination: Bool {
+        accessibilityOpen || galleryOpen || campaignOpen || leaderboardOpen || statsOpen
+    }
+
     private func pick(mode: GameMode) {
+        lastChillTick = nil
         withAnimation(shouldReduceMotion ? nil : .easeOut(duration: 0.9)) { chill = 0 }
         transitioner.fade {
             // `enterMode` always refreshes state — challenge always
@@ -477,6 +483,7 @@ struct MenuView: View {
             // Menu button press counts as a reset for chill —
             // brings the menu text back to full opacity and drops
             // ripple lifetimes to baseline.
+            lastChillTick = nil
             withAnimation(shouldReduceMotion ? nil : .easeOut(duration: 0.9)) { chill = 0 }
             action()
         } label: {

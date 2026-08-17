@@ -48,6 +48,7 @@
 import AVFoundation
 import AudioToolbox
 import Foundation
+import UIKit
 
 @MainActor
 final class GlassyAudio {
@@ -69,6 +70,7 @@ final class GlassyAudio {
                 shared.startMusicIfNeeded()
             } else {
                 shared.stopMusic()
+                shared.trimCache(keeping: 16)
             }
         }
     }
@@ -148,14 +150,15 @@ final class GlassyAudio {
     /// chord that was active at ITS moment, which is the behavior
     /// the player hears as "pitch matched the music."
     private var currentBassChord: MusicChord? = nil
-    private let poolSize = 24
+    private let poolSize = 16
     private var nextPlayerIdx = 0
     private var started = false
     private var cache: [CacheKey: AVAudioPCMBuffer] = [:]
     /// LRU access order — most-recently-used at the end.
     private var cacheOrder: [CacheKey] = []
-    /// Max cached buffers. 128 entries × ~200-400 KB ≈ 25-50 MB.
-    private let cacheCapacity = 128
+    /// A compact LRU holds the frequently reused notes without letting
+    /// procedural audio quietly become one of the app's largest heaps.
+    private let cacheCapacity = 48
 
     /// Wall-clock anchor for the bloom tempo grid. Set the first time
     /// the engine starts; all bloom playbacks snap to `gridSec`
@@ -227,6 +230,12 @@ final class GlassyAudio {
             object: nil, queue: .main
         ) { [weak self] _ in
             MainActor.assumeIsolated { self?.handleConfigurationChange() }
+        }
+        NotificationCenter.default.addObserver(
+            forName: UIApplication.didReceiveMemoryWarningNotification,
+            object: nil, queue: .main
+        ) { [weak self] _ in
+            MainActor.assumeIsolated { self?.trimCache(keeping: 8) }
         }
 
         // Delay: 420ms between echoes, 72% feedback so each echo is
@@ -1149,6 +1158,17 @@ final class GlassyAudio {
         return buffer
     }
 
+    /// Release the least-recently-used synthesized buffers while keeping
+    /// the hottest notes ready. Players retain any buffers already queued,
+    /// so trimming is safe during backgrounding and memory pressure.
+    private func trimCache(keeping limit: Int) {
+        let target = max(0, limit)
+        while cacheOrder.count > target, let oldest = cacheOrder.first {
+            cache.removeValue(forKey: oldest)
+            cacheOrder.removeFirst()
+        }
+    }
+
     /// Soft mallet: sine + faint 2nd, with a 10ms attack that hides
     /// the stick-tick, and a medium decay. Warm, un-sparkly — reads
     /// as "color set down" rather than "color dropped." 2× harmonic
@@ -1386,6 +1406,7 @@ final class GlassyAudio {
     /// deterministic teardown path.
     func appDidEnterBackground() {
         stopMusic()
+        trimCache(keeping: 24)
         for p in playerPool where p.isPlaying { p.stop() }
         if engine.isRunning {
             engine.pause()

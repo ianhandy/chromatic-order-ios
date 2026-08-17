@@ -28,11 +28,19 @@ struct CollectionDetailView: View {
     /// pushes us back here and we tint the row briefly so the player
     /// re-acquires their place.
     @State private var highlightedPuzzleId: String? = nil
+    /// In-flight disk load — cancelled and replaced by the next
+    /// reload so overlapping passes can't land out of order.
+    @State private var loadTask: Task<Void, Never>? = nil
+    /// False until the first load lands, so the empty placeholder
+    /// never flashes ahead of the rows.
+    @State private var didLoad = false
 
     var body: some View {
         ScrollViewReader { proxy in
             Group {
-                if puzzles.isEmpty {
+                if !didLoad {
+                    Color.clear
+                } else if puzzles.isEmpty {
                     empty
                 } else {
                     list
@@ -102,6 +110,10 @@ struct CollectionDetailView: View {
             handleImport(result)
         }
         .onAppear(perform: reload)
+        .onDisappear {
+            loadTask?.cancel()
+            loadTask = nil
+        }
     }
 
     private var empty: some View {
@@ -206,8 +218,21 @@ struct CollectionDetailView: View {
         }
     }
 
+    /// Same off-main read as GalleryView.reload — every puzzle in the
+    /// collection is a JSON file that has to be decoded, and doing
+    /// that inline on push made the navigation animation stutter.
     private func reload() {
-        puzzles = GalleryStore.puzzles(in: collection)
+        loadTask?.cancel()
+        let target = collection
+        loadTask = Task { @MainActor in
+            let loaded = await Task.detached(priority: .userInitiated) {
+                GalleryStore.puzzles(in: target)
+            }.value
+            guard !Task.isCancelled else { return }
+            puzzles = loaded
+            didLoad = true
+            loadTask = nil
+        }
     }
 
     private func commitRename() {
@@ -330,6 +355,8 @@ struct MoveToCollectionSheet: View {
 
     @Environment(\.dismiss) private var dismiss
     @State private var collections: [GalleryCollection] = []
+    @State private var loadTask: Task<Void, Never>? = nil
+    @State private var didLoad = false
 
     var body: some View {
         NavigationStack {
@@ -344,7 +371,9 @@ struct MoveToCollectionSheet: View {
                     }
                 }
                 Section("Collections") {
-                    if collections.isEmpty {
+                    if !didLoad {
+                        EmptyView()
+                    } else if collections.isEmpty {
                         Text("No collections yet")
                             .font(.system(size: 13))
                             .foregroundStyle(.secondary)
@@ -374,7 +403,22 @@ struct MoveToCollectionSheet: View {
                 }
             }
             .kromaSheet("move puzzle") { dismiss() }
-            .onAppear { collections = GalleryStore.collections() }
+            .onAppear {
+                loadTask?.cancel()
+                loadTask = Task { @MainActor in
+                    let loaded = await Task.detached(priority: .userInitiated) {
+                        GalleryStore.collections()
+                    }.value
+                    guard !Task.isCancelled else { return }
+                    collections = loaded
+                    didLoad = true
+                    loadTask = nil
+                }
+            }
+            .onDisappear {
+                loadTask?.cancel()
+                loadTask = nil
+            }
         }
     }
 

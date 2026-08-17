@@ -12,6 +12,7 @@ enum CloudSync {
         "chromaticOrderProgress",  // zen level + challengeMaxLevel
         "kromaStats_v1",           // aggregate stats
     ]
+    private static var externalChangeObserver: NSObjectProtocol?
 
     /// Call once at app launch. Pulls the iCloud copy of each tracked
     /// key into UserDefaults if the remote value differs, then wires a
@@ -20,11 +21,13 @@ enum CloudSync {
         let store = NSUbiquitousKeyValueStore.default
         store.synchronize()
         merge(from: store)
-        NotificationCenter.default.addObserver(
-            forName: NSUbiquitousKeyValueStore.didChangeExternallyNotification,
-            object: store, queue: .main
-        ) { _ in
-            merge(from: store)
+        if externalChangeObserver == nil {
+            externalChangeObserver = NotificationCenter.default.addObserver(
+                forName: NSUbiquitousKeyValueStore.didChangeExternallyNotification,
+                object: store, queue: .main
+            ) { _ in
+                merge(from: store)
+            }
         }
     }
 

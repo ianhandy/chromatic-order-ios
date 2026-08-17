@@ -266,7 +266,7 @@ final class GameState {
     var timerVisible: Bool
     /// Frame rate cap for the main-menu palette animation. 30 / 60
     /// / 120 — 120 only pays off on ProMotion displays and can feel
-    /// laggy on older devices. 60 is the default; pick higher for
+    /// laggy on older devices. 30 is the default; pick higher for
     /// ProMotion-smooth motion, lower to reduce CPU load.
     var menuFps: Int
 
@@ -395,9 +395,14 @@ final class GameState {
                 }
             } else if !solved {
                 solvedAt = nil
+                solvedEffectsActive = false
             }
         }
     }
+    /// The solve celebration is intentionally finite. ContentView turns
+    /// this on for the opening flourish and clears it after the reward has
+    /// landed, returning the completed board to a static, low-cost state.
+    var solvedEffectsActive: Bool = false
     /// Timestamp of the `solved` flag's most recent true-flip. Drives
     /// the frozen-timer behavior on the solved overlay.
     private(set) var solvedAt: Date? = nil
@@ -633,7 +638,7 @@ final class GameState {
             sfxEnabled: true,
             hapticsEnabled: true,
             timerVisible: true,
-            menuFps: 60
+            menuFps: 30
         )
     }
 
@@ -658,7 +663,7 @@ final class GameState {
             sfxEnabled: (dict["sfxEnabled"] as? Bool) ?? true,
             hapticsEnabled: (dict["hapticsEnabled"] as? Bool) ?? true,
             timerVisible: (dict["timerVisible"] as? Bool) ?? true,
-            menuFps: (dict["menuFps"] as? Int) ?? 60
+            menuFps: (dict["menuFps"] as? Int) ?? 30
         )
         return b
     }

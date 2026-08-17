@@ -21,6 +21,7 @@ struct ContentView: View {
     /// the app returns to MenuView without unloading GameState.
     @Binding var started: Bool
     @Environment(Transitioner.self) private var transitioner
+    @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
     /// Shows the "perfect" banner briefly after a perfect solve.
     /// Flips true on each fresh perfect solve, then fades away after
     /// ~1 s — the banner is a celebratory flash, not a persistent
@@ -39,6 +40,7 @@ struct ContentView: View {
     /// task wakes up on the next level and double-counts when
     /// combined with handleNext's own perfect-solve award.
     @State private var perfectHeartFlightTask: Task<Void, Never>? = nil
+    @State private var solvedEffectsTask: Task<Void, Never>? = nil
     /// Bumped when the flying heart lands so TopBarView can kick off
     /// its per-heart scale-bump wave.
     @State private var heartWaveTick: Int = 0
@@ -350,6 +352,7 @@ struct ContentView: View {
         .animation(.easeInOut(duration: 0.7), value: perfectBannerVisible)
         .onChange(of: game.solved) { _, solvedNow in
             if solvedNow {
+                beginSolvedEffects()
                 // Squish → wait for next quarter-note beat → snap
                 // back → chord + haptic. The visual "inhale" before
                 // the chord makes the reward land harder.
@@ -406,6 +409,9 @@ struct ContentView: View {
                     }
                 }
             } else if !solvedNow {
+                solvedEffectsTask?.cancel()
+                solvedEffectsTask = nil
+                game.solvedEffectsActive = false
                 perfectHeartFlightTask?.cancel()
                 perfectHeartFlightTask = nil
                 perfectBannerVisible = false
@@ -428,6 +434,12 @@ struct ContentView: View {
             // too to catch the mount-already-set case.
             loadIncomingPuzzleIfAny()
             maybeShowTutorialForCurrentMode()
+            if game.solved { beginSolvedEffects() }
+        }
+        .onDisappear {
+            solvedEffectsTask?.cancel()
+            solvedEffectsTask = nil
+            game.solvedEffectsActive = false
         }
         .onChange(of: game.mode) { _, _ in
             maybeShowTutorialForCurrentMode()
@@ -510,20 +522,61 @@ struct ContentView: View {
     private static let autoTiltRampInSec: Double = 3.0
     /// Seconds per full revolution of the auto-rotation circle.
     private static let autoTiltPeriodSec: Double = 14.0
+    /// How long after a solve the celebration keeps a display link and
+    /// the per-cell glow repeaters alive. Long enough for the bloom to
+    /// land and the tilt to travel over half a revolution; after that
+    /// the finished board is a static picture and should cost nothing.
+    private static let solvedEffectsWindowSec: Double = 8.0
+    /// Seconds at the tail of that window over which the tilt eases
+    /// back to level, so the board is already flat when the timeline
+    /// pauses and nothing snaps.
+    private static let autoTiltRampOutSec: Double = 2.0
+
+    /// Give the solve its finite flourish: run the tilt + glow for
+    /// `solvedEffectsWindowSec` from the moment the board was solved,
+    /// then let everything settle. Reduce Motion skips it entirely.
+    /// The explicit glow toggle is deliberately NOT consulted here —
+    /// CellView already honors it on its own, and the gentle tilt is a
+    /// separate effect a glow-off player still expects to see.
+    private func beginSolvedEffects() {
+        solvedEffectsTask?.cancel()
+        solvedEffectsTask = nil
+        let elapsed = game.solvedAt.map { Date().timeIntervalSince($0) } ?? 0
+        let remaining = Self.solvedEffectsWindowSec - elapsed
+        guard !systemReduceMotion, !game.reduceMotion, remaining > 0 else {
+            game.solvedEffectsActive = false
+            return
+        }
+        game.solvedEffectsActive = true
+        solvedEffectsTask = Task { @MainActor in
+            try? await Task.sleep(nanoseconds: UInt64(remaining * 1_000_000_000))
+            guard !Task.isCancelled else { return }
+            // The tilt has already ramped back to level by now, so the
+            // only thing left to hide is the per-cell bleed — fade it
+            // rather than cutting it.
+            withAnimation(.easeOut(duration: 0.6)) {
+                game.solvedEffectsActive = false
+            }
+            solvedEffectsTask = nil
+        }
+    }
 
     /// Resolve the (x-axis, y-axis) rotation for the current frame.
     /// Post-solve the puzzle drifts in a slow circle that ramps in
-    /// over a few seconds. Pre-solve = no rotation at all; the player
-    /// can no longer push the board to extreme angles via drag.
+    /// over a few seconds and back out at the end of the celebration
+    /// window. Pre-solve = no rotation at all; the player can no
+    /// longer push the board to extreme angles via drag.
     private func rotationAngles(now: Date) -> (x: Double, y: Double) {
         guard game.solved, let start = game.solvedAt else {
             return (0, 0)
         }
         let elapsed = now.timeIntervalSince(start)
         let rampIn = min(1.0, elapsed / Self.autoTiltRampInSec)
+        let rampOut = min(1.0, max(0.0,
+            (Self.solvedEffectsWindowSec - elapsed) / Self.autoTiltRampOutSec))
         let phase = (elapsed / Self.autoTiltPeriodSec) * (.pi * 2)
-        let ampX = Self.autoTiltMaxDegX * rampIn
-        let ampY = Self.autoTiltMaxDegY * rampIn
+        let ampX = Self.autoTiltMaxDegX * rampIn * rampOut
+        let ampY = Self.autoTiltMaxDegY * rampIn * rampOut
         // Circle: x = sin, y = cos — gives a full rotation across
         // the XY tilt space every `autoTiltPeriodSec` seconds.
         return (ampX * sin(phase), ampY * cos(phase))
@@ -608,11 +661,18 @@ struct ContentView: View {
             // Only run the per-frame rotation path while solved —
             // that's the only time any angle is non-zero (player tilt
             // was removed; pre-solve angles are always (0,0)). During
-            // active play a plain GridView is much cheaper: no 60fps
-            // TimelineView diff, no 3D perspective compositing layer.
+            // active play, and for Reduce Motion players, a plain
+            // GridView is much cheaper: no TimelineView diff, no 3D
+            // perspective compositing layer.
+            //
+            // Within the solved branch the schedule is *paused* rather
+            // than the branch swapped once the celebration window
+            // closes — that keeps the display link off without tearing
+            // down and remounting the whole grid mid-celebration.
             Group {
-                if game.solved {
-                    TimelineView(.animation(minimumInterval: 1.0 / 60.0)) { timeline in
+                if game.solved && !systemReduceMotion && !game.reduceMotion {
+                    TimelineView(.animation(minimumInterval: 1.0 / 30.0,
+                                            paused: !game.solvedEffectsActive)) { timeline in
                         let angles = rotationAngles(now: timeline.date)
                         GridView(game: game)
                             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -713,11 +773,14 @@ struct ContentView: View {
     ///
     /// Reduce-motion players see the old flat `TutorialTooltip`;
     /// everyone else gets the balloon with passive sway + float-away
-    /// motion via `TutorialBalloon`.
+    /// motion via `TutorialBalloon`. Both the system preference and
+    /// the in-app toggle count, matching MenuView — which also means
+    /// the balloon's display link never spins up for a player who has
+    /// asked the system for less motion.
     @ViewBuilder
     private func tutorialTooltipLayer(for flag: TutorialFlag,
                                       presentationID: Int) -> some View {
-        if game.reduceMotion {
+        if systemReduceMotion || game.reduceMotion {
             flatTutorialLayer(for: flag, presentationID: presentationID)
         } else {
             balloonTutorialLayer(for: flag, presentationID: presentationID)
@@ -782,7 +845,7 @@ struct ContentView: View {
     /// zenIntro balloon is live.
     @ViewBuilder
     private var balloonStringOverlay: some View {
-        if tutorialFlag == .zenIntro, !game.reduceMotion {
+        if tutorialFlag == .zenIntro, !systemReduceMotion, !game.reduceMotion {
             Color.clear
                 .overlayPreferenceValue(TutorialAnchorsKey.self) { anchors in
                     GeometryReader { geo in

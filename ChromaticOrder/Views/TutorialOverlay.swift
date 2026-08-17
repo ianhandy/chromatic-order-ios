@@ -117,7 +117,10 @@ struct TutorialBalloon: View {
     var body: some View {
         // TimelineView drives passive per-frame sway and float-away
         // motion. The closure only reads the latest pose from `computePose`.
-        TimelineView(.animation(minimumInterval: 1.0 / 60.0)) { ctx in
+        // 30 Hz is plenty: the fastest term in `computePose` completes a
+        // cycle in ~3.5 s, so the extra 30 frames a second bought nothing
+        // but a busier display link behind a live puzzle.
+        TimelineView(.animation(minimumInterval: 1.0 / 30.0)) { ctx in
             let pose = computePose(at: ctx.date)
             balloonVisual
                 .offset(x: pose.offset.width, y: pose.offset.height)

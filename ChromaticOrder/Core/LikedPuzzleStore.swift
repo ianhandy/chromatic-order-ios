@@ -47,6 +47,7 @@ private let defaultsKey_LikedStore = "likedPuzzleRecords_v1"
 private let installIdKey_LikedStore = "kromaInstallId_v1"
 private let dislikeSignaturesKey_LikedStore = "kromaDislikedShapeSignatures_v1"
 private let dislikeSignatureLimit_LikedStore = 50
+private let challengeStatsLimit_LikedStore = 100
 /// Separate cache slot for shape signatures pulled from the server's
 /// aggregate dislike feed — kept apart from the local ledger so a
 /// local reset (unlike / re-like flow) doesn't wipe community data.
@@ -128,6 +129,11 @@ enum LikedPuzzleStore {
                 wasPerfect: wasPerfect
             )
         )
+        if records[idx].challengeStats.count > challengeStatsLimit_LikedStore {
+            records[idx].challengeStats.removeFirst(
+                records[idx].challengeStats.count - challengeStatsLimit_LikedStore
+            )
+        }
         save(records)
     }
 
