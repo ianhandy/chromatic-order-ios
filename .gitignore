@@ -18,6 +18,10 @@ xcuserdata/
 # macOS
 .DS_Store
 
+# Python
+__pycache__/
+*.py[cod]
+
 # Local scratch / notes
 documents/
 
