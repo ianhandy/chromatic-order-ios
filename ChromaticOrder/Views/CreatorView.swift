@@ -99,11 +99,15 @@ struct CreatorView: View {
             }
             .padding(.vertical, 10)
             .animation(.easeInOut(duration: 0.25), value: nameFocused)
-            .navigationTitle(editing == nil ? "Create" : "Edit")
+            .navigationTitle(editing == nil ? "create" : "edit")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
+                // The one screen that doesn't dismiss with a plain
+                // "done": leaving here can discard unsaved work, so it
+                // keeps the leading cancel slot and the discard confirm
+                // that goes with it.
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Close") {
+                    Button("close") {
                         // No edits since open → leave silently. Otherwise
                         // confirm so the player doesn't lose work they
                         // haven't pressed Play to commit.
@@ -114,7 +118,7 @@ struct CreatorView: View {
                         }
                     }
                 }
-                ToolbarItem(placement: .confirmationAction) {
+                ToolbarItem(placement: .topBarTrailing) {
                     // Overflow menu for secondary actions. Clear is
                     // here (destructive, keep it out of the primary
                     // row); Help stays here too. Submit moved to
@@ -136,8 +140,12 @@ struct CreatorView: View {
                             Label("Help", systemImage: "questionmark.circle")
                         }
                     } label: {
+                        // Same glyph the in-game menu button uses, so
+                        // "more actions" looks the same everywhere.
                         Image(systemName: "line.3.horizontal")
+                            .kromaHitTarget()
                     }
+                    .accessibilityLabel("menu")
                 }
             }
             .onAppear {
@@ -1065,13 +1073,7 @@ struct CreatorHelpSheet: View {
                 }
                 .padding(20)
             }
-            .navigationTitle("How to create")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Done") { dismiss() }
-                }
-            }
+            .kromaSheet("how to create") { dismiss() }
         }
     }
 

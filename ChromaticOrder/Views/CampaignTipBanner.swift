@@ -10,6 +10,7 @@ struct CampaignTipBanner: View {
     let onDismiss: () -> Void
 
     @State private var shown = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         VStack {
@@ -19,28 +20,31 @@ struct CampaignTipBanner: View {
             // gap between them rather than the screen edge.
             Spacer()
             Text(text.lowercased())
-                .font(.system(size: 17, weight: .medium, design: .rounded))
-                .foregroundStyle(.white.opacity(0.92))
+                .font(Kroma.font(.callout, .medium))
+                .foregroundStyle(.white)
                 .multilineTextAlignment(.center)
-                .padding(.horizontal, 18)
-                .padding(.vertical, 14)
-                .background(
-                    RoundedRectangle(cornerRadius: 14, style: .continuous)
-                        .fill(Color.black.opacity(0.72))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                                .stroke(Color.white.opacity(0.18), lineWidth: 1)
-                        )
-                )
-                .padding(.horizontal, 28)
+                .padding(.horizontal, Kroma.Space.l)
+                .padding(.vertical, Kroma.Space.m)
+                .kromaSurface(.panel,
+                              in: RoundedRectangle(cornerRadius: Kroma.Radius.card,
+                                                   style: .continuous))
+                .padding(.horizontal, Kroma.Space.xl)
                 // Clears a three-row bank with room to spare.
                 .padding(.bottom, 168)
                 .opacity(shown ? 1 : 0)
-                .offset(y: shown ? 0 : 10)
+                .offset(y: shown || reduceMotion ? 0 : 10)
         }
         .allowsHitTesting(false)
+        // A rule the board can't demonstrate, so it's spoken as soon as
+        // it appears rather than left as a visual-only aside.
+        .accessibilityElement(children: .combine)
+        .accessibilityAddTraits(.isStaticText)
         .onAppear {
-            withAnimation(.easeOut(duration: 0.35).delay(0.25)) { shown = true }
+            withAnimation(reduceMotion
+                          ? .easeOut(duration: 0.01).delay(0.25)
+                          : .easeOut(duration: 0.35).delay(0.25)) {
+                shown = true
+            }
         }
         // Long enough to read twice, then it gets out of the way on its own.
         //
@@ -61,7 +65,7 @@ struct CampaignTipBanner: View {
     }
 
     private func dismiss() {
-        withAnimation(.easeIn(duration: 0.22)) { shown = false }
+        withAnimation(reduceMotion ? nil : .easeIn(duration: 0.22)) { shown = false }
         onDismiss()
     }
 }

@@ -8,7 +8,6 @@
 
 /* Begin PBXBuildFile section */
 		008FBFFED600FA39914AF645 /* StatsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D5B96826BF8CA3A4ADFA632A /* StatsView.swift */; };
-		0090125491B8F3FB51DF0119 /* FocusDim.swift in Sources */ = {isa = PBXBuildFile; fileRef = 56632D3D367AD0444A588FDC /* FocusDim.swift */; };
 		00FE421408CA275CF639DB35 /* GameCenter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B305E810212560C51C822ED /* GameCenter.swift */; };
 		03197472930BC188F635AF4F /* AppIconPastelPinks@3x.png in Resources */ = {isa = PBXBuildFile; fileRef = 4D03BE3E0BE166A967290D0C /* AppIconPastelPinks@3x.png */; };
 		03B9F9A501C7037D3F74A273 /* MenuSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6575560348AFC2F3872179B2 /* MenuSheet.swift */; };
@@ -68,6 +67,7 @@
 		7B340F4E1688E9B629151362 /* CampaignView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 140EB82F3EDDD7BB1B72CBA9 /* CampaignView.swift */; };
 		7E2F4BDF41106D7916BACAB2 /* AppIconNeonGreens@3x.png in Resources */ = {isa = PBXBuildFile; fileRef = D94101A044DB3D6C4908B9A7 /* AppIconNeonGreens@3x.png */; };
 		7F444E4C574F8F37FCEDB795 /* ShapesSeenToday.swift in Sources */ = {isa = PBXBuildFile; fileRef = E236C9242482FADB3142E347 /* ShapesSeenToday.swift */; };
+		8097D4D6EC64D9A3CD25CDA4 /* KromaDesign.swift in Sources */ = {isa = PBXBuildFile; fileRef = 744CE48ABC79045626B70F41 /* KromaDesign.swift */; };
 		83037D463FE5344EAB42D581 /* StashedPuzzleStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2127B74E0F9E52C41BD5C836 /* StashedPuzzleStore.swift */; };
 		83F8F6CF0B388CEDC5B8B4D6 /* FavoritesStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = A4092EE2AEF345A97CFBEAFB /* FavoritesStore.swift */; };
 		840614A44BE0DB8C0F345A5F /* LadderExportTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 62AA3C30A87367588BC07E29 /* LadderExportTests.swift */; };
@@ -175,7 +175,6 @@
 		522593ECDC1A96E5DA891B6B /* GeneratorIntegrityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GeneratorIntegrityTests.swift; sourceTree = "<group>"; };
 		527AEF8D0FC1D35A03BD803D /* GlassyAudio.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassyAudio.swift; sourceTree = "<group>"; };
 		53BA603CAD5B11E02256CC7C /* LeaderboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LeaderboardView.swift; sourceTree = "<group>"; };
-		56632D3D367AD0444A588FDC /* FocusDim.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FocusDim.swift; sourceTree = "<group>"; };
 		5E6C13952A90DB8C288DB938 /* Haptics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Haptics.swift; sourceTree = "<group>"; };
 		60C1AF3FAF10C86541EE9315 /* FeedbackSubmitter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FeedbackSubmitter.swift; sourceTree = "<group>"; };
 		618A23A276B3DEE750B5FCD2 /* Generate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Generate.swift; sourceTree = "<group>"; };
@@ -184,6 +183,7 @@
 		6C0E12C6A4E80120117977B6 /* TutorialStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TutorialStore.swift; sourceTree = "<group>"; };
 		71D717FAB5FB32C4C42C341B /* LikeFeedbackWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LikeFeedbackWidget.swift; sourceTree = "<group>"; };
 		72C1A459B2BF95F09DFDB42D /* KromaPuzzleFile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KromaPuzzleFile.swift; sourceTree = "<group>"; };
+		744CE48ABC79045626B70F41 /* KromaDesign.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KromaDesign.swift; sourceTree = "<group>"; };
 		7525B53B159BA134F25E0551 /* Stats.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Stats.swift; sourceTree = "<group>"; };
 		754BC0F45600511296B5AA1D /* KromaLogicTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = KromaLogicTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		77CF6BCA8936F4C3CC7CB96E /* AppIconPicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppIconPicker.swift; sourceTree = "<group>"; };
@@ -270,9 +270,9 @@
 				243AC22FA234D5D50BF52A0D /* CreatorView.swift */,
 				8A5B6723BA4A89C9505169E0 /* EdgeVignetteView.swift */,
 				856A5842C2329B56B733CFD4 /* FeedbackSheet.swift */,
-				56632D3D367AD0444A588FDC /* FocusDim.swift */,
 				EED9AF64DB8B44E82237AD19 /* GalleryView.swift */,
 				8B77B6DBA462A78886EC80CC /* GridView.swift */,
+				744CE48ABC79045626B70F41 /* KromaDesign.swift */,
 				53BA603CAD5B11E02256CC7C /* LeaderboardView.swift */,
 				CAE4735A73CF8D6795F2C87B /* LevelPickerSheet.swift */,
 				71D717FAB5FB32C4C42C341B /* LikeFeedbackWidget.swift */,
@@ -623,7 +623,6 @@
 				4064609A726FF8CADA1E484B /* FeedbackSheet.swift in Sources */,
 				23AC0EF292446C08D74F9CF3 /* FeedbackSubmitter.swift in Sources */,
 				0474E00251D2487498A7D39A /* FluidWarp.metal in Sources */,
-				0090125491B8F3FB51DF0119 /* FocusDim.swift in Sources */,
 				AFF8037C0A2C2CC55C87FE24 /* GallerySolvedStore.swift in Sources */,
 				A1700E3B5A207284C4796185 /* GalleryStore.swift in Sources */,
 				CE755B3B5C9E56D6A75CA63D /* GalleryView.swift in Sources */,
@@ -634,6 +633,7 @@
 				6135A6EB93E07B0813FC3044 /* Gradient.swift in Sources */,
 				AB911B28DCFE996C1E5A5DF1 /* GridView.swift in Sources */,
 				E3640AC314BF03A52651D38A /* Haptics.swift in Sources */,
+				8097D4D6EC64D9A3CD25CDA4 /* KromaDesign.swift in Sources */,
 				793D77F2B2703C391ED0F9D8 /* KromaPuzzleFile.swift in Sources */,
 				CE29EC9CCD278372738EBF90 /* LeaderboardView.swift in Sources */,
 				E8458471BE15521BFEA1FC85 /* Level.swift in Sources */,

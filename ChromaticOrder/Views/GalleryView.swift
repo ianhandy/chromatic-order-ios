@@ -86,25 +86,25 @@ struct GalleryView: View {
                     focusReturnedPuzzleIfNeeded(proxy: proxy)
                 }
             }
-            .navigationTitle("Gallery")
-            .navigationBarTitleDisplayMode(.inline)
+            .kromaSheet(Strings.Menu.gallery) { dismiss() }
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Close") { dismiss() }
-                }
-                ToolbarItem(placement: .confirmationAction) {
+                // Creation sits beside the dismissal rather than opposite
+                // it: "done" is navigation and always trailing, so a
+                // content action that isn't a way out doesn't get the
+                // leading slot where "back" belongs.
+                ToolbarItem(placement: .topBarTrailing) {
                     Menu {
                         Button {
                             creatorOpen = true
                         } label: {
-                            Label("Create New", systemImage: "square.and.pencil")
+                            Label("New puzzle", systemImage: "square.and.pencil")
                         }
                         Button {
                             collectionRenameTarget = nil
                             collectionNameText = ""
                             collectionAlertOpen = true
                         } label: {
-                            Label("New Collection", systemImage: "folder.badge.plus")
+                            Label("New collection", systemImage: "folder.badge.plus")
                         }
                         Button {
                             importing = true
@@ -113,7 +113,9 @@ struct GalleryView: View {
                         }
                     } label: {
                         Image(systemName: "plus")
+                            .kromaHitTarget()
                     }
+                    .accessibilityLabel("add")
                 }
             }
             .navigationDestination(for: GalleryCollection.self) { col in

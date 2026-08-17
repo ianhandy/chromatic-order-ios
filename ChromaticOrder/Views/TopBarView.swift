@@ -39,19 +39,11 @@ struct TopBarView: View {
     private static let primaryText = Color.white.opacity(0.92)
     private static let secondaryText = Color.white.opacity(0.6)
 
-    // Button sizing: the three top-row affordances (level chip,
-    // favorite, hamburger) all share this height so they sit on a
-    // single baseline with the center "zen" / "today" wordmark.
-    private static let buttonHeight: CGFloat = 34
-
     var body: some View {
-        VStack(spacing: 8) {
-            // Primary row: three buttons + center mode label, all
-            // vertically centered on one axis. HStack(.center)
-            // aligns each child's center to the row's center, so
-            // the 68pt buttons and the 34pt "zen" wordmark share a
-            // midline instead of drifting apart.
-            HStack(alignment: .center, spacing: 10) {
+        VStack(alignment: .leading, spacing: Kroma.Space.xs) {
+            // Where you are on the left, what you're playing in the
+            // middle, what you can do on the right.
+            HStack(alignment: .center, spacing: Kroma.Space.s) {
                 levelChip
                 Spacer(minLength: 0)
                 centerModeLabel
@@ -59,22 +51,16 @@ struct TopBarView: View {
                 rightButtons
             }
 
-            // Secondary row: one readout under each primary-row
-            // element so timer / moves / points each sit directly
-            // under the thing they're associated with (chip / zen /
-            // right buttons). Same HStack(.center) alignment keeps
-            // the three columns on one baseline.
-            HStack(alignment: .top, spacing: 10) {
-                leftStat
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                centerStat
-                    .frame(maxWidth: .infinity, alignment: .center)
-                rightStat
-                    .frame(maxWidth: .infinity, alignment: .trailing)
-            }
+            // Progress readout, under the chip it belongs to. It used
+            // to be a three-column row with two permanently empty
+            // columns holding the layout open, printed at the same
+            // 20pt weight as the mode wordmark — so a move counter
+            // competed with the name of the mode. It's status; it now
+            // reads as status.
+            progressReadout
         }
-        .padding(.top, 10)
-        .padding(.bottom, 8)
+        .padding(.top, Kroma.Space.s)
+        .padding(.bottom, Kroma.Space.s)
         .sheet(isPresented: $levelPickerOpen) {
             LevelPickerSheet(game: game)
         }
@@ -93,79 +79,79 @@ struct TopBarView: View {
             // Campaign: the chip carries the level's place in the campaign
             // rather than a zen tier, and doesn't open the zen level picker
             // (that would drop the player out of the authored run).
-            Text("\(index)/\(CampaignCatalog.count)")
-                .font(.system(size: 15, weight: .heavy, design: .rounded))
+            chipText("\(index)/\(CampaignCatalog.count)")
                 .foregroundStyle(Self.primaryText)
-                .padding(.horizontal, 10)
-                .frame(height: Self.buttonHeight)
-                .background(Color.white.opacity(0.08), in: Capsule())
-                .overlay(
-                    Capsule().stroke(Color.white.opacity(0.25), lineWidth: 1)
-                )
-                .accessibilityLabel("Campaign level \(index) of \(CampaignCatalog.count)")
+                .kromaSurface(.control)
+                .accessibilityLabel("campaign level \(index) of \(CampaignCatalog.count)")
         } else if game.cameFromGallery, let onBack = onBackToGallery {
             Button(action: onBack) {
                 Image(systemName: "chevron.left")
-                    .font(.system(size: 14, weight: .heavy))
+                    .font(.headline)
                     .foregroundStyle(Self.primaryText)
-                    .frame(width: 38, height: Self.buttonHeight)
-                    .background(Color.white.opacity(0.08), in: Capsule())
-                    .overlay(
-                        Capsule().stroke(Color.white.opacity(0.25), lineWidth: 1)
-                    )
+                    .frame(minWidth: 38)
+                    .frame(minHeight: Kroma.Metrics.chromeControl)
+                    .padding(.horizontal, Kroma.Space.s)
+                    .kromaSurface(.control)
+                    .kromaHitTarget()
             }
-            .buttonStyle(.plain)
-            .accessibilityLabel("Back to gallery")
+            .buttonStyle(.kromaControl)
+            .accessibilityLabel("back to gallery")
         } else if game.mode != .daily {
             let t = game.tier
-            Button {
-                guard game.mode == .zen else { return }
-                levelPickerOpen = true
-            } label: {
-                HStack(spacing: 4) {
-                    Text("Lv \(game.level)")
-                        .font(.system(size: 15, weight: .heavy, design: .rounded))
-                        .foregroundStyle(hexColor(t.colorHex))
-                    if game.mode == .zen {
+            // Only zen can change level; in challenge the chip is a
+            // readout, so it isn't dressed as a button there.
+            if game.mode == .zen {
+                Button { levelPickerOpen = true } label: {
+                    HStack(spacing: Kroma.Space.xs) {
+                        Text("Lv \(game.level)")
+                            .font(Kroma.font(.subheadline, .heavy))
+                            .foregroundStyle(hexColor(t.colorHex))
                         Image(systemName: "chevron.down")
-                            .font(.system(size: 11, weight: .bold))
+                            .font(.caption2.weight(.bold))
                             .foregroundStyle(Self.secondaryText)
                     }
+                    .padding(.horizontal, Kroma.Space.m)
+                    .padding(.vertical, Kroma.Space.s)
+                    .frame(minHeight: Kroma.Metrics.chromeControl)
+                    .kromaSurface(.control)
+                    .kromaHitTarget()
                 }
-                .padding(.horizontal, 12)
-                .frame(height: Self.buttonHeight)
-                .background(Color.white.opacity(0.08), in: Capsule())
-                .overlay(
-                    Capsule().stroke(Color.white.opacity(0.25), lineWidth: 1)
-                )
-            }
-            .buttonStyle(.plain)
-            .disabled(game.mode != .zen)
-            // Publish the chip's bounds into the shared tutorial
-            // anchor bag so the zen-intro tooltip overlay can draw a
-            // pointer line from itself directly to this chip without
-            // hard-coding the chip's screen position.
-            .transformAnchorPreference(
-                key: TutorialAnchorsKey.self,
-                value: .bounds
-            ) { value, anchor in
-                value["chip"] = anchor
+                .buttonStyle(.kromaControl)
+                .accessibilityLabel("level \(game.level), \(t.label)")
+                .accessibilityHint("change level")
+                // Publish the chip's bounds into the shared tutorial
+                // anchor bag so the zen-intro tooltip overlay can draw a
+                // pointer line from itself directly to this chip without
+                // hard-coding the chip's screen position.
+                .transformAnchorPreference(
+                    key: TutorialAnchorsKey.self,
+                    value: .bounds
+                ) { value, anchor in
+                    value["chip"] = anchor
+                }
+            } else {
+                chipText("Lv \(game.level)")
+                    .foregroundStyle(hexColor(t.colorHex))
+                    .kromaSurface(.control)
+                    .accessibilityLabel("level \(game.level), \(t.label)")
             }
         } else {
-            // Daily mode: static "daily" chip in the same slot the
-            // level chip would take, so the top-left balance matches
-            // zen/challenge and the player has a clear mode marker.
-            // Not interactive — daily's level is fixed per date.
-            Text("daily")
-                .font(.system(size: 15, weight: .heavy, design: .rounded))
+            // Daily: a fixed marker in the slot the level chip would
+            // take, so the top-left balance matches the other modes.
+            chipText("daily")
                 .foregroundStyle(Self.primaryText)
-                .padding(.horizontal, 12)
-                .frame(height: Self.buttonHeight)
-                .background(Color.white.opacity(0.08), in: Capsule())
-                .overlay(
-                    Capsule().stroke(Color.white.opacity(0.25), lineWidth: 1)
-                )
+                .kromaSurface(.control)
         }
+    }
+
+    /// A non-interactive top-bar chip. Grows with Dynamic Type instead
+    /// of clipping inside a fixed 34pt capsule.
+    private func chipText(_ text: String) -> some View {
+        Text(text)
+            .font(Kroma.font(.subheadline, .heavy))
+            .padding(.horizontal, Kroma.Space.m)
+            .padding(.vertical, Kroma.Space.s)
+            .frame(minHeight: Kroma.Metrics.chromeControl)
     }
 
     @ViewBuilder
@@ -177,22 +163,25 @@ struct TopBarView: View {
         // top-bar layout stays balanced.
         if let title = game.customTitle, !title.isEmpty {
             Text(title)
-                .font(.system(size: 22, weight: .heavy, design: .rounded))
+                .font(Kroma.font(.title3, .heavy))
                 .foregroundStyle(Self.primaryText)
                 .multilineTextAlignment(.center)
                 .lineLimit(3)
                 .fixedSize(horizontal: false, vertical: true)
                 .frame(maxWidth: 240)
+                .accessibilityAddTraits(.isHeader)
         } else {
             switch game.mode {
             case .zen:
                 Text("zen")
-                    .font(.system(size: 28, weight: .heavy, design: .rounded))
+                    .font(Kroma.font(.title2, .heavy))
                     .foregroundStyle(Self.primaryText)
+                    .accessibilityAddTraits(.isHeader)
             case .daily:
                 Text("today")
-                    .font(.system(size: 28, weight: .heavy, design: .rounded))
+                    .font(Kroma.font(.title2, .heavy))
                     .foregroundStyle(Self.primaryText)
+                    .accessibilityAddTraits(.isHeader)
             case .challenge:
                 heartsRow
             }
@@ -242,12 +231,12 @@ struct TopBarView: View {
                 switch item {
                 case .zero:
                     Text("0 \u{2665}")
-                        .font(.system(size: 15, weight: .bold, design: .rounded))
+                        .font(Kroma.font(.subheadline, .bold))
                         .foregroundStyle(Self.secondaryText)
                         .transition(.opacity)
                 case .heart(let idx):
                     Image(systemName: "heart.fill")
-                        .font(.system(size: 18))
+                        .font(.body)
                         .foregroundStyle(heartRed)
                         .phaseAnimator([1.0, 1.35, 1.0],
                                        trigger: heartWaveTick) { content, s in
@@ -267,7 +256,7 @@ struct TopBarView: View {
                     // numeric content transition rather than popping.
                     HStack(spacing: 3) {
                         Image(systemName: "heart.fill")
-                            .font(.system(size: 18))
+                            .font(.body)
                             .foregroundStyle(heartRed)
                             .phaseAnimator([1.0, 1.35, 1.0],
                                            trigger: heartWaveTick) { content, s in
@@ -276,7 +265,7 @@ struct TopBarView: View {
                                 .spring(response: 0.30, dampingFraction: 0.55)
                             }
                         Text("\(n)")
-                            .font(.system(size: 18, weight: .heavy, design: .rounded))
+                            .font(Kroma.font(.body, .heavy))
                             .foregroundStyle(heartRed)
                             .monospacedDigit()
                             .contentTransition(.numericText(value: Double(n)))
@@ -296,7 +285,7 @@ struct TopBarView: View {
             // `game.checks` so the row keeps showing it.
             if perfectHeartStage == .flying {
                 Image(systemName: "heart.fill")
-                    .font(.system(size: 18))
+                    .font(.body)
                     .foregroundStyle(heartRed)
                     .matchedGeometryEffect(
                         id: "perfectHeart",
@@ -311,78 +300,74 @@ struct TopBarView: View {
 
     @ViewBuilder
     private var rightButtons: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: Kroma.Space.s) {
             let favorited = game.currentFavoriteURL != nil
             Button {
                 game.toggleFavorite()
             } label: {
                 Image(systemName: favorited ? "star.fill" : "star")
-                    .font(.system(size: 16, weight: .semibold))
-                    .frame(width: 38, height: Self.buttonHeight)
+                    .font(.subheadline.weight(.semibold))
+                    .frame(minWidth: 38)
+                    .frame(minHeight: Kroma.Metrics.chromeControl)
                     .foregroundStyle(favorited
                                       ? Color(red: 1.00, green: 0.83, blue: 0.22)
                                       : Self.primaryText)
-                    .background(Color.white.opacity(0.08), in: Capsule())
-                    .overlay(
-                        Capsule().stroke(Color.white.opacity(0.25), lineWidth: 1)
-                    )
+                    .kromaSurface(.control)
+                    .kromaHitTarget()
             }
+            .buttonStyle(.kromaControl)
             .disabled(game.puzzle == nil || game.generating)
+            // Filled vs outline already distinguishes the two states
+            // visually; this is what carries it to VoiceOver and to
+            // anyone who can't read the fill.
+            .accessibilityLabel("favorite")
+            .accessibilityValue(favorited ? "on" : "off")
+
             Button {
                 GlassyAudio.shared.playBloom()
                 menuOpen.toggle()
             } label: {
                 Image(systemName: "line.3.horizontal")
-                    .font(.system(size: 18, weight: .semibold))
-                    .frame(width: 38, height: Self.buttonHeight)
+                    .font(.body.weight(.semibold))
+                    .frame(minWidth: 38)
+                    .frame(minHeight: Kroma.Metrics.chromeControl)
                     .foregroundStyle(Self.primaryText)
-                    .background(menuOpen
-                                ? Color.white.opacity(0.18)
-                                : Color.white.opacity(0.08),
-                                in: Capsule())
-                    .overlay(
-                        Capsule().stroke(Color.white.opacity(0.25), lineWidth: 1)
-                    )
+                    .kromaSurface(menuOpen ? .controlActive : .control)
+                    .kromaHitTarget()
             }
+            .buttonStyle(.kromaControl)
+            // Without this the symbol's own description wins and
+            // VoiceOver announces the menu button as "Drag".
+            .accessibilityLabel("menu")
+            .accessibilityValue(menuOpen ? "expanded" : "collapsed")
         }
     }
 
-    // MARK: – Second row
+    // MARK: – Progress readout
 
-    /// Under the level chip: running timer stacked above the move
-    /// count. Timer hides when the a11y toggle is off (the internal
-    /// clock still ticks for leaderboard submissions).
+    /// Elapsed time and moves, under the chip they describe. The timer
+    /// hides when the player has turned it off — the internal clock
+    /// keeps running for leaderboard submissions either way.
     @ViewBuilder
-    private var leftStat: some View {
-        VStack(alignment: .leading, spacing: 2) {
+    private var progressReadout: some View {
+        HStack(spacing: Kroma.Space.s) {
             if game.timerVisible {
+                // `timeSpentSec` is derived from a start date, so it
+                // needs a clock to redraw. `moveCount` is observed
+                // state and doesn't — it used to sit inside a second
+                // one-second timeline redrawing for nothing.
                 TimelineView(.periodic(from: .now, by: 1.0)) { _ in
                     Text(formatElapsed(game.timeSpentSec))
-                        .font(.system(size: 20, weight: .bold, design: .monospaced))
-                        .foregroundStyle(Self.secondaryText)
+                        .accessibilityLabel("time \(formatElapsed(game.timeSpentSec))")
                 }
             }
-            TimelineView(.periodic(from: .now, by: 1.0)) { _ in
-                Text("\(game.moveCount) mv")
-                    .font(.system(size: 20, weight: .bold, design: .rounded))
-                    .foregroundStyle(Self.secondaryText)
-            }
+            Text("\(game.moveCount) moves")
+                .accessibilityLabel("\(game.moveCount) moves")
         }
-    }
-
-    /// Center column is intentionally empty now that moves moved to
-    /// the left column; kept as a spacer so the three-column layout
-    /// keeps the right-side points aligned.
-    @ViewBuilder
-    private var centerStat: some View {
-        EmptyView()
-    }
-
-    /// Right column is intentionally empty — the old challenge-score
-    /// readout was removed when the points system went away.
-    @ViewBuilder
-    private var rightStat: some View {
-        EmptyView()
+        .font(Kroma.monoFont(.footnote, .semibold))
+        .foregroundStyle(Self.secondaryText)
+        .lineLimit(1)
+        .minimumScaleFactor(0.8)
     }
 }
 

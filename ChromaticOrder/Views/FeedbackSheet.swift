@@ -53,19 +53,17 @@ struct FeedbackSheet: View {
                 }
                 .padding(16)
             }
-            .navigationTitle("Feedback")
-            .navigationBarTitleDisplayMode(.inline)
+            .kromaSheet("feedback") { dismiss() }
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Close") { dismiss() }
-                }
                 if kind != nil {
-                    ToolbarItem(placement: .primaryAction) {
-                        Button("Change") {
+                    // Steps back to the kind picker inside the sheet,
+                    // so it takes the leading slot where "back" lives
+                    // rather than crowding the way out.
+                    ToolbarItem(placement: .topBarLeading) {
+                        Button("change") {
                             kind = nil
                             sendState = .idle
                         }
-                        .font(.system(size: 16))
                     }
                 }
             }

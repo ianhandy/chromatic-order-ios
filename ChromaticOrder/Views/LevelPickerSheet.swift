@@ -23,13 +23,7 @@ struct LevelPickerSheet: View {
                 .padding(18)
             }
             .background(Color.black)
-            .navigationTitle("change level")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("cancel") { dismiss() }
-                }
-            }
+            .kromaSheet("level") { dismiss() }
         }
         .presentationDetents([.medium, .large])
     }
@@ -43,33 +37,39 @@ struct LevelPickerSheet: View {
             game.jumpToLevel(lv)
             dismiss()
         } label: {
-            VStack(spacing: 3) {
+            VStack(spacing: Kroma.Space.xs) {
                 Text("\(lv)")
-                    .font(.system(size: 18, weight: .heavy, design: .rounded))
+                    .font(Kroma.font(.headline, .heavy))
                     .foregroundStyle(Color.white.opacity(isCurrent ? 1.0 : 0.85))
                 Text(tierInfo.label)
-                    .font(.system(size: 9, weight: .bold, design: .rounded))
+                    .font(Kroma.font(.caption2, .bold))
                     .foregroundStyle(tierColor)
                     .multilineTextAlignment(.center)
                     .lineLimit(2)
                     .fixedSize(horizontal: false, vertical: true)
             }
+            .padding(.vertical, Kroma.Space.s)
             .frame(minHeight: 56)
             .frame(maxWidth: .infinity)
             .background(
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                RoundedRectangle(cornerRadius: Kroma.Radius.control, style: .continuous)
                     .fill(isCurrent
                           ? tierColor.opacity(0.30)
                           : Color.white.opacity(0.06))
             )
             .overlay(
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                RoundedRectangle(cornerRadius: Kroma.Radius.control, style: .continuous)
                     .stroke(isCurrent
                             ? tierColor.opacity(0.75)
                             : Color.white.opacity(0.14),
                             lineWidth: isCurrent ? 1.5 : 1)
             )
+            .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.kromaControl)
+        .accessibilityLabel("level \(lv), \(tierInfo.label)")
+        // The ring and fill say "you are here" visually; the selected
+        // trait is what says it to VoiceOver.
+        .accessibilityAddTraits(isCurrent ? [.isButton, .isSelected] : .isButton)
     }
 }

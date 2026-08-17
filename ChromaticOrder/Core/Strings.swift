@@ -26,19 +26,13 @@ enum Strings {
         static let zen = "zen"
         static let challenge = "challenge"
         static let todaysPuzzle = "today's puzzle"
-        static let todaysPuzzleCompleted = "today's puzzle (completed)"
         static let gallery = "gallery"
-        static let options = "options"
+        /// One name for one destination. The main menu used to say
+        /// "options", the in-game menu "settings", and the sheet itself
+        /// "Accessibility" — three labels for the same screen.
+        static let settings = "settings"
         static let leaderboard = "leaderboard"
         static let stats = "stats"
-
-        /// Challenge resume inline prompt (slides in next to the
-        /// "challenge" row when a suspended run is on disk).
-        enum Resume {
-            static let question = "resume?"
-            static let yes = "yes"
-            static let no = "no"
-        }
     }
 
     // MARK: – Top bar

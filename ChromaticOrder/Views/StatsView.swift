@@ -37,13 +37,7 @@ struct StatsView: View {
                 }
 
             }
-            .navigationTitle("Stats")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button("Done") { dismiss() }
-                }
-            }
+            .kromaSheet(Strings.Menu.stats) { dismiss() }
         }
         .onAppear { stats = StatsStore.load() }
     }

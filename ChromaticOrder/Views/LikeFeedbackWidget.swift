@@ -35,51 +35,56 @@ struct LikeFeedbackWidget: View {
 
     var body: some View {
         ratingRow
-            .padding(.horizontal, 14)
+            .padding(.leading, Kroma.Space.m)
             .frame(minHeight: height)
             .background(Color.white.opacity(0.06), in: Capsule())
             .overlay(
                 Capsule().stroke(Color.white.opacity(0.14), lineWidth: 1)
             )
-            .animation(.easeOut(duration: 0.2), value: game.liked)
+            .kromaAnimation(.easeOut(duration: 0.2), value: game.liked)
     }
 
     @ViewBuilder
     private var ratingRow: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: Kroma.Space.xs) {
             Text(Strings.LikeFeedback.prompt)
-                .font(.system(size: 18, weight: .bold, design: .rounded))
+                .font(Kroma.font(.headline, .bold))
                 .lineLimit(2)
                 .multilineTextAlignment(.leading)
                 .fixedSize(horizontal: false, vertical: true)
                 .foregroundStyle(Color.white.opacity(0.55))
+                .accessibilityHidden(true)
 
-            HStack(spacing: 10) {
-                // Green up / red down arrows. Filled variants are
-                // unambiguous at small sizes on both light + dark
-                // sims.
-                Button {
-                    tap(liked: true)
-                } label: {
-                    Image(systemName: "arrowtriangle.up.fill")
-                        .font(.system(size: 22, weight: .heavy))
-                        .foregroundStyle(likeGreen)
-                        .opacity(opacity(for: true))
-                }
-                .buttonStyle(.plain)
-                .disabled(game.liked != nil)
-
-                Button {
-                    tap(liked: false)
-                } label: {
-                    Image(systemName: "arrowtriangle.down.fill")
-                        .font(.system(size: 22, weight: .heavy))
-                        .foregroundStyle(dislikeRed)
-                        .opacity(opacity(for: false))
-                }
-                .buttonStyle(.plain)
-                .disabled(game.liked != nil)
+            // Up / down arrows. The glyphs stay small so the widget can
+            // sit beside "next level", but each carries a full 44pt hit
+            // region — they were 22pt targets before.
+            Button {
+                tap(liked: true)
+            } label: {
+                Image(systemName: "arrowtriangle.up.fill")
+                    .font(.title3.weight(.heavy))
+                    .foregroundStyle(likeGreen)
+                    .opacity(opacity(for: true))
+                    .kromaHitTarget()
             }
+            .buttonStyle(.kromaControl)
+            .disabled(game.liked != nil)
+            .accessibilityLabel("good level")
+            .accessibilityValue(game.liked == true ? "chosen" : "")
+
+            Button {
+                tap(liked: false)
+            } label: {
+                Image(systemName: "arrowtriangle.down.fill")
+                    .font(.title3.weight(.heavy))
+                    .foregroundStyle(dislikeRed)
+                    .opacity(opacity(for: false))
+                    .kromaHitTarget()
+            }
+            .buttonStyle(.kromaControl)
+            .disabled(game.liked != nil)
+            .accessibilityLabel("bad level")
+            .accessibilityValue(game.liked == false ? "chosen" : "")
         }
     }
 

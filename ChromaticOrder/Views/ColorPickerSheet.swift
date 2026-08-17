@@ -136,13 +136,7 @@ struct ColorPickerSheet: View {
                 Spacer()
             }
             .padding(.top, 16)
-            .navigationTitle(title)
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Done") { dismiss() }
-                }
-            }
+            .kromaSheet(title) { dismiss() }
         }
         .presentationDetents([.medium, .large])
     }

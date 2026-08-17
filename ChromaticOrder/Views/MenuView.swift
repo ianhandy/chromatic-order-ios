@@ -14,6 +14,7 @@ struct MenuView: View {
     /// hides the menu and shows ContentView when this flips.
     @Binding var started: Bool
     @Environment(Transitioner.self) private var transitioner
+    @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
 
     @State private var accessibilityOpen = false
     @State private var galleryOpen = false
@@ -51,24 +52,12 @@ struct MenuView: View {
     /// has stopped interacting.
     @State private var lastChillActivity: Date = .distantPast
 
-    /// One tap-tone per button — each is a distinct OKLCh color so the
-    /// audio mapping (hue → pentatonic degree, L → octave) picks a
-    /// different pitch for each button. Colors also serve as a subtle
-    /// visual accent if we ever want to surface them.
-    private static let campaignColor  = OKLCh(L: 0.66, c: 0.15, h: 205)
-    private static let zenColor       = OKLCh(L: 0.62, c: 0.14, h: 150)
-    private static let challengeColor = OKLCh(L: 0.55, c: 0.18, h: 28)
-    private static let dailyColor     = OKLCh(L: 0.60, c: 0.16, h: 95)
-    private static let galleryColor   = OKLCh(L: 0.58, c: 0.16, h: 290)
-    private static let optionsColor   = OKLCh(L: 0.70, c: 0.08, h: 220)
-    private static let leaderboardColor = OKLCh(L: 0.65, c: 0.14, h: 50)
-    private static let statsColor     = OKLCh(L: 0.60, c: 0.10, h: 260)
 
     var body: some View {
         ZStack {
             Color.black.ignoresSafeArea()
 
-            if game.menuBackdropEnabled {
+            if game.menuBackdropEnabled && !shouldReduceMotion {
                 // Backdrop starts at 50% opacity and ramps up with the
                 // chill ramp — so as the menu text fades out (driven
                 // by the same `chill` variable), the backdrop
@@ -76,7 +65,8 @@ struct MenuView: View {
                 // text has completely disappeared.
                 backdrop
                     .opacity(0.5 + 0.5 * chill)
-                    .animation(.easeInOut(duration: 0.25), value: chill)
+                    .animation(shouldReduceMotion ? nil : .easeInOut(duration: 0.25),
+                               value: chill)
                     .ignoresSafeArea()
                     .contentShape(Rectangle())
                     // SpatialTapGesture (iOS 17+) gives us the tap
@@ -145,7 +135,9 @@ struct MenuView: View {
                                 let dist = hypot(value.translation.width,
                                                  value.translation.height)
                                 if dist < 5 {
-                                    withAnimation(.easeOut(duration: 0.9)) {
+                                    withAnimation(shouldReduceMotion
+                                                  ? nil
+                                                  : .easeOut(duration: 0.9)) {
                                         chill = 0
                                     }
                                 }
@@ -153,62 +145,85 @@ struct MenuView: View {
                     )
             }
 
-            VStack(alignment: .trailing, spacing: 6) {
-                Spacer()
-                Text(Strings.Menu.title)
-                    .font(.system(size: 72, weight: .heavy, design: .rounded))
-                    .foregroundStyle(Color.white.opacity(0.70))
-                    .tracking(-1)
-                    .lineLimit(1)
-                    // Scale the wordmark down on narrower devices
-                    // (iPhone SE / mini etc.) so it never wraps to
-                    // a second line. 0.6 gives plenty of headroom
-                    // while keeping the letterforms readable.
-                    .minimumScaleFactor(0.6)
-                    .padding(.bottom, 40)
-                // Campaign sits first: it's the on-ramp, and a new player
-                // should meet it before the generator's endless modes.
-                menuButton(campaignLabel, tone: Self.campaignColor) {
-                    campaignOpen = true
-                }
-                menuButton(Strings.Menu.zen, tone: Self.zenColor) {
-                    pick(mode: .zen)
-                }
-                challengeRow
-                // Daily completed? Gray it out with a "(completed)"
-                // suffix. Still tappable so the player can revisit
-                // the finished board — GameState auto-solves the
-                // regenerated puzzle on entry in that case.
-                let dailyDone = game.isDailyCompletedToday
-                if dailyDone {
-                    dailyCompletedRow
-                } else {
-                    menuButton(Strings.Menu.todaysPuzzle,
-                               tone: Self.dailyColor) {
-                        pick(mode: .daily)
+            // Two tiers, separated by space rather than by headings:
+            // the four ways to play, then the four places to go. Before
+            // this every destination was the same size, so "stats" shouted
+            // as loudly as "campaign" and the on-ramp was invisible.
+            ScrollView(.vertical, showsIndicators: false) {
+                VStack(alignment: .trailing, spacing: Kroma.Space.xl) {
+                    Text(Strings.Menu.title)
+                        .font(.system(size: 72, weight: .heavy, design: .rounded))
+                        .foregroundStyle(Color.white.opacity(0.70))
+                        .tracking(-1)
+                        .lineLimit(1)
+                        // Scale the wordmark down on narrower devices
+                        // (iPhone SE / mini etc.) so it never wraps to
+                        // a second line. 0.6 gives plenty of headroom
+                        // while keeping the letterforms readable.
+                        .minimumScaleFactor(0.6)
+                        .accessibilityAddTraits(.isHeader)
+
+                    VStack(alignment: .trailing, spacing: Kroma.Space.xs) {
+                        // Campaign sits first: it's the on-ramp, and a new
+                        // player should meet it before the endless modes.
+                        primaryRow(Strings.Menu.campaign,
+                                   detail: campaignProgressDetail) {
+                            campaignOpen = true
+                        }
+                        // Daily stays tappable once solved so the player can
+                        // show a friend the board; the countdown replaces the
+                        // call to action, and the dimming says "already done"
+                        // without a "(completed)" suffix to read.
+                        if game.isDailyCompletedToday {
+                            dailyCompletedRow
+                        } else {
+                            primaryRow(Strings.Menu.todaysPuzzle) {
+                                pick(mode: .daily)
+                            }
+                        }
+                        primaryRow(Strings.Menu.zen) {
+                            pick(mode: .zen)
+                        }
+                        primaryRow(Strings.Menu.challenge) {
+                            // A saved run is the only thing that makes this
+                            // ambiguous, so that's the only time we ask.
+                            if game.hasSavedChallengeRun {
+                                challengeResumeOpen = true
+                            } else {
+                                pick(mode: .challenge)
+                            }
+                        }
+                    }
+
+                    VStack(alignment: .trailing, spacing: Kroma.Space.xs) {
+                        secondaryRow(Strings.Menu.gallery) {
+                            galleryOpen = true
+                        }
+                        secondaryRow(Strings.Menu.stats) {
+                            statsOpen = true
+                            GameCenter.shared.reportAchievement(
+                                GameCenter.Achievement.openedStats
+                            )
+                        }
+                        secondaryRow(Strings.Menu.leaderboard) {
+                            leaderboardOpen = true
+                        }
+                        secondaryRow(Strings.Menu.settings) {
+                            accessibilityOpen = true
+                        }
                     }
                 }
-                menuButton(Strings.Menu.gallery, tone: Self.galleryColor) {
-                    galleryOpen = true
-                }
-                menuButton(Strings.Menu.options, tone: Self.optionsColor) {
-                    accessibilityOpen = true
-                }
-                menuButton(Strings.Menu.leaderboard, tone: Self.leaderboardColor) {
-                    leaderboardOpen = true
-                }
-                menuButton(Strings.Menu.stats, tone: Self.statsColor) {
-                    statsOpen = true
-                    GameCenter.shared.reportAchievement(
-                        GameCenter.Achievement.openedStats
-                    )
-                }
-                Spacer()
+                .frame(maxWidth: .infinity, alignment: .trailing)
+                .padding(.horizontal, Kroma.Space.xxl)
+                .padding(.vertical, Kroma.Space.xxl)
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .padding(.horizontal, 32)
+            // The list is short at default sizes and the scroll view never
+            // shows; at AX5 it is what keeps the last row reachable instead
+            // of pushing it off the bottom of the screen.
+            .scrollBounceBehavior(.basedOnSize)
             .opacity(1.0 - chill)
-            .animation(.easeInOut(duration: 0.25), value: chill)
+            .animation(shouldReduceMotion ? nil : .easeInOut(duration: 0.25),
+                       value: chill)
         }
         .onDisappear {
             GlassyAudio.shared.stopHum()
@@ -233,6 +248,25 @@ struct MenuView: View {
         }
         .sheet(isPresented: $statsOpen) {
             StatsView()
+        }
+        // A suspended run is the only thing that makes "challenge"
+        // ambiguous, so it's the only time we ask. This replaced an
+        // inline "resume? yes no" strip that slid in beside the row and
+        // shoved the whole menu sideways: the native dialog gets real
+        // touch targets, real VoiceOver, and verbs instead of yes/no.
+        .confirmationDialog("you have a challenge run in progress",
+                            isPresented: $challengeResumeOpen,
+                            titleVisibility: .visible) {
+            Button("resume run") {
+                transitioner.fade {
+                    game.resumeChallengeRun()
+                    started = true
+                }
+            }
+            Button("start over", role: .destructive) {
+                pick(mode: .challenge)
+            }
+            Button("cancel", role: .cancel) {}
         }
         .onAppear {
             GlassyAudio.shared.startMusicIfNeeded()
@@ -281,18 +315,20 @@ struct MenuView: View {
     }
 
     /// Variant of the daily row shown once the player has solved
-    /// today's puzzle. The button label shows a live "next daily
-    /// in Xh Ym" countdown toward the next UTC midnight and is
-    /// visually dimmed; taps still drop into the completed board
-    /// so players can show a friend the solve.
+    /// today's puzzle. The label stays put and a live "next in Xh Ym"
+    /// countdown toward the next UTC midnight leads it; taps still drop
+    /// into the completed board so players can show a friend the solve.
     @ViewBuilder
     private var dailyCompletedRow: some View {
         TimelineView(.periodic(from: .now, by: 30)) { ctx in
             let secs = Daily.secondsUntilNext(now: ctx.date)
-            menuButton(
-                "today's puzzle · next in \(formatCountdown(secs))",
-                tone: Self.dailyColor,
-                dimmed: true
+            primaryRow(
+                Strings.Menu.todaysPuzzle,
+                detail: "next in \(formatCountdown(secs))",
+                dimmed: true,
+                // Dimming alone would encode "solved" in contrast, which
+                // VoiceOver and Differentiate Without Color can't see.
+                accessibilityValue: "solved, next in \(formatCountdown(secs))"
             ) {
                 pick(mode: .daily)
             }
@@ -339,58 +375,6 @@ struct MenuView: View {
         }
     }
 
-    /// Challenge menu row. If a saved challenge run exists on disk,
-    /// tapping "challenge" doesn't immediately start a new run —
-    /// instead the label visibly stays put while a "resume? yes no"
-    /// prompt slides in to its left. Yes resumes the suspended run;
-    /// No discards it and starts a fresh challenge.
-    @ViewBuilder
-    private var challengeRow: some View {
-        HStack(spacing: 18) {
-            if challengeResumeOpen {
-                HStack(spacing: 12) {
-                    Text(Strings.Menu.Resume.question)
-                        .font(.system(size: 20, weight: .semibold, design: .rounded))
-                        .foregroundStyle(Color.white.opacity(0.75))
-                    Button {
-                        challengeResumeOpen = false
-                        transitioner.fade {
-                            game.resumeChallengeRun()
-                            started = true
-                        }
-                    } label: {
-                        Text("yes")
-                            .font(.system(size: 22, weight: .heavy, design: .rounded))
-                            .foregroundStyle(Color(red: 0.45, green: 0.85, blue: 0.55))
-                    }
-                    .buttonStyle(.plain)
-                    Button {
-                        challengeResumeOpen = false
-                        pick(mode: .challenge)
-                    } label: {
-                        Text("no")
-                            .font(.system(size: 22, weight: .heavy, design: .rounded))
-                            .foregroundStyle(Color(red: 0.92, green: 0.48, blue: 0.48))
-                    }
-                    .buttonStyle(.plain)
-                }
-                .padding(.vertical, 18)
-                .transition(.move(edge: .trailing).combined(with: .opacity))
-            }
-            menuButton("challenge", tone: Self.challengeColor) {
-                if game.hasSavedChallengeRun && !challengeResumeOpen {
-                    withAnimation(.spring(response: 0.38, dampingFraction: 0.82)) {
-                        challengeResumeOpen = true
-                    }
-                } else {
-                    challengeResumeOpen = false
-                    pick(mode: .challenge)
-                }
-            }
-        }
-        .animation(.spring(response: 0.38, dampingFraction: 0.82), value: challengeResumeOpen)
-    }
-
     /// While the drag has been continuous for more than a second,
     /// progressively shorten existing ripples' lifespans toward
     /// half their original value. Oldest ripples take the cut
@@ -419,16 +403,25 @@ struct MenuView: View {
         }
     }
 
-    /// "campaign" until the player is into it, then "campaign 14/200" so the
-    /// menu itself shows how far the on-ramp has been walked.
-    private var campaignLabel: String {
+    /// Progress hint beside the campaign row — absent until the player
+    /// has actually cleared something, so a new install shows a clean
+    /// "campaign" with nothing to decode.
+    private var campaignProgressDetail: String? {
         let done = CampaignStore.clearedCount
-        guard done > 0 else { return Strings.Menu.campaign }
-        return "\(Strings.Menu.campaign) \(done)/\(CampaignCatalog.count)"
+        guard done > 0 else { return nil }
+        return "\(done)/\(CampaignCatalog.count)"
+    }
+
+    /// Honor both the system preference and Kromatika's in-app toggle.
+    /// The animated backdrop is decorative, so the cleanest reduced-
+    /// motion treatment is to omit it rather than leave a field that is
+    /// frozen at an arbitrary frame.
+    private var shouldReduceMotion: Bool {
+        systemReduceMotion || game.reduceMotion
     }
 
     private func pick(mode: GameMode) {
-        withAnimation(.easeOut(duration: 0.9)) { chill = 0 }
+        withAnimation(shouldReduceMotion ? nil : .easeOut(duration: 0.9)) { chill = 0 }
         transitioner.fade {
             // `enterMode` always refreshes state — challenge always
             // starts at level 1 regardless of whether the player was
@@ -438,10 +431,43 @@ struct MenuView: View {
         }
     }
 
+    /// A way to play. Sized to be read first.
     @ViewBuilder
-    private func menuButton(_ label: String, tone: OKLCh,
-                             dimmed: Bool = false,
-                             action: @escaping () -> Void) -> some View {
+    private func primaryRow(_ label: String,
+                            detail: String? = nil,
+                            dimmed: Bool = false,
+                            accessibilityValue: String? = nil,
+                            action: @escaping () -> Void) -> some View {
+        menuRow(label,
+                detail: detail,
+                font: Kroma.font(.title, .semibold),
+                opacity: dimmed ? 0.34 : 0.78,
+                accessibilityValue: accessibilityValue,
+                action: action)
+    }
+
+    /// A place to go rather than a way to play. Same voice, quieter.
+    @ViewBuilder
+    private func secondaryRow(_ label: String,
+                              action: @escaping () -> Void) -> some View {
+        menuRow(label,
+                detail: nil,
+                font: Kroma.font(.headline, .medium),
+                opacity: 0.52,
+                accessibilityValue: nil,
+                action: action)
+    }
+
+    /// Shared row body. The optional detail leads the label so every
+    /// row's right edge stays on one axis no matter how long the
+    /// countdown or progress fraction gets.
+    @ViewBuilder
+    private func menuRow(_ label: String,
+                         detail: String?,
+                         font: Font,
+                         opacity: Double,
+                         accessibilityValue: String?,
+                         action: @escaping () -> Void) -> some View {
         Button {
             // Random F# Phrygian bloom — each press picks its own
             // voicing (most often a single note, occasionally a
@@ -451,15 +477,30 @@ struct MenuView: View {
             // Menu button press counts as a reset for chill —
             // brings the menu text back to full opacity and drops
             // ripple lifetimes to baseline.
-            withAnimation(.easeOut(duration: 0.9)) { chill = 0 }
+            withAnimation(shouldReduceMotion ? nil : .easeOut(duration: 0.9)) { chill = 0 }
             action()
         } label: {
-            Text(label)
-                .font(.system(size: 28, weight: .semibold, design: .rounded))
-                .foregroundStyle(Color.white.opacity(dimmed ? 0.28 : 0.70))
-                .padding(.vertical, 18)
+            HStack(alignment: .firstTextBaseline, spacing: Kroma.Space.m) {
+                if let detail {
+                    Text(detail)
+                        .font(Kroma.font(.subheadline, .semibold))
+                        .foregroundStyle(Color.white.opacity(0.45))
+                }
+                Text(label)
+                    .font(font)
+                    .foregroundStyle(Color.white.opacity(opacity))
+            }
+            .multilineTextAlignment(.trailing)
+            // No fixed height: at AX5 these rows are several lines tall
+            // and must be allowed to grow.
+            .padding(.vertical, Kroma.Space.m)
+            .frame(minHeight: Kroma.Metrics.minTarget, alignment: .trailing)
+            .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.kromaControl)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(label)
+        .accessibilityValue(accessibilityValue ?? detail ?? "")
     }
 }
 

@@ -13,16 +13,15 @@ struct OnboardingOverlay: View {
         if !seen, shouldShow {
             VStack {
                 Text("drag a swatch onto any cell")
-                    .font(.system(size: 17, weight: .semibold, design: .rounded))
+                    .font(Kroma.font(.callout, .semibold))
                     .tracking(0.6)
                     .textCase(.lowercase)
                     .foregroundStyle(.white)
-                    .padding(.horizontal, 18)
-                    .padding(.vertical, 10)
-                    .background(Color.black.opacity(0.55), in: Capsule())
-                    .overlay(
-                        Capsule().stroke(.white.opacity(0.20), lineWidth: 0.5)
-                    )
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, Kroma.Space.l)
+                    .padding(.vertical, Kroma.Space.s)
+                    .kromaSurface(.panel, in: Capsule())
+                    .padding(.horizontal, Kroma.Space.xl)
                     .padding(.top, 92)
                 Spacer()
             }

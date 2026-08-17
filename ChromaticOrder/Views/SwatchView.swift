@@ -125,6 +125,19 @@ struct BankSlotView: View {
                 sway = 1
             }
         }
+        // The slot is driven entirely by a DragGesture, which VoiceOver
+        // cannot perform — so it needs an explicit action as well as a
+        // name. "Picked up" is the same fact the swatch's lift and
+        // shadow show sighted players.
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(item == nil
+                            ? "empty slot \(slot + 1)"
+                            : "swatch \(slot + 1)")
+        .accessibilityValue(isPicked ? "picked up" : "")
+        .accessibilityAddTraits(item == nil ? [] : .isButton)
+        .accessibilityAction {
+            game.tapSlot(slot)
+        }
     }
 
     private var isPicked: Bool {

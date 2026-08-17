@@ -15,24 +15,17 @@ struct CampaignView: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                LazyVStack(alignment: .leading, spacing: 32) {
+                LazyVStack(alignment: .leading, spacing: Kroma.Space.xxl) {
                     continueButton
 
                     ForEach(CampaignCatalog.chapters) { chapter in
                         chapterSection(chapter)
                     }
                 }
-                .padding(.horizontal, 20)
-                .padding(.vertical, 24)
+                .padding(.horizontal, Kroma.Space.screenMargin)
+                .padding(.vertical, Kroma.Space.xl)
             }
-            .navigationTitle("campaign")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button("close") { dismiss() }
-                        .font(.system(size: 17, weight: .semibold, design: .rounded))
-                }
-            }
+            .kromaSheet(Strings.Menu.campaign) { dismiss() }
         }
     }
 
@@ -40,41 +33,62 @@ struct CampaignView: View {
         Button { play(CampaignStore.nextUp) } label: {
             HStack {
                 Text(CampaignStore.isComplete ? "replay" : "continue")
-                    .font(.system(size: 19, weight: .bold, design: .rounded))
+                    .font(Kroma.font(.title3, .bold))
                 Spacer()
                 Image(systemName: "arrow.right")
-                    .font(.system(size: 17, weight: .bold))
+                    .font(.headline)
             }
             .foregroundStyle(.primary)
-            .padding(.horizontal, 18)
+            .padding(.horizontal, Kroma.Space.l)
+            .padding(.vertical, Kroma.Space.m)
             .frame(maxWidth: .infinity, minHeight: 52)
-            .background(Color.primary.opacity(0.08), in: RoundedRectangle(cornerRadius: 16,
-                                                                            style: .continuous))
+            .background(Color.primary.opacity(0.08),
+                        in: RoundedRectangle(cornerRadius: Kroma.Radius.card,
+                                             style: .continuous))
+            .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.kromaControl)
         .accessibilityLabel(CampaignStore.isComplete ? "replay" : "continue")
+        .accessibilityValue(continueDestination)
+    }
+
+    /// Where "continue" actually goes. Sighted players find out by
+    /// tapping and seeing the board; this is the same information for
+    /// anyone who wants it before committing.
+    private var continueDestination: String {
+        let index = CampaignStore.nextUp
+        guard let chapter = CampaignCatalog.chapter(containing: index),
+              let local = CampaignStore.localNumber(for: index) else { return "" }
+        return "\(chapter.title.lowercased()), level \(local)"
     }
 
     private func chapterSection(_ chapter: CampaignChapter) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: Kroma.Space.m) {
             HStack(alignment: .firstTextBaseline) {
                 Text(chapter.title.lowercased())
-                    .font(.system(size: 20, weight: .bold, design: .rounded))
+                    .font(Kroma.font(.title3, .bold))
                 Spacer()
                 Text("\(CampaignStore.chapterCompletion(chapter))/\(chapter.count)")
-                    .font(.system(size: 15, weight: .semibold, design: .rounded))
+                    .font(Kroma.font(.subheadline, .semibold))
                     .foregroundStyle(.secondary)
+                    .monospacedDigit()
             }
+            // One element, one announcement: without this VoiceOver
+            // reads the chapter name and its fraction as two unrelated
+            // strings before it reaches the levels.
+            .accessibilityElement(children: .combine)
+            .accessibilityAddTraits(.isHeader)
 
-            LazyVGrid(columns: columns, spacing: 8) {
+            LazyVGrid(columns: columns, spacing: Kroma.Space.s) {
                 ForEach(CampaignCatalog.levels(in: chapter)) { level in
-                    levelButton(level)
+                    levelButton(level, chapter: chapter)
                 }
             }
         }
     }
 
-    private func levelButton(_ level: CampaignLevel) -> some View {
+    private func levelButton(_ level: CampaignLevel,
+                             chapter: CampaignChapter) -> some View {
         let unlocked = CampaignStore.isUnlocked(level.index)
         let complete = CampaignStore.isCleared(level.index)
         let current = level.index == CampaignStore.nextUp
@@ -86,33 +100,45 @@ struct CampaignView: View {
         } label: {
             ZStack(alignment: .topTrailing) {
                 Text("\(localNumber)")
-                    .font(.system(size: 17, weight: .bold, design: .rounded))
+                    .font(Kroma.font(.headline, .bold))
                     .foregroundStyle(unlocked ? .primary : .secondary)
-                    .frame(maxWidth: .infinity, minHeight: 48)
+                    .monospacedDigit()
+                    .padding(.vertical, Kroma.Space.m)
+                    .frame(maxWidth: .infinity, minHeight: Kroma.Metrics.minTarget)
                     .background(fill(complete: complete, unlocked: unlocked),
-                                in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                                in: RoundedRectangle(cornerRadius: Kroma.Radius.control,
+                                                     style: .continuous))
                     .overlay {
-                        RoundedRectangle(cornerRadius: 14, style: .continuous)
+                        RoundedRectangle(cornerRadius: Kroma.Radius.control,
+                                         style: .continuous)
                             .stroke(current ? Color.primary.opacity(0.65) : .clear,
                                     lineWidth: current ? 2 : 0)
                     }
 
+                // Cleared is a green fill *and* a checkmark; locked is a
+                // dim fill *and* a padlock. Neither state is carried by
+                // colour on its own.
                 if complete {
                     Image(systemName: "checkmark")
-                        .font(.system(size: 11, weight: .bold))
-                        .padding(6)
+                        .font(.caption2.weight(.bold))
+                        .padding(Kroma.Space.xs)
                 } else if !unlocked {
                     Image(systemName: "lock.fill")
-                        .font(.system(size: 10, weight: .bold))
+                        .font(.caption2.weight(.bold))
                         .foregroundStyle(.secondary)
-                        .padding(6)
+                        .padding(Kroma.Space.xs)
                 }
             }
+            .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.kromaControl)
         .disabled(!unlocked)
-        .accessibilityLabel("level \(localNumber)")
+        // Every chapter opens at its own level 1, so the grid holds
+        // several buttons labelled "1". Naming the chapter is what makes
+        // them distinguishable when read out of visual context.
+        .accessibilityLabel("\(chapter.title.lowercased()), level \(localNumber)")
         .accessibilityValue(complete ? "complete" : (unlocked ? "available" : "locked"))
+        .accessibilityAddTraits(current ? [.isButton, .isSelected] : .isButton)
     }
 
     private func fill(complete: Bool, unlocked: Bool) -> Color {

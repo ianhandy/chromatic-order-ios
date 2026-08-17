@@ -45,12 +45,12 @@ struct CollectionDetailView: View {
         .navigationTitle(collection.name)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            ToolbarItem(placement: .confirmationAction) {
+            ToolbarItem(placement: .topBarTrailing) {
                 Menu {
                     Button {
                         creatorOpen = true
                     } label: {
-                        Label("Create New", systemImage: "square.and.pencil")
+                        Label("New puzzle", systemImage: "square.and.pencil")
                     }
                     Button {
                         importing = true
@@ -59,7 +59,9 @@ struct CollectionDetailView: View {
                     }
                 } label: {
                     Image(systemName: "plus")
+                        .kromaHitTarget()
                 }
+                .accessibilityLabel("add")
             }
         }
         .fullScreenCover(isPresented: $creatorOpen, onDismiss: reload) {
@@ -371,13 +373,7 @@ struct MoveToCollectionSheet: View {
                     }
                 }
             }
-            .navigationTitle("Move puzzle")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
-                }
-            }
+            .kromaSheet("move puzzle") { dismiss() }
             .onAppear { collections = GalleryStore.collections() }
         }
     }

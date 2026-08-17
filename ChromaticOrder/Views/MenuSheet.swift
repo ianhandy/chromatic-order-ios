@@ -1,12 +1,18 @@
-//  Hamburger dropdown — three icon + label rows that slide in from the
-//  right when the menu opens. No card or background: the rows float on
-//  top of the game. Order (top → bottom): home, settings, feedback.
-//  Icons arrive first, staggered top-first; each label fades in once
-//  its icon has settled into place.
+//  The in-game menu. A panel anchored under the top bar's menu button,
+//  ordered the way iOS orders a menu: the actions that touch this puzzle
+//  first, then the app-level destinations, then the way out.
 //
-//  Always rendered in the ZStack so the close animation can play out
-//  (items slide back off-screen and the labels fade). When closed,
-//  hit-testing is disabled so the menu doesn't eat taps on the game.
+//  It used to be a set of unbacked rows that slid in from the right edge
+//  on a per-index stagger, each label fading in 400ms after its icon.
+//  Two problems that cost more than the choreography was worth: with no
+//  surface behind them the labels landed directly on the puzzle (the
+//  "share" row was routinely unreadable over a swatch), and the stagger
+//  indices had a gap in them, so the list arrived with a dead beat in the
+//  middle. A panel with one brief anchored transition says the same thing
+//  — "this came from that button" — and stays legible over any board.
+//
+//  Always mounted so the dismissal transition can play out; hit-testing
+//  is gated on `menuOpen` so a closed menu never eats taps on the game.
 
 import SwiftUI
 
@@ -18,193 +24,201 @@ struct MenuSheet: View {
     @Binding var accessibilityOpen: Bool
     @Binding var started: Bool
     @Environment(Transitioner.self) private var transitioner
+    @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
 
     var body: some View {
-        // The "show incorrect" row is available in zen (free) and
-        // daily (available but using it disqualifies the leaderboard
-        // submission — handled in GameState.handleNext). Challenge
-        // mode hides the row entirely: players reveal incorrect cells
-        // by pressing Check, which costs a heart on failure — that
-        // IS the challenge-mode "show incorrect" path. Nothing to
-        // check when the puzzle is already solved.
+        // "Show incorrect" is available in zen (free) and daily (allowed,
+        // but using it disqualifies the leaderboard submission — handled
+        // in GameState.handleNext). Challenge hides it: there, revealing
+        // incorrect cells is what Check does, at the cost of a heart.
+        // Nothing to check once the puzzle is already solved.
         let canShowIncorrect = game.mode != .challenge && !game.solved
+
         ZStack(alignment: .topTrailing) {
-            // Dismiss scrim — transparent full-screen catcher that
-            // sits behind the rows and eats every tap reaching
-            // MenuSheet's z-layer while open. Closes the menu without
-            // firing any game action below (cells, bank, top bar).
-            // Hit-testing is gated on menuOpen so it doesn't block
-            // the game when the menu is closed. Rows are layered
-            // above and handle their own close-then-act.
             if menuOpen {
+                // Transparent full-screen catcher. Closes the menu
+                // without firing any game action underneath it.
                 Color.clear
                     .contentShape(Rectangle())
                     .ignoresSafeArea()
                     .onTapGesture { menuOpen = false }
-            }
+                    .accessibilityLabel("close menu")
+                    .accessibilityAddTraits(.isButton)
 
-            VStack(alignment: .trailing, spacing: 10) {
-                // Home row morphs into "← gallery" when the current
-                // puzzle was loaded from the Gallery sheet so the
-                // return path matches the entry path. The gallery
-                // auto-re-opens via GameState.openGalleryOnMenuAppear
-                // which MenuView consumes on appear.
-                if game.cameFromGallery {
-                    MenuSheetRow(
-                        icon: "square.grid.2x2.fill",
-                        label: "gallery",
-                        index: 0,
-                        isOpen: menuOpen
-                    ) {
-                        menuOpen = false
-                        game.openGalleryOnMenuAppear = true
-                        transitioner.fade {
-                            started = false
-                        }
+                VStack(alignment: .leading, spacing: 0) {
+                    MenuPanelRow(icon: game.showIncorrect
+                                    ? "eye.slash"
+                                    : "exclamationmark.triangle",
+                                 label: game.showIncorrect
+                                    ? "hide incorrect"
+                                    : "show incorrect",
+                                 disabled: !canShowIncorrect,
+                                 action: toggleShowIncorrect)
+
+                    if let puzzle = game.puzzle {
+                        MenuPanelDivider()
+                        MenuShareRow(puzzle: puzzle, isOpen: menuOpen)
                     }
-                } else if game.campaignIndex != nil {
-                    // Campaign levels came from the level list, so send the
-                    // player back to it rather than the top-level menu.
-                    MenuSheetRow(
-                        icon: "list.number",
-                        label: "campaign",
-                        index: 0,
-                        isOpen: menuOpen
-                    ) {
+
+                    MenuPanelDivider()
+                    MenuPanelRow(icon: "gearshape",
+                                 label: Strings.Menu.settings,
+                                 // A 3-second hold clears every lock on the
+                                 // current puzzle. Deliberately undiscoverable
+                                 // rather than hidden: players who want to skip
+                                 // the grind can find it, nobody hits it by
+                                 // accident.
+                                 onLongPress: {
+                                     Haptics.solve()
+                                     game.debugUnlockAllLocks()
+                                     menuOpen = false
+                                 }) {
                         menuOpen = false
-                        game.openCampaignOnMenuAppear = true
-                        transitioner.fade {
-                            started = false
-                        }
+                        accessibilityOpen = true
                     }
-                } else {
-                    MenuSheetRow(
-                        icon: "house.fill",
-                        label: "home",
-                        index: 0,
-                        isOpen: menuOpen
-                    ) {
+                    MenuPanelRow(icon: "envelope",
+                                 label: "feedback") {
                         menuOpen = false
-                        transitioner.fade {
-                            started = false
-                        }
+                        feedbackOpen = true
                     }
+
+                    MenuPanelDivider()
+                    exitRow
                 }
-                MenuSheetRow(
-                    icon: "gearshape.fill",
-                    label: "settings",
-                    index: 1,
-                    isOpen: menuOpen,
-                    // 3-second long-press clears every lock on the
-                    // current puzzle — dev cheat for iterating on
-                    // generator output. Stripped from Release.
-                    onLongPress: settingsLongPressAction
-                ) {
-                    menuOpen = false
-                    accessibilityOpen = true
-                }
-                // Community is reachable from the Gallery's inline
-                // "Community puzzles" section (sort + expand + vote
-                // + play). The standalone hamburger row was removed
-                // along with CommunityListView.
-                MenuSheetRow(
-                    icon: "envelope.fill",
-                    label: "feedback",
-                    index: 3,
-                    isOpen: menuOpen
-                ) {
-                    menuOpen = false
-                    feedbackOpen = true
-                }
-                // Always mount the "show incorrect" row so the menu
-                // layout stays stable across state transitions (e.g.
-                // tapping Next Level with the menu open would make
-                // the row vanish and the share row shift, leaving a
-                // visible blank). When the row isn't meaningful
-                // (challenge mode, or a solved puzzle) we dim +
-                // disable instead of unmounting.
-                ShowIncorrectMenuRow(
-                    game: game,
-                    index: 4,
-                    isOpen: menuOpen,
-                    disabled: !canShowIncorrect,
-                    onTapPrimary: {
-                        // In daily mode, enabling show-incorrect
-                        // voids leaderboard eligibility — close the
-                        // hamburger and pop the confirmation dialog
-                        // on the main game screen so the player sees
-                        // the full "disables leaderboards" copy with
-                        // the darkened backdrop, rather than an
-                        // inline "are you sure?" tucked into the menu.
-                        if game.mode == .daily && !game.showIncorrect {
-                            game.dailyShowAnswersConfirmPending = true
-                            menuOpen = false
-                        } else {
-                            game.toggleShowIncorrect()
-                            menuOpen = false
-                        }
-                    },
-                    onConfirmYes: {
-                        game.toggleShowIncorrect()
-                        game.dailyShowAnswersConfirmPending = false
-                        menuOpen = false
-                    },
-                    onConfirmNo: {
-                        game.dailyShowAnswersConfirmPending = false
-                    }
-                )
-                if let p = game.puzzle {
-                    MenuSheetShareRow(
-                        index: 5,
-                        isOpen: menuOpen,
-                        puzzle: p
-                    )
-                }
-                Spacer()
+                .frame(maxWidth: 260, alignment: .leading)
+                .fixedSize(horizontal: false, vertical: true)
+                .kromaSurface(.panel,
+                              in: RoundedRectangle(cornerRadius: Kroma.Radius.panel,
+                                                   style: .continuous))
+                .shadow(color: .black.opacity(0.45), radius: 20, y: 8)
+                .padding(.trailing, Kroma.Space.l)
+                .padding(.top, 54)
+                // Grows out of the button that opened it. Reduce Motion
+                // gets the same state change as a plain fade.
+                .transition(shouldReduceMotion
+                            ? .opacity
+                            : .scale(scale: 0.9, anchor: .topTrailing)
+                                .combined(with: .opacity))
             }
-            .padding(.trailing, 18)
-            .padding(.top, 58)
-            .frame(maxWidth: .infinity, alignment: .trailing)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
+        .kromaAnimation(shouldReduceMotion ? nil : .snappy(duration: 0.22),
+                        value: menuOpen)
         .allowsHitTesting(menuOpen)
     }
 
-    /// Hidden player-facing unlock wired into the settings row's
-    /// 3-second long-press: clears every lock on the current puzzle
-    /// and opens every level tier in the zen picker. Shipped in
-    /// Release so players who want to skip the grind can find it.
-    private var settingsLongPressAction: (() -> Void)? {
-        return {
-            Haptics.solve()
-            game.debugUnlockAllLocks()
-            menuOpen = false
+    private var shouldReduceMotion: Bool {
+        systemReduceMotion || game.reduceMotion
+    }
+
+    /// Leaving the game returns the player to wherever they entered
+    /// from, so the label names that place rather than saying "back".
+    @ViewBuilder
+    private var exitRow: some View {
+        if game.cameFromGallery {
+            MenuPanelRow(icon: "square.grid.2x2", label: Strings.Menu.gallery) {
+                menuOpen = false
+                game.openGalleryOnMenuAppear = true
+                transitioner.fade { started = false }
+            }
+        } else if game.campaignIndex != nil {
+            MenuPanelRow(icon: "list.number", label: Strings.Menu.campaign) {
+                menuOpen = false
+                game.openCampaignOnMenuAppear = true
+                transitioner.fade { started = false }
+            }
+        } else {
+            MenuPanelRow(icon: "house", label: "home") {
+                menuOpen = false
+                transitioner.fade { started = false }
+            }
         }
+    }
+
+    private func toggleShowIncorrect() {
+        // In daily, enabling show-incorrect voids leaderboard
+        // eligibility — close the menu and pop the confirmation on the
+        // game screen, where the full "disables leaderboards" copy gets
+        // a darkened backdrop instead of being tucked into a menu row.
+        if game.mode == .daily && !game.showIncorrect {
+            game.dailyShowAnswersConfirmPending = true
+        } else {
+            game.toggleShowIncorrect()
+        }
+        menuOpen = false
     }
 }
 
-/// Share variant of the hamburger row — same slide-in-from-right +
-/// label-fade animation pattern as `MenuSheetRow`. Pre-fetches a
-/// short share URL by POSTing the puzzle JSON to `/api/share` when
-/// the menu opens; the resulting `https://kroma.ianhandy.com/p/<slug>`
-/// is what the `ShareLink` actually shares, so recipients see an
-/// iMessage card titled "Kromatika puzzle (X/10)" instead of a
-/// generic `.kroma` attachment.
-///
-/// Three render states:
-///   1. Preparing (no URL yet, no tap — spinner shown).
-///   2. URL ready — `ShareLink(item: URL)` with `SharePreview` for the
-///      title + preview image.
-///   3. API failed / offline — `ShareLink(item: KromaPuzzleFile)`
-///      fallback so sharing never hard-breaks; recipient gets the
-///      `.kroma` attachment + the app's UTI handler picks it up.
-private struct MenuSheetShareRow: View {
-    let index: Int
-    let isOpen: Bool
-    let puzzle: Puzzle
+// MARK: - Panel parts
 
-    @State private var iconArrived = false
-    @State private var labelVisible = false
+/// One row of the in-game menu. Laid out like a system menu row: label
+/// leading, glyph trailing, whole row tappable at no less than 44pt tall.
+private struct MenuPanelRow: View {
+    let icon: String
+    let label: String
+    var disabled: Bool = false
+    var onLongPress: (() -> Void)? = nil
+    let action: () -> Void
+
+    /// Latched when a long-press fires so the tap-on-release handler
+    /// bows out — `simultaneousGesture` otherwise fires both.
+    @State private var longPressConsumed = false
+
+    var body: some View {
+        Button {
+            if longPressConsumed { longPressConsumed = false; return }
+            action()
+        } label: {
+            HStack(spacing: Kroma.Space.m) {
+                Text(label)
+                    .font(Kroma.font(.body, .medium))
+                    .multilineTextAlignment(.leading)
+                    .fixedSize(horizontal: false, vertical: true)
+                Spacer(minLength: Kroma.Space.s)
+                Image(systemName: icon)
+                    .font(.body)
+                    .imageScale(.medium)
+                    .frame(width: 22)
+            }
+            .foregroundStyle(.white)
+            .padding(.horizontal, Kroma.Space.l)
+            .padding(.vertical, Kroma.Space.m)
+            .frame(minHeight: Kroma.Metrics.minTarget)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.kromaControl)
+        .disabled(disabled)
+        .simultaneousGesture(
+            LongPressGesture(minimumDuration: 3.0).onEnded { _ in
+                guard let onLongPress else { return }
+                longPressConsumed = true
+                onLongPress()
+            }
+        )
+    }
+}
+
+private struct MenuPanelDivider: View {
+    var body: some View {
+        Divider()
+            .overlay(Color.white.opacity(0.12))
+            .padding(.horizontal, Kroma.Space.m)
+    }
+}
+
+/// Share row. Pre-fetches a short URL by POSTing the puzzle JSON to
+/// `/api/share` when the menu opens, so the recipient sees an iMessage
+/// card titled "Kromatika puzzle (X/10)" rather than a bare `.kroma`
+/// attachment.
+///
+/// Three states: preparing (not yet tappable, so a tap during the prep
+/// window can't fall through to the file fallback), URL ready, and
+/// API-failed — which degrades to sharing the file so sharing never
+/// hard-breaks offline.
+private struct MenuShareRow: View {
+    let puzzle: Puzzle
+    let isOpen: Bool
+
     @State private var shareURL: URL? = nil
     @State private var preparing: Bool = false
     @State private var apiFailed: Bool = false
@@ -221,61 +235,64 @@ private struct MenuSheetShareRow: View {
         Group {
             if let url = shareURL {
                 ShareLink(item: url, subject: Text(title), preview: preview) {
-                    shareLabel(waiting: false)
+                    label(waiting: false)
                 }
+                .buttonStyle(.kromaControl)
             } else if preparing {
-                // Non-tappable while the slug is being minted — taps
-                // during the brief prep window otherwise fall through
-                // to the file-share fallback, which is the bug we're
-                // fixing.
-                shareLabel(waiting: true)
+                label(waiting: true)
+                    .accessibilityLabel("share")
+                    .accessibilityValue("preparing")
             } else if apiFailed {
-                // Offline / API unreachable — degrade to file share
-                // so the user can still send the puzzle, just without
-                // the iMessage card.
                 ShareLink(item: file, subject: Text(title), preview: preview) {
-                    shareLabel(waiting: false)
+                    label(waiting: false)
                 }
+                .buttonStyle(.kromaControl)
             } else {
-                // Initial state before the menu has ever opened.
-                shareLabel(waiting: false)
+                ShareLink(item: file, subject: Text(title), preview: preview) {
+                    label(waiting: false)
+                }
+                .buttonStyle(.kromaControl)
             }
         }
-        // Entrance slide lives on the Group itself, NOT inside
-        // `shareLabel`. The three inner branches (preparing / url /
-        // failed) swap view identity as the share URL is minted, and
-        // when the offset modifier rode along inside those branches the
-        // swap reset the in-flight slide animation — so the button
-        // snapped into place ahead of the staggered menu rows. Pinning
-        // the offset to the stable container keeps the index-5 slide
-        // intact regardless of which inner state is showing.
-        .offset(x: iconArrived ? 0 : 280)
         .onChange(of: isOpen) { _, open in
             if open {
                 startPrepare(json: json)
-                withAnimation(.spring(response: 0.52, dampingFraction: 0.84)
-                    .delay(Double(index) * 0.09)) {
-                    iconArrived = true
-                }
-                withAnimation(.easeIn(duration: 0.45)
-                    .delay(Double(index) * 0.09 + 0.40)) {
-                    labelVisible = true
-                }
             } else {
                 prepareTask?.cancel()
                 prepareTask = nil
                 preparing = false
                 shareURL = nil
                 apiFailed = false
-                withAnimation(.easeOut(duration: 0.18)) {
-                    labelVisible = false
-                }
-                withAnimation(.spring(response: 0.42, dampingFraction: 0.90)
-                    .delay(Double(max(0, 4 - index)) * 0.06 + 0.06)) {
-                    iconArrived = false
-                }
             }
         }
+        .onAppear { if isOpen { startPrepare(json: json) } }
+    }
+
+    @ViewBuilder
+    private func label(waiting: Bool) -> some View {
+        HStack(spacing: Kroma.Space.m) {
+            Text("share")
+                .font(Kroma.font(.body, .medium))
+                .fixedSize(horizontal: false, vertical: true)
+            Spacer(minLength: Kroma.Space.s)
+            // The spinner replaces the glyph in the same 22pt slot, so
+            // the row's text never shifts as the link is minted.
+            ZStack {
+                if waiting {
+                    ProgressView().controlSize(.small)
+                } else {
+                    Image(systemName: "square.and.arrow.up")
+                        .font(.body)
+                        .imageScale(.medium)
+                }
+            }
+            .frame(width: 22)
+        }
+        .foregroundStyle(.white.opacity(waiting ? 0.5 : 1))
+        .padding(.horizontal, Kroma.Space.l)
+        .padding(.vertical, Kroma.Space.m)
+        .frame(minHeight: Kroma.Metrics.minTarget)
+        .contentShape(Rectangle())
     }
 
     private func startPrepare(json: String) {
@@ -319,199 +336,9 @@ private struct MenuSheetShareRow: View {
             return nil
         }
     }
-
-    /// Share row label.
-    @ViewBuilder
-    private func shareLabel(waiting: Bool) -> some View {
-        HStack(spacing: 14) {
-            Text(waiting ? "preparing…" : "share")
-                .font(.system(size: 17, weight: .semibold, design: .rounded))
-                .foregroundStyle(Color.white.opacity(waiting ? 0.55 : 0.92))
-                .multilineTextAlignment(.trailing)
-                .lineLimit(2)
-                .fixedSize(horizontal: false, vertical: true)
-                .opacity(labelVisible ? 1 : 0)
-            ZStack {
-                Image(systemName: "square.and.arrow.up")
-                    .font(.system(size: 20, weight: .semibold))
-                    .foregroundStyle(Color.white.opacity(waiting ? 0.45 : 0.95))
-                if waiting {
-                    ProgressView()
-                        .scaleEffect(0.65)
-                        .tint(Color.white.opacity(0.85))
-                }
-            }
-            .frame(width: 46, height: 46)
-            .background(Circle().fill(Color.black.opacity(0.55)))
-            .overlay(Circle().stroke(Color.white.opacity(0.28), lineWidth: 1))
-        }
-        // NOTE: the entrance slide offset is applied to the enclosing
-        // Group in `body`, not here — see the comment there.
-    }
 }
 
 private struct ShareSaveResponse: Decodable {
     let slug: String
     let url: String
-}
-
-/// Show-incorrect hamburger row with inline confirmation support.
-/// When the daily-mode "are you sure?" confirm flag is set on
-/// GameState, the row morphs into a small inline prompt
-/// (styled like the main-menu challenge resume) so the player
-/// can confirm without a full-screen modal.
-private struct ShowIncorrectMenuRow: View {
-    @Bindable var game: GameState
-    let index: Int
-    let isOpen: Bool
-    let disabled: Bool
-    let onTapPrimary: () -> Void
-    let onConfirmYes: () -> Void
-    let onConfirmNo: () -> Void
-
-    var body: some View {
-        if game.dailyShowAnswersConfirmPending {
-            HStack(spacing: 12) {
-                Text("are you sure?")
-                    .font(.system(size: 13, weight: .semibold, design: .rounded))
-                    .foregroundStyle(Color.white.opacity(0.80))
-                Button {
-                    onConfirmYes()
-                } label: {
-                    Text("yes")
-                        .font(.system(size: 15, weight: .heavy, design: .rounded))
-                        .foregroundStyle(Color(red: 0.45, green: 0.85, blue: 0.55))
-                }
-                .buttonStyle(.plain)
-                Button {
-                    onConfirmNo()
-                } label: {
-                    Text("no")
-                        .font(.system(size: 15, weight: .heavy, design: .rounded))
-                        .foregroundStyle(Color(red: 0.92, green: 0.48, blue: 0.48))
-                }
-                .buttonStyle(.plain)
-                MenuSheetRow(
-                    icon: "exclamationmark.triangle",
-                    label: "show incorrect",
-                    index: index,
-                    isOpen: isOpen,
-                    disabled: false,
-                    action: {}
-                )
-            }
-            .padding(.vertical, 6)
-            .transition(.opacity)
-        } else {
-            MenuSheetRow(
-                icon: game.showIncorrect
-                    ? "exclamationmark.triangle.fill"
-                    : "exclamationmark.triangle",
-                label: game.showIncorrect
-                    ? "hide incorrect"
-                    : "show incorrect",
-                index: index,
-                isOpen: isOpen,
-                disabled: disabled,
-                action: onTapPrimary
-            )
-        }
-    }
-}
-
-private struct MenuSheetRow: View {
-    let icon: String
-    let label: String
-    let index: Int
-    let isOpen: Bool
-    /// Optional long-press handler. When non-nil, holding the row for
-    /// 3 seconds fires this instead of (and instead suppresses) the
-    /// tap action. Used for dev shortcuts that share a visible
-    /// button with a normal user action.
-    var onLongPress: (() -> Void)? = nil
-    /// When true, the row dims and ignores taps — used when the
-    /// row's action isn't meaningful in the current game state
-    /// (e.g. show-incorrect while solved or in challenge mode).
-    /// Keeps the row in place so the layout doesn't jump.
-    var disabled: Bool = false
-    let action: () -> Void
-
-    /// True once the icon has (animated) slid to its resting x=0 spot.
-    /// Drives the icon's offset. Starts false so cold launch = closed
-    /// = offscreen. Flipped by onChange when `isOpen` toggles.
-    @State private var iconArrived = false
-    /// True once the label has (animated) faded to opacity 1. Always
-    /// trails `iconArrived` on open so the label reveals after the
-    /// icon has settled.
-    @State private var labelVisible = false
-    /// Latched when a long-press fires so the button's tap-on-release
-    /// handler knows to bow out. SwiftUI's simultaneousGesture lets
-    /// both fire on a hold-then-release without this flag.
-    @State private var longPressConsumed = false
-
-    var body: some View {
-        Button(action: {
-            if disabled { return }
-            if longPressConsumed { longPressConsumed = false; return }
-            action()
-        }) {
-            HStack(spacing: 14) {
-                Text(label)
-                    .font(.system(size: 17, weight: .semibold, design: .rounded))
-                    .foregroundStyle(Color.white.opacity(disabled ? 0.35 : 0.92))
-                    .multilineTextAlignment(.trailing)
-                    .lineLimit(2)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .opacity(labelVisible ? 1 : 0)
-                Image(systemName: icon)
-                    .font(.system(size: 20, weight: .semibold))
-                    .foregroundStyle(Color.white.opacity(disabled ? 0.40 : 0.95))
-                    .frame(width: 46, height: 46)
-                    .background(
-                        Circle()
-                            .fill(Color.black.opacity(disabled ? 0.30 : 0.55))
-                    )
-                    .overlay(
-                        Circle()
-                            .stroke(Color.white.opacity(disabled ? 0.12 : 0.28), lineWidth: 1)
-                    )
-            }
-            .offset(x: iconArrived ? 0 : 280)
-        }
-        .buttonStyle(.plain)
-        .disabled(disabled)
-        .simultaneousGesture(
-            LongPressGesture(minimumDuration: 3.0).onEnded { _ in
-                guard let handler = onLongPress else { return }
-                longPressConsumed = true
-                handler()
-            }
-        )
-        .onChange(of: isOpen) { _, open in
-            if open {
-                // Open: icons slide in top-first, ~90ms stagger.
-                // Label fades in once its icon has settled (~0.4s
-                // after the slide starts).
-                withAnimation(.spring(response: 0.52, dampingFraction: 0.84)
-                    .delay(Double(index) * 0.09)) {
-                    iconArrived = true
-                }
-                withAnimation(.easeIn(duration: 0.45)
-                    .delay(Double(index) * 0.09 + 0.40)) {
-                    labelVisible = true
-                }
-            } else {
-                // Close: all labels fade out first; then icons
-                // retract bottom-first so the list collapses toward
-                // the hamburger rather than popping away together.
-                withAnimation(.easeOut(duration: 0.18)) {
-                    labelVisible = false
-                }
-                withAnimation(.spring(response: 0.42, dampingFraction: 0.90)
-                    .delay(Double(2 - index) * 0.06 + 0.06)) {
-                    iconArrived = false
-                }
-            }
-        }
-    }
 }

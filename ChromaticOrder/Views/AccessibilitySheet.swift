@@ -104,7 +104,12 @@ struct AccessibilitySheet: View {
                 } header: {
                     Text("Visual effects")
                 } footer: {
-                    Text("Palette strips is the original drifting-palettes backdrop; Color grid is a tight shifting field with axis flares and tap ripples. Magnetism expands cell drop zones; the timer still runs internally for leaderboard submissions even when hidden.")
+                    // Only the two facts a player can't discover by
+                    // flipping the switch and looking. The old copy also
+                    // described what each menu backdrop looks like, which
+                    // the backdrop itself demonstrates the moment you pick
+                    // one.
+                    Text("Magnetism widens the drop zone around each cell. The timer keeps running for leaderboard submissions even when hidden.")
                 }
 
                 Section {
@@ -113,8 +118,6 @@ struct AccessibilitySheet: View {
                     Toggle("Haptics", isOn: $game.hapticsEnabled)
                 } header: {
                     Text("Sound & haptics")
-                } footer: {
-                    Text("Music loops a quiet F# Ionian phrase. Sound effects are the pickup / place clicks and solve chord. Haptics are the Taptic Engine taps on pickup, place, and solve.")
                 }
 
                 Section {
@@ -127,7 +130,7 @@ struct AccessibilitySheet: View {
                 } header: {
                     Text("Performance")
                 } footer: {
-                    Text("Frame rate for the main-menu palette backdrop. 120 fps looks smoothest on ProMotion displays; drop to 30 if the menu feels laggy.")
+                    Text("Drop to 30 if the menu backdrop feels laggy.")
                 }
 
                 Section {
@@ -169,17 +172,17 @@ struct AccessibilitySheet: View {
                 // how the game judges answers, so it sits below every
                 // real setting with a header that says so.
                 Section {
-                    Toggle("enabled", isOn: $game.testingEnabled)
+                    Toggle("Enabled", isOn: $game.testingEnabled)
                     if game.testingEnabled {
                         labeledSlider(
-                            label: "similarity compression",
+                            label: "Similarity compression",
                             value: $game.testingSimilarity,
                             range: TestingFilter.similarityRange,
                             step: 0.05,
                             format: { String(format: "%.2f", $0) }
                         )
                         labeledSlider(
-                            label: "same if closer than",
+                            label: "Same if closer than",
                             value: $game.testingSameThreshold,
                             range: TestingFilter.thresholdRange,
                             step: 0.5,
@@ -187,19 +190,18 @@ struct AccessibilitySheet: View {
                         )
                     }
                 } header: {
-                    Text("for testing only")
+                    Text("For testing only")
                 } footer: {
-                    Text("harness aid for probing how much perceptual headroom a level has. compression pulls every puzzle color toward the board's average, shrinking every difference by (1 - compression), so 0.9 makes the whole board look like one color. the threshold changes how the game judges your answers: two colors closer than it count as the same color, so a placement that is merely near enough passes the check. off leaves the game exactly as it plays normally.")
+                    // Trimmed from a paragraph that explained the
+                    // implementation ("shrinking every difference by
+                    // (1 - compression)"). What a player needs to know
+                    // is that this section is not an accessibility aid
+                    // and that it changes how answers are judged.
+                    Text("Not an accessibility aid. Compression makes the board harder to read, and the threshold loosens what counts as a correct placement.")
                 }
 
             }
-            .navigationTitle("Accessibility")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Done") { dismiss() }
-                }
-            }
+            .kromaSheet(Strings.Menu.settings) { dismiss() }
             .alert("Reset all progress?",
                    isPresented: $showResetProgress) {
                 Button("Cancel", role: .cancel) {}
@@ -298,16 +300,24 @@ struct AccessibilitySheet: View {
         step: Double,
         format: @escaping (Double) -> String
     ) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: Kroma.Space.xs) {
             HStack {
                 Text(label)
-                    .font(.system(size: 13, weight: .medium))
+                    .font(.subheadline)
                 Spacer()
                 Text(format(value.wrappedValue))
-                    .font(.system(size: 12, design: .monospaced))
+                    .font(.footnote)
+                    .monospacedDigit()
                     .foregroundStyle(.secondary)
             }
+            // The visible row is the slider's own label and value, so
+            // it's hidden from VoiceOver rather than announced a second
+            // time before the control it describes.
+            .accessibilityHidden(true)
+
             Slider(value: value, in: range, step: step)
+                .accessibilityLabel(label)
+                .accessibilityValue(format(value.wrappedValue))
         }
     }
 }

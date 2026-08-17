@@ -1,9 +1,17 @@
-//  Bottom strip: instruction text, Check button (challenge mode), and
-//  the bank of swatches. The bank is a fixed-size grid of drop-
-//  targetable slots — slots are empty when their swatch has been
-//  placed on the board, and they accept swatches back (drag-off-grid
-//  fallback, or explicit drag into a slot). Swatches can also be
-//  rearranged between slots.
+//  Bottom strip: the Check button (challenge / daily) and the bank of
+//  swatches. The bank is a fixed-size grid of drop-targetable slots —
+//  slots are empty when their swatch has been placed on the board, and
+//  they accept swatches back (drag-off-grid fallback, or explicit drag
+//  into a slot). Swatches can also be rearranged between slots.
+//
+//  There used to be a line of prose above the bank that narrated the
+//  interaction back to the player: "Tap or drag a swatch", then "Tap a
+//  cell or slot to place" once one was picked up. The swatch already
+//  lifts, scales and casts a deeper shadow when it's held, and the
+//  Check button already flashes green the moment the board is full —
+//  the sentence was describing what the player could see happening.
+//  What it *was* carrying that the visuals don't is the state VoiceOver
+//  needs, so that moved onto the slots themselves as labels and values.
 
 import SwiftUI
 
@@ -22,15 +30,7 @@ struct BankView: View {
     @State private var readyFlash: Int = 0
 
     var body: some View {
-        VStack(spacing: 8) {
-            if !instrText.isEmpty {
-                Text(instrText)
-                    .font(.system(size: 17, weight: .medium, design: .rounded))
-                    .foregroundStyle(.white.opacity(0.65))
-                    .multilineTextAlignment(.center)
-                    .frame(maxWidth: .infinity)
-            }
-
+        VStack(spacing: Kroma.Space.s) {
             if (game.mode == .challenge || game.mode == .daily), !game.solved {
                 // Check only makes sense once every swatch is on the
                 // board — a half-filled grid can never pass, and
@@ -46,7 +46,7 @@ struct BankView: View {
                     game.handleCheck()
                 } label: {
                     Image(systemName: "checkmark")
-                        .font(.system(size: 20, weight: .heavy, design: .rounded))
+                        .font(Kroma.font(.title3, .heavy))
                         .foregroundStyle(.white)
                         .frame(width: 48, height: 48)
                         .background(canCheck ? green : Color.gray.opacity(0.6),
@@ -71,7 +71,14 @@ struct BankView: View {
                             }
                         }
                 }
+                .buttonStyle(.kromaControl)
                 .disabled(!canCheck)
+                .accessibilityLabel("check")
+                // The green-to-gray fill is the visible "not yet" cue;
+                // this is the same fact for anyone who can't use it.
+                .accessibilityHint(canCheck
+                                   ? "check your gradients"
+                                   : "place every swatch first")
                 .onChange(of: canCheck) { oldVal, newVal in
                     if !oldVal && newVal { readyFlash &+= 1 }
                 }
@@ -134,7 +141,7 @@ struct BankView: View {
                 }
             }
         }
-        .padding(.vertical, 12)
+        .padding(.vertical, Kroma.Space.m)
     }
 
     private func bankContentHeight(initialBankCount: Int) -> CGFloat {
@@ -179,15 +186,4 @@ struct BankView: View {
         return (cols, rows, swatchSize)
     }
 
-    private var instrText: String {
-        guard let p = game.puzzle else { return "" }
-        // Solved: text goes silent — the solved grid speaks for itself.
-        // BankView is hidden entirely on solve anyway (ContentView); this
-        // fallback is belt-and-suspenders.
-        if game.solved { return "" }
-        if p.bank.allSatisfy({ $0 == nil }) { return "All placed — check your gradients" }
-        if case .bank = game.selection?.kind { return "Tap a cell or slot to place" }
-        if case .cell = game.selection?.kind { return "Tap another cell, empty cell, or slot" }
-        return "Tap or drag a swatch"
-    }
 }

@@ -85,8 +85,8 @@ struct ContentView: View {
             Group {
                 if game.generating {
                     VStack {
-                        ProgressView("Building puzzle…")
-                            .font(.system(size: 14, weight: .bold, design: .rounded))
+                        ProgressView("building puzzle…")
+                            .font(Kroma.font(.subheadline, .bold))
                             .tint(.white)
                             .foregroundStyle(.white.opacity(0.7))
                     }
@@ -98,24 +98,25 @@ struct ContentView: View {
                     // generator zen uses. Kept as a tap-to-retry backstop.
                     VStack(spacing: 14) {
                         Image(systemName: "calendar.badge.exclamationmark")
-                            .font(.system(size: 44, weight: .regular))
+                            .font(.system(.largeTitle, design: .rounded))
                             .foregroundStyle(.white.opacity(0.55))
                         Text("no daily yet")
-                            .font(.system(size: 22, weight: .heavy, design: .rounded))
+                            .font(Kroma.font(.title2, .heavy))
                             .foregroundStyle(.white.opacity(0.9))
                         Text("Check back later — today's puzzle hasn't been published yet.")
-                            .font(.system(size: 14, weight: .medium, design: .rounded))
+                            .font(Kroma.font(.subheadline, .medium))
                             .foregroundStyle(.white.opacity(0.6))
                             .multilineTextAlignment(.center)
                             .padding(.horizontal, 32)
                         Button {
                             game.startLevel(game.level)
                         } label: {
-                            Text("Try again")
-                                .font(.system(size: 15, weight: .bold, design: .rounded))
+                            Text("try again")
+                                .font(Kroma.font(.subheadline, .bold))
                                 .foregroundStyle(.white)
-                                .padding(.horizontal, 20)
-                                .frame(height: 38)
+                                .padding(.horizontal, Kroma.Space.xl)
+                                .padding(.vertical, Kroma.Space.m)
+                                .frame(minHeight: Kroma.Metrics.minTarget)
                                 .background(Color.white.opacity(0.12), in: Capsule())
                                 .overlay(
                                     Capsule().stroke(Color.white.opacity(0.3), lineWidth: 1)
@@ -126,8 +127,8 @@ struct ContentView: View {
                     .transition(.opacity)
                 } else if game.puzzle == nil {
                     VStack {
-                        ProgressView("Building puzzle…")
-                            .font(.system(size: 14, weight: .bold, design: .rounded))
+                        ProgressView("building puzzle…")
+                            .font(Kroma.font(.subheadline, .bold))
                             .tint(.white)
                             .foregroundStyle(.white.opacity(0.7))
                     }
@@ -186,6 +187,7 @@ struct ContentView: View {
                             if perfectBannerVisible {
                                 Text("perfect")
                                     .font(.system(size: 48, weight: .heavy, design: .rounded))
+                                    .accessibilityAddTraits(.isStaticText)
                                     .foregroundStyle(Color.white)
                                     .tracking(2)
                                     .shadow(color: .white.opacity(0.35), radius: 18, y: 0)
@@ -208,13 +210,12 @@ struct ContentView: View {
                             }
                         }
                     }
-                    // "good level?" + save-image + "next level" line up
-                    // on one shared baseline. The two text-bearing
-                    // affordances share `solvedRowHeight` so they read
-                    // as a matched pair bracketing the icon-only save
-                    // button in the middle.
+                    // Rate + save + advance on one baseline. The row's
+                    // height is a floor rather than a fixed 52pt, so at
+                    // accessibility text sizes the labels grow the row
+                    // instead of being clipped by it.
                     let solvedRowHeight: CGFloat = 52
-                    HStack(alignment: .center, spacing: 8) {
+                    HStack(alignment: .center, spacing: Kroma.Space.s) {
                         LikeFeedbackWidget(game: game,
                                            feedbackOpen: $feedbackOpen,
                                            height: solvedRowHeight)
@@ -225,13 +226,18 @@ struct ContentView: View {
                             }
                         } label: {
                             Image(systemName: saveImageIconName)
-                                .font(.system(size: 18, weight: .semibold))
+                                .font(.headline)
                                 .foregroundStyle(.white.opacity(0.75))
-                                .frame(width: solvedRowHeight,
-                                       height: solvedRowHeight)
+                                .frame(minWidth: solvedRowHeight,
+                                       minHeight: solvedRowHeight)
+                                .contentShape(Rectangle())
                         }
-                        .buttonStyle(.plain)
-                        .accessibilityLabel("Save image")
+                        .buttonStyle(.kromaControl)
+                        .accessibilityLabel("save image")
+                        // The icon flips to a check or an x for a moment
+                        // after a save; that outcome is colour and shape
+                        // only, so it's spoken here too.
+                        .accessibilityValue(saveImageStatus)
                         Button {
                             // Campaign: last level clears the campaign, so
                             // check before advancing — after handleNext the
@@ -254,62 +260,26 @@ struct ContentView: View {
                                  : (game.campaignIndex == CampaignCatalog.count
                                     ? "finish campaign"
                                     : "next level"))
-                                .font(.system(size: 18, weight: .bold, design: .rounded))
+                                .font(Kroma.font(.headline, .bold))
                                 .lineLimit(1)
                                 .minimumScaleFactor(0.7)
-                                .padding(.horizontal, 18)
-                                .frame(height: solvedRowHeight)
+                                .padding(.horizontal, Kroma.Space.l)
+                                .padding(.vertical, Kroma.Space.m)
+                                .frame(minHeight: solvedRowHeight)
                                 .background(Color(red: 42 / 255, green: 157 / 255, blue: 78 / 255))
                                 .foregroundStyle(.white)
                                 .clipShape(Capsule())
                                 .shadow(color: Color(red: 42 / 255, green: 157 / 255, blue: 78 / 255).opacity(0.38),
                                         radius: 20, y: 6)
+                                .contentShape(Capsule())
                         }
-                        .buttonStyle(.plain)
+                        .buttonStyle(.kromaControl)
                         .layoutPriority(1)
                     }
-                    .padding(.horizontal, 14)
-                    .padding(.bottom, 20)
+                    .padding(.horizontal, Kroma.Space.m)
+                    .padding(.bottom, Kroma.Space.xl)
                 }
                 .transition(.opacity)
-            }
-
-            // Focus dim — darkens the screen under every layer
-            // below its zIndex while the daily show-answers inline
-            // confirm is active. Tutorials deliberately do NOT
-            // trigger the dim: the player needs to interact with the
-            // board / bank while the tooltip is visible, and dimming
-            // those made the UI they're supposed to practice on look
-            // disabled. Tooltip legibility is handled by the
-            // tooltip's own high-contrast background instead.
-            FocusDim(active: game.dailyShowAnswersConfirmPending)
-                .zIndex(18)
-
-            // Daily leaderboard-warning dialog. Rides on the same
-            // `dailyShowAnswersConfirmPending` flag as the FocusDim
-            // behind it, so the card shows with the backdrop already
-            // darkened. The card itself animates fold-up via a
-            // combined scale+opacity transition; the transparent
-            // backdrop inside the view catches outside taps (treated
-            // as "no").
-            if game.dailyShowAnswersConfirmPending {
-                DailyLeaderboardWarningDialog(
-                    onYes: {
-                        withAnimation(.spring(response: 0.32,
-                                              dampingFraction: 0.80)) {
-                            game.toggleShowIncorrect()
-                            game.dailyShowAnswersConfirmPending = false
-                        }
-                    },
-                    onNo: {
-                        withAnimation(.spring(response: 0.32,
-                                              dampingFraction: 0.80)) {
-                            game.dailyShowAnswersConfirmPending = false
-                        }
-                    }
-                )
-                .transition(.scale(scale: 0.85).combined(with: .opacity))
-                .zIndex(19)
             }
 
             // Tutorial tooltip — positioned per-mode so it lands in
@@ -501,6 +471,20 @@ struct ContentView: View {
         .sheet(isPresented: $feedbackOpen) {
             FeedbackSheet(game: game)
         }
+        // Consequential and irreversible for today's leaderboard entry,
+        // which is exactly what an alert is for. It used to be a custom
+        // card over a hand-rolled dim, with "yes"/"no" on 42pt targets
+        // and a bare tap-catcher behind it that VoiceOver couldn't see.
+        // The system alert states the consequence in the button itself.
+        .alert("Show incorrect cells?",
+               isPresented: $game.dailyShowAnswersConfirmPending) {
+            Button("Show — skip leaderboard", role: .destructive) {
+                game.toggleShowIncorrect()
+            }
+            Button("Keep hidden", role: .cancel) {}
+        } message: {
+            Text("Today's puzzle won't be submitted to the leaderboard.")
+        }
         .sheet(isPresented: $accessibilityOpen, onDismiss: {
             // Deferred regeneration: contrast + clamp sliders move
             // during the sheet but the board doesn't rebuild until
@@ -573,6 +557,15 @@ struct ContentView: View {
                     }
                 }
             }
+        }
+    }
+
+    /// Spoken counterpart to the save button's transient check / x.
+    private var saveImageStatus: String {
+        switch saveImageIconName {
+        case "checkmark.circle.fill": return "saved"
+        case "xmark.circle":          return "couldn't save"
+        default:                      return ""
         }
     }
 
@@ -905,31 +898,34 @@ private struct RunCompleteOverlay: View {
                 .ignoresSafeArea()
                 .contentShape(Rectangle())
 
-            VStack(spacing: 22) {
+            VStack(spacing: Kroma.Space.xl) {
                 Text("run complete!")
-                    .font(.system(size: 34, weight: .heavy, design: .rounded))
+                    .font(Kroma.font(.largeTitle, .heavy))
                     .foregroundStyle(.white)
                 VStack(spacing: 4) {
                     Text("levels complete")
-                        .font(.system(size: 12, weight: .semibold, design: .rounded))
+                        .font(Kroma.font(.caption, .semibold))
                         .foregroundStyle(.white.opacity(0.6))
                     Text("\(levelsCompleted)")
                         .font(.system(size: 56, weight: .black, design: .rounded))
+                        .minimumScaleFactor(0.6)
+                        .lineLimit(1)
                         .foregroundStyle(.white)
                         .monospacedDigit()
                 }
                 Button(action: onExit) {
-                    Text("back to menu \u{2192}")
-                        .font(.system(size: 14, weight: .bold, design: .rounded))
-                        .padding(.horizontal, 24)
-                        .frame(height: 48)
+                    Text("back to menu")
+                        .font(Kroma.font(.headline, .bold))
+                        .padding(.horizontal, Kroma.Space.xl)
+                        .padding(.vertical, Kroma.Space.m)
+                        .frame(minHeight: Kroma.Metrics.minTarget)
                         .background(Color(red: 42 / 255, green: 157 / 255, blue: 78 / 255))
                         .foregroundStyle(.white)
                         .clipShape(Capsule())
                         .shadow(color: Color(red: 42 / 255, green: 157 / 255, blue: 78 / 255).opacity(0.38),
                                 radius: 20, y: 6)
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(.kromaControl)
                 .padding(.top, 6)
             }
             .padding(32)
