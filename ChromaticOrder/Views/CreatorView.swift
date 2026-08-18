@@ -67,6 +67,8 @@ struct CreatorView: View {
     /// instead of the usual warning strip. Tapping Submit in the
     /// bottom bar flips this on; Yes / No flips it off.
     @State private var showSubmitConfirm: Bool = false
+    @State private var trialStartedAt: Date?
+    @State private var validationMessage: String?
 
     @Bindable var game: GameState
     /// When true, the Play button also writes the puzzle to the
@@ -83,6 +85,7 @@ struct CreatorView: View {
     /// non-nil — editing overwrites the original file in place.
     var collection: GalleryCollection? = nil
     @Environment(\.dismiss) private var dismiss
+    @Environment(FullVersionStore.self) private var fullVersion
 
     var body: some View {
         NavigationStack {
@@ -159,6 +162,12 @@ struct CreatorView: View {
                 // without the prompt.
                 if baselineSignature == nil {
                     baselineSignature = currentSignature()
+                }
+                if editing == nil,
+                   !fullVersion.isUnlocked,
+                   fullVersion.canTry(.creator),
+                   trialStartedAt == nil {
+                    trialStartedAt = Date()
                 }
             }
             .sheet(isPresented: $showHelp) {
@@ -379,6 +388,10 @@ struct CreatorView: View {
     private func submitBuiltToCommunity() {
         guard case .idle = submitState else { return }
         guard let b = built, b.validation.playable else { return }
+        guard PuzzleSolver.isUniquelySolvable(b.puzzle) else {
+            submitState = .failed("add another starter cell so the puzzle has one solution")
+            return
+        }
         let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
         let submitterName = trimmedName.isEmpty ? nil : trimmedName
         let difficulty = b.validation.difficulty
@@ -406,6 +419,11 @@ struct CreatorView: View {
                 switch result {
                 case .success(let resp):
                     submitState = .success(resp.status ?? "pending")
+                    if editing == nil,
+                       let trialStartedAt,
+                       Date().timeIntervalSince(trialStartedAt) >= 60 {
+                        fullVersion.completeTrial(.creator)
+                    }
                 case .failure(let err):
                     submitState = .failed(err.localizedDescription)
                 }
@@ -417,23 +435,27 @@ struct CreatorView: View {
     /// the original gallery entry with the current layout + name.
     /// When creating + saveOnPlay, save a new entry. Otherwise no-op
     /// (one-off play from the main-menu "Create Puzzle" path).
-    private func persistIfNeeded(puzzle: Puzzle, difficulty: Int) {
+    @discardableResult
+    private func persistIfNeeded(puzzle: Puzzle, difficulty: Int) -> Bool {
         let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
         let chosenName: String? = trimmed.isEmpty ? nil : trimmed
         if let editing {
             let json = (try? CreatorCodec.encodePuzzle(puzzle)) ?? ""
             guard let data = json.data(using: .utf8),
-                  var doc = try? CreatorCodec.decode(data) else { return }
+                  var doc = try? CreatorCodec.decode(data) else { return false }
             doc.name = chosenName
             doc.difficulty = difficulty
             try? GalleryStore.overwrite(editing, with: doc)
+            return true
         } else if saveOnPlay {
             if (try? GalleryStore.saveNamed(puzzle, name: chosenName, in: collection)) != nil {
                 GameCenter.shared.reportAchievement(
                     GameCenter.Achievement.createdLevel
                 )
+                return true
             }
         }
+        return false
     }
 
     // ─── Name field ─────────────────────────────────────────────────
@@ -636,7 +658,19 @@ struct CreatorView: View {
                     tone: .prominent
                 ) {
                     if let b = built, b.validation.playable {
-                        persistIfNeeded(puzzle: b.puzzle, difficulty: b.validation.difficulty)
+                        guard PuzzleSolver.isUniquelySolvable(b.puzzle) else {
+                            validationMessage = "Add another starter cell so the puzzle has one solution."
+                            return
+                        }
+                        let didSave = persistIfNeeded(
+                            puzzle: b.puzzle,
+                            difficulty: b.validation.difficulty
+                        )
+                        if didSave,
+                           let trialStartedAt,
+                           Date().timeIntervalSince(trialStartedAt) >= 60 {
+                            fullVersion.completeTrial(.creator)
+                        }
                         dismiss()
                     }
                 }
@@ -693,6 +727,15 @@ struct CreatorView: View {
             }
             .padding(.horizontal, 14)
             .transition(.opacity)
+        } else if let validationMessage {
+            HStack(alignment: .top, spacing: 6) {
+                Image(systemName: "exclamationmark.triangle.fill")
+                Text(validationMessage)
+                Spacer()
+            }
+            .font(.system(size: 11, weight: .medium))
+            .foregroundStyle(Color(red: 0.85, green: 0.35, blue: 0.1))
+            .padding(.horizontal, 14)
         } else if let b = built, !b.validation.warnings.isEmpty {
             // Warnings still surface (builder-side hints about grid
             // fit, intersection issues, etc.). Stat metrics hidden.

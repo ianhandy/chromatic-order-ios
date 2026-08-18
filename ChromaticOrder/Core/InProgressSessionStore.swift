@@ -43,10 +43,13 @@ enum InProgressSessionStore {
         let heartLostThisLevel: Bool
         let campaignIndex: Int?
         let dailyDateKey: String?
+        let isCustomPuzzle: Bool?
+        let isTrialSession: Bool?
         let cameFromGallery: Bool
         let galleryPuzzleID: String?
         let galleryCollectionID: String?
         let favoritePath: String?
+        let allowsFavorite: Bool?
         let customTitle: String?
         let elapsedSeconds: Int
         let mistakeCount: Int

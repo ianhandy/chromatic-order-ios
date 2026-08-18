@@ -12,8 +12,10 @@ struct CollectionDetailView: View {
     let collection: GalleryCollection
 
     @Environment(\.dismiss) private var dismiss
+    @Environment(FullVersionStore.self) private var fullVersion
     @State private var puzzles: [GalleryPuzzle] = []
     @State private var creatorOpen = false
+    @State private var fullVersionOpen = false
     @State private var editingPuzzle: GalleryPuzzle? = nil
     @State private var renameTarget: GalleryPuzzle? = nil
     @State private var renameText: String = ""
@@ -56,9 +58,10 @@ struct CollectionDetailView: View {
             ToolbarItem(placement: .topBarTrailing) {
                 Menu {
                     Button {
-                        creatorOpen = true
+                        openCreator()
                     } label: {
-                        Label("New puzzle", systemImage: "square.and.pencil")
+                        Label("New puzzle", systemImage: fullVersion.isUnlocked || fullVersion.canTry(.creator)
+                              ? "square.and.pencil" : "lock.fill")
                     }
                     Button {
                         importing = true
@@ -77,6 +80,9 @@ struct CollectionDetailView: View {
         }
         .fullScreenCover(item: $editingPuzzle, onDismiss: reload) { puzzle in
             CreatorView(game: game, saveOnPlay: false, editing: puzzle)
+        }
+        .sheet(isPresented: $fullVersionOpen) {
+            FullVersionView(focus: .creator)
         }
         .sheet(item: $movingPuzzle, onDismiss: reload) { puzzle in
             MoveToCollectionSheet(puzzle: puzzle, currentCollection: collection)
@@ -128,7 +134,7 @@ struct CollectionDetailView: View {
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
             Button {
-                creatorOpen = true
+                openCreator()
             } label: {
                 Label("Create New", systemImage: "plus")
                     .font(.system(size: 14, weight: .bold, design: .rounded))
@@ -164,7 +170,7 @@ struct CollectionDetailView: View {
                             Label("Delete", systemImage: "trash")
                         }
                         Button {
-                            editingPuzzle = puzzle
+                            openCreator(editing: puzzle)
                         } label: {
                             Label("Edit", systemImage: "pencil")
                         }
@@ -184,7 +190,7 @@ struct CollectionDetailView: View {
                             Label("Play", systemImage: "play.fill")
                         }
                         Button {
-                            editingPuzzle = puzzle
+                            openCreator(editing: puzzle)
                         } label: {
                             Label("Edit", systemImage: "pencil")
                         }
@@ -251,10 +257,23 @@ struct CollectionDetailView: View {
             fromGallery: true,
             galleryPuzzleId: puzzle.id,
             galleryCollectionId: collection.id,
+            allowsFavorite: false,
             title: puzzle.doc.name
         )
         started = true
         dismiss()
+    }
+
+    private func openCreator(editing puzzle: GalleryPuzzle? = nil) {
+        guard fullVersion.isUnlocked || fullVersion.canTry(.creator) else {
+            fullVersionOpen = true
+            return
+        }
+        if let puzzle {
+            editingPuzzle = puzzle
+        } else {
+            creatorOpen = true
+        }
     }
 
     /// Mirror of GalleryView.focusReturnedPuzzleIfNeeded: scroll to

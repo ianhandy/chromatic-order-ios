@@ -301,31 +301,32 @@ struct TopBarView: View {
     @ViewBuilder
     private var rightButtons: some View {
         HStack(spacing: Kroma.Space.s) {
-            let _ = game.campaignBookmarkRevision
-            let favorited = game.isCurrentPuzzleSaved
-            Button {
-                game.toggleCurrentPuzzleSaved()
-            } label: {
-                Image(systemName: favorited ? "star.fill" : "star")
-                    .font(.subheadline.weight(.semibold))
-                    .frame(minWidth: 38)
-                    .frame(minHeight: Kroma.Metrics.chromeControl)
-                    .foregroundStyle(favorited
-                                      ? Color(red: 1.00, green: 0.83, blue: 0.22)
-                                      : Self.primaryText)
-                    .kromaSurface(.control)
-                    .kromaHitTarget()
+            if game.canSaveCurrentPuzzle {
+                let _ = game.campaignBookmarkRevision
+                let favorited = game.isCurrentPuzzleSaved
+                Button {
+                    game.toggleCurrentPuzzleSaved()
+                } label: {
+                    Image(systemName: favorited ? "star.fill" : "star")
+                        .font(.subheadline.weight(.semibold))
+                        .frame(minWidth: 38)
+                        .frame(minHeight: Kroma.Metrics.chromeControl)
+                        .foregroundStyle(favorited
+                                          ? Color(red: 1.00, green: 0.83, blue: 0.22)
+                                          : Self.primaryText)
+                        .kromaSurface(.control)
+                        .kromaHitTarget()
+                }
+                .buttonStyle(.kromaControl)
+                .disabled(game.puzzle == nil || game.generating)
+                // Filled vs outline already distinguishes the two states
+                // visually; this is what carries it to VoiceOver and to
+                // anyone who can't read the fill.
+                .accessibilityLabel(game.campaignIndex == nil ? "favorite" : "bookmark")
+                .accessibilityValue(favorited ? "on" : "off")
             }
-            .buttonStyle(.kromaControl)
-            .disabled(game.puzzle == nil || game.generating)
-            // Filled vs outline already distinguishes the two states
-            // visually; this is what carries it to VoiceOver and to
-            // anyone who can't read the fill.
-            .accessibilityLabel(game.campaignIndex == nil ? "favorite" : "bookmark")
-            .accessibilityValue(favorited ? "on" : "off")
 
             Button {
-                GlassyAudio.shared.playBloom()
                 menuOpen.toggle()
             } label: {
                 Image(systemName: "line.3.horizontal")

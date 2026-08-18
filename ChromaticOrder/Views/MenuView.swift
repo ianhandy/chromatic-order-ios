@@ -14,6 +14,7 @@ struct MenuView: View {
     /// hides the menu and shows ContentView when this flips.
     @Binding var started: Bool
     @Environment(Transitioner.self) private var transitioner
+    @Environment(FullVersionStore.self) private var fullVersion
     @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
 
     @State private var accessibilityOpen = false
@@ -21,6 +22,8 @@ struct MenuView: View {
     @State private var campaignOpen = false
     @State private var leaderboardOpen = false
     @State private var statsOpen = false
+    @State private var fullVersionOpen = false
+    @State private var fullVersionFocus: FullVersionFeature?
     /// True when the player has tapped "challenge" with a saved run
     /// on disk and the inline "resume?" prompt is showing. Collapses
     /// back to false when the player picks yes, no, or taps elsewhere.
@@ -31,21 +34,18 @@ struct MenuView: View {
     /// Ripples pushed in by taps on the menu background. Consumed by
     /// ContinuousGridMenuField; it prunes expired entries internally.
     @State private var ripples: [GridRipple] = []
+    /// Traveling gradients live beside touch ripples so changing the
+    /// interaction state never recreates and clears the existing lines.
+    @State private var flares: [GridFlare] = []
     /// Position of the most recently spawned ripple during an active
     /// drag. Used as the reference point for a distance threshold —
     /// we only drop a new ripple once the finger has moved far
-    /// enough from the last one so the trail reads as discrete water
-    /// drops off the fingertip, not a continuous ring machine.
+    /// enough from the last one to bound rendering work while still
+    /// producing a connected fluid trail.
     @State private var lastRipplePoint: CGPoint? = nil
-    /// Timestamp the current drag began. Used to compute drag
-    /// duration for the ripple-life pressure: once a drag passes
-    /// one second, the ripple-pressure path starts shortening the
-    /// oldest ripples' lifespans toward half their original value.
-    @State private var dragStartTime: Date? = nil
     /// 0..1 scalar tracking how deep the player is into continuous
-    /// ripple interaction without tapping any menu button. Fades
-    /// menu text out and stretches ripple lifetimes as it rises. A
-    /// tap or button press smoothly resets it back to 0.
+    /// fluid interaction. Fades the menu text out as it rises; reaching
+    /// the fully revealed background earns the interaction achievement.
     @State private var chill: Double = 0
     /// Timestamp of the previous drag tick. The chill ramp advances by
     /// the gap between ticks instead of by a polling task: a dragging
@@ -69,103 +69,6 @@ struct MenuView: View {
                     .animation(shouldReduceMotion ? nil : .easeInOut(duration: 0.25),
                                value: chill)
                     .ignoresSafeArea()
-                    .contentShape(Rectangle())
-                    // SpatialTapGesture (iOS 17+) gives us the tap
-                    // location so the continuous-grid backdrop can
-                    // drop a ripple at the exact point. The tap is
-                    // simultaneous with the menu buttons' own taps,
-                    // so pressing a menu row still both plays the
-                    // tone/navigates AND spawns a ripple.
-                    .simultaneousGesture(
-                        // Finger trail: each meaningful move drops a
-                        // ripple at the new position. Gated by a
-                        // minimum distance (not time) so the trail
-                        // reads as discrete water droplets coming
-                        // off the fingertip rather than a continuous
-                        // stream of concentric rings. Quick outward
-                        // expansion + short life keeps each ripple
-                        // feeling like a light splash.
-                        DragGesture(minimumDistance: 0, coordinateSpace: .local)
-                            .onChanged { value in
-                                guard game.menuStyle == .continuousGrid else { return }
-                                let now = Date()
-                                if dragStartTime == nil { dragStartTime = now }
-                                let loc = value.location
-                                let minDistance: CGFloat = 34
-                                let tooClose: Bool = {
-                                    guard let last = lastRipplePoint else {
-                                        return false
-                                    }
-                                    let dx = loc.x - last.x
-                                    let dy = loc.y - last.y
-                                    return dx * dx + dy * dy < minDistance * minDistance
-                                }()
-                                if !tooClose {
-                                    lastRipplePoint = loc
-                                    let lifeMultiplier = 1.0 + chill * 3.0
-                                    ripples.append(GridRipple(
-                                        origin: loc,
-                                        speed: 3,
-                                        spawnEpoch: now.timeIntervalSinceReferenceDate,
-                                        lifeSec: 3.5 * lifeMultiplier
-                                    ))
-                                    GlassyAudio.shared.boostHum()
-                                }
-                                // Drag-pressure: once the drag
-                                // exceeds one second, progressively
-                                // shorten existing ripples' lives
-                                // (oldest first) toward half their
-                                // original value. Runs on every
-                                // drag tick so the effect evolves
-                                // smoothly as the drag continues.
-                                // Chill ramp — rises toward 1 over ~6 s
-                                // of cumulative dripping, holds when the
-                                // finger stops, and only a tap or a
-                                // button press brings it back down. The
-                                // gap cap discards the long idle stretch
-                                // between two separate drags so chill
-                                // never jumps.
-                                let gap = lastChillTick.map {
-                                    now.timeIntervalSince($0)
-                                } ?? 0
-                                lastChillTick = now
-                                if gap > 0, gap < 0.5, chill < 1 {
-                                    let nextChill = min(1.0, chill + gap / 6.0)
-                                    chill = nextChill
-                                    if nextChill >= 1.0 {
-                                        // Full fade-out achieved — the
-                                        // menu text is completely gone.
-                                        GameCenter.shared.reportAchievement(
-                                            GameCenter.Achievement.chillMaxed
-                                        )
-                                    }
-                                }
-                                if let start = dragStartTime {
-                                    let dur = now.timeIntervalSince(start)
-                                    if dur > 1.0 {
-                                        applyRipplePressure(dragDuration: dur)
-                                    }
-                                }
-                            }
-                            .onEnded { value in
-                                lastRipplePoint = nil
-                                dragStartTime = nil
-                                lastChillTick = nil
-                                // Treat near-stationary ends as a
-                                // tap — gently reset chill so text
-                                // fades back in and ripple lifetimes
-                                // return to baseline.
-                                let dist = hypot(value.translation.width,
-                                                 value.translation.height)
-                                if dist < 5 {
-                                    withAnimation(shouldReduceMotion
-                                                  ? nil
-                                                  : .easeOut(duration: 0.9)) {
-                                        chill = 0
-                                    }
-                                }
-                            }
-                    )
             }
 
             // Two tiers, separated by space rather than by headings:
@@ -188,9 +91,14 @@ struct MenuView: View {
 
                     VStack(alignment: .trailing, spacing: Kroma.Space.xs) {
                         if game.hasInProgressSession && game.mode != .challenge {
-                            primaryRow("resume", detail: resumeDetail) {
-                                transitioner.fade {
-                                    if game.resumeInProgressSession() { started = true }
+                            primaryRow("resume",
+                                       detail: resumeDetail,
+                                       locked: resumeRequiresFullVersion) {
+                                requireFullVersion(if: resumeRequiresFullVersion,
+                                                   focus: resumeFullVersionFocus) {
+                                    transitioner.fade {
+                                        if game.resumeInProgressSession() { started = true }
+                                    }
                                 }
                             }
                         }
@@ -212,16 +120,24 @@ struct MenuView: View {
                                 pick(mode: .daily)
                             }
                         }
-                        primaryRow(Strings.Menu.zen) {
-                            pick(mode: .zen)
+                        primaryRow(Strings.Menu.zen,
+                                   detail: zenTrialAvailable ? "one puzzle free" : nil,
+                                   locked: zenLocked) {
+                            requireFullVersion(if: zenLocked, focus: .zen) {
+                                pick(mode: .zen, asTrial: zenTrialAvailable)
+                            }
                         }
-                        primaryRow(Strings.Menu.challenge) {
-                            // A saved run is the only thing that makes this
-                            // ambiguous, so that's the only time we ask.
-                            if game.hasSavedChallengeRun {
-                                challengeResumeOpen = true
-                            } else {
-                                pick(mode: .challenge)
+                        primaryRow(Strings.Menu.challenge,
+                                   detail: challengeTrialAvailable ? "one puzzle free" : nil,
+                                   locked: challengeLocked) {
+                            requireFullVersion(if: challengeLocked, focus: .challenge) {
+                                // A saved run is the only thing that makes this
+                                // ambiguous, so that's the only time we ask.
+                                if game.hasSavedChallengeRun {
+                                    challengeResumeOpen = true
+                                } else {
+                                    pick(mode: .challenge)
+                                }
                             }
                         }
                     }
@@ -256,6 +172,11 @@ struct MenuView: View {
             .animation(shouldReduceMotion ? nil : .easeInOut(duration: 0.25),
                        value: chill)
         }
+        // The menu content fills the screen above the visual field. Owning
+        // the simultaneous gesture here makes background manipulation
+        // reliable without stealing taps or scrolling from the controls.
+        .contentShape(Rectangle())
+        .simultaneousGesture(fluidInteractionGesture)
         .onDisappear {
             GlassyAudio.shared.stopHum()
         }
@@ -280,6 +201,9 @@ struct MenuView: View {
         .sheet(isPresented: $statsOpen) {
             StatsView()
         }
+        .sheet(isPresented: $fullVersionOpen) {
+            FullVersionView(focus: fullVersionFocus)
+        }
         // A suspended run is the only thing that makes "challenge"
         // ambiguous, so it's the only time we ask. This replaced an
         // inline "resume? yes no" strip that slid in beside the row and
@@ -290,7 +214,7 @@ struct MenuView: View {
                             titleVisibility: .visible) {
             Button("resume run") {
                 transitioner.fade {
-                    game.resumeChallengeRun()
+                    game.resumeChallengeRun(asTrial: challengeTrialAvailable)
                     started = true
                 }
             }
@@ -317,6 +241,65 @@ struct MenuView: View {
                 campaignOpen = true
             }
         }
+    }
+
+    private var fluidInteractionGesture: some Gesture {
+        DragGesture(minimumDistance: 0, coordinateSpace: .local)
+            .onChanged { value in
+                guard game.menuBackdropEnabled,
+                      game.menuStyle == .continuousGrid,
+                      !shouldReduceMotion,
+                      !isPresentingDestination else { return }
+
+                let now = Date()
+                let loc = value.location
+                let minDistance: CGFloat = 18
+                let tooClose: Bool = {
+                    guard let last = lastRipplePoint else { return false }
+                    let dx = loc.x - last.x
+                    let dy = loc.y - last.y
+                    return dx * dx + dy * dy < minDistance * minDistance
+                }()
+
+                if !tooClose {
+                    lastRipplePoint = loc
+                    // Short, overlapping wakes feel continuous under the
+                    // finger but stay bounded for the full-grid renderer.
+                    if ripples.count >= 12 {
+                        ripples.removeFirst(ripples.count - 11)
+                    }
+                    ripples.append(GridRipple(
+                        origin: loc,
+                        speed: 4.5,
+                        spawnEpoch: now.timeIntervalSinceReferenceDate,
+                        lifeSec: 2.2,
+                        strength: 0.85
+                    ))
+                    GlassyAudio.shared.boostHum()
+                }
+
+                let gap = lastChillTick.map { now.timeIntervalSince($0) } ?? 0
+                lastChillTick = now
+                if gap > 0, gap < 0.5, chill < 1 {
+                    let nextChill = min(1.0, chill + gap / 6.0)
+                    chill = nextChill
+                    if nextChill >= 1.0 {
+                        GameCenter.shared.reportAchievement(
+                            GameCenter.Achievement.chillMaxed
+                        )
+                    }
+                }
+            }
+            .onEnded { value in
+                lastRipplePoint = nil
+                lastChillTick = nil
+                let dist = hypot(value.translation.width, value.translation.height)
+                if dist < 5 {
+                    withAnimation(shouldReduceMotion ? nil : .easeOut(duration: 0.9)) {
+                        chill = 0
+                    }
+                }
+            }
     }
 
     /// Variant of the daily row shown once the player has solved
@@ -387,36 +370,9 @@ struct MenuView: View {
             ContinuousGridMenuField(
                 hueSeed: hueSeed,
                 fps: game.menuFps,
-                ripples: $ripples
+                ripples: $ripples,
+                flares: $flares
             )
-        }
-    }
-
-    /// While the drag has been continuous for more than a second,
-    /// progressively shorten existing ripples' lifespans toward
-    /// half their original value. Oldest ripples take the cut
-    /// first; newer ripples feel it less. Pressure ramps 0→1 over
-    /// seconds 1..3 of the drag so the effect is gradual.
-    private func applyRipplePressure(dragDuration: TimeInterval) {
-        guard ripples.count > 0 else { return }
-        let pressure = min(1.0, (dragDuration - 1.0) / 2.0)
-        // Sort indices oldest-first (earliest spawnEpoch first).
-        let sortedIndices = ripples.indices.sorted {
-            ripples[$0].spawnEpoch < ripples[$1].spawnEpoch
-        }
-        let lastRank = max(1, sortedIndices.count - 1)
-        for (rank, idx) in sortedIndices.enumerated() {
-            // 1.0 for the oldest, linearly down to 0 for the newest
-            // — so the earliest-placed ripples hit 1/2 first.
-            let ageFactor = 1.0 - Double(rank) / Double(lastRank)
-            let targetFraction = 1.0 - 0.5 * pressure * ageFactor
-            let target = ripples[idx].originalLifeSec * targetFraction
-            // Only shorten — never lengthen. If lifeSec is already
-            // below target (multiple pressure passes have already
-            // applied), leave it.
-            if target < ripples[idx].lifeSec {
-                ripples[idx].lifeSec = target
-            }
         }
     }
 
@@ -457,17 +413,63 @@ struct MenuView: View {
     /// player returns.
     private var isPresentingDestination: Bool {
         accessibilityOpen || galleryOpen || campaignOpen || leaderboardOpen || statsOpen
+            || fullVersionOpen
     }
 
-    private func pick(mode: GameMode) {
+    private var zenTrialAvailable: Bool {
+        !fullVersion.isUnlocked && fullVersion.canTry(.zen)
+    }
+
+    private var challengeTrialAvailable: Bool {
+        !fullVersion.isUnlocked && fullVersion.canTry(.challenge)
+    }
+
+    private var zenLocked: Bool { !fullVersion.isUnlocked && !zenTrialAvailable }
+    private var challengeLocked: Bool { !fullVersion.isUnlocked && !challengeTrialAvailable }
+
+    private func pick(mode: GameMode, asTrial: Bool = false) {
         lastChillTick = nil
         withAnimation(shouldReduceMotion ? nil : .easeOut(duration: 0.9)) { chill = 0 }
         transitioner.fade {
             // `enterMode` always refreshes state — challenge always
             // starts at level 1 regardless of whether the player was
             // previously in it; zen restores the persisted level.
-            game.enterMode(mode)
+            game.enterMode(mode, asTrial: asTrial)
             started = true
+        }
+    }
+
+    private func requireFullVersion(focus: FullVersionFeature,
+                                    _ action: () -> Void) {
+        requireFullVersion(if: true, focus: focus, action)
+    }
+
+    private func requireFullVersion(if required: Bool,
+                                    focus: FullVersionFeature,
+                                    _ action: () -> Void) {
+        if !required || fullVersion.isUnlocked {
+            action()
+        } else {
+            fullVersionFocus = focus
+            fullVersionOpen = true
+        }
+    }
+
+    private var resumeRequiresFullVersion: Bool {
+        FullVersionAccess.sessionRequiresPurchase(
+            campaignIndex: game.campaignIndex,
+            mode: game.mode,
+            isCustomPuzzle: game.isCustomPuzzle,
+            isTrialSession: game.isTrialSession
+        )
+    }
+
+    private var resumeFullVersionFocus: FullVersionFeature {
+        if game.campaignIndex != nil { return .campaign }
+        switch game.mode {
+        case .zen:       return .zen
+        case .challenge: return .challenge
+        case .daily:     return .campaign
         }
     }
 
@@ -476,25 +478,29 @@ struct MenuView: View {
     private func primaryRow(_ label: String,
                             detail: String? = nil,
                             dimmed: Bool = false,
+                            locked: Bool = false,
                             accessibilityValue: String? = nil,
                             action: @escaping () -> Void) -> some View {
         menuRow(label,
                 detail: detail,
                 font: Kroma.font(.title, .semibold),
                 opacity: dimmed ? 0.34 : 0.78,
-                accessibilityValue: accessibilityValue,
+                locked: locked,
+                accessibilityValue: locked ? "requires full version" : accessibilityValue,
                 action: action)
     }
 
     /// A place to go rather than a way to play. Same voice, quieter.
     @ViewBuilder
     private func secondaryRow(_ label: String,
+                              locked: Bool = false,
                               action: @escaping () -> Void) -> some View {
         menuRow(label,
                 detail: nil,
                 font: Kroma.font(.headline, .medium),
                 opacity: 0.52,
-                accessibilityValue: nil,
+                locked: locked,
+                accessibilityValue: locked ? "requires full version" : nil,
                 action: action)
     }
 
@@ -506,14 +512,10 @@ struct MenuView: View {
                          detail: String?,
                          font: Font,
                          opacity: Double,
+                         locked: Bool,
                          accessibilityValue: String?,
                          action: @escaping () -> Void) -> some View {
         Button {
-            // Random F# Phrygian bloom — each press picks its own
-            // voicing (most often a single note, occasionally a
-            // two- or three-note chord), so the buttons have a
-            // musical feel without being locked to fixed pitches.
-            GlassyAudio.shared.playBloom()
             // Menu button press counts as a reset for chill —
             // brings the menu text back to full opacity and drops
             // ripple lifetimes to baseline.
@@ -530,6 +532,12 @@ struct MenuView: View {
                 Text(label)
                     .font(font)
                     .foregroundStyle(Color.white.opacity(opacity))
+                if locked {
+                    Image(systemName: "lock.fill")
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(Color.white.opacity(0.42))
+                        .accessibilityHidden(true)
+                }
             }
             .multilineTextAlignment(.trailing)
             // No fixed height: at AX5 these rows are several lines tall

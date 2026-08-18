@@ -29,6 +29,7 @@ from urllib.request import Request, urlopen
 API_BASE = "https://api.appstoreconnect.apple.com"
 DEFAULT_BUNDLE_ID = "com.ianhandy.kroma"
 STREAK_LEADERBOARD_ID = "com.ianhandy.kroma.daily_streak"
+FULL_VERSION_PRODUCT_ID = "com.ianhandy.kroma.full_version"
 
 
 class AppStoreConnectError(RuntimeError):
@@ -252,6 +253,86 @@ def command_attach_build(client: ASCClient, args: argparse.Namespace) -> None:
     print(f"Attached build {args.build} to App Store version {args.version}.")
 
 
+def _in_app_purchases(client: ASCClient, app_id: str) -> list[dict[str, Any]]:
+    return client.request(
+        "GET",
+        f"/v1/apps/{app_id}/inAppPurchasesV2",
+        query={"limit": 200},
+    ).get("data", [])
+
+
+def command_in_app_purchases(client: ASCClient, args: argparse.Namespace) -> None:
+    app = resolve_app(client, args.bundle_id)
+    purchases = _in_app_purchases(client, app["id"])
+    print_json(
+        {
+            "inAppPurchases": [
+                {"id": item["id"], **item.get("attributes", {})}
+                for item in purchases
+            ]
+        }
+    )
+
+
+def full_version_iap_body(app_id: str) -> dict[str, Any]:
+    return {
+        "data": {
+            "type": "inAppPurchases",
+            "attributes": {
+                "name": "Kromatika Full Version",
+                "productId": FULL_VERSION_PRODUCT_ID,
+                "inAppPurchaseType": "NON_CONSUMABLE",
+                "reviewNote": (
+                    "One-time unlock for campaign chapters 5-12, Zen, Challenge, "
+                    "Gallery, and the puzzle creator. Today's Puzzle and campaign "
+                    "chapters 1-4 remain free."
+                ),
+                "availableInAllTerritories": True,
+            },
+            "relationships": {"app": relation("apps", app_id)},
+        }
+    }
+
+
+def command_ensure_full_version(client: ASCClient, args: argparse.Namespace) -> None:
+    app = resolve_app(client, args.bundle_id)
+    existing = _in_app_purchases(client, app["id"])
+    match = next(
+        (
+            item
+            for item in existing
+            if item.get("attributes", {}).get("productId")
+            == FULL_VERSION_PRODUCT_ID
+        ),
+        None,
+    )
+    if match:
+        purchase_type = match.get("attributes", {}).get("inAppPurchaseType")
+        if purchase_type != "NON_CONSUMABLE":
+            raise AppStoreConnectError(
+                f"{FULL_VERSION_PRODUCT_ID} exists as {purchase_type}, not NON_CONSUMABLE"
+            )
+        print(
+            f"Full-version purchase already exists: {match['id']} "
+            f"({FULL_VERSION_PRODUCT_ID})"
+        )
+        return
+
+    path = "/v2/inAppPurchases"
+    body = full_version_iap_body(app["id"])
+    if not args.apply:
+        print_json({"dryRun": True, "method": "POST", "path": path, "body": body})
+        return
+
+    created = client.request("POST", path, body=body)["data"]
+    print(
+        "Created the non-consumable base resource. Product ID and type are now "
+        "permanent. Set its customer-facing localization, price, and review "
+        "screenshot before attaching it to the first app-version submission."
+    )
+    print_json({"id": created["id"], **created.get("attributes", {})})
+
+
 def _game_center_detail(client: ASCClient, app_id: str) -> dict[str, Any]:
     result = client.request("GET", f"/v1/apps/{app_id}/gameCenterDetail")
     data = result.get("data")
@@ -458,6 +539,16 @@ def parser() -> argparse.ArgumentParser:
 
     game_center = commands.add_parser("game-center", help="List Game Center leaderboards")
     game_center.set_defaults(handler=command_game_center)
+
+    iaps = commands.add_parser("in-app-purchases", help="List the app's in-app purchases")
+    iaps.set_defaults(handler=command_in_app_purchases)
+
+    full_version = commands.add_parser(
+        "ensure-full-version-iap",
+        help="Create Kromatika's non-consumable full-version product if absent",
+    )
+    full_version.add_argument("--apply", action="store_true")
+    full_version.set_defaults(handler=command_ensure_full_version)
 
     streak = commands.add_parser(
         "ensure-streak-leaderboard", help="Create the Kromatika longest-streak board if absent"

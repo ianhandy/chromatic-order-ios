@@ -311,6 +311,13 @@ final class GameState {
     /// "return to where I came from" behavior. Cleared whenever a
     /// generator puzzle takes over via `startLevel`.
     var cameFromGallery: Bool = false
+    /// True for authored puzzles loaded from the Gallery, a file, or a share
+    /// link. Custom puzzles use the Zen board UI but remain distinct from the
+    /// paid procedurally-generated Zen mode.
+    var isCustomPuzzle: Bool = false
+    /// A free, one-puzzle preview of Zen or Challenge. Persisted with the
+    /// board so leaving the app never turns an unfinished preview into a use.
+    var isTrialSession: Bool = false
     /// 1-based index of the campaign level on the board, or nil when the
     /// current puzzle isn't a campaign level. Set by `loadCampaignLevel`
     /// and cleared by every other load path, so the campaign's own solve /
@@ -360,6 +367,9 @@ final class GameState {
     /// which file to remove on un-favorite. Cleared on every
     /// `startLevel` so a new generated puzzle starts unfavorited.
     var currentFavoriteURL: URL?
+    /// False for puzzles that already live in the player's Gallery or
+    /// Favorites. Community and generated puzzles remain saveable.
+    var currentPuzzleAllowsFavorite: Bool = true
     /// Title to display in the top-bar's center wordmark in place of
     /// "zen" — set when a community-submitted puzzle is loaded so the
     /// player sees the submitter's chosen name instead of the generic
@@ -1043,10 +1053,13 @@ final class GameState {
             heartLostThisLevel: heartLostThisLevel,
             campaignIndex: campaignIndex,
             dailyDateKey: dailyDateKey,
+            isCustomPuzzle: isCustomPuzzle,
+            isTrialSession: isTrialSession,
             cameFromGallery: cameFromGallery,
             galleryPuzzleID: currentGalleryPuzzleId,
             galleryCollectionID: currentGalleryCollectionId,
             favoritePath: currentFavoriteURL?.path,
+            allowsFavorite: currentPuzzleAllowsFavorite,
             customTitle: customTitle,
             elapsedSeconds: timeSpentSec,
             mistakeCount: mistakeCount,
@@ -1127,10 +1140,14 @@ final class GameState {
         heartLostThisLevel = snapshot.heartLostThisLevel
         campaignIndex = snapshot.campaignIndex
         dailyDateKey = snapshot.dailyDateKey
+        isCustomPuzzle = snapshot.isCustomPuzzle ?? snapshot.cameFromGallery
+        isTrialSession = snapshot.isTrialSession ?? false
         cameFromGallery = snapshot.cameFromGallery
         currentGalleryPuzzleId = snapshot.galleryPuzzleID
         currentGalleryCollectionId = snapshot.galleryCollectionID
         currentFavoriteURL = snapshot.favoritePath.map(URL.init(fileURLWithPath:))
+        currentPuzzleAllowsFavorite = snapshot.allowsFavorite
+            ?? (snapshot.campaignIndex != nil || !snapshot.cameFromGallery)
         customTitle = snapshot.customTitle
         puzzleStartTime = Date().addingTimeInterval(-Double(max(0, snapshot.elapsedSeconds)))
         mistakeCount = snapshot.mistakeCount
@@ -1209,10 +1226,11 @@ final class GameState {
     /// (startLevel generates a new one at the run's level). Stats
     /// (hearts, slow-advance counter) are restored exactly so the
     /// run continues from where it stood.
-    func resumeChallengeRun() {
+    func resumeChallengeRun(asTrial: Bool = false) {
         if let snapshot = InProgressSessionStore.load(),
            snapshot.mode == GameMode.challenge.rawValue,
            restoreSession(snapshot) {
+            if asTrial { isTrialSession = true }
             InProgressSessionStore.setAutoResume(true)
             shouldAutoResumeSession = true
             hasInProgressSession = true
@@ -1220,6 +1238,7 @@ final class GameState {
         }
         guard let run = Self.loadSavedChallengeRun() else { return }
         mode = .challenge
+        isTrialSession = asTrial
         level = run.level
         checks = run.checks
         challengeSolveCount = run.solveCount
@@ -1304,6 +1323,7 @@ final class GameState {
         // next Home tap goes to the main menu instead of re-opening
         // Gallery.
         cameFromGallery = false
+        isCustomPuzzle = false
         currentGalleryPuzzleId = nil
         currentGalleryCollectionId = nil
         customTitle = nil
@@ -1326,6 +1346,7 @@ final class GameState {
         showIncorrect = false
         engagedThisLevel = false
         currentFavoriteURL = nil
+        currentPuzzleAllowsFavorite = true
         // Per-level heart-loss flag resets each level so the streak
         // counter evaluated at solve time only reflects what
         // happened on THIS puzzle.
@@ -1908,8 +1929,11 @@ final class GameState {
             gradient.cells.contains { spec in
                 let cell = p.board[spec.r][spec.c]
                 guard !cell.locked else { return false }
-                guard let placed = cell.placed else { return true }
-                return !sameColor(placed, spec.color)
+                if let placed = cell.placed, sameColor(placed, spec.color) { return false }
+                return p.bank.contains { item in
+                    guard let item else { return false }
+                    return sameColor(item.color, spec.color)
+                }
             }
         }
         guard !candidates.isEmpty else { return }
@@ -1924,30 +1948,44 @@ final class GameState {
             } ?? candidates[0]
         }()
 
-        hintGradientID = gradient.id
-        hintedCells = Set(gradient.cells.compactMap { spec in
-            p.board[spec.r][spec.c].locked ? nil : CellIndex(r: spec.r, c: spec.c)
-        })
-        hintedBankSlot = nil
-        hintMessage = "look along this run"
+        let unresolved: [(spec: GradientCellSpec, slot: Int, context: Int)] =
+            gradient.cells.enumerated().compactMap { offset, spec in
+            let cell = p.board[spec.r][spec.c]
+            guard !cell.locked else { return nil }
+            if let placed = cell.placed, sameColor(placed, spec.color) { return nil }
+            guard let slot = p.bank.firstIndex(where: { item in
+                guard let item else { return false }
+                return sameColor(item.color, spec.color)
+            }) else { return nil }
 
-        if hintStage >= 1 {
-            let unresolved = gradient.cells.filter { spec in
-                let cell = p.board[spec.r][spec.c]
-                guard !cell.locked else { return false }
-                guard let placed = cell.placed else { return true }
-                return !sameColor(placed, spec.color)
+            // Prefer a gap beside information the player already has. The
+            // hint still reinforces reading the run rather than selecting an
+            // arbitrary empty cell, but it now gives a concrete next action.
+            let neighbors = [offset - 1, offset + 1].compactMap { neighbor in
+                gradient.cells.indices.contains(neighbor) ? gradient.cells[neighbor] : nil
             }
-            outer: for spec in unresolved {
-                for (slot, item) in p.bank.enumerated() {
-                    if let item, sameColor(item.color, spec.color) {
-                        hintedBankSlot = slot
-                        hintMessage = "this swatch belongs in this run"
-                        break outer
-                    }
-                }
+            let context = neighbors.reduce(into: 0) { score, neighbor in
+                let neighborCell = p.board[neighbor.r][neighbor.c]
+                if neighborCell.locked { score += 2 }
+                else if let placed = neighborCell.placed,
+                        sameColor(placed, neighbor.color) { score += 1 }
             }
+            return (spec: spec, slot: slot, context: context)
         }
+
+        guard let target = unresolved.max(by: { lhs, rhs in
+            if lhs.context == rhs.context {
+                return lhs.spec.r == rhs.spec.r
+                    ? lhs.spec.c > rhs.spec.c
+                    : lhs.spec.r > rhs.spec.r
+            }
+            return lhs.context < rhs.context
+        }) else { return }
+
+        hintGradientID = gradient.id
+        hintedCells = [CellIndex(r: target.spec.r, c: target.spec.c)]
+        hintedBankSlot = target.slot
+        hintMessage = "place this swatch here"
 
         hintStage = min(2, hintStage + 1)
         usedHintThisLevel = true
@@ -1986,7 +2024,7 @@ final class GameState {
     /// on the same date preserves the running puzzle + timer +
     /// moves — tapping "today's puzzle" again shouldn't nuke the
     /// player's in-progress run.
-    func enterMode(_ target: GameMode) {
+    func enterMode(_ target: GameMode, asTrial: Bool = false) {
         // Save zen progress before leaving zen so picking zen again
         // later lands on the highest level the player has reached.
         if mode == .zen {
@@ -2000,6 +2038,7 @@ final class GameState {
         runComplete = false
         let wasDaily = mode == .daily
         mode = target
+        isTrialSession = asTrial && target != .daily
         switch target {
         case .zen:
             showIncorrect = false
@@ -2060,7 +2099,7 @@ final class GameState {
     /// generator's level ladder (and its per-puzzle scoring doesn't
     /// make sense for a one-off), so entering a custom puzzle from
     /// challenge forces a switch back to zen first.
-    func loadCustomPuzzle(_ p: Puzzle, favoriteURL: URL? = nil, fromGallery: Bool = false, galleryPuzzleId: String? = nil, galleryCollectionId: String? = nil, title: String? = nil) {
+    func loadCustomPuzzle(_ p: Puzzle, favoriteURL: URL? = nil, fromGallery: Bool = false, galleryPuzzleId: String? = nil, galleryCollectionId: String? = nil, allowsFavorite: Bool = true, title: String? = nil) {
         if mode != .zen {
             mode = .zen
             level = zenLevel
@@ -2087,11 +2126,14 @@ final class GameState {
         campaignIndex = nil
         campaignTip = nil
         currentFavoriteURL = favoriteURL
+        currentPuzzleAllowsFavorite = allowsFavorite
         // Signal the hamburger-menu Home row to read 'Gallery' and
         // route back to the Gallery sheet instead of the main menu.
         // Cleared automatically on any subsequent `startLevel` call
         // (the generator path owns the non-custom lifecycle).
         cameFromGallery = fromGallery
+        isCustomPuzzle = true
+        isTrialSession = false
         // Stash the gallery id (if any) so a perfect solve can
         // record this row in GallerySolvedStore. Always overwrite
         // so a fresh custom load from a non-gallery source clears
@@ -2192,7 +2234,12 @@ final class GameState {
         return currentFavoriteURL != nil
     }
 
+    var canSaveCurrentPuzzle: Bool {
+        campaignIndex != nil || currentPuzzleAllowsFavorite
+    }
+
     func toggleCurrentPuzzleSaved() {
+        guard canSaveCurrentPuzzle else { return }
         if let index = campaignIndex {
             CampaignStore.toggleBookmark(index)
             campaignBookmarkRevision &+= 1

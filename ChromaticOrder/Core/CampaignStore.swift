@@ -12,7 +12,7 @@ enum CampaignStore {
     private static let tipsKey = "kromaCampaignTipsSeen_v1"
     private static let lastPlayedKey = "kromaCampaignLastPlayed_v1"
     private static let bookmarksKey = "kromaCampaignBookmarks_v1"
-    private static let recentKey = "kromaCampaignRecent_v1"
+    private static let legacyRecentKey = "kromaCampaignRecent_v1"
 
     // ─── Cleared levels ────────────────────────────────────────────
 
@@ -69,6 +69,13 @@ enum CampaignStore {
         return CampaignCatalog.count
     }
 
+    /// Chapter the campaign browser should reveal when it opens. Because
+    /// `nextUp` is the first uncleared level, finishing a chapter naturally
+    /// advances this to the next one; a finished campaign stays at the finale.
+    static var resumeChapter: CampaignChapter? {
+        CampaignCatalog.chapter(containing: nextUp) ?? CampaignCatalog.chapters.last
+    }
+
     static var isComplete: Bool {
         CampaignCatalog.count > 0 && cleared().count >= CampaignCatalog.count
     }
@@ -115,17 +122,8 @@ enum CampaignStore {
         UserDefaults.standard.set(Array(set).sorted(), forKey: bookmarksKey)
     }
 
-    /// Most-recent first, deduplicated and bounded so the picker stays quiet.
-    static var recent: [Int] {
-        (UserDefaults.standard.array(forKey: recentKey) as? [Int] ?? [])
-            .filter { CampaignCatalog.level($0) != nil }
-    }
-
     static func recordPlayed(_ index: Int) {
         guard CampaignCatalog.level(index) != nil else { return }
-        var values = recent.filter { $0 != index }
-        values.insert(index, at: 0)
-        UserDefaults.standard.set(Array(values.prefix(8)), forKey: recentKey)
         lastPlayed = index
     }
 
@@ -135,6 +133,6 @@ enum CampaignStore {
         UserDefaults.standard.removeObject(forKey: tipsKey)
         UserDefaults.standard.removeObject(forKey: lastPlayedKey)
         UserDefaults.standard.removeObject(forKey: bookmarksKey)
-        UserDefaults.standard.removeObject(forKey: recentKey)
+        UserDefaults.standard.removeObject(forKey: legacyRecentKey)
     }
 }

@@ -29,9 +29,11 @@ Never commit the `.p8` file or print its contents.
 # Read-only account snapshot
 tools/app_store_connect.py status
 tools/app_store_connect.py game-center
+tools/app_store_connect.py in-app-purchases
 
 # Preview every write before applying it
 tools/app_store_connect.py ensure-streak-leaderboard
+tools/app_store_connect.py ensure-full-version-iap
 tools/app_store_connect.py attach-build --version 1.0.0 --build 12
 
 # Validate, then upload an exported IPA
@@ -48,7 +50,10 @@ tools/app_store_connect.py submit --version 1.0.0 --apply --confirm-submit
 
 All mutating commands are dry-run by default. The final App Review action has a
 second guard, `--confirm-submit`. The helper does not create API keys, store
-credentials, change pricing, or release an approved version.
+credentials, change pricing, or release an approved version. The full-version
+helper creates only the base non-consumable resource; because its product ID and
+type become permanent, inspect the dry run before adding `--apply`. Localization,
+price, and the App Review screenshot stay explicit release steps.
 
 The leaderboard helper creates only the base leaderboard resource when it is
 missing. Its localization and leaderboard-version review association remain

@@ -2,6 +2,63 @@ import XCTest
 @testable import ChromaticOrder
 
 final class PlayerSupportFeatureTests: XCTestCase {
+    func testLockedFeatureMessagesExplainWhatUnlocks() {
+        XCTAssertEqual(FullVersionFeature.campaign.title, "the full campaign")
+        XCTAssertTrue(FullVersionFeature.campaign.detail.contains("200"))
+        XCTAssertTrue(FullVersionFeature.zen.detail.contains("infinite"))
+        XCTAssertTrue(FullVersionFeature.zen.detail.contains("procedurally generated"))
+        XCTAssertTrue(FullVersionFeature.zen.detail.contains("difficulty"))
+        XCTAssertTrue(FullVersionFeature.challenge.detail.contains("three hearts"))
+        XCTAssertTrue(FullVersionFeature.creator.detail.contains("build and share"))
+    }
+
+    func testFullVersionLeavesFourCampaignChaptersAndDailyFree() throws {
+        let fourth = try XCTUnwrap(CampaignCatalog.chapters.dropFirst(3).first)
+        let fifth = try XCTUnwrap(CampaignCatalog.chapters.dropFirst(4).first)
+
+        XCTAssertEqual(FullVersionAccess.lastFreeCampaignLevel, fourth.last)
+        XCTAssertFalse(FullVersionAccess.campaignLevelRequiresPurchase(fourth.last))
+        XCTAssertTrue(FullVersionAccess.campaignLevelRequiresPurchase(fifth.first))
+        XCTAssertFalse(FullVersionAccess.modeRequiresPurchase(.daily))
+        XCTAssertTrue(FullVersionAccess.modeRequiresPurchase(.zen))
+        XCTAssertTrue(FullVersionAccess.modeRequiresPurchase(.challenge))
+        XCTAssertFalse(FullVersionAccess.sessionRequiresPurchase(
+            campaignIndex: fourth.last,
+            mode: .zen
+        ))
+        XCTAssertTrue(FullVersionAccess.sessionRequiresPurchase(
+            campaignIndex: fifth.first,
+            mode: .zen
+        ))
+        XCTAssertFalse(FullVersionAccess.sessionRequiresPurchase(
+            campaignIndex: nil,
+            mode: .zen,
+            isCustomPuzzle: true
+        ))
+        XCTAssertFalse(FullVersionAccess.sessionRequiresPurchase(
+            campaignIndex: nil,
+            mode: .challenge,
+            isTrialSession: true
+        ))
+    }
+
+    @MainActor
+    func testTrialsRemainAvailableUntilExplicitlyCompleted() {
+        FullVersionTrialStore.reset()
+        defer { FullVersionTrialStore.reset() }
+
+        let store = FullVersionStore()
+        XCTAssertTrue(store.canTry(.zen))
+        XCTAssertTrue(store.canTry(.challenge))
+        XCTAssertTrue(store.canTry(.creator))
+
+        store.completeTrial(.zen)
+        XCTAssertFalse(store.canTry(.zen))
+        XCTAssertTrue(store.hasTried(.zen))
+        XCTAssertTrue(store.canTry(.challenge))
+        XCTAssertTrue(store.canTry(.creator))
+    }
+
     @MainActor
     func testExactSessionRoundTripPreservesLiveBoardAndContext() throws {
         InProgressSessionStore.clear()
@@ -34,6 +91,25 @@ final class PlayerSupportFeatureTests: XCTestCase {
     }
 
     @MainActor
+    func testTrialSessionRoundTripDoesNotConsumeTheTrial() {
+        InProgressSessionStore.clear()
+        FullVersionTrialStore.reset()
+        defer {
+            InProgressSessionStore.clear()
+            FullVersionTrialStore.reset()
+        }
+
+        let game = GameState()
+        XCTAssertTrue(game.loadCampaignLevel(5))
+        game.isTrialSession = true
+        game.persistInProgressSession(autoResume: true)
+
+        let restored = GameState()
+        XCTAssertTrue(restored.isTrialSession)
+        XCTAssertFalse(FullVersionTrialStore.hasCompleted(.zen))
+    }
+
+    @MainActor
     func testHintsNarrowWithoutPlacingAColor() {
         InProgressSessionStore.clear()
         defer { InProgressSessionStore.clear() }
@@ -46,7 +122,17 @@ final class PlayerSupportFeatureTests: XCTestCase {
         game.requestHint()
         XCTAssertTrue(game.usedHintThisLevel)
         XCTAssertEqual(game.hintStage, 1)
-        XCTAssertFalse(game.hintedCells.isEmpty)
+        XCTAssertEqual(game.hintedCells.count, 1)
+        XCTAssertNotNil(game.hintedBankSlot)
+        XCTAssertEqual(game.hintMessage, "place this swatch here")
+        if let target = game.hintedCells.first,
+           let slot = game.hintedBankSlot,
+           let solution = game.puzzle?.board[target.r][target.c].solution,
+           let swatch = game.puzzle?.bank[slot] {
+            XCTAssertTrue(game.sameColor(solution, swatch.color))
+        } else {
+            XCTFail("hint should pair one target cell with its matching swatch")
+        }
         XCTAssertEqual(game.puzzle?.board, beforeBoard)
         XCTAssertEqual(game.puzzle?.bank, beforeBank)
 
@@ -57,7 +143,7 @@ final class PlayerSupportFeatureTests: XCTestCase {
         XCTAssertEqual(game.puzzle?.bank, beforeBank)
     }
 
-    func testDailyHistoryAndCampaignQuickAccessPersist() {
+    func testDailyHistoryAndCampaignBookmarksPersist() {
         DailyHistoryStore.reset()
         CampaignStore.resetAll()
         defer {
@@ -79,7 +165,44 @@ final class PlayerSupportFeatureTests: XCTestCase {
         CampaignStore.recordPlayed(3)
         CampaignStore.recordPlayed(4)
         XCTAssertEqual(CampaignStore.bookmarks, [3])
-        XCTAssertEqual(Array(CampaignStore.recent.prefix(2)), [4, 3])
+        XCTAssertEqual(CampaignStore.lastPlayed, 4)
+    }
+
+    func testCampaignResumeChapterFollowsFirstUnclearedLevel() throws {
+        CampaignStore.resetAll()
+        defer { CampaignStore.resetAll() }
+
+        let firstChapter = try XCTUnwrap(CampaignCatalog.chapters.first)
+        XCTAssertEqual(CampaignStore.resumeChapter?.id, firstChapter.id)
+
+        for index in firstChapter.levelRange.dropLast() {
+            CampaignStore.markCleared(index)
+        }
+        XCTAssertEqual(CampaignStore.resumeChapter?.id, firstChapter.id)
+
+        CampaignStore.markCleared(firstChapter.last)
+        let nextChapter = try XCTUnwrap(CampaignCatalog.chapters.dropFirst().first)
+        XCTAssertEqual(CampaignStore.resumeChapter?.id, nextChapter.id)
+    }
+
+    @MainActor
+    func testSavedGalleryPuzzleCannotBeFavoritedAgain() throws {
+        InProgressSessionStore.clear()
+        defer { InProgressSessionStore.clear() }
+
+        let puzzle = try XCTUnwrap(CampaignCatalog.level(1)?.puzzle())
+        let game = GameState()
+        game.loadCustomPuzzle(
+            puzzle,
+            fromGallery: true,
+            galleryPuzzleId: "saved-level",
+            allowsFavorite: false
+        )
+
+        XCTAssertTrue(game.isCustomPuzzle)
+        XCTAssertFalse(game.canSaveCurrentPuzzle)
+        game.toggleCurrentPuzzleSaved()
+        XCTAssertNil(game.currentFavoriteURL)
     }
 
     func testDailyStreakAllowsTodayToRemainOpenAndPreservesLongestRun() {

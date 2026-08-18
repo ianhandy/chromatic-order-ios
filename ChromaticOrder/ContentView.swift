@@ -14,6 +14,8 @@ struct ContentView: View {
     @State private var creatorOpen: Bool = false
     @State private var feedbackOpen: Bool = false
     @State private var accessibilityOpen: Bool = false
+    @State private var fullVersionOpen: Bool = false
+    @State private var fullVersionFocus: FullVersionFeature?
     /// Set by ChromaticOrderApp.onOpenURL when a .kroma file is tapped.
     /// We watch it and pipe the Puzzle into the game when it changes.
     @Binding var incomingPuzzle: IncomingPuzzle?
@@ -21,6 +23,7 @@ struct ContentView: View {
     /// the app returns to MenuView without unloading GameState.
     @Binding var started: Bool
     @Environment(Transitioner.self) private var transitioner
+    @Environment(FullVersionStore.self) private var fullVersion
     @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
     /// Shows the "perfect" banner briefly after a perfect solve.
     /// Flips true on each fresh perfect solve, then fades away after
@@ -243,6 +246,13 @@ struct ContentView: View {
                         // only, so it's spoken here too.
                         .accessibilityValue(saveImageStatus)
                         Button {
+                            if let trial = currentTrial,
+                               game.isTrialSession,
+                               fullVersion.hasTried(trial) {
+                                fullVersionFocus = trial.feature
+                                fullVersionOpen = true
+                                return
+                            }
                             // Campaign: last level clears the campaign, so
                             // check before advancing — after handleNext the
                             // index has already moved on.
@@ -259,7 +269,9 @@ struct ContentView: View {
                                 transitioner.fade { started = false }
                             }
                         } label: {
-                            Text(game.mode == .daily
+                            Text(game.isTrialSession && currentTrial != nil
+                                 ? "keep playing"
+                                 : game.mode == .daily
                                  ? "back to menu"
                                  : (game.campaignIndex == CampaignCatalog.count
                                     ? "finish campaign"
@@ -354,6 +366,11 @@ struct ContentView: View {
         .animation(.easeInOut(duration: 0.7), value: perfectBannerVisible)
         .onChange(of: game.solved) { _, solvedNow in
             if solvedNow {
+                if game.isTrialSession,
+                   !game.showedIncorrect,
+                   let trial = currentTrial {
+                    fullVersion.completeTrial(trial)
+                }
                 beginSolvedEffects()
                 // Squish → wait for next quarter-note beat → snap
                 // back → chord + haptic. The visual "inhale" before
@@ -481,6 +498,9 @@ struct ContentView: View {
         }
         .fullScreenCover(isPresented: $creatorOpen) {
             CreatorView(game: game)
+        }
+        .sheet(isPresented: $fullVersionOpen) {
+            FullVersionView(focus: fullVersionFocus)
         }
         .sheet(isPresented: $feedbackOpen) {
             FeedbackSheet(game: game)
@@ -631,6 +651,10 @@ struct ContentView: View {
         case "xmark.circle":          return "couldn't save"
         default:                      return ""
         }
+    }
+
+    private var currentTrial: FullVersionTrial? {
+        FullVersionTrial(mode: game.mode)
     }
 
     private func flashSaveIcon(success: Bool) {

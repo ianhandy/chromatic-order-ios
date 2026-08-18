@@ -28,6 +28,21 @@ class AppStoreConnectTests(unittest.TestCase):
             {"data": {"type": "apps", "id": "123"}},
         )
 
+    def test_full_version_iap_is_non_consumable_and_matches_the_app_product_id(self):
+        body = asc.full_version_iap_body("app-123")
+        data = body["data"]
+        self.assertEqual(data["type"], "inAppPurchases")
+        self.assertEqual(
+            data["attributes"]["productId"],
+            "com.ianhandy.kroma.full_version",
+        )
+        self.assertEqual(data["attributes"]["inAppPurchaseType"], "NON_CONSUMABLE")
+        self.assertTrue(data["attributes"]["availableInAllTerritories"])
+        self.assertEqual(
+            data["relationships"]["app"],
+            {"data": {"type": "apps", "id": "app-123"}},
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

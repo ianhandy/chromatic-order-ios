@@ -9,6 +9,7 @@ struct ChromaticOrderApp: App {
     /// menu" flips it back via Transitioner.
     @State private var started: Bool = false
     @State private var game = GameState()
+    @State private var fullVersion = FullVersionStore()
     /// Drives the app-level fade-to-black overlay so navigation
     /// between the menu and the game is a symmetric crossfade.
     @State private var transitioner = Transitioner()
@@ -44,6 +45,20 @@ struct ChromaticOrderApp: App {
                     .allowsHitTesting(transitioner.overlayOpacity > 0.01)
             }
             .environment(transitioner)
+            .environment(fullVersion)
+            .task {
+                await fullVersion.prepare()
+                if !started,
+                   game.shouldAutoResumeSession,
+                   (!FullVersionAccess.sessionRequiresPurchase(
+                        campaignIndex: game.campaignIndex,
+                        mode: game.mode,
+                        isCustomPuzzle: game.isCustomPuzzle,
+                        isTrialSession: game.isTrialSession
+                    ) || fullVersion.isUnlocked) {
+                    started = true
+                }
+            }
             .onAppear {
                 // Sync audio + haptic flags now that the audio
                 // converter service is ready. Doing this during
@@ -81,7 +96,13 @@ struct ChromaticOrderApp: App {
                 // `.firstLaunch` stays unseen deliberately: its tooltip is
                 // written for the challenge board, so it fires the first
                 // time the player actually picks challenge.
-                if game.shouldAutoResumeSession {
+                if game.shouldAutoResumeSession,
+                   (!FullVersionAccess.sessionRequiresPurchase(
+                        campaignIndex: game.campaignIndex,
+                        mode: game.mode,
+                        isCustomPuzzle: game.isCustomPuzzle,
+                        isTrialSession: game.isTrialSession
+                    ) || fullVersion.isUnlocked) {
                     started = true
                 } else if game.hasInProgressSession {
                     // The player deliberately left this board at the menu.

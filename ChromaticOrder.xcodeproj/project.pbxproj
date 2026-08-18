@@ -84,6 +84,7 @@
 		A1700E3B5A207284C4796185 /* GalleryStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4C0E618AA2C692769FA0CD57 /* GalleryStore.swift */; };
 		A2FFB97B9AB8EE38469D1FA1 /* GeneratorDeterminismTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 91287C13AE1090C0E0AEBA84 /* GeneratorDeterminismTests.swift */; };
 		AB911B28DCFE996C1E5A5DF1 /* GridView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B77B6DBA462A78886EC80CC /* GridView.swift */; };
+		AE5CFA69F0C1AC661477D0AE /* FullVersionStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5CE5FD56C0B0EF2E4ED05FF4 /* FullVersionStore.swift */; };
 		AE68A4D8D07978FCBE656443 /* TestingFilterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0AAADC5198634557D3B8F733 /* TestingFilterTests.swift */; };
 		AF222D917B2690119CEC773E /* CampaignTipBanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A39954E05955A259C9EF959 /* CampaignTipBanner.swift */; };
 		AFF8037C0A2C2CC55C87FE24 /* GallerySolvedStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 333FC8788FF4E81B5E7DF11D /* GallerySolvedStore.swift */; };
@@ -115,6 +116,7 @@
 		EA4AB739A2668FC411760FCE /* DailyHistoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0A943DE0A0D3CC55B4F314E /* DailyHistoryView.swift */; };
 		EA4C78D29BE97317EF3078AC /* Transitioner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2805C33A1DAE888F6BEE6772 /* Transitioner.swift */; };
 		EDA5B0C53314EA0DB89630B3 /* PlayerSupportFeatureTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4DC2D4F729E96B6CBCA818EA /* PlayerSupportFeatureTests.swift */; };
+		EF1F43DAFBCBEEB885E398E8 /* FullVersionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8D46EE08C8A511DD8CE436E6 /* FullVersionView.swift */; };
 		F030766CCEB5EFF5BBBD9617 /* Generate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 618A23A276B3DEE750B5FCD2 /* Generate.swift */; };
 		F03BCB357B8B66BD6211F8F5 /* MusicRules.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8BC5360167E392833968ADEC /* MusicRules.swift */; };
 		F1B6C9E60B37940C24BA6647 /* GameState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16B2A28DD1B02DC86849A896 /* GameState.swift */; };
@@ -183,6 +185,7 @@
 		522593ECDC1A96E5DA891B6B /* GeneratorIntegrityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GeneratorIntegrityTests.swift; sourceTree = "<group>"; };
 		527AEF8D0FC1D35A03BD803D /* GlassyAudio.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassyAudio.swift; sourceTree = "<group>"; };
 		53BA603CAD5B11E02256CC7C /* LeaderboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LeaderboardView.swift; sourceTree = "<group>"; };
+		5CE5FD56C0B0EF2E4ED05FF4 /* FullVersionStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FullVersionStore.swift; sourceTree = "<group>"; };
 		5E6C13952A90DB8C288DB938 /* Haptics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Haptics.swift; sourceTree = "<group>"; };
 		60C1AF3FAF10C86541EE9315 /* FeedbackSubmitter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FeedbackSubmitter.swift; sourceTree = "<group>"; };
 		618A23A276B3DEE750B5FCD2 /* Generate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Generate.swift; sourceTree = "<group>"; };
@@ -205,6 +208,7 @@
 		8A5B6723BA4A89C9505169E0 /* EdgeVignetteView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EdgeVignetteView.swift; sourceTree = "<group>"; };
 		8B77B6DBA462A78886EC80CC /* GridView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GridView.swift; sourceTree = "<group>"; };
 		8BC5360167E392833968ADEC /* MusicRules.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MusicRules.swift; sourceTree = "<group>"; };
+		8D46EE08C8A511DD8CE436E6 /* FullVersionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FullVersionView.swift; sourceTree = "<group>"; };
 		8D5A3358DA2B0F56189BD40C /* StreakLeaderboardStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StreakLeaderboardStore.swift; sourceTree = "<group>"; };
 		8EB16E3924DEA8FE5C7A80CB /* TutorialOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TutorialOverlay.swift; sourceTree = "<group>"; };
 		91287C13AE1090C0E0AEBA84 /* GeneratorDeterminismTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GeneratorDeterminismTests.swift; sourceTree = "<group>"; };
@@ -285,6 +289,7 @@
 				E0A943DE0A0D3CC55B4F314E /* DailyHistoryView.swift */,
 				8A5B6723BA4A89C9505169E0 /* EdgeVignetteView.swift */,
 				856A5842C2329B56B733CFD4 /* FeedbackSheet.swift */,
+				8D46EE08C8A511DD8CE436E6 /* FullVersionView.swift */,
 				EED9AF64DB8B44E82237AD19 /* GalleryView.swift */,
 				8B77B6DBA462A78886EC80CC /* GridView.swift */,
 				744CE48ABC79045626B70F41 /* KromaDesign.swift */,
@@ -378,6 +383,7 @@
 				A4092EE2AEF345A97CFBEAFB /* FavoritesStore.swift */,
 				60C1AF3FAF10C86541EE9315 /* FeedbackSubmitter.swift */,
 				05E19AD6B398060DF1E285B6 /* FluidWarp.metal */,
+				5CE5FD56C0B0EF2E4ED05FF4 /* FullVersionStore.swift */,
 				333FC8788FF4E81B5E7DF11D /* GallerySolvedStore.swift */,
 				4C0E618AA2C692769FA0CD57 /* GalleryStore.swift */,
 				0B305E810212560C51C822ED /* GameCenter.swift */,
@@ -647,6 +653,8 @@
 				4064609A726FF8CADA1E484B /* FeedbackSheet.swift in Sources */,
 				23AC0EF292446C08D74F9CF3 /* FeedbackSubmitter.swift in Sources */,
 				0474E00251D2487498A7D39A /* FluidWarp.metal in Sources */,
+				AE5CFA69F0C1AC661477D0AE /* FullVersionStore.swift in Sources */,
+				EF1F43DAFBCBEEB885E398E8 /* FullVersionView.swift in Sources */,
 				AFF8037C0A2C2CC55C87FE24 /* GallerySolvedStore.swift in Sources */,
 				A1700E3B5A207284C4796185 /* GalleryStore.swift in Sources */,
 				CE755B3B5C9E56D6A75CA63D /* GalleryView.swift in Sources */,

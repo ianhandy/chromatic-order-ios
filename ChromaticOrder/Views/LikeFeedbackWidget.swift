@@ -49,9 +49,8 @@ struct LikeFeedbackWidget: View {
         HStack(spacing: Kroma.Space.xs) {
             Text(Strings.LikeFeedback.prompt)
                 .font(Kroma.font(.headline, .bold))
-                .lineLimit(2)
-                .multilineTextAlignment(.leading)
-                .fixedSize(horizontal: false, vertical: true)
+                .lineLimit(1)
+                .fixedSize(horizontal: true, vertical: false)
                 .foregroundStyle(Color.white.opacity(0.55))
                 .accessibilityHidden(true)
 

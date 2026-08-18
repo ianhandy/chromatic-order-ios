@@ -25,15 +25,17 @@ struct GridFlare {
     /// index at draw time by multiplying by the current grid
     /// dimension.
     let axisNorm: Double
-    /// Starting cell along the axis. Fresh flares spawn off-screen
-    /// (resolved at draw time via grid length); collisions rewrite
-    /// this to the collision cell so the deflected flare's new
-    /// trajectory anchors at the impact point.
-    var startCell: Double?
     var direction: Double   // +1 = toward higher indices, -1 = lower
     var speed: Double       // cells per second
     var spawnEpoch: Double  // TimeInterval from reference date
     let lifeSec: Double
+    /// Absolute end of the flare's lifetime. Kept independent of redraws
+    /// and touch-state changes so interaction never clears a live line.
+    let expiresEpoch: Double
+    /// A flare gets one collision accent. The two original lines continue
+    /// untouched; this guard only prevents the same pair from spawning a
+    /// new impact ring every resolver tick.
+    var hasCollided = false
     /// Per-flare hue shift (degrees). Applied to cells this flare
     /// lights up, scaled by the flare's contribution — gives each
     /// flare its own color tint so distinct flares paint distinct
@@ -47,13 +49,7 @@ struct GridRipple: Identifiable {
     let origin: CGPoint     // view-local point coords
     let speed: Double       // cells/sec — outward radius velocity
     let spawnEpoch: Double
-    /// Effective lifetime. Mutable so the drag-pressure path can
-    /// shorten long-lived finger ripples down toward half their
-    /// original life while the player keeps dragging.
-    var lifeSec: Double
-    /// Frozen copy of the initial lifeSec so pressure math can
-    /// compute a shortened target without losing the original.
-    let originalLifeSec: Double
+    let lifeSec: Double
     /// Multiplier on this ripple's visual impact (both cell boost
     /// and physical displacement). Default 1.0 for finger ripples;
     /// flare wakes and collision impacts use higher values so their
@@ -70,7 +66,6 @@ struct GridRipple: Identifiable {
         self.speed = speed
         self.spawnEpoch = spawnEpoch
         self.lifeSec = lifeSec
-        self.originalLifeSec = lifeSec
         self.strength = strength
     }
 }
@@ -91,7 +86,10 @@ struct ContinuousGridMenuField: View {
     /// once they expire.
     @Binding var ripples: [GridRipple]
 
-    @State private var flares: [GridFlare] = []
+    /// MenuView owns both visual collections. Keeping them at the same
+    /// identity level means a touch update cannot recreate this renderer
+    /// and accidentally discard the already-traveling gradients.
+    @Binding var flares: [GridFlare]
     @State private var lastAmbientFlareSpawn: Double = 0
     @State private var lastAudioFlareSpawn: Double = 0
     /// Grid dimensions observed during the last Canvas draw. Used by
@@ -113,10 +111,9 @@ struct ContinuousGridMenuField: View {
         }
         .task {
             // Flare head collisions — tight cadence so fast flares
-            // don't skip past each other between checks. Pairs
-            // whose heads sit within ~0.8 cells swap direction and
-            // each takes half the other's speed, anchored at the
-            // collision point.
+            // don't skip past each other between checks. A collision
+            // adds a restrained fluid accent while both lines continue
+            // along their existing paths.
             while !Task.isCancelled {
                 try? await Task.sleep(nanoseconds: 66_000_000)   // ~15 Hz
                 let now = Date().timeIntervalSinceReferenceDate
@@ -132,7 +129,7 @@ struct ContinuousGridMenuField: View {
             while !Task.isCancelled {
                 try? await Task.sleep(nanoseconds: 300_000_000)  // 300 ms
                 let now = Date().timeIntervalSinceReferenceDate
-                flares.removeAll { now - $0.spawnEpoch > $0.lifeSec }
+                flares.removeAll { now > $0.expiresEpoch }
                 ripples.removeAll { now - $0.spawnEpoch > $0.lifeSec }
                 if flares.count > 12 { flares.removeFirst(flares.count - 12) }
                 if ripples.count > 16 { ripples.removeFirst(ripples.count - 16) }
@@ -176,7 +173,7 @@ struct ContinuousGridMenuField: View {
         let rows = Int(ceil(size.height / Self.pitch)) + 1
         let activeFlares = flares.filter {
             let age = t - $0.spawnEpoch
-            return age >= 0 && age <= $0.lifeSec
+            return age >= 0 && t <= $0.expiresEpoch
         }
         let activeRipples = ripples.filter {
             let age = t - $0.spawnEpoch
@@ -205,14 +202,14 @@ struct ContinuousGridMenuField: View {
 
                 for f in activeFlares {
                     let dt = t - f.spawnEpoch
-                    if dt < 0 || dt > f.lifeSec { continue }
+                    if dt < 0 || t > f.expiresEpoch { continue }
                     // Soft end-of-life fade so the flare doesn't
                     // snap from ~11% brightness straight to 0 when
                     // it's pruned. Linear ramp across the final
                     // 2 s of life brings every contribution
                     // (trail + halo) to zero before the prune.
                     let fadeWindow = 2.0
-                    let remaining = f.lifeSec - dt
+                    let remaining = f.expiresEpoch - t
                     let lifeFade = remaining < fadeWindow
                         ? max(0.0, remaining / fadeWindow)
                         : 1.0
@@ -240,12 +237,9 @@ struct ContinuousGridMenuField: View {
                         axisOffAxis = c - resolvedAxis
                         axisPos = Double(r)
                     }
-                    // Use the flare's explicit startCell (set by
-                    // collision resolution) if present, otherwise
-                    // default to one offscreen cell in the
-                    // direction-appropriate edge.
-                    let startCell: Double = f.startCell
-                        ?? (f.direction > 0 ? -2.0 : Double(axisLen + 1))
+                    let startCell = f.direction > 0
+                        ? -2.0
+                        : Double(axisLen + 1)
                     // On-axis trail. Head moves from startCell in
                     // `direction`; a cell is lit only if the head
                     // has already reached its position.
@@ -486,23 +480,20 @@ struct ContinuousGridMenuField: View {
         return GridFlare(
             kind: kind,
             axisNorm: axisNorm,
-            startCell: nil,
             direction: direction,
             speed: speed,
             spawnEpoch: now,
             lifeSec: life,
+            expiresEpoch: now + life,
             hueOffset: hueOffset
         )
     }
 
     // ─── Flare collisions ──────────────────────────────────────
 
-    /// Resolve head-cell collisions between pairs of live flares.
-    /// When two heads land in (approximately) the same cell, each
-    /// flare takes on the OTHER's direction and half of the other's
-    /// speed, anchored at the collision cell. Called on a tight
-    /// cadence from `.task` so collisions are caught even for fast
-    /// flares.
+    /// Detect head-cell collisions between live flares. The impact is an
+    /// additive accent only: neither original direction, speed, trail nor
+    /// lifetime changes.
     private func resolveFlareCollisions(now: Double, cols: Int, rows: Int) {
         guard flares.count >= 2, cols > 0, rows > 0 else { return }
         // Work on a snapshot of resolved heads so we can detect
@@ -519,12 +510,11 @@ struct ContinuousGridMenuField: View {
         for i in flares.indices {
             let f = flares[i]
             let dt = now - f.spawnEpoch
-            if dt < 0 || dt > f.lifeSec { continue }
+            if dt < 0 || now > f.expiresEpoch || f.hasCollided { continue }
             let axisLen = f.kind == .row ? cols : rows
             let resolvedAxis = Int(f.axisNorm * Double(f.kind == .row ? rows : cols))
                 % max(1, f.kind == .row ? rows : cols)
-            let startCell = f.startCell
-                ?? (f.direction > 0 ? -2.0 : Double(axisLen + 1))
+            let startCell = f.direction > 0 ? -2.0 : Double(axisLen + 1)
             let headPos = startCell + f.direction * dt * f.speed
             // Only consider heads currently inside the visible
             // grid — a flare whose head is still off-screen or has
@@ -546,38 +536,29 @@ struct ContinuousGridMenuField: View {
                 let dRow = heads[i].row - heads[j].row
                 let dCol = heads[i].col - heads[j].col
                 if dRow * dRow + dCol * dCol > 0.64 { continue }
-                // Collision! Swap direction + halved speed,
-                // anchored at the midpoint.
+                // Collision: preserve both flare trajectories and add one
+                // restrained impact at their midpoint.
                 let idxA = heads[i].idx
                 let idxB = heads[j].idx
-                let a = flares[idxA]
-                let b = flares[idxB]
                 let midRow = (heads[i].row + heads[j].row) / 2
                 let midCol = (heads[i].col + heads[j].col) / 2
-                // Deflection: each flare keeps its own identity
-                // (speed magnitude, hue) but reverses its direction
-                // and loses half its speed, anchored at the impact
-                // cell. Reads as a clean bounce-off, not a subtle
-                // trajectory exchange.
-                flares[idxA].direction = -a.direction
-                flares[idxA].speed = a.speed * 0.5
-                flares[idxA].spawnEpoch = now
-                flares[idxA].startCell = (a.kind == .row) ? midCol : midRow
-                flares[idxB].direction = -b.direction
-                flares[idxB].speed = b.speed * 0.5
-                flares[idxB].spawnEpoch = now
-                flares[idxB].startCell = (b.kind == .row) ? midCol : midRow
-                // Punchy ripple at the collision cell so the impact
-                // moment pops — strong amplitude, quick expansion.
+                flares[idxA].hasCollided = true
+                flares[idxB].hasCollided = true
+                // Keep the impact readable without moving cells by
+                // almost a full grid pitch. Skip the decorative ring
+                // when the field is already busy rather than adding
+                // more full-grid work to an overloaded frame.
                 let screenX = CGFloat(midCol) * Self.pitch + Self.pitch / 2
                 let screenY = CGFloat(midRow) * Self.pitch + Self.pitch / 2
-                ripples.append(GridRipple(
-                    origin: CGPoint(x: screenX, y: screenY),
-                    speed: 3.5,
-                    spawnEpoch: now,
-                    lifeSec: 3.5,
-                    strength: 5.0
-                ))
+                if ripples.count < 12 {
+                    ripples.append(GridRipple(
+                        origin: CGPoint(x: screenX, y: screenY),
+                        speed: 4.5,
+                        spawnEpoch: now,
+                        lifeSec: 1.6,
+                        strength: 1.4
+                    ))
+                }
                 collided.insert(idxA)
                 collided.insert(idxB)
                 break
