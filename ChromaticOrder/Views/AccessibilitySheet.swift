@@ -134,14 +134,6 @@ struct AccessibilitySheet: View {
                 }
 
                 Section {
-                    AppIconPickerRow()
-                } header: {
-                    Text("App icon")
-                } footer: {
-                    Text("Change the home-screen icon's palette. iOS will confirm the swap with a system alert.")
-                }
-
-                Section {
                     Button(role: .destructive) {
                         game.resetAccessibility()
                     } label: {
@@ -322,70 +314,3 @@ struct AccessibilitySheet: View {
     }
 }
 
-private struct AppIconPickerRow: View {
-    @State private var current: AppIconVariant = .pastelPinks
-
-    var body: some View {
-        ForEach(AppIconVariant.allCases) { variant in
-            Button {
-                AppIconPicker.apply(variant)
-                current = variant
-            } label: {
-                HStack(spacing: Kroma.Space.m) {
-                    PaletteGridThumb(colors: variant.paletteGrid)
-                        .frame(width: 38, height: 38)
-                    Text(variant.displayName)
-                        .foregroundStyle(.primary)
-                        .multilineTextAlignment(.leading)
-                        .fixedSize(horizontal: false, vertical: true)
-                    Spacer()
-                    if variant == current {
-                        Image(systemName: "checkmark")
-                            .font(Kroma.font(.footnote, .semibold))
-                            .foregroundStyle(.secondary)
-                    }
-                }
-            }
-            .buttonStyle(.plain)
-        }
-        .onAppear { current = AppIconPicker.current }
-    }
-}
-
-/// 3×3 palette grid rendered inline — used as the preview thumbnail
-/// for each app-icon variant in the picker. Takes a row-major
-/// 9-element color list and paints a tight grid with a subtle
-/// rounded clip so it reads as "a tiny app icon."
-private struct PaletteGridThumb: View {
-    let colors: [OKLCh]
-
-    var body: some View {
-        GeometryReader { geo in
-            let side = min(geo.size.width, geo.size.height)
-            let cornerR = side * 0.22
-            let gap: CGFloat = 1
-            let cellSide = (side - gap * 4) / 3
-            VStack(spacing: gap) {
-                ForEach(0..<3, id: \.self) { r in
-                    HStack(spacing: gap) {
-                        ForEach(0..<3, id: \.self) { c in
-                            let idx = r * 3 + c
-                            let color = idx < colors.count ? colors[idx] : OKLCh(L: 0.5, c: 0, h: 0)
-                            Rectangle()
-                                .fill(OK.toColor(color))
-                                .frame(width: cellSide, height: cellSide)
-                        }
-                    }
-                }
-            }
-            .padding(gap)
-            .frame(width: side, height: side)
-            .background(Color.black)
-            .clipShape(RoundedRectangle(cornerRadius: cornerR, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: cornerR, style: .continuous)
-                    .stroke(Color.white.opacity(0.18), lineWidth: 0.5)
-            )
-        }
-    }
-}
