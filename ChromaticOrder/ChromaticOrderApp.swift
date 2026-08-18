@@ -122,6 +122,7 @@ struct ChromaticOrderApp: App {
                     Task.detached {
                         await LikedPuzzleStore.refreshRemoteDislikedSignatures()
                     }
+                    Task { await StreakReminderStore.refresh() }
                 case .background:
                     // iOS can terminate a backgrounded process without
                     // another callback. Capture the exact live board first.

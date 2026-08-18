@@ -82,6 +82,45 @@ final class PlayerSupportFeatureTests: XCTestCase {
         XCTAssertEqual(Array(CampaignStore.recent.prefix(2)), [4, 3])
     }
 
+    func testDailyStreakAllowsTodayToRemainOpenAndPreservesLongestRun() {
+        DailyHistoryStore.reset()
+        defer { DailyHistoryStore.reset() }
+
+        for key in ["2026-08-14", "2026-08-15", "2026-08-16"] {
+            DailyHistoryStore.recordCompletion(
+                key, solveSeconds: 60, moveCount: 8,
+                clean: true, usedHint: false
+            )
+        }
+
+        let august17 = ISO8601DateFormatter().date(from: "2026-08-17T12:00:00Z")!
+        let august18 = ISO8601DateFormatter().date(from: "2026-08-18T12:00:00Z")!
+        XCTAssertEqual(DailyHistoryStore.streakSummary(now: august17).longest, 3)
+        XCTAssertEqual(DailyHistoryStore.streakSummary(now: august17).current, 3)
+
+        DailyHistoryStore.recordCompletion(
+            "2026-08-17", solveSeconds: 58, moveCount: 7,
+            clean: true, usedHint: false
+        )
+        XCTAssertEqual(DailyHistoryStore.streakSummary(now: august17).current, 4)
+        XCTAssertEqual(DailyHistoryStore.streakSummary(now: august18).current, 4)
+
+        let august19 = ISO8601DateFormatter().date(from: "2026-08-19T12:00:00Z")!
+        let expired = DailyHistoryStore.streakSummary(now: august19)
+        XCTAssertEqual(expired.current, 0)
+        XCTAssertEqual(expired.longest, 4)
+    }
+
+    func testReminderFallsTwoHoursBeforeUTCReset() {
+        let noon = ISO8601DateFormatter().date(from: "2026-08-17T12:00:00Z")!
+        let late = ISO8601DateFormatter().date(from: "2026-08-17T23:00:00Z")!
+        let expectedToday = ISO8601DateFormatter().date(from: "2026-08-17T22:00:00Z")!
+        let expectedTomorrow = ISO8601DateFormatter().date(from: "2026-08-18T22:00:00Z")!
+
+        XCTAssertEqual(StreakReminderStore.nextReminderDate(now: noon), expectedToday)
+        XCTAssertEqual(StreakReminderStore.nextReminderDate(now: late), expectedTomorrow)
+    }
+
     private func firstFreeCell(in puzzle: Puzzle) -> CellIndex? {
         for r in 0..<puzzle.gridH {
             for c in 0..<puzzle.gridW {

@@ -1681,13 +1681,15 @@ final class GameState {
             // the menu grays out the option until the next daily rolls
             // over. Replay is explicitly disallowed by spec.
             dailyCompletedKey = Daily.dateKey()
-            DailyHistoryStore.recordCompletion(
+            let dailyStreak = DailyHistoryStore.recordCompletion(
                 dailyCompletedKey ?? Daily.dateKey(),
                 solveSeconds: timeSpentSec,
                 moveCount: moveCount,
                 clean: cleanSolve,
                 usedHint: usedHintThisLevel
             )
+            StreakReminderStore.markCompleted(dailyCompletedKey ?? Daily.dateKey())
+            Task { await StreakLeaderboardStore.submitIfEnabled(dailyStreak) }
             saveProgress()
             clearInProgressSession()
             return

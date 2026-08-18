@@ -22,7 +22,7 @@ struct StatsView: View {
 
                 Section {
                     row("Longest clean streak", "\(stats.longestCleanStreak)")
-                    row("Current streak", "\(stats.currentCleanStreak)")
+                    row("Current clean streak", "\(stats.currentCleanStreak)")
                 } header: {
                     Text("Streaks")
                 } footer: {

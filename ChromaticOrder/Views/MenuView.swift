@@ -207,7 +207,8 @@ struct MenuView: View {
                         if game.isDailyCompletedToday {
                             dailyCompletedRow
                         } else {
-                            primaryRow(Strings.Menu.todaysPuzzle) {
+                            primaryRow(Strings.Menu.todaysPuzzle,
+                                       detail: dailyStreakDetail) {
                                 pick(mode: .daily)
                             }
                         }
@@ -328,7 +329,7 @@ struct MenuView: View {
             let secs = Daily.secondsUntilNext(now: ctx.date)
             primaryRow(
                 Strings.Menu.todaysPuzzle,
-                detail: "next in \(formatCountdown(secs))",
+                detail: dailyCompletedDetail(countdown: formatCountdown(secs)),
                 dimmed: true,
                 // Dimming alone would encode "solved" in contrast, which
                 // VoiceOver and Differentiate Without Color can't see.
@@ -348,6 +349,18 @@ struct MenuView: View {
         if hours > 0 { return "\(hours)h \(minutes)m" }
         if minutes > 0 { return "\(minutes)m" }
         return "\(secs)s"
+    }
+
+    private var dailyStreakDetail: String? {
+        let count = DailyHistoryStore.streakSummary().current
+        guard count > 0 else { return nil }
+        return "\(count)-day streak"
+    }
+
+    private func dailyCompletedDetail(countdown: String) -> String {
+        let count = DailyHistoryStore.streakSummary().current
+        guard count > 0 else { return "next in \(countdown)" }
+        return "\(count)-day streak · next in \(countdown)"
     }
 
     /// Main-menu backdrop. Branches on game.menuStyle — palette
