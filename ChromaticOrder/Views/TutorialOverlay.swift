@@ -212,6 +212,29 @@ struct TutorialBalloon: View {
         // target above/below it, which read as "not actually close"
         // even though the positioning math was tight.
         .frame(width: Self.balloonSize.width, height: Self.balloonSize.height)
+        // Pointer anchor — the bubble's resting bottom edge, where the
+        // overlay's string-to-target curve starts.
+        //
+        // This deliberately sits OUTSIDE the TimelineView above, on the
+        // stable layout frame rather than inside the per-frame
+        // `.offset`/`.rotationEffect` sway. Published from inside, the
+        // global rect changed ~30x/sec, and the consumer is an
+        // `.onPreferenceChange` writing @State on ContentView's root —
+        // so every sway frame invalidated the entire ContentView body
+        // (grid, bank, top bar, every overlay) for the whole life of
+        // the tutorial, which is the first screen a new player sees.
+        // Anchoring the string to the resting position costs a few
+        // points of tracking against the sway (amplitude is ~9pt) and
+        // buys back a 30Hz full-tree relayout.
+        .background(alignment: .bottom) {
+            GeometryReader { geo in
+                Color.clear.preference(
+                    key: TutorialTargetFramesKey.self,
+                    value: [knotAnchorKey: geo.frame(in: .global)]
+                )
+            }
+            .frame(width: 1, height: 1)
+        }
         .allowsHitTesting(false)
         // Initialise appearAt once at mount so computePose has a
         // stable birth date without scheduling async state mutations
@@ -309,20 +332,6 @@ struct TutorialBalloon: View {
                     .offset(x: -d * 0.26, y: -d * 0.26)
                     .allowsHitTesting(false)
             }
-            // Pointer anchor — bottom of the bubble. The overlay's
-            // string-to-target curve starts here (zen-intro arrow to
-            // the level chip); kept so that pointer still tracks.
-            Color.clear
-                .frame(width: 1, height: 1)
-                .offset(y: r)
-                .background {
-                    GeometryReader { geo in
-                        Color.clear.preference(
-                            key: TutorialTargetFramesKey.self,
-                            value: [knotAnchorKey: geo.frame(in: .global)]
-                        )
-                    }
-                }
         }
     }
 

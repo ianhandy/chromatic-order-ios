@@ -7,11 +7,6 @@ options:
 settings:
   base:
     SWIFT_VERSION: "5.9"
-    # iPhone-only (family 1). iPad requires all four orientations for
-    # multitasking which would force a layout rework — can revisit for
-    # a future iPad rev. Apple's upload validator rejects the bundle
-    # if iPad is included with portrait-only.
-    TARGETED_DEVICE_FAMILY: "1"
     # Apple Developer team (Ian Handy). Kept here so xcodegen preserves
     # it across regenerations — without this it gets reset and archives
     # fail with "Signing requires a development team."
@@ -29,7 +24,22 @@ targets:
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
         MARKETING_VERSION: "1.0.0"
-        CURRENT_PROJECT_VERSION: "32"
+        CURRENT_PROJECT_VERSION: "33"
+        # iPhone-only (family 1). iPad would require all four
+        # orientations for multitasking, which would force a layout
+        # rework — can revisit for a future iPad rev. Apple's upload
+        # validator rejects the bundle if iPad is included with
+        # portrait-only.
+        #
+        # This MUST live at the target level, not under the top-level
+        # `settings.base`. xcodegen writes its own iOS platform default
+        # ("1,2") at the target level, and a target-level value beats a
+        # project-level one — so setting this project-wide silently did
+        # nothing and shipped an iPad-enabled bundle (UIDeviceFamily
+        # [1,2], iPad icon, all four orientations on a portrait-only
+        # layout). Verify with:
+        #   PlistBuddy -c "Print :UIDeviceFamily" <built app>/Info.plist
+        TARGETED_DEVICE_FAMILY: "1"
         SUPPORTED_PLATFORMS: "iphoneos iphonesimulator"
         SUPPORTS_MACCATALYST: NO
         SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD: NO
@@ -77,14 +87,12 @@ targets:
         # this string in the permission prompt the first time the
         # player taps "save image" on the solved overlay.
         NSPhotoLibraryAddUsageDescription: "Save your completed puzzle images to your Photos library."
-        # Alternate app icons temporarily removed as a SIGTERM-on-
-        # launch diagnostic. Fresh installs were being killed by the
-        # watchdog inside dyld, and the CFBundleIcons enumeration is
-        # the likeliest pre-main culprit given the new loose-file
-        # PNGs. If the app launches with this block gone, the
-        # alternate icons will get re-added via the asset catalog
-        # (AppIcon.appiconset sibling entries) instead of loose
-        # top-level files, which is the Apple-recommended path.
+        # Alternate app icons were removed outright (not deferred) —
+        # the picker they fed was dead UI, since CFBundleAlternateIcons
+        # was never re-registered after the SIGTERM-on-launch
+        # diagnostic that pulled it. See commit 5e5b9e3. There is no
+        # pending re-add; if alternate icons ever come back, do it via
+        # asset-catalog sibling entries, not loose top-level PNGs.
         # We accept .kroma files for reading only (no in-place edits).
         # Silences the compile-time warning about file-open semantics.
         LSSupportsOpeningDocumentsInPlace: false

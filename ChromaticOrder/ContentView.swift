@@ -177,7 +177,7 @@ struct ContentView: View {
                 // leaving it unfiltered would be a hole in the
                 // compression exactly where the player is looking.
                 EdgeVignetteView(color: game.heldColor.map(game.display),
-                                 reduceMotion: game.reduceMotion)
+                                 reduceMotion: game.shouldReduceMotion)
                     .allowsHitTesting(false)
             }
 

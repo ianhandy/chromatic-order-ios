@@ -375,8 +375,10 @@ struct TopBarView: View {
                         .accessibilityLabel("time \(formatElapsed(game.timeSpentSec))")
                 }
             }
-            Text("\(game.moveCount) moves")
-                .accessibilityLabel("\(game.moveCount) moves")
+            // Singular on the first placement of every puzzle, so this
+            // read "1 moves" constantly before the pluralization.
+            Text("\(game.moveCount) move\(game.moveCount == 1 ? "" : "s")")
+                .accessibilityLabel("\(game.moveCount) move\(game.moveCount == 1 ? "" : "s")")
         }
         .font(Kroma.monoFont(.footnote, .semibold))
         .foregroundStyle(Self.secondaryText)

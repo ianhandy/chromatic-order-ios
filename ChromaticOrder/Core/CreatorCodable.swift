@@ -171,6 +171,36 @@ enum CreatorCodec {
     /// Lock state comes from each cell's `locked` field (optional so
     /// pre-v1-locked docs still decode; absent == no lock).
     static func rebuild(_ doc: CreatorPuzzleDoc, level: Int = 1) -> Puzzle? {
+        // Every number below arrives from outside the app — a tapped
+        // .kroma file, a `kroma://play?data=` link anyone can send, a
+        // universal link resolved through /api/share, the daily
+        // puzzle, or the community pool. `decode` only gates on
+        // `version`, so nothing else has checked them yet, and the
+        // very next thing this function does is
+        // `Array(repeating:count: gridW)` and `board[r][c]`. A
+        // negative dimension traps the allocation; an out-of-range
+        // cell traps the subscript. One crafted link was a
+        // deterministic crash.
+        //
+        // Reject instead. All 16 `rebuild` call sites already handle
+        // nil (the import paths no-op, the daily path falls back to
+        // local seeded generation), so this degrades a crash into
+        // "that puzzle didn't open."
+        //
+        // The upper bound matches the generator's own cap
+        // (Generate.swift's `gridW > 20 || gridH > 20` reject), with
+        // headroom for hand-authored boards; it also stops a doc
+        // claiming a 100000x100000 grid from trying to allocate it.
+        guard (1...64).contains(doc.gridW),
+              (1...64).contains(doc.gridH),
+              doc.gradients.allSatisfy({ grad in
+                  !grad.cells.isEmpty && grad.cells.allSatisfy { cell in
+                      (0..<doc.gridH).contains(cell.r)
+                          && (0..<doc.gridW).contains(cell.c)
+                  }
+              })
+        else { return nil }
+
         // Build PuzzleGradient structs in local (already-local) coords.
         // Track per-cell ownership so we can flag intersections; bank
         // collection dedupes on (r, c) because a shared intersection

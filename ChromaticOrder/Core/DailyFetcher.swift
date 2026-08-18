@@ -28,9 +28,23 @@ enum DailyFetcher {
     /// cached value if one exists for this date. `nonisolated` so
     /// the detached generator task can call us without bouncing
     /// through the main actor.
+    /// The schema gate `CreatorCodec.decode` applies to file/link
+    /// imports. Daily decodes its envelope with a bare `JSONDecoder`
+    /// (the doc is nested inside `Response`, so it can't route through
+    /// `decode` directly), which meant the one server-pushed content
+    /// channel was also the one channel skipping the version check —
+    /// a future `version: 2` doc would have been silently mis-rebuilt
+    /// by v1 clients instead of falling back to local generation.
+    private static func isSupported(_ doc: CreatorPuzzleDoc) -> Bool {
+        doc.version == CreatorPuzzleDoc.currentVersion
+    }
+
     nonisolated static func fetch(for date: String) async -> (puzzle: Puzzle, level: Int)? {
-        // Cache hit short-circuit.
+        // Cache hit short-circuit. Version-checked too: a cached doc
+        // was written by whatever build was installed at the time, so
+        // it can be older than the running app.
         if let cached = readCache(date: date),
+           isSupported(cached.doc),
            let puz = CreatorCodec.rebuild(cached.doc) {
             return (puz, cached.level)
         }
@@ -47,7 +61,8 @@ enum DailyFetcher {
                 return nil
             }
             let decoded = try JSONDecoder().decode(Response.self, from: data)
-            guard let puz = CreatorCodec.rebuild(decoded.doc, level: decoded.level) else {
+            guard isSupported(decoded.doc),
+                  let puz = CreatorCodec.rebuild(decoded.doc, level: decoded.level) else {
                 return nil
             }
             writeCache(date: date, level: decoded.level, doc: decoded.doc)

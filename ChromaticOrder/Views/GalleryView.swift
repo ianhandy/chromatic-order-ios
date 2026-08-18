@@ -1027,9 +1027,20 @@ struct CommunityGalleryRow: View {
                                 ? color.opacity(0.14)
                                 : Color.gray.opacity(0.10))
             )
+            // The glyph + count is the whole control, so without this
+            // VoiceOver read the raw symbol name ("arrowtriangle.up.fill,
+            // 12"). These are the only way to vote on a community
+            // puzzle, and the two sit side by side — hence the explicit
+            // label plus a full-size hit target so a near-miss doesn't
+            // cast the opposite vote.
+            .kromaHitTarget()
         }
         .buttonStyle(.plain)
         .disabled(voting)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(direction > 0 ? "upvote" : "downvote")
+        .accessibilityValue("\(count)")
+        .accessibilityAddTraits(active ? [.isButton, .isSelected] : .isButton)
     }
 
     private var displayName: String {

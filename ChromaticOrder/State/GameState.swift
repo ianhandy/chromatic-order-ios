@@ -203,7 +203,25 @@ final class GameState {
     /// zen levels they've already cleared in a challenge run. Zen
     /// solves never bump this value.
     var challengeMaxLevel: Int
+    /// The in-app toggle only. Seeded once from the system setting at
+    /// first launch and then frozen — read `shouldReduceMotion`, not
+    /// this, when deciding whether to animate.
     var reduceMotion: Bool
+    /// Live mirror of `UIAccessibility.isReduceMotionEnabled`, kept
+    /// current by the `reduceMotionStatusDidChangeNotification`
+    /// observer registered in `init`.
+    private(set) var systemReduceMotion: Bool = UIAccessibility.isReduceMotionEnabled
+    /// Whether motion should be suppressed right now. Either source
+    /// counts: the in-app toggle OR the live system setting.
+    ///
+    /// `reduceMotion` alone was the wrong thing to read. It's seeded
+    /// from the system value only when no stored value exists, so a
+    /// player who enabled iOS Reduce Motion *after* first launch still
+    /// got the repeating solved-glow pulse on every cell, the
+    /// wrong-answer shake, the perfect-solve shine, the bank-return
+    /// bounce, and the animated edge halo — exactly the pulsing
+    /// effects the setting exists to suppress.
+    var shouldReduceMotion: Bool { reduceMotion || systemReduceMotion }
     /// Color-blindness mode the generator and scorer build under. Saved
     /// alongside reduce-motion so Reset Progress doesn't stomp it —
     /// it's an accessibility setting, not game state.
@@ -639,6 +657,18 @@ final class GameState {
             InProgressSessionStore.clear()
             startLevel(level)
         }
+        // Keep `systemReduceMotion` live. Without this the mirror is
+        // only accurate as of init, so toggling iOS Reduce Motion while
+        // the app is backgrounded wouldn't take effect until relaunch.
+        NotificationCenter.default.addObserver(
+            forName: UIAccessibility.reduceMotionStatusDidChangeNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            MainActor.assumeIsolated {
+                self?.systemReduceMotion = UIAccessibility.isReduceMotionEnabled
+            }
+        }
     }
 
     // ─── Accessibility ──────────────────────────────────────────────
@@ -683,13 +713,39 @@ final class GameState {
         guard let data = UserDefaults.standard.data(forKey: a11yKey),
               let dict = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
         else { return .defaults }
+        // The sliders enforce these invariants live (a minimum span
+        // between each clamp pair, a bounded contrast scale), but this
+        // dict is not the slider — it's whatever was on disk, possibly
+        // written by an older build or restored from a backup. Nothing
+        // downstream re-checks it, and the generator divides by these
+        // spans: an lMin == lMax pair reaches `Util.randDouble(in:
+        // 0..<0)`, and `Double.random(in:)` traps on an empty range.
+        // A negative contrastScale inverts a Range and traps on
+        // construction. Clamp on the way in so a bad payload degrades
+        // to a sane board instead of a crash at level load.
+        let span = { (lo: Double, hi: Double, floor: Double,
+                      limit: ClosedRange<Double>) -> (Double, Double) in
+            let a = min(max(lo, limit.lowerBound), limit.upperBound)
+            let b = min(max(hi, limit.lowerBound), limit.upperBound)
+            let low = min(a, b)
+            // Guarantee a non-empty span even if both landed equal.
+            return (low, max(b, low + floor))
+        }
+        let (lLo, lHi) = span((dict["lClampMin"] as? Double) ?? OK.lMin,
+                              (dict["lClampMax"] as? Double) ?? OK.lMax,
+                              0.05, OK.lMin...OK.lMax)
+        let (cLo, cHi) = span((dict["cClampMin"] as? Double) ?? OK.cMin,
+                              (dict["cClampMax"] as? Double) ?? OK.cMax,
+                              0.02, OK.cMin...OK.cMax)
         let b = AccessibilityBundle(
-            contrastScale: (dict["contrastScale"] as? Double) ?? 1.0,
-            lClampMin: (dict["lClampMin"] as? Double) ?? OK.lMin,
-            lClampMax: (dict["lClampMax"] as? Double) ?? OK.lMax,
-            cClampMin: (dict["cClampMin"] as? Double) ?? OK.cMin,
-            cClampMax: (dict["cClampMax"] as? Double) ?? OK.cMax,
-            doubleTapInterval: (dict["doubleTapInterval"] as? Double) ?? 0.28,
+            contrastScale: min(max((dict["contrastScale"] as? Double) ?? 1.0,
+                                   0.5), 1.5),
+            lClampMin: lLo,
+            lClampMax: lHi,
+            cClampMin: cLo,
+            cClampMax: cHi,
+            doubleTapInterval: min(max((dict["doubleTapInterval"] as? Double) ?? 0.28,
+                                       0.15), 0.60),
             magnetismEnabled: (dict["magnetismEnabled"] as? Bool) ?? true,
             edgeVignetteEnabled: (dict["edgeVignetteEnabled"] as? Bool) ?? true,
             menuBackdropEnabled: (dict["menuBackdropEnabled"] as? Bool) ?? true,

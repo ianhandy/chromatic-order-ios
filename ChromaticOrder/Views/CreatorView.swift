@@ -183,7 +183,7 @@ struct CreatorView: View {
                 }
                 Button("Keep building", role: .cancel) { }
             } message: {
-                Text("Your puzzle won't be saved. Tap Play to save it first.")
+                Text("Your puzzle won't be saved. Tap Save to keep it.")
             }
             .sheet(isPresented: $pickingStart) {
                 ColorPickerSheet(color: $state.startColor, title: "Start color")
@@ -1108,9 +1108,9 @@ struct CreatorHelpSheet: View {
                         title: "Ready to play",
                         body: """
                         Lay at least one gradient with at least one free cell. \
-                        The validation banner flags any issues (no clues, \
-                        repeated colors, direction ambiguity). Press Play when \
-                        it's green.
+                        A warning appears below the canvas if anything is off \
+                        (no clues, repeated colors, direction ambiguity). Tap \
+                        Save once it clears.
                         """
                     )
                 }

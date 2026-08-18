@@ -53,7 +53,7 @@ struct CellView: View {
                 // is a repeatForever per cell, so a board left on
                 // screen would otherwise animate every cell forever.
                 if filled, let color = shown, game.solved, game.solvedEffectsActive,
-                   !game.reduceMotion, game.solvedGlowEnabled {
+                   !game.shouldReduceMotion, game.solvedGlowEnabled {
                     let diff = Double(game.puzzle?.difficulty ?? 1)
                     // Perfect solves scale the bleed hard — at max
                     // difficulty a perfect solve is ~2x the bleed of
@@ -82,7 +82,7 @@ struct CellView: View {
                               wrong: isWrong,
                               cellPx: cellPx,
                               radius: radius,
-                              reduceMotion: game.reduceMotion,
+                              reduceMotion: game.shouldReduceMotion,
                               shakePhase: shakePhase)
                 }
 
@@ -94,7 +94,7 @@ struct CellView: View {
                 // light glinting off a card. Intensity scales with
                 // puzzle difficulty.
                 if filled, placed != nil, game.solved, game.isPerfectSolve,
-                   !game.reduceMotion, game.solvedGlowEnabled {
+                   !game.shouldReduceMotion, game.solvedGlowEnabled {
                     let diff = Double(game.puzzle?.difficulty ?? 1)
                     let intensity = min(1.0, 0.35 + 0.65 * diff / 10.0)
                     PerfectSolveShine(

@@ -17,7 +17,7 @@ struct BankSlotView: View {
         }()
         let radius = size * 0.28
         let returning = game.bankReturnSlot == slot
-        let reduceMotion = game.reduceMotion
+        let reduceMotion = game.shouldReduceMotion
 
         ZStack {
             // Empty-slot placeholder — same footprint as a swatch so the

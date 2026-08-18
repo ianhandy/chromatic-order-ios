@@ -21,6 +21,7 @@
 		19AEDA09503BD9E3B35050E7 /* MenuView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2EDE5327E1AA3D7BCC8E36E6 /* MenuView.swift */; };
 		23AC0EF292446C08D74F9CF3 /* FeedbackSubmitter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 60C1AF3FAF10C86541EE9315 /* FeedbackSubmitter.swift */; };
 		24F5BBB67BFCED6D3DBB8D50 /* ShakeDetector.swift in Sources */ = {isa = PBXBuildFile; fileRef = E17BEA8C8B5E3223F9CF042C /* ShakeDetector.swift */; };
+		27BF737AA63B9B11B325E952 /* MalformedPuzzleImportTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E689CABBFCE031788317CC9C /* MalformedPuzzleImportTests.swift */; };
 		2FBD579095597129B70B4CAA /* LevelGeneratorRules.swift in Sources */ = {isa = PBXBuildFile; fileRef = A3496AFEC28F950FFD8F9B7C /* LevelGeneratorRules.swift */; };
 		3031D53068BD501E61794DC5 /* Puzzle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 263ABFFC5637F9AF2B6417BE /* Puzzle.swift */; };
 		3563955A557AA97E4BD071D8 /* CommunitySeenIds.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4EAF4BDE9213228517EA104F /* CommunitySeenIds.swift */; };
@@ -222,6 +223,7 @@
 		E236C9242482FADB3142E347 /* ShapesSeenToday.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShapesSeenToday.swift; sourceTree = "<group>"; };
 		E23F6F320CE9FB81C4DA1411 /* LikedPuzzleStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LikedPuzzleStore.swift; sourceTree = "<group>"; };
 		E3FEC55F1F885C33BFA0EBF8 /* CampaignAuditTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CampaignAuditTests.swift; sourceTree = "<group>"; };
+		E689CABBFCE031788317CC9C /* MalformedPuzzleImportTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MalformedPuzzleImportTests.swift; sourceTree = "<group>"; };
 		EB5CA128E9F91DAD5B84834E /* CommunityStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommunityStore.swift; sourceTree = "<group>"; };
 		EED9AF64DB8B44E82237AD19 /* GalleryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GalleryView.swift; sourceTree = "<group>"; };
 		EFD96AAE98A2EF5AD111E041 /* ColorPickerSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ColorPickerSheet.swift; sourceTree = "<group>"; };
@@ -399,6 +401,7 @@
 				A97AFD2370CD11B1C9136FA2 /* CampaignFairnessTests.swift */,
 				B7E954FB420404E8294EEF53 /* DailyFallbackTests.swift */,
 				62AA3C30A87367588BC07E29 /* LadderExportTests.swift */,
+				E689CABBFCE031788317CC9C /* MalformedPuzzleImportTests.swift */,
 				4DC2D4F729E96B6CBCA818EA /* PlayerSupportFeatureTests.swift */,
 				0AAADC5198634557D3B8F733 /* TestingFilterTests.swift */,
 			);
@@ -555,6 +558,7 @@
 				C3FA7C6062C54FFA522D725F /* CampaignFairnessTests.swift in Sources */,
 				4E52DFE83D0BBF657690E395 /* DailyFallbackTests.swift in Sources */,
 				840614A44BE0DB8C0F345A5F /* LadderExportTests.swift in Sources */,
+				27BF737AA63B9B11B325E952 /* MalformedPuzzleImportTests.swift in Sources */,
 				EDA5B0C53314EA0DB89630B3 /* PlayerSupportFeatureTests.swift in Sources */,
 				AE68A4D8D07978FCBE656443 /* TestingFilterTests.swift in Sources */,
 			);
@@ -774,7 +778,6 @@
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 5.9;
-				TARGETED_DEVICE_FAMILY = 1;
 			};
 			name = Debug;
 		};
@@ -785,7 +788,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = ChromaticOrder/ChromaticOrder.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
-				CURRENT_PROJECT_VERSION = 32;
+				CURRENT_PROJECT_VERSION = 33;
 				INFOPLIST_FILE = ChromaticOrder/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -798,7 +801,7 @@
 				SUPPORTS_MACCATALYST = NO;
 				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
 				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
-				TARGETED_DEVICE_FAMILY = "1,2";
+				TARGETED_DEVICE_FAMILY = 1;
 			};
 			name = Debug;
 		};
@@ -809,7 +812,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = ChromaticOrder/ChromaticOrder.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
-				CURRENT_PROJECT_VERSION = 32;
+				CURRENT_PROJECT_VERSION = 33;
 				INFOPLIST_FILE = ChromaticOrder/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -822,7 +825,7 @@
 				SUPPORTS_MACCATALYST = NO;
 				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
 				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
-				TARGETED_DEVICE_FAMILY = "1,2";
+				TARGETED_DEVICE_FAMILY = 1;
 			};
 			name = Release;
 		};
@@ -897,7 +900,6 @@
 				SWIFT_COMPILATION_MODE = wholemodule;
 				SWIFT_OPTIMIZATION_LEVEL = "-O";
 				SWIFT_VERSION = 5.9;
-				TARGETED_DEVICE_FAMILY = 1;
 			};
 			name = Release;
 		};
