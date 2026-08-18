@@ -163,6 +163,14 @@ struct AccessibilitySheet: View {
                 // aid: it makes the board harder to read AND changes
                 // how the game judges answers, so it sits below every
                 // real setting with a header that says so.
+                //
+                // DEBUG-only: this loosens what counts as a correct
+                // placement (TestingFilter.same) with nothing gating
+                // that funnel against leaderboard submission, so it
+                // must never compile into a Release build — a real
+                // player flipping this on could submit an inflated
+                // daily-leaderboard time. See TestingFilter.swift.
+                #if DEBUG
                 Section {
                     Toggle("Enabled", isOn: $game.testingEnabled)
                     if game.testingEnabled {
@@ -191,6 +199,7 @@ struct AccessibilitySheet: View {
                     // and that it changes how answers are judged.
                     Text("Not an accessibility aid. Compression makes the board harder to read, and the threshold loosens what counts as a correct placement.")
                 }
+                #endif
 
             }
             .kromaSheet(Strings.Menu.settings) { dismiss() }

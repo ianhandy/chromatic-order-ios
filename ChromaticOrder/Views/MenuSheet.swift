@@ -73,13 +73,16 @@ struct MenuSheet: View {
                     }
 
                     MenuPanelDivider()
+                    // A 3-second hold on Settings clears every lock on the
+                    // current puzzle — DEBUG-only. Named
+                    // `debugUnlockAllLocks` for a reason: this is a dev
+                    // shortcut for testing high-tier puzzles, not a
+                    // player-facing cheat code, and it permanently bumps
+                    // challengeMaxLevel with no undo, so it must not
+                    // compile into a Release build.
+                    #if DEBUG
                     MenuPanelRow(icon: "gearshape",
                                  label: Strings.Menu.settings,
-                                 // A 3-second hold clears every lock on the
-                                 // current puzzle. Deliberately undiscoverable
-                                 // rather than hidden: players who want to skip
-                                 // the grind can find it, nobody hits it by
-                                 // accident.
                                  onLongPress: {
                                      Haptics.solve()
                                      game.debugUnlockAllLocks()
@@ -88,6 +91,13 @@ struct MenuSheet: View {
                         menuOpen = false
                         accessibilityOpen = true
                     }
+                    #else
+                    MenuPanelRow(icon: "gearshape",
+                                 label: Strings.Menu.settings) {
+                        menuOpen = false
+                        accessibilityOpen = true
+                    }
+                    #endif
                     MenuPanelRow(icon: "envelope",
                                  label: "feedback") {
                         menuOpen = false

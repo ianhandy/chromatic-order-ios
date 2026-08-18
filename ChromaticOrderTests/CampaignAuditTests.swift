@@ -555,18 +555,23 @@ final class CampaignAuditTests: XCTestCase {
                        "non-decision guidance must not own gameplay taps")
     }
 
-    func testGameplayDismissalImmediatelyUnmountsTutorial() throws {
+    func testGameplayDismissalGracefullyReleasesTutorial() throws {
+        // Every dismissal path — the spotlighted target, or tapping
+        // elsewhere on the dimmed field — now floats the balloon away
+        // via the same release animation used everywhere else
+        // (menu-open, level-change), instead of hard-cutting it.
+        // dismissTutorialImmediately() (the old abrupt-cut path) is
+        // gone; gameplay actions release through the same function
+        // as every other dismissal trigger.
         let content = try source("ChromaticOrder/ContentView.swift")
         XCTAssertTrue(content.contains(
-            ".onChange(of: game.gameplayGuidanceDismissalID) { _, _ in\n            dismissTutorialImmediately()"
+            ".onChange(of: game.gameplayGuidanceDismissalID) { _, _ in"
         ))
-        XCTAssertTrue(content.contains("private func dismissTutorialImmediately()"))
-        XCTAssertTrue(content.contains("tutorialFlag = nil"))
+        XCTAssertTrue(content.contains("releaseTutorial()"))
+        XCTAssertFalse(content.contains("dismissTutorialImmediately"),
+                       "the abrupt hard-cut path should no longer exist")
         XCTAssertTrue(content.contains("tutorialPresentationID == presentationID"),
                       "a delayed callback must identify the exact presentation instance")
-        XCTAssertFalse(content.contains(
-            ".onChange(of: game.gameplayGuidanceDismissalID) { _, _ in\n            releaseTutorial()"
-        ), "gameplay must not leave tutorial guidance animating for seconds")
     }
 
     func testStaleTutorialCompletionCannotUnmountSameFlagRePresentation() throws {

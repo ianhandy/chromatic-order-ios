@@ -869,11 +869,24 @@ final class GameState {
         guard let data = UserDefaults.standard.data(forKey: testingKey),
               let dict = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
         else { return d }
-        return TestingFilter(
+        var filter = TestingFilter(
             enabled: (dict["enabled"] as? Bool) ?? d.enabled,
             similarity: (dict["similarity"] as? Double) ?? d.similarity,
             sameThreshold: (dict["sameThreshold"] as? Double) ?? d.sameThreshold
         )
+        #if !DEBUG
+        // The toggle to turn this on only exists in the #if DEBUG
+        // section of AccessibilitySheet, but `enabled` is persisted
+        // UserDefaults state that outlives any single build — a
+        // device that had it flipped on under an earlier build (one
+        // that didn't yet gate the section) would otherwise carry
+        // that `true` forward into every future Release install
+        // silently. Force it off here so a Release build can never
+        // honor a leftover `enabled: true` regardless of how it got
+        // persisted.
+        filter.enabled = false
+        #endif
+        return filter
     }
 
     private func saveTestingFilter() {
@@ -1498,7 +1511,15 @@ final class GameState {
                 //       forKey: "kroma.dev.targetedGen")
                 // See TargetedGenerate.swift + the `targeted-difficulty`
                 // branch of the web repo for the band-tuning sampler.
-                let useTargeted = UserDefaults.standard.bool(forKey: "kroma.dev.targetedGen")
+                var useTargeted = UserDefaults.standard.bool(forKey: "kroma.dev.targetedGen")
+                #if !DEBUG
+                // No UI ever sets this key, but it's a raw UserDefaults
+                // flag with no compile-time gate of its own — force it
+                // off in Release so nothing (a debugger, a restored
+                // backup, a future mistake) can route real players
+                // through an unshipped, untuned generator path.
+                useTargeted = false
+                #endif
                 if let seed = genSeed {
                     let rng = SeededRNGRef(seed: seed)
                     puz = GenRNG.$current.withValue(rng) {
