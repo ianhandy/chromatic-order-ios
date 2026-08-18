@@ -26,6 +26,10 @@ struct AccessibilitySheet: View {
     @Bindable var game: GameState
     @Environment(\.dismiss) private var dismiss
     @State private var showResetProgress = false
+    /// Snapshot of ModerationStore's block list. It's UserDefaults-
+    /// backed rather than observable, so the view holds its own copy
+    /// and refreshes it on appear and after each unblock.
+    @State private var blockedNames: [String] = ModerationStore.blockedNames
 
     var body: some View {
         NavigationStack {
@@ -133,6 +137,34 @@ struct AccessibilitySheet: View {
                     Text("Drop to 30 if the menu backdrop feels laggy.")
                 }
 
+                // Blocking is only half a feature without a way back —
+                // and a reviewer checking Guideline 1.2 will look for
+                // the undo. Hidden entirely when nobody is blocked so
+                // it doesn't add a dead row to everyone else's
+                // settings.
+                if !blockedNames.isEmpty {
+                    Section {
+                        ForEach(blockedNames, id: \.self) { name in
+                            HStack {
+                                Text(name)
+                                    .font(Kroma.font(.body))
+                                Spacer()
+                                Button("unblock") {
+                                    ModerationStore.unblock(name: name)
+                                    blockedNames = ModerationStore.blockedNames
+                                }
+                                .font(Kroma.font(.subheadline, .semibold))
+                                .buttonStyle(.borderless)
+                                .accessibilityLabel("unblock \(name)")
+                            }
+                        }
+                    } header: {
+                        Text("Blocked")
+                    } footer: {
+                        Text("Their puzzles and streaks stay hidden until you unblock them.")
+                    }
+                }
+
                 Section {
                     Button(role: .destructive) {
                         game.resetAccessibility()
@@ -203,6 +235,7 @@ struct AccessibilitySheet: View {
 
             }
             .kromaSheet(Strings.Menu.settings) { dismiss() }
+            .onAppear { blockedNames = ModerationStore.blockedNames }
             .alert("Reset all progress?",
                    isPresented: $showResetProgress) {
                 Button("Cancel", role: .cancel) {}

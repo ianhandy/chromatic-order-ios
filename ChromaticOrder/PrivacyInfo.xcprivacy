@@ -39,6 +39,23 @@
             </array>
         </dict>
         <dict>
+            <!-- "User Content → Other User Content" — two free-text
+                 fields the player types themselves: the notes box in
+                 the feedback sheet (sent to a Google Form), and the
+                 optional reason attached to a community-content
+                 report. Neither is required to use the app. -->
+            <key>NSPrivacyCollectedDataType</key>
+            <string>NSPrivacyCollectedDataTypeOtherUserContent</string>
+            <key>NSPrivacyCollectedDataTypeLinked</key>
+            <false/>
+            <key>NSPrivacyCollectedDataTypeTracking</key>
+            <false/>
+            <key>NSPrivacyCollectedDataTypePurposes</key>
+            <array>
+                <string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+            </array>
+        </dict>
+        <dict>
             <!-- "Usage Data → Product Interaction" — solve stats,
                  likes, and the optional longest daily streak. -->
             <key>NSPrivacyCollectedDataType</key>

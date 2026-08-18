@@ -39,6 +39,16 @@ struct GalleryView: View {
     /// CommunityListView sheet — the Gallery now owns the full
     /// Top/New sort + expand-to-vote/play interaction inline.
     @State private var communityEntries: [CommunityPuzzleEntry]? = nil
+    /// Community entry the player is reporting; non-nil presents the
+    /// reason picker. Guideline 1.2's "report objectionable content".
+    @State private var reportTarget: CommunityPuzzleEntry? = nil
+    /// Short confirmation after a block / hide / report so the action
+    /// isn't silent — the row just vanishing reads like a glitch.
+    @State private var moderationNotice: String? = nil
+    /// Bumped by any moderation action so the filtered list recomputes.
+    /// ModerationStore is UserDefaults-backed rather than observable,
+    /// so the view needs a nudge to re-read it.
+    @State private var moderationTick: Int = 0
     /// Sort mode for the community section. Server-side; flipping
     /// this re-fetches.
     @State private var communitySort: CommunitySort = .top
@@ -210,6 +220,42 @@ struct GalleryView: View {
             Button("OK", role: .cancel) { submitAlertMessage = nil }
         } message: {
             Text(submitAlertMessage ?? "")
+        }
+        // Guideline 1.2 — report objectionable content. A reason picker
+        // rather than a free-text box: easier to triage, and it doesn't
+        // invite typing personal details into a field that leaves the
+        // device. Reporting hides the puzzle locally right away, so the
+        // player isn't left staring at what they just reported.
+        .confirmationDialog(
+            "Report this puzzle?",
+            isPresented: Binding(
+                get: { reportTarget != nil },
+                set: { if !$0 { reportTarget = nil } }
+            ),
+            titleVisibility: .visible
+        ) {
+            ForEach(ModerationStore.Reason.allCases) { reason in
+                Button(reason.label) {
+                    guard let target = reportTarget else { return }
+                    ModerationStore.report(id: target.id,
+                                           submitterName: target.submitterName,
+                                           reason: reason)
+                    withAnimation { moderationTick &+= 1 }
+                    reportTarget = nil
+                    moderationNotice = "reported. thanks — it's hidden for you now."
+                }
+            }
+            Button("Cancel", role: .cancel) { reportTarget = nil }
+        } message: {
+            Text("It'll be hidden for you right away and sent for review.")
+        }
+        .alert("Done", isPresented: Binding(
+            get: { moderationNotice != nil },
+            set: { if !$0 { moderationNotice = nil } }
+        )) {
+            Button("OK", role: .cancel) { moderationNotice = nil }
+        } message: {
+            Text(moderationNotice ?? "")
         }
         .fileImporter(
             isPresented: $importing,
@@ -546,11 +592,20 @@ struct GalleryView: View {
                 Text("Loading…")
                     .font(Kroma.font(.caption, .medium))
                     .foregroundStyle(.secondary)
-            } else if let list = communityEntries, list.isEmpty {
-                Text("No community puzzles yet.")
+            } else if communityLoadError != nil {
+                // The error row above already explains what happened.
+                // Without this branch the empty-state below also fired,
+                // so a failed fetch read "couldn't load community feed"
+                // immediately followed by "No community puzzles yet" —
+                // the second line being both false and discouraging.
+                EmptyView()
+            } else if let list = visibleCommunityEntries, list.isEmpty {
+                Text(communityEntries?.isEmpty == false
+                     ? "Nothing left to show — you've hidden or blocked the rest."
+                     : "No community puzzles yet.")
                     .font(Kroma.font(.caption, .medium))
                     .foregroundStyle(.secondary)
-            } else if let list = communityEntries {
+            } else if let list = visibleCommunityEntries {
                 // id-based diffing so a Top↔New sort flip doesn't
                 // re-key rows by position (which would attach each
                 // row's per-row @State — voting flag, etc. — to the
@@ -582,7 +637,20 @@ struct GalleryView: View {
                                 }
                             }
                         },
-                        onPlay: { playCommunityEntry(entry) }
+                        onPlay: { playCommunityEntry(entry) },
+                        onReport: { reportTarget = entry },
+                        onBlock: {
+                            guard let name = entry.submitterName,
+                                  !name.isEmpty else { return }
+                            ModerationStore.block(name: name)
+                            withAnimation { moderationTick &+= 1 }
+                            moderationNotice = "blocked \(name). their puzzles are hidden."
+                        },
+                        onHide: {
+                            ModerationStore.hide(id: entryId)
+                            withAnimation { moderationTick &+= 1 }
+                            moderationNotice = "puzzle hidden."
+                        }
                     )
                     .id(entryId)
                     .listRowBackground(
@@ -595,6 +663,16 @@ struct GalleryView: View {
         } header: {
             Text("Community puzzles")
         }
+    }
+
+    /// The community feed minus anything this player reported, hid, or
+    /// whose submitter they blocked. Filtered at render rather than at
+    /// fetch so a block applies to already-loaded rows immediately,
+    /// with no refetch and no network dependency.
+    private var visibleCommunityEntries: [CommunityPuzzleEntry]? {
+        _ = moderationTick  // re-read UserDefaults when it changes
+        guard let communityEntries else { return nil }
+        return ModerationStore.filterCommunity(communityEntries)
     }
 
     /// Re-fetch the community feed under the current sort. Surfaces
@@ -917,6 +995,11 @@ struct CommunityGalleryRow: View {
     let expanded: Bool
     let onToggleExpand: () -> Void
     let onPlay: () -> Void
+    /// Guideline 1.2 moderation actions, surfaced on every row that
+    /// shows another player's content.
+    let onReport: () -> Void
+    let onBlock: () -> Void
+    let onHide: () -> Void
     @State private var voting: Bool = false
 
     private static let likeGreen  = Color(red: 0.36, green: 0.78, blue: 0.45)
@@ -933,6 +1016,29 @@ struct CommunityGalleryRow: View {
         .padding(.vertical, 6)
         .contentShape(Rectangle())
         .onTapGesture { onToggleExpand() }
+        // Long-press is the iOS-conventional home for per-item
+        // moderation, and it keeps the row itself uncluttered. Also
+        // mirrored as accessibility actions below so it isn't a
+        // gesture-only affordance — VoiceOver and Voice Control users
+        // need to reach these too, which 1.2 compliance depends on.
+        .contextMenu {
+            Button(role: .destructive, action: onReport) {
+                Label("Report puzzle", systemImage: "flag")
+            }
+            if let name = entry.submitterName, !name.isEmpty {
+                Button(role: .destructive, action: onBlock) {
+                    Label("Block \(name)", systemImage: "hand.raised")
+                }
+            }
+            Button(action: onHide) {
+                Label("Hide this puzzle", systemImage: "eye.slash")
+            }
+        }
+        .accessibilityAction(named: "Report puzzle", onReport)
+        .accessibilityAction(named: "Hide this puzzle", onHide)
+        .accessibilityAction(named: "Block submitter") {
+            if let name = entry.submitterName, !name.isEmpty { onBlock() }
+        }
     }
 
     @ViewBuilder

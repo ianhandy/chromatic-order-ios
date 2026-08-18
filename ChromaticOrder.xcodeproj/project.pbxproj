@@ -42,6 +42,7 @@
 		538DFDC1269721FDA1D14811 /* TutorialOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8EB16E3924DEA8FE5C7A80CB /* TutorialOverlay.swift */; };
 		5804866B3346FC6D94A5EF3A /* Util.swift in Sources */ = {isa = PBXBuildFile; fileRef = 243168329AAF6072275CFCA1 /* Util.swift */; };
 		5CA88A2B6C261540E702C32B /* DailyFetcher.swift in Sources */ = {isa = PBXBuildFile; fileRef = 96D29A1C979F5F2395EEE2B8 /* DailyFetcher.swift */; };
+		5E25C4B1EDAF53222582B59A /* ModerationStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = DAD12F714AE05B5BD7B02545 /* ModerationStore.swift */; };
 		5E783291CA95F1513CB90F59 /* StreakReminderStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 877CF11427FBB29AF578B3F4 /* StreakReminderStore.swift */; };
 		6135A6EB93E07B0813FC3044 /* Gradient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20DF6F9712CA72FB130F944F /* Gradient.swift */; };
 		6977D10B01D6BFC981E9A261 /* SwatchView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1E7FAD2ECE845EE139DBE1A2 /* SwatchView.swift */; };
@@ -102,6 +103,7 @@
 		E720AA14578E15308E0B5ACC /* LikeFeedbackSubmitter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A1D95583EDBA5EE171A1CEE /* LikeFeedbackSubmitter.swift */; };
 		E8458471BE15521BFEA1FC85 /* Level.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC9ABFAAC13A3EC91209CAC7 /* Level.swift */; };
 		E96BB99C043D25FD4D9F018A /* TargetedGenerate.swift in Sources */ = {isa = PBXBuildFile; fileRef = DF03B86248478C54EF2C228F /* TargetedGenerate.swift */; };
+		E9E8CF9F43DC9426376632BE /* ModerationStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 98E6B3AF92CEFE68761DB383 /* ModerationStoreTests.swift */; };
 		EA4AB739A2668FC411760FCE /* DailyHistoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0A943DE0A0D3CC55B4F314E /* DailyHistoryView.swift */; };
 		EA4C78D29BE97317EF3078AC /* Transitioner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2805C33A1DAE888F6BEE6772 /* Transitioner.swift */; };
 		EDA5B0C53314EA0DB89630B3 /* PlayerSupportFeatureTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4DC2D4F729E96B6CBCA818EA /* PlayerSupportFeatureTests.swift */; };
@@ -195,6 +197,7 @@
 		91287C13AE1090C0E0AEBA84 /* GeneratorDeterminismTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GeneratorDeterminismTests.swift; sourceTree = "<group>"; };
 		914E56F8F2BE41F53D0A6973 /* campaign.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = campaign.json; sourceTree = "<group>"; };
 		96D29A1C979F5F2395EEE2B8 /* DailyFetcher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DailyFetcher.swift; sourceTree = "<group>"; };
+		98E6B3AF92CEFE68761DB383 /* ModerationStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModerationStoreTests.swift; sourceTree = "<group>"; };
 		9A1D95583EDBA5EE171A1CEE /* LikeFeedbackSubmitter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LikeFeedbackSubmitter.swift; sourceTree = "<group>"; };
 		A32D00E4EFE865FCEBC78A98 /* TestingFilter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TestingFilter.swift; sourceTree = "<group>"; };
 		A3496AFEC28F950FFD8F9B7C /* LevelGeneratorRules.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LevelGeneratorRules.swift; sourceTree = "<group>"; };
@@ -216,6 +219,7 @@
 		CCC34D0B81466FC230ECE9E0 /* SolvedPuzzleHistory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SolvedPuzzleHistory.swift; sourceTree = "<group>"; };
 		CD4FE96C27D84EA8D88D1A78 /* ChromaticOrderApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChromaticOrderApp.swift; sourceTree = "<group>"; };
 		D5B96826BF8CA3A4ADFA632A /* StatsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatsView.swift; sourceTree = "<group>"; };
+		DAD12F714AE05B5BD7B02545 /* ModerationStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModerationStore.swift; sourceTree = "<group>"; };
 		DC9ABFAAC13A3EC91209CAC7 /* Level.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Level.swift; sourceTree = "<group>"; };
 		DF03B86248478C54EF2C228F /* TargetedGenerate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TargetedGenerate.swift; sourceTree = "<group>"; };
 		E0A943DE0A0D3CC55B4F314E /* DailyHistoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DailyHistoryView.swift; sourceTree = "<group>"; };
@@ -353,6 +357,7 @@
 				A3496AFEC28F950FFD8F9B7C /* LevelGeneratorRules.swift */,
 				E23F6F320CE9FB81C4DA1411 /* LikedPuzzleStore.swift */,
 				9A1D95583EDBA5EE171A1CEE /* LikeFeedbackSubmitter.swift */,
+				DAD12F714AE05B5BD7B02545 /* ModerationStore.swift */,
 				8BC5360167E392833968ADEC /* MusicRules.swift */,
 				B8CEB7C4FA945BCDC6CEF225 /* OKLCh.swift */,
 				41500A18A21C00DF321D45C7 /* Proximity.swift */,
@@ -402,6 +407,7 @@
 				B7E954FB420404E8294EEF53 /* DailyFallbackTests.swift */,
 				62AA3C30A87367588BC07E29 /* LadderExportTests.swift */,
 				E689CABBFCE031788317CC9C /* MalformedPuzzleImportTests.swift */,
+				98E6B3AF92CEFE68761DB383 /* ModerationStoreTests.swift */,
 				4DC2D4F729E96B6CBCA818EA /* PlayerSupportFeatureTests.swift */,
 				0AAADC5198634557D3B8F733 /* TestingFilterTests.swift */,
 			);
@@ -559,6 +565,7 @@
 				4E52DFE83D0BBF657690E395 /* DailyFallbackTests.swift in Sources */,
 				840614A44BE0DB8C0F345A5F /* LadderExportTests.swift in Sources */,
 				27BF737AA63B9B11B325E952 /* MalformedPuzzleImportTests.swift in Sources */,
+				E9E8CF9F43DC9426376632BE /* ModerationStoreTests.swift in Sources */,
 				EDA5B0C53314EA0DB89630B3 /* PlayerSupportFeatureTests.swift in Sources */,
 				AE68A4D8D07978FCBE656443 /* TestingFilterTests.swift in Sources */,
 			);
@@ -621,6 +628,7 @@
 				3859891E8C4F317E6F66D47A /* LikedPuzzleStore.swift in Sources */,
 				03B9F9A501C7037D3F74A273 /* MenuSheet.swift in Sources */,
 				19AEDA09503BD9E3B35050E7 /* MenuView.swift in Sources */,
+				5E25C4B1EDAF53222582B59A /* ModerationStore.swift in Sources */,
 				F03BCB357B8B66BD6211F8F5 /* MusicRules.swift in Sources */,
 				FE677749CA76B94B0E85759D /* OKLCh.swift in Sources */,
 				36CB2A945DF035DC3ACF3F8B /* OnboardingOverlay.swift in Sources */,
