@@ -89,7 +89,7 @@ struct CreatorView: View {
 
     var body: some View {
         NavigationStack {
-            VStack(spacing: 12) {
+            VStack(spacing: Kroma.Space.m) {
                 nameField
                 headerBar
                 toolNameLabel
@@ -105,21 +105,21 @@ struct CreatorView: View {
             .navigationTitle(editing == nil ? "create" : "edit")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                // The one screen that doesn't dismiss with a plain
-                // "done": leaving here can discard unsaved work, so it
-                // keeps the leading cancel slot and the discard confirm
-                // that goes with it.
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("close") {
-                        // No edits since open → leave silently. Otherwise
-                        // confirm so the player doesn't lose work they
-                        // haven't pressed Play to commit.
+                ToolbarItem(placement: .confirmationAction) {
+                    // Same top-trailing "done" every other screen uses —
+                    // it still guards against losing unsaved work, just
+                    // via a confirm dialog instead of a different label
+                    // and slot. No edits since open → leave silently.
+                    // Otherwise confirm so the player doesn't lose work
+                    // they haven't pressed Play to commit.
+                    Button("done") {
                         if currentSignature() == baselineSignature {
                             dismiss()
                         } else {
                             showExitConfirm = true
                         }
                     }
+                    .font(Kroma.font(.body, .semibold))
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     // Overflow menu for secondary actions. Clear is
@@ -277,11 +277,11 @@ struct CreatorView: View {
             .frame(maxWidth: .infinity, minHeight: 52)
             .foregroundStyle(fg)
             .background(
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                RoundedRectangle(cornerRadius: Kroma.Radius.control, style: .continuous)
                     .fill(fill)
             )
             .overlay(
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                RoundedRectangle(cornerRadius: Kroma.Radius.control, style: .continuous)
                     .stroke(stroke, lineWidth: 1)
             )
             .contentShape(Rectangle())
@@ -327,11 +327,11 @@ struct CreatorView: View {
                 .frame(maxWidth: .infinity, minHeight: 52)
                 .foregroundStyle(Color.white.opacity(0.9))
                 .background(
-                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    RoundedRectangle(cornerRadius: Kroma.Radius.control, style: .continuous)
                         .fill(Color.white.opacity(0.08))
                 )
                 .overlay(
-                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    RoundedRectangle(cornerRadius: Kroma.Radius.control, style: .continuous)
                         .stroke(Color.white.opacity(0.2), lineWidth: 1)
                 )
             }
@@ -492,13 +492,13 @@ struct CreatorView: View {
             }
         }
         .padding(.horizontal, 14)
-        .padding(.vertical, 12)
+        .padding(.vertical, Kroma.Space.m)
         .background(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
+            RoundedRectangle(cornerRadius: Kroma.Radius.control, style: .continuous)
                 .fill(Color.white.opacity(0.06))
         )
         .overlay(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
+            RoundedRectangle(cornerRadius: Kroma.Radius.control, style: .continuous)
                 .stroke(Color.white.opacity(0.12), lineWidth: 1)
         )
         .padding(.horizontal, 14)
@@ -550,7 +550,7 @@ struct CreatorView: View {
     /// selected tool gets a white fill + black icon so it reads
     /// first at a glance.
     private var toolCluster: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: Kroma.Space.s) {
             toolIconButton(.paint, system: "paintbrush.fill")
             toolIconButton(.erase, system: "eraser.fill")
             toolIconButton(.eyedropper, system: "eyedropper")
@@ -574,11 +574,11 @@ struct CreatorView: View {
                 .frame(width: 44, height: 44)
                 .foregroundStyle(selected ? Color.black : Color.white.opacity(0.7))
                 .background(
-                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    RoundedRectangle(cornerRadius: Kroma.Radius.control, style: .continuous)
                         .fill(selected ? Color.white : Color.white.opacity(0.07))
                 )
                 .overlay(
-                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    RoundedRectangle(cornerRadius: Kroma.Radius.control, style: .continuous)
                         .stroke(selected ? Color.clear : Color.white.opacity(0.14), lineWidth: 1)
                 )
         }
@@ -607,7 +607,7 @@ struct CreatorView: View {
                 .lineLimit(1)
             Spacer(minLength: 0)
         }
-        .padding(.top, 4)
+        .padding(.top, Kroma.Space.xs)
         .padding(.horizontal, 14)
     }
 
@@ -763,11 +763,11 @@ private struct ColorChip: View {
     let onTap: () -> Void
     var body: some View {
         Button(action: onTap) {
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
+            RoundedRectangle(cornerRadius: Kroma.Radius.control, style: .continuous)
                 .fill(OK.toColor(color))
                 .frame(width: 50, height: 50)
                 .overlay(
-                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    RoundedRectangle(cornerRadius: Kroma.Radius.control, style: .continuous)
                         .stroke(Color.white.opacity(0.2), lineWidth: 1)
                 )
         }
@@ -810,9 +810,9 @@ private struct ShiftChip: View {
                         .frame(width: 10, height: 50)
                 }
             }
-            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .clipShape(RoundedRectangle(cornerRadius: Kroma.Radius.control, style: .continuous))
             .overlay(
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                RoundedRectangle(cornerRadius: Kroma.Radius.control, style: .continuous)
                     .stroke(Color.white.opacity(0.2), lineWidth: 1)
             )
         }
@@ -878,7 +878,7 @@ private struct CanvasView: View {
                     // black. White stroke for visibility against the
                     // dark theme (the previous black-on-black stroke
                     // was effectively invisible).
-                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    RoundedRectangle(cornerRadius: Kroma.Radius.control, style: .continuous)
                         .stroke(Color.white.opacity(0.28),
                                 style: StrokeStyle(lineWidth: 1.5, dash: [5, 4]))
                         .padding(-4)
@@ -1114,7 +1114,7 @@ struct CreatorHelpSheet: View {
                         """
                     )
                 }
-                .padding(20)
+                .padding(Kroma.Space.screenMargin)
             }
             .kromaSheet("how to create") { dismiss() }
         }
@@ -1123,7 +1123,7 @@ struct CreatorHelpSheet: View {
     @ViewBuilder
     private func section(icon: String, title: String, body: String) -> some View {
         VStack(alignment: .leading, spacing: 6) {
-            HStack(spacing: 8) {
+            HStack(spacing: Kroma.Space.s) {
                 Image(systemName: icon)
                     .font(Kroma.font(.subheadline, .semibold))
                 Text(title)

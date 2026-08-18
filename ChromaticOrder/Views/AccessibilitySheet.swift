@@ -331,7 +331,7 @@ private struct AppIconPickerRow: View {
                 AppIconPicker.apply(variant)
                 current = variant
             } label: {
-                HStack(spacing: 12) {
+                HStack(spacing: Kroma.Space.m) {
                     PaletteGridThumb(colors: variant.paletteGrid)
                         .frame(width: 38, height: 38)
                     Text(variant.displayName)

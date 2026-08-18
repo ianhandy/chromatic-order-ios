@@ -65,11 +65,11 @@ struct ColorPickerSheet: View {
                         RoundedRectangle(cornerRadius: Kroma.Radius.panel, style: .continuous)
                             .stroke(Color.black.opacity(0.08), lineWidth: 1)
                     )
-                    .padding(.horizontal, 20)
+                    .padding(.horizontal, Kroma.Space.screenMargin)
 
                 if allowNil {
                     Toggle(isOn: $isNilled) {
-                        VStack(alignment: .leading, spacing: 2) {
+                        VStack(alignment: .leading, spacing: Kroma.Space.hairline) {
                             Text("Shift mode (no end color)")
                                 .font(Kroma.font(.subheadline, .semibold))
                             Text("Gradient advances by a per-step delta instead of lerping to an endpoint.")
@@ -78,7 +78,7 @@ struct ColorPickerSheet: View {
                         }
                     }
                     .tint(Color.accentColor)
-                    .padding(.horizontal, 20)
+                    .padding(.horizontal, Kroma.Space.screenMargin)
                 }
 
                 if !isNilled {
@@ -105,17 +105,17 @@ struct ColorPickerSheet: View {
                                   range: 0...360,
                                   format: { String(format: "%.0f°", $0) })
                     }
-                    .padding(.horizontal, 20)
+                    .padding(.horizontal, Kroma.Space.screenMargin)
                 } else {
                     // Shift-mode sliders — signed so you can set 'one
                     // direction' or 'the other' directly with the
                     // slider thumb. +hue cycles through the color
                     // wheel one way, −hue the other; +L brightens,
                     // −L darkens; +c saturates, −c desaturates.
-                    VStack(alignment: .leading, spacing: 12) {
+                    VStack(alignment: .leading, spacing: Kroma.Space.m) {
                         Text("Per-step shift")
                             .font(Kroma.font(.footnote, .bold))
-                            .padding(.horizontal, 20)
+                            .padding(.horizontal, Kroma.Space.screenMargin)
                         VStack(spacing: 14) {
                             LCHSlider(label: "ΔLightness",
                                       value: $deltaL,
@@ -130,12 +130,12 @@ struct ColorPickerSheet: View {
                                       range: -90...90,
                                       format: { String(format: "%+.0f°", $0) })
                         }
-                        .padding(.horizontal, 20)
+                        .padding(.horizontal, Kroma.Space.screenMargin)
                     }
                 }
                 Spacer()
             }
-            .padding(.top, 16)
+            .padding(.top, Kroma.Space.l)
             .kromaSheet(title) { dismiss() }
         }
         .presentationDetents([.medium, .large])
@@ -184,7 +184,7 @@ private struct LCHSlider: View {
     let format: (Double) -> String
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: Kroma.Space.xs) {
             HStack {
                 Text(label)
                     .font(Kroma.font(.caption, .semibold))

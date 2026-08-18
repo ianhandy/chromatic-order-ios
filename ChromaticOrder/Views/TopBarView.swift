@@ -226,7 +226,7 @@ struct TopBarView: View {
     @ViewBuilder
     private var heartsRow: some View {
         let heartRed = Color(red: 1.0, green: 0.4, blue: 0.4)
-        HStack(spacing: 4) {
+        HStack(spacing: Kroma.Space.xs) {
             ForEach(heartRowItems) { item in
                 switch item {
                 case .zero:

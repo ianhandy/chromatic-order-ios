@@ -119,7 +119,7 @@ struct ContentView: View {
                             .font(Kroma.font(.subheadline, .medium))
                             .foregroundStyle(.white.opacity(0.6))
                             .multilineTextAlignment(.center)
-                            .padding(.horizontal, 32)
+                            .padding(.horizontal, Kroma.Space.xxl)
                         Button {
                             game.startLevel(game.level)
                         } label: {
@@ -131,7 +131,7 @@ struct ContentView: View {
                                 .frame(minHeight: Kroma.Metrics.minTarget)
                                 .kromaSurface(.control, in: Capsule())
                         }
-                        .padding(.top, 4)
+                        .padding(.top, Kroma.Space.xs)
                     }
                     .transition(.opacity)
                 } else if game.puzzle == nil {
@@ -194,7 +194,7 @@ struct ContentView: View {
                 VStack(spacing: 14) {
                     Spacer()
                     if perfectBannerVisible || perfectHeartStage == .onBanner {
-                        HStack(spacing: 16) {
+                        HStack(spacing: Kroma.Space.l) {
                             if perfectBannerVisible {
                                 Text("perfect")
                                     .font(.system(size: perfectBannerSize, weight: .heavy, design: .rounded))
@@ -792,7 +792,7 @@ struct ContentView: View {
                 }
             }
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, Kroma.Space.xs)
     }
 
     /// Map a tutorial flag → tooltip body text.
@@ -1010,7 +1010,7 @@ private struct RunCompleteOverlay: View {
                 Text("run complete!")
                     .font(Kroma.font(.largeTitle, .heavy))
                     .foregroundStyle(.white)
-                VStack(spacing: 4) {
+                VStack(spacing: Kroma.Space.xs) {
                     Text("levels complete")
                         .font(Kroma.font(.caption, .semibold))
                         .foregroundStyle(.white.opacity(0.6))
@@ -1036,7 +1036,7 @@ private struct RunCompleteOverlay: View {
                 .buttonStyle(.kromaControl)
                 .padding(.top, 6)
             }
-            .padding(32)
+            .padding(Kroma.Space.xxl)
         }
     }
 }

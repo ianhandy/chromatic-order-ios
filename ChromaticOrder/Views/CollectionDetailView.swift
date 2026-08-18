@@ -126,7 +126,7 @@ struct CollectionDetailView: View {
     }
 
     private var empty: some View {
-        VStack(spacing: 12) {
+        VStack(spacing: Kroma.Space.m) {
             Image(systemName: "folder")
                 .font(.system(size: emptyStateIconSize))
                 .foregroundStyle(.secondary)
@@ -147,7 +147,7 @@ struct CollectionDetailView: View {
                     .foregroundStyle(.white)
             }
             .buttonStyle(.plain)
-            .padding(.top, 8)
+            .padding(.top, Kroma.Space.s)
         }
         .padding(40)
         .frame(maxWidth: .infinity, maxHeight: .infinity)

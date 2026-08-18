@@ -20,7 +20,7 @@ struct TutorialTooltip: View {
             .lineSpacing(4)
             .fixedSize(horizontal: false, vertical: true)
             .padding(.horizontal, 22)
-            .padding(.vertical, 16)
+            .padding(.vertical, Kroma.Space.l)
             .transition(.opacity.combined(with: .scale(scale: 0.96)))
             .allowsHitTesting(false)
     }
@@ -421,7 +421,7 @@ struct DailyShowAnswersPrompt: View {
                     .foregroundStyle(.white.opacity(0.78))
                     .multilineTextAlignment(.center)
                     .lineSpacing(4)
-                    .padding(.horizontal, 24)
+                    .padding(.horizontal, Kroma.Space.xl)
                 Spacer()
                 HStack(spacing: 14) {
                     Button {
@@ -453,9 +453,9 @@ struct DailyShowAnswersPrompt: View {
                     }
                     .buttonStyle(.plain)
                 }
-                .padding(.bottom, 32)
+                .padding(.bottom, Kroma.Space.xxl)
             }
-            .padding(.horizontal, 24)
+            .padding(.horizontal, Kroma.Space.xl)
         }
         .transition(.opacity)
     }

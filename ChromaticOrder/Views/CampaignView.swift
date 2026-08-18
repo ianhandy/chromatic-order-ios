@@ -13,7 +13,7 @@ struct CampaignView: View {
     @State private var fullVersionOpen = false
 
     private let columns = Array(
-        repeating: GridItem(.flexible(minimum: 44, maximum: 64), spacing: 8),
+        repeating: GridItem(.flexible(minimum: 44, maximum: 64), spacing: Kroma.Space.s),
         count: 5
     )
 

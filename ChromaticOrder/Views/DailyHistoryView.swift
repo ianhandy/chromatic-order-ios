@@ -186,14 +186,14 @@ struct DailyHistoryView: View {
                     .font(.system(size: 8, weight: .bold))
                     .frame(maxWidth: .infinity, maxHeight: .infinity,
                            alignment: .topTrailing)
-                    .padding(4)
+                    .padding(Kroma.Space.xs)
             } else if missed {
                 Image(systemName: "xmark")
                     .font(.system(size: 8, weight: .semibold))
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, maxHeight: .infinity,
                            alignment: .topTrailing)
-                    .padding(4)
+                    .padding(Kroma.Space.xs)
             }
         }
         .aspectRatio(1, contentMode: .fit)

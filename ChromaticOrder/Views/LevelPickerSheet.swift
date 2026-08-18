@@ -33,11 +33,12 @@ struct LevelPickerSheet: View {
         let tierInfo = levelTier(lv)
         let tierColor = hexColor(tierInfo.colorHex)
         let isCurrent = lv == game.level
+        let shape = RoundedRectangle(cornerRadius: Kroma.Radius.control, style: .continuous)
         Button {
             game.jumpToLevel(lv)
             dismiss()
         } label: {
-            VStack(spacing: Kroma.Space.xs) {
+            let label = VStack(spacing: Kroma.Space.xs) {
                 Text("\(lv)")
                     .font(Kroma.font(.headline, .heavy))
                     .foregroundStyle(Color.white.opacity(isCurrent ? 1.0 : 0.85))
@@ -51,20 +52,20 @@ struct LevelPickerSheet: View {
             .padding(.vertical, Kroma.Space.s)
             .frame(minHeight: 56)
             .frame(maxWidth: .infinity)
-            .background(
-                RoundedRectangle(cornerRadius: Kroma.Radius.control, style: .continuous)
-                    .fill(isCurrent
-                          ? tierColor.opacity(0.30)
-                          : Color.white.opacity(0.06))
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: Kroma.Radius.control, style: .continuous)
-                    .stroke(isCurrent
-                            ? tierColor.opacity(0.75)
-                            : Color.white.opacity(0.14),
-                            lineWidth: isCurrent ? 1.5 : 1)
-            )
             .contentShape(Rectangle())
+
+            // The "you are here" tint has no equivalent in KromaSurface
+            // (it's puzzle-tier data, not generic chrome), so only the
+            // resting state routes through the shared token; the
+            // current-level state keeps its bespoke tier-color fill.
+            if isCurrent {
+                label
+                    .background(shape.fill(tierColor.opacity(0.30)))
+                    .overlay(shape.stroke(tierColor.opacity(0.75), lineWidth: 1.5))
+            } else {
+                label
+                    .kromaSurface(.control, in: shape)
+            }
         }
         .buttonStyle(.kromaControl)
         .accessibilityLabel("level \(lv), \(tierInfo.label)")

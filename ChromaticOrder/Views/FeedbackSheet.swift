@@ -54,7 +54,7 @@ struct FeedbackSheet: View {
                         gameForm
                     }
                 }
-                .padding(16)
+                .padding(Kroma.Space.l)
             }
             .kromaSheet("feedback") { dismiss() }
             .toolbar {
@@ -85,7 +85,7 @@ struct FeedbackSheet: View {
                 .font(Kroma.font(.callout))
                 .foregroundStyle(.secondary)
 
-            VStack(spacing: 12) {
+            VStack(spacing: Kroma.Space.m) {
                 kindButton(
                     title: "Level Feedback",
                     subtitle: "Rate this puzzle's difficulty and quality",
@@ -97,7 +97,7 @@ struct FeedbackSheet: View {
                     systemImage: "text.bubble.fill",
                     action: { kind = .game })
             }
-            .padding(.top, 8)
+            .padding(.top, Kroma.Space.s)
         }
     }
 
@@ -113,7 +113,7 @@ struct FeedbackSheet: View {
                 Image(systemName: systemImage)
                     .font(Kroma.font(.title2, .semibold))
                     .frame(width: 32)
-                VStack(alignment: .leading, spacing: 4) {
+                VStack(alignment: .leading, spacing: Kroma.Space.xs) {
                     Text(title)
                         .font(Kroma.font(.headline, .semibold))
                     Text(subtitle)
@@ -126,7 +126,7 @@ struct FeedbackSheet: View {
                     .font(Kroma.font(.footnote, .semibold))
                     .foregroundStyle(.secondary)
             }
-            .padding(16)
+            .padding(Kroma.Space.l)
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(
                 Color(uiColor: .secondarySystemBackground),
@@ -151,7 +151,7 @@ struct FeedbackSheet: View {
                 value: $qualityRating,
                 tint: Color(red: 0.16, green: 0.62, blue: 0.31))
 
-            VStack(alignment: .leading, spacing: 8) {
+            VStack(alignment: .leading, spacing: Kroma.Space.s) {
                 Text("Notes")
                     .font(Kroma.font(.callout, .bold))
                 Text("Anything the sliders don't capture")
@@ -159,14 +159,14 @@ struct FeedbackSheet: View {
                     .foregroundStyle(.secondary)
                 TextEditor(text: $note)
                     .font(Kroma.font(.body))
-                    .padding(8)
+                    .padding(Kroma.Space.s)
                     .frame(minHeight: 140)
                     .background(
                         Color(uiColor: .secondarySystemBackground),
                         in: RoundedRectangle(cornerRadius: 10))
             }
 
-            VStack(alignment: .leading, spacing: 8) {
+            VStack(alignment: .leading, spacing: Kroma.Space.s) {
                 Text("Auto-attached")
                     .font(Kroma.font(.callout, .bold))
                 Text("Sent with your report so the dev can correlate your ratings with the puzzle's generator metrics. No personal data.")
@@ -191,12 +191,12 @@ struct FeedbackSheet: View {
     @ViewBuilder
     private var gameForm: some View {
         VStack(alignment: .leading, spacing: 18) {
-            VStack(alignment: .leading, spacing: 8) {
+            VStack(alignment: .leading, spacing: Kroma.Space.s) {
                 Text("Feedback")
                     .font(Kroma.font(.callout, .bold))
                 TextEditor(text: $note)
                     .font(Kroma.font(.body))
-                    .padding(8)
+                    .padding(Kroma.Space.s)
                     .frame(minHeight: 220)
                     .background(
                         Color(uiColor: .secondarySystemBackground),
@@ -220,7 +220,7 @@ struct FeedbackSheet: View {
                     case .idle, .failed:
                         Label("Send Feedback", systemImage: "paperplane.fill")
                     case .sending:
-                        HStack(spacing: 8) {
+                        HStack(spacing: Kroma.Space.s) {
                             ProgressView()
                             Text("Sending…")
                         }

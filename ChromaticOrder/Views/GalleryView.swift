@@ -316,7 +316,7 @@ struct GalleryView: View {
     }
 
     private var emptyState: some View {
-        VStack(spacing: 12) {
+        VStack(spacing: Kroma.Space.m) {
             Image(systemName: "square.grid.3x3")
                 .font(.system(size: emptyStateIconSize))
                 .foregroundStyle(.secondary)
@@ -337,7 +337,7 @@ struct GalleryView: View {
                     .foregroundStyle(.white)
             }
             .buttonStyle(.plain)
-            .padding(.top, 8)
+            .padding(.top, Kroma.Space.s)
         }
         .padding(40)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -530,7 +530,7 @@ struct GalleryView: View {
                     .accessibilityLabel("Refresh community feed")
                 }
             }
-            .padding(.vertical, 2)
+            .padding(.vertical, Kroma.Space.hairline)
             .listRowSeparator(.hidden)
             .onChange(of: communitySort) { _, _ in
                 Task { await refreshCommunityFeed() }
@@ -701,12 +701,12 @@ struct GalleryView: View {
 
     @ViewBuilder
     private func collectionRow(_ col: GalleryCollection) -> some View {
-        HStack(spacing: 12) {
+        HStack(spacing: Kroma.Space.m) {
             Image(systemName: "folder.fill")
                 .font(Kroma.font(.title2, .regular))
                 .foregroundStyle(Color.accentColor)
                 .frame(width: 34)
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: Kroma.Space.hairline) {
                 Text(col.name)
                     .font(Kroma.font(.subheadline, .semibold))
                     .multilineTextAlignment(.leading)
@@ -716,7 +716,7 @@ struct GalleryView: View {
                     .foregroundStyle(.secondary)
             }
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, Kroma.Space.xs)
     }
 
     /// Load a community-feed puzzle into the game. Shares the same
@@ -814,14 +814,14 @@ struct GalleryRow: View {
     let puzzle: GalleryPuzzle
 
     var body: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: Kroma.Space.m) {
             // Palette swatch — first 6 colors of the first gradient,
             // laid out as a horizontal strip. Gives a visual at-a-
             // glance so the list isn't 40 identical text rows.
             // Perfect-solve badge floats in the top-left corner when
             // the player has cleared this puzzle without burning a
             // heart or peeking the solution.
-            HStack(spacing: 2) {
+            HStack(spacing: Kroma.Space.hairline) {
                 let cells = puzzle.doc.gradients.first?.cells.prefix(5) ?? []
                 ForEach(Array(cells.enumerated()), id: \.offset) { (_, cell) in
                     RoundedRectangle(cornerRadius: 4, style: .continuous)
@@ -834,7 +834,7 @@ struct GalleryRow: View {
                     Image(systemName: "heart.fill")
                         .font(Kroma.font(.caption2, .heavy))
                         .foregroundStyle(Color(red: 1.0, green: 0.4, blue: 0.4))
-                        .padding(2)
+                        .padding(Kroma.Space.hairline)
                         .background(
                             Circle().fill(Color.black.opacity(0.55))
                         )
@@ -843,7 +843,7 @@ struct GalleryRow: View {
                 }
             }
 
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: Kroma.Space.hairline) {
                 Text(puzzle.displayName)
                     .font(Kroma.font(.footnote, .semibold))
                     .multilineTextAlignment(.leading)
@@ -857,7 +857,7 @@ struct GalleryRow: View {
                 .font(Kroma.font(.caption, .regular))
                 .foregroundStyle(.tertiary)
         }
-        .padding(.vertical, 8)
+        .padding(.vertical, Kroma.Space.s)
     }
 
     private func relativeDate(_ d: Date) -> String {
@@ -937,8 +937,8 @@ struct CommunityGalleryRow: View {
 
     @ViewBuilder
     private var compactHeader: some View {
-        HStack(spacing: 12) {
-            HStack(spacing: 2) {
+        HStack(spacing: Kroma.Space.m) {
+            HStack(spacing: Kroma.Space.hairline) {
                 let cells = entry.doc.gradients.first?.cells.prefix(5) ?? []
                 ForEach(Array(cells.enumerated()), id: \.offset) { (_, cell) in
                     RoundedRectangle(cornerRadius: 4, style: .continuous)
@@ -946,7 +946,7 @@ struct CommunityGalleryRow: View {
                         .frame(width: 14, height: 30)
                 }
             }
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: Kroma.Space.hairline) {
                 Text(displayName)
                     .font(Kroma.font(.footnote, .semibold))
                     .multilineTextAlignment(.leading)
@@ -956,7 +956,7 @@ struct CommunityGalleryRow: View {
                     .foregroundStyle(.secondary)
             }
             Spacer(minLength: 0)
-            HStack(spacing: 8) {
+            HStack(spacing: Kroma.Space.s) {
                 Label("\(entry.upCount)", systemImage: "arrowtriangle.up.fill")
                     .labelStyle(.titleAndIcon)
                     .foregroundStyle(entry.myVote == 1
@@ -975,7 +975,7 @@ struct CommunityGalleryRow: View {
 
     @ViewBuilder
     private var expandedDetail: some View {
-        HStack(alignment: .center, spacing: 12) {
+        HStack(alignment: .center, spacing: Kroma.Space.m) {
             voteArrow(direction: +1, color: Self.likeGreen,
                       system: "arrowtriangle.up.fill",
                       count: entry.upCount)
@@ -994,13 +994,13 @@ struct CommunityGalleryRow: View {
                 }
                 .foregroundStyle(.white)
                 .padding(.horizontal, 14)
-                .padding(.vertical, 8)
+                .padding(.vertical, Kroma.Space.s)
                 .background(Color.accentColor, in: Capsule())
             }
             .buttonStyle(.plain)
         }
         .padding(.top, 10)
-        .padding(.horizontal, 4)
+        .padding(.horizontal, Kroma.Space.xs)
         .contentShape(Rectangle())
         .onTapGesture { /* swallow — buttons handle their own taps */ }
     }
