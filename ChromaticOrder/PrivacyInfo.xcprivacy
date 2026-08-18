@@ -17,8 +17,10 @@
          questionnaire.
          – Gameplay content: puzzle JSON the player explicitly opts
            into sharing via the like button.
-         – Performance data: per-install UUID + aggregate solve
-           time / moves / perfect-flag; no identifiers. -->
+         – Product interaction: solve time, moves, likes, streaks,
+           and other explicitly submitted play-session details.
+         – Device ID: an opaque per-install UUID used for vote and
+           anonymous streak-record deduplication. -->
     <key>NSPrivacyCollectedDataTypes</key>
     <array>
         <dict>
@@ -37,13 +39,10 @@
             </array>
         </dict>
         <dict>
-            <!-- "Diagnostics → Performance Data" — solve stats
-                 (time, moves, perfect flag) sent to the community
-                 pool when the player has liked a puzzle, plus the
-                 opaque per-install UUID used only for server-side
-                 like-dedupe. -->
+            <!-- "Usage Data → Product Interaction" — solve stats,
+                 likes, and the optional longest daily streak. -->
             <key>NSPrivacyCollectedDataType</key>
-            <string>NSPrivacyCollectedDataTypePerformanceData</string>
+            <string>NSPrivacyCollectedDataTypeProductInteraction</string>
             <key>NSPrivacyCollectedDataTypeLinked</key>
             <false/>
             <key>NSPrivacyCollectedDataTypeTracking</key>
@@ -52,6 +51,22 @@
             <array>
                 <string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
                 <string>NSPrivacyCollectedDataTypePurposeAnalytics</string>
+            </array>
+        </dict>
+        <dict>
+            <!-- "Identifiers → Device ID" — an app-generated,
+                 opaque per-install UUID. The backend hashes it and
+                 uses it only to deduplicate votes and the optional
+                 anonymous streak record. -->
+            <key>NSPrivacyCollectedDataType</key>
+            <string>NSPrivacyCollectedDataTypeDeviceID</string>
+            <key>NSPrivacyCollectedDataTypeLinked</key>
+            <false/>
+            <key>NSPrivacyCollectedDataTypeTracking</key>
+            <false/>
+            <key>NSPrivacyCollectedDataTypePurposes</key>
+            <array>
+                <string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
             </array>
         </dict>
     </array>

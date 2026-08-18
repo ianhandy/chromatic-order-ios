@@ -1,7 +1,8 @@
 //  Game Center integration — authenticates the local player once on
 //  launch and submits per-metric daily leaderboards (solve time +
-//  move count). The old cumulative points/"score" leaderboards were
-//  removed when the points system went away.
+//  move count) plus the player's all-time longest daily streak. The
+//  old cumulative points/"score" leaderboards were removed when the
+//  points system went away.
 //
 //  If Game Center isn't configured (or the user isn't signed in),
 //  every submission is a silent no-op — the game still works.
@@ -23,6 +24,11 @@ final class GameCenter {
     /// integer format. Counts only swatches landing on the board
     /// (excludes bank shuffles and bank-slot swaps).
     static let dailyMovesLeaderboardID = "com.ianhandy.kroma.daily_moves"
+    /// All-time longest daily completion streak. High-to-low,
+    /// non-recurring, integer format (days). Re-submitting the same
+    /// or a lower value is harmless because Game Center retains the
+    /// player's best score.
+    static let dailyStreakLeaderboardID = "com.ianhandy.kroma.daily_streak"
 
     // ─── Achievement identifiers ────────────────────────────────────
     //
@@ -101,6 +107,20 @@ final class GameCenter {
                 leaderboardIDs: [Self.dailyMovesLeaderboardID]
             ) { _ in }
         }
+    }
+
+    /// Submit the player's all-time daily streak record. This stays
+    /// independent from the anonymous in-app streak board: Game
+    /// Center uses the signed-in player's Game Center identity while
+    /// the in-app board remains explicitly opt-in and anonymous.
+    func submitDailyStreak(_ days: Int) {
+        guard isAuthenticated, days > 0 else { return }
+        GKLeaderboard.submitScore(
+            days,
+            context: 0,
+            player: GKLocalPlayer.local,
+            leaderboardIDs: [Self.dailyStreakLeaderboardID]
+        ) { _ in }
     }
 
     /// Report a one-shot (100%-complete) achievement. Silent no-op

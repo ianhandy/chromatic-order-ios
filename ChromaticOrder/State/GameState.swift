@@ -1689,6 +1689,7 @@ final class GameState {
                 usedHint: usedHintThisLevel
             )
             StreakReminderStore.markCompleted(dailyCompletedKey ?? Daily.dateKey())
+            GameCenter.shared.submitDailyStreak(dailyStreak.longest)
             Task { await StreakLeaderboardStore.submitIfEnabled(dailyStreak) }
             saveProgress()
             clearInProgressSession()
