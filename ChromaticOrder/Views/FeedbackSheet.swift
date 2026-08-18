@@ -16,6 +16,9 @@ struct FeedbackSheet: View {
     @State private var difficultyRating: Double = 5
     @State private var qualityRating: Double = 5
     @State private var note: String = ""
+    /// Base size for each slider's numeric readout. `@ScaledMetric` so
+    /// it grows with Dynamic Type instead of sitting fixed at 26pt.
+    @ScaledMetric(relativeTo: .title) private var ratingValueSize: CGFloat = 26
 
     // Player picks one upfront. Level = ratings + notes about the
     // current puzzle. Game = freeform feedback about the app overall;
@@ -77,9 +80,9 @@ struct FeedbackSheet: View {
     private var kindPicker: some View {
         VStack(alignment: .leading, spacing: 20) {
             Text("What kind of feedback?")
-                .font(.system(size: 22, weight: .bold))
+                .font(Kroma.font(.title2, .bold))
             Text("Level feedback is about the puzzle you're on. Game feedback is about anything else.")
-                .font(.system(size: 16))
+                .font(Kroma.font(.callout))
                 .foregroundStyle(.secondary)
 
             VStack(spacing: 12) {
@@ -108,26 +111,26 @@ struct FeedbackSheet: View {
         Button(action: action) {
             HStack(spacing: 14) {
                 Image(systemName: systemImage)
-                    .font(.system(size: 22, weight: .semibold))
+                    .font(Kroma.font(.title2, .semibold))
                     .frame(width: 32)
                 VStack(alignment: .leading, spacing: 4) {
                     Text(title)
-                        .font(.system(size: 18, weight: .semibold))
+                        .font(Kroma.font(.headline, .semibold))
                     Text(subtitle)
-                        .font(.system(size: 14))
+                        .font(Kroma.font(.subheadline))
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.leading)
                 }
                 Spacer()
                 Image(systemName: "chevron.right")
-                    .font(.system(size: 14, weight: .semibold))
+                    .font(Kroma.font(.footnote, .semibold))
                     .foregroundStyle(.secondary)
             }
             .padding(16)
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(
                 Color(uiColor: .secondarySystemBackground),
-                in: RoundedRectangle(cornerRadius: 12))
+                in: RoundedRectangle(cornerRadius: Kroma.Radius.control))
         }
         .buttonStyle(.plain)
     }
@@ -150,12 +153,12 @@ struct FeedbackSheet: View {
 
             VStack(alignment: .leading, spacing: 8) {
                 Text("Notes")
-                    .font(.system(size: 16, weight: .bold))
+                    .font(Kroma.font(.callout, .bold))
                 Text("Anything the sliders don't capture")
-                    .font(.system(size: 14))
+                    .font(Kroma.font(.subheadline))
                     .foregroundStyle(.secondary)
                 TextEditor(text: $note)
-                    .font(.system(size: 17))
+                    .font(Kroma.font(.body))
                     .padding(8)
                     .frame(minHeight: 140)
                     .background(
@@ -165,12 +168,12 @@ struct FeedbackSheet: View {
 
             VStack(alignment: .leading, spacing: 8) {
                 Text("Auto-attached")
-                    .font(.system(size: 16, weight: .bold))
+                    .font(Kroma.font(.callout, .bold))
                 Text("Sent with your report so the dev can correlate your ratings with the puzzle's generator metrics. No personal data.")
-                    .font(.system(size: 14))
+                    .font(Kroma.font(.subheadline))
                     .foregroundStyle(.secondary)
                 Text(diagnosticPreview)
-                    .font(.system(size: 12, design: .monospaced))
+                    .font(Kroma.monoFont(.caption))
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(10)
@@ -190,9 +193,9 @@ struct FeedbackSheet: View {
         VStack(alignment: .leading, spacing: 18) {
             VStack(alignment: .leading, spacing: 8) {
                 Text("Feedback")
-                    .font(.system(size: 16, weight: .bold))
+                    .font(Kroma.font(.callout, .bold))
                 TextEditor(text: $note)
-                    .font(.system(size: 17))
+                    .font(Kroma.font(.body))
                     .padding(8)
                     .frame(minHeight: 220)
                     .background(
@@ -225,7 +228,7 @@ struct FeedbackSheet: View {
                         Label("Sent", systemImage: "checkmark")
                     }
                 }
-                .font(.system(size: 17, weight: .semibold))
+                .font(Kroma.font(.body, .semibold))
                 .frame(maxWidth: .infinity)
                 .frame(height: 52)
             }
@@ -234,7 +237,7 @@ struct FeedbackSheet: View {
 
             if case .failed(let msg) = sendState {
                 Text(msg)
-                    .font(.system(size: 13))
+                    .font(Kroma.font(.footnote))
                     .foregroundStyle(Color(red: 0.85, green: 0.2, blue: 0.2))
                     .multilineTextAlignment(.center)
                     .frame(maxWidth: .infinity)
@@ -393,12 +396,12 @@ struct FeedbackSheet: View {
         VStack(alignment: .leading, spacing: 6) {
             HStack {
                 VStack(alignment: .leading, spacing: 3) {
-                    Text(title).font(.system(size: 16, weight: .bold))
-                    Text(help).font(.system(size: 14)).foregroundStyle(.secondary)
+                    Text(title).font(Kroma.font(.callout, .bold))
+                    Text(help).font(Kroma.font(.subheadline)).foregroundStyle(.secondary)
                 }
                 Spacer()
                 Text("\(Int(value.wrappedValue))")
-                    .font(.system(size: 26, weight: .heavy, design: .rounded))
+                    .font(.system(size: ratingValueSize, weight: .heavy, design: .rounded))
                     .foregroundStyle(tint)
                     .frame(minWidth: 48)
                     .monospacedDigit()

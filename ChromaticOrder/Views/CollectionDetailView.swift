@@ -22,6 +22,9 @@ struct CollectionDetailView: View {
     @State private var movingPuzzle: GalleryPuzzle? = nil
     @State private var importing = false
     @State private var importError: String? = nil
+    /// Base size for the empty-state glyph. `@ScaledMetric` so it grows
+    /// with Dynamic Type instead of sitting fixed at 44pt.
+    @ScaledMetric(relativeTo: .largeTitle) private var emptyStateIconSize: CGFloat = 44
     /// Submit-to-Community feedback — same pattern as GalleryView.
     @State private var submitAlertMessage: String? = nil
     @State private var submittingPuzzleId: String? = nil
@@ -125,19 +128,19 @@ struct CollectionDetailView: View {
     private var empty: some View {
         VStack(spacing: 12) {
             Image(systemName: "folder")
-                .font(.system(size: 44))
+                .font(.system(size: emptyStateIconSize))
                 .foregroundStyle(.secondary)
             Text("No puzzles in this collection yet")
-                .font(.system(size: 15, weight: .semibold))
+                .font(Kroma.font(.subheadline, .semibold))
             Text("Create one, or move existing puzzles here.")
-                .font(.system(size: 13))
+                .font(Kroma.font(.footnote))
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
             Button {
                 openCreator()
             } label: {
                 Label("Create New", systemImage: "plus")
-                    .font(.system(size: 14, weight: .bold, design: .rounded))
+                    .font(Kroma.font(.subheadline, .bold))
                     .padding(.horizontal, 18)
                     .padding(.vertical, 10)
                     .background(Color.accentColor, in: Capsule())
@@ -394,7 +397,7 @@ struct MoveToCollectionSheet: View {
                         EmptyView()
                     } else if collections.isEmpty {
                         Text("No collections yet")
-                            .font(.system(size: 13))
+                            .font(Kroma.font(.footnote))
                             .foregroundStyle(.secondary)
                     } else {
                         ForEach(collections) { col in
@@ -412,7 +415,7 @@ struct MoveToCollectionSheet: View {
                                         }
                                         Spacer()
                                         Text("\(col.puzzleCount)")
-                                            .font(.system(size: 12))
+                                            .font(Kroma.font(.caption))
                                             .foregroundStyle(.secondary)
                                     }
                                 }

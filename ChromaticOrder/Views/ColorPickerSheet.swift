@@ -62,7 +62,7 @@ struct ColorPickerSheet: View {
                 previewStrip
                     .frame(height: 140)
                     .overlay(
-                        RoundedRectangle(cornerRadius: 20, style: .continuous)
+                        RoundedRectangle(cornerRadius: Kroma.Radius.panel, style: .continuous)
                             .stroke(Color.black.opacity(0.08), lineWidth: 1)
                     )
                     .padding(.horizontal, 20)
@@ -71,9 +71,9 @@ struct ColorPickerSheet: View {
                     Toggle(isOn: $isNilled) {
                         VStack(alignment: .leading, spacing: 2) {
                             Text("Shift mode (no end color)")
-                                .font(.system(size: 14, weight: .semibold))
+                                .font(Kroma.font(.subheadline, .semibold))
                             Text("Gradient advances by a per-step delta instead of lerping to an endpoint.")
-                                .font(.system(size: 11))
+                                .font(Kroma.font(.caption2))
                                 .foregroundStyle(.secondary)
                         }
                     }
@@ -114,7 +114,7 @@ struct ColorPickerSheet: View {
                     // −L darkens; +c saturates, −c desaturates.
                     VStack(alignment: .leading, spacing: 12) {
                         Text("Per-step shift")
-                            .font(.system(size: 13, weight: .bold))
+                            .font(Kroma.font(.footnote, .bold))
                             .padding(.horizontal, 20)
                         VStack(spacing: 14) {
                             LCHSlider(label: "ΔLightness",
@@ -156,9 +156,9 @@ struct ColorPickerSheet: View {
                         .fill(OK.toColor(stepped))
                 }
             }
-            .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+            .clipShape(RoundedRectangle(cornerRadius: Kroma.Radius.panel, style: .continuous))
         } else {
-            RoundedRectangle(cornerRadius: 20, style: .continuous)
+            RoundedRectangle(cornerRadius: Kroma.Radius.panel, style: .continuous)
                 .fill(OK.toColor(color))
         }
     }
@@ -187,10 +187,10 @@ private struct LCHSlider: View {
         VStack(alignment: .leading, spacing: 4) {
             HStack {
                 Text(label)
-                    .font(.system(size: 12, weight: .semibold))
+                    .font(Kroma.font(.caption, .semibold))
                 Spacer()
                 Text(format(value))
-                    .font(.system(size: 12, design: .monospaced))
+                    .font(Kroma.monoFont(.caption))
                     .foregroundStyle(.secondary)
             }
             Slider(value: $value, in: range)

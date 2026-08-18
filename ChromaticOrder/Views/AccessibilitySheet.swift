@@ -303,10 +303,10 @@ struct AccessibilitySheet: View {
         VStack(alignment: .leading, spacing: Kroma.Space.xs) {
             HStack {
                 Text(label)
-                    .font(.subheadline)
+                    .font(Kroma.font(.subheadline))
                 Spacer()
                 Text(format(value.wrappedValue))
-                    .font(.footnote)
+                    .font(Kroma.font(.footnote))
                     .monospacedDigit()
                     .foregroundStyle(.secondary)
             }
@@ -341,7 +341,7 @@ private struct AppIconPickerRow: View {
                     Spacer()
                     if variant == current {
                         Image(systemName: "checkmark")
-                            .font(.system(size: 14, weight: .semibold))
+                            .font(Kroma.font(.footnote, .semibold))
                             .foregroundStyle(.secondary)
                     }
                 }

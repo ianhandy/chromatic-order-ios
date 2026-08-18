@@ -65,6 +65,13 @@ struct ContentView: View {
     /// (game.level changes).
     @State private var zenTutorialBaselineLevel: Int? = nil
 
+    /// Base size for the "perfect" celebration banner. `@ScaledMetric`
+    /// grows this with Dynamic Type the same way a semantic text style
+    /// would — plain `.system(size: 48)` sat still no matter how large
+    /// the player's text setting was, which was the one label in the
+    /// solved overlay that didn't answer to it.
+    @ScaledMetric(relativeTo: .largeTitle) private var perfectBannerSize: CGFloat = 48
+
     /// Scale applied to the grid on solve — shrinks to 0.85 then
     /// snaps back to 1.0 on the next quarter-note beat.
     @State private var solveSquishScale: CGFloat = 1.0
@@ -103,7 +110,7 @@ struct ContentView: View {
                     // generator zen uses. Kept as a tap-to-retry backstop.
                     VStack(spacing: 14) {
                         Image(systemName: "calendar.badge.exclamationmark")
-                            .font(.system(.largeTitle, design: .rounded))
+                            .font(Kroma.font(.largeTitle))
                             .foregroundStyle(.white.opacity(0.55))
                         Text("no daily yet")
                             .font(Kroma.font(.title2, .heavy))
@@ -190,7 +197,7 @@ struct ContentView: View {
                         HStack(spacing: 16) {
                             if perfectBannerVisible {
                                 Text("perfect")
-                                    .font(.system(size: 48, weight: .heavy, design: .rounded))
+                                    .font(.system(size: perfectBannerSize, weight: .heavy, design: .rounded))
                                     .accessibilityAddTraits(.isStaticText)
                                     .foregroundStyle(Color.white)
                                     .tracking(2)
@@ -230,7 +237,7 @@ struct ContentView: View {
                             }
                         } label: {
                             Image(systemName: saveImageIconName)
-                                .font(.headline)
+                                .font(Kroma.font(.headline, .semibold))
                                 .foregroundStyle(.white.opacity(0.75))
                                 .frame(minWidth: solvedRowHeight,
                                        minHeight: solvedRowHeight)
@@ -988,6 +995,11 @@ private struct RunCompleteOverlay: View {
     let levelsCompleted: Int
     let onExit: () -> Void
 
+    /// Same rationale as `ContentView.perfectBannerSize` — this is the
+    /// other hero number in the app that used to sit at a fixed point
+    /// size regardless of the player's Dynamic Type setting.
+    @ScaledMetric(relativeTo: .largeTitle) private var countSize: CGFloat = 56
+
     var body: some View {
         ZStack {
             Color.black.opacity(0.82)
@@ -1003,7 +1015,7 @@ private struct RunCompleteOverlay: View {
                         .font(Kroma.font(.caption, .semibold))
                         .foregroundStyle(.white.opacity(0.6))
                     Text("\(levelsCompleted)")
-                        .font(.system(size: 56, weight: .black, design: .rounded))
+                        .font(.system(size: countSize, weight: .black, design: .rounded))
                         .minimumScaleFactor(0.6)
                         .lineLimit(1)
                         .foregroundStyle(.white)

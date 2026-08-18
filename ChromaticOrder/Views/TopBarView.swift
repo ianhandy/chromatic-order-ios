@@ -86,7 +86,7 @@ struct TopBarView: View {
         } else if game.cameFromGallery, let onBack = onBackToGallery {
             Button(action: onBack) {
                 Image(systemName: "chevron.left")
-                    .font(.headline)
+                    .font(Kroma.font(.headline, .semibold))
                     .foregroundStyle(Self.primaryText)
                     .frame(minWidth: 38)
                     .frame(minHeight: Kroma.Metrics.chromeControl)
@@ -107,7 +107,7 @@ struct TopBarView: View {
                             .font(Kroma.font(.subheadline, .heavy))
                             .foregroundStyle(hexColor(t.colorHex))
                         Image(systemName: "chevron.down")
-                            .font(.caption2.weight(.bold))
+                            .font(Kroma.font(.caption2, .bold))
                             .foregroundStyle(Self.secondaryText)
                     }
                     .padding(.horizontal, Kroma.Space.m)
@@ -236,7 +236,7 @@ struct TopBarView: View {
                         .transition(.opacity)
                 case .heart(let idx):
                     Image(systemName: "heart.fill")
-                        .font(.body)
+                        .font(Kroma.font(.body, .regular))
                         .foregroundStyle(heartRed)
                         .phaseAnimator([1.0, 1.35, 1.0],
                                        trigger: heartWaveTick) { content, s in
@@ -256,7 +256,7 @@ struct TopBarView: View {
                     // numeric content transition rather than popping.
                     HStack(spacing: 3) {
                         Image(systemName: "heart.fill")
-                            .font(.body)
+                            .font(Kroma.font(.body, .regular))
                             .foregroundStyle(heartRed)
                             .phaseAnimator([1.0, 1.35, 1.0],
                                            trigger: heartWaveTick) { content, s in
@@ -308,7 +308,7 @@ struct TopBarView: View {
                     game.toggleCurrentPuzzleSaved()
                 } label: {
                     Image(systemName: favorited ? "star.fill" : "star")
-                        .font(.subheadline.weight(.semibold))
+                        .font(Kroma.font(.subheadline, .semibold))
                         .frame(minWidth: 38)
                         .frame(minHeight: Kroma.Metrics.chromeControl)
                         .foregroundStyle(favorited
@@ -330,7 +330,7 @@ struct TopBarView: View {
                 menuOpen.toggle()
             } label: {
                 Image(systemName: "line.3.horizontal")
-                    .font(.body.weight(.semibold))
+                    .font(Kroma.font(.body, .semibold))
                     .frame(minWidth: 38)
                     .frame(minHeight: Kroma.Metrics.chromeControl)
                     .foregroundStyle(Self.primaryText)

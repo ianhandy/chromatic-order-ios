@@ -58,7 +58,7 @@ struct LikeFeedbackWidget: View {
                 tap(liked: true)
             } label: {
                 Image(systemName: "arrowtriangle.up.fill")
-                    .font(.title3.weight(.heavy))
+                    .font(Kroma.font(.title3, .heavy))
                     .foregroundStyle(likeGreen)
                     .opacity(opacity(for: true))
                     .kromaHitTarget()
@@ -72,7 +72,7 @@ struct LikeFeedbackWidget: View {
                 tap(liked: false)
             } label: {
                 Image(systemName: "arrowtriangle.down.fill")
-                    .font(.title3.weight(.heavy))
+                    .font(Kroma.font(.title3, .heavy))
                     .foregroundStyle(dislikeRed)
                     .opacity(opacity(for: false))
                     .kromaHitTarget()

@@ -112,7 +112,7 @@ struct CampaignView: View {
                 Image(systemName: purchaseLocked
                       ? "lock.open.fill"
                       : (CampaignStore.isComplete ? "arrow.counterclockwise" : "play.fill"))
-                    .font(.headline.weight(.bold))
+                    .font(Kroma.font(.headline, .bold))
 
                 VStack(alignment: .leading, spacing: Kroma.Space.hairline) {
                     Text(purchaseLocked
@@ -126,7 +126,7 @@ struct CampaignView: View {
 
                 Spacer()
                 Image(systemName: "chevron.right")
-                    .font(.subheadline.weight(.bold))
+                    .font(Kroma.font(.subheadline, .bold))
             }
             .foregroundStyle(continueForeground)
             .padding(.horizontal, Kroma.Space.l)
@@ -172,7 +172,7 @@ struct CampaignView: View {
                     .font(Kroma.font(.title3, .bold))
                 if purchaseLocked {
                     Image(systemName: "lock.fill")
-                        .font(.caption.weight(.bold))
+                        .font(Kroma.font(.caption, .bold))
                         .foregroundStyle(.secondary)
                         .accessibilityHidden(true)
                 }
@@ -237,11 +237,11 @@ struct CampaignView: View {
                 // colour on its own.
                 if complete {
                     Image(systemName: "checkmark")
-                        .font(.caption2.weight(.bold))
+                        .font(Kroma.font(.caption2, .bold))
                         .padding(Kroma.Space.xs)
                 } else if !unlocked || purchaseLocked {
                     Image(systemName: "lock.fill")
-                        .font(.caption2.weight(.bold))
+                        .font(Kroma.font(.caption2, .bold))
                         .foregroundStyle(.secondary)
                         .padding(Kroma.Space.xs)
                 }

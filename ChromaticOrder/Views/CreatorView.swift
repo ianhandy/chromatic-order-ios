@@ -267,9 +267,9 @@ struct CreatorView: View {
         Button(action: action) {
             VStack(spacing: 3) {
                 Image(systemName: system)
-                    .font(.system(size: 18, weight: .semibold))
+                    .font(Kroma.font(.headline, .semibold))
                 Text(label)
-                    .font(.system(size: 12, weight: .semibold, design: .rounded))
+                    .font(Kroma.font(.caption, .semibold))
                     .multilineTextAlignment(.center)
                     .lineLimit(2)
                     .fixedSize(horizontal: false, vertical: true)
@@ -320,9 +320,9 @@ struct CreatorView: View {
             ) {
                 VStack(spacing: 3) {
                     Image(systemName: "square.and.arrow.up")
-                        .font(.system(size: 18, weight: .semibold))
+                        .font(Kroma.font(.headline, .semibold))
                     Text("Share")
-                        .font(.system(size: 12, weight: .semibold, design: .rounded))
+                        .font(Kroma.font(.caption, .semibold))
                 }
                 .frame(maxWidth: .infinity, minHeight: 52)
                 .foregroundStyle(Color.white.opacity(0.9))
@@ -357,7 +357,7 @@ struct CreatorView: View {
             EmptyView()
         case .submitting:
             Text("Submitting…")
-                .font(.system(size: 11, weight: .medium))
+                .font(Kroma.font(.caption2, .medium))
                 .foregroundStyle(.secondary)
                 .padding(.horizontal, 14)
         case .success(let status):
@@ -370,12 +370,12 @@ struct CreatorView: View {
                 }
             }()
             Text(label)
-                .font(.system(size: 11, weight: .medium))
+                .font(Kroma.font(.caption2, .medium))
                 .foregroundStyle(.green)
                 .padding(.horizontal, 14)
         case .failed(let message):
             Text("Submit failed: \(message)")
-                .font(.system(size: 11, weight: .medium))
+                .font(Kroma.font(.caption2, .medium))
                 .foregroundStyle(.red)
                 .padding(.horizontal, 14)
         }
@@ -463,11 +463,11 @@ struct CreatorView: View {
     private var nameField: some View {
         HStack(spacing: 10) {
             Image(systemName: "tag")
-                .font(.system(size: 18, weight: .semibold))
+                .font(Kroma.font(.headline, .semibold))
                 .foregroundStyle(.secondary)
             TextField("Untitled puzzle", text: $name)
                 .textFieldStyle(.plain)
-                .font(.system(size: 20, weight: .semibold))
+                .font(Kroma.font(.title3, .semibold))
                 .submitLabel(.done)
                 .focused($nameFocused)
                 .onSubmit { nameFocused = false }
@@ -479,7 +479,7 @@ struct CreatorView: View {
             if let b = built {
                 Label("\(b.validation.difficulty)/10", systemImage: "gauge")
                     .labelStyle(.titleAndIcon)
-                    .font(.system(size: 13, weight: .bold, design: .rounded))
+                    .font(Kroma.font(.footnote, .bold))
                     .foregroundStyle(Color.white.opacity(0.85))
                     .padding(.horizontal, 10)
                     .padding(.vertical, 5)
@@ -530,7 +530,7 @@ struct CreatorView: View {
             ColorChip(color: state.startColor) { pickingStart = true }
 
             Image(systemName: "arrow.right")
-                .font(.system(size: 22, weight: .heavy))
+                .font(Kroma.font(.title2, .heavy))
                 .foregroundStyle(Color.white.opacity(0.65))
 
             if let end = state.endColor {
@@ -570,7 +570,7 @@ struct CreatorView: View {
             state.clearSelection()
         } label: {
             Image(systemName: system)
-                .font(.system(size: 20, weight: .semibold))
+                .font(Kroma.font(.title3, .semibold))
                 .frame(width: 44, height: 44)
                 .foregroundStyle(selected ? Color.black : Color.white.opacity(0.7))
                 .background(
@@ -601,7 +601,7 @@ struct CreatorView: View {
         HStack {
             Spacer(minLength: 0)
             Text(state.toolName)
-                .font(.system(size: 18, weight: .heavy, design: .rounded))
+                .font(Kroma.font(.headline, .heavy))
                 .tracking(-0.5)
                 .foregroundStyle(Color.white.opacity(0.65))
                 .lineLimit(1)
@@ -681,13 +681,13 @@ struct CreatorView: View {
 
             if state.gradients.isEmpty {
                 Text("Tap a color, drag across the canvas to lay a gradient")
-                    .font(.system(size: 11, weight: .medium))
+                    .font(Kroma.font(.caption2, .medium))
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 14)
             } else {
                 Text("Tap a painted cell to reveal it at the start")
-                    .font(.system(size: 11, weight: .medium))
+                    .font(Kroma.font(.caption2, .medium))
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 14)
@@ -706,7 +706,7 @@ struct CreatorView: View {
         if showSubmitConfirm {
             HStack(spacing: 10) {
                 Text("Submit this level to the community?")
-                    .font(.system(size: 13, weight: .semibold, design: .rounded))
+                    .font(Kroma.font(.footnote, .semibold))
                     .foregroundStyle(Color.white.opacity(0.85))
                     .multilineTextAlignment(.leading)
                     .fixedSize(horizontal: false, vertical: true)
@@ -733,7 +733,7 @@ struct CreatorView: View {
                 Text(validationMessage)
                 Spacer()
             }
-            .font(.system(size: 11, weight: .medium))
+            .font(Kroma.font(.caption2, .medium))
             .foregroundStyle(Color(red: 0.85, green: 0.35, blue: 0.1))
             .padding(.horizontal, 14)
         } else if let b = built, !b.validation.warnings.isEmpty {
@@ -743,8 +743,8 @@ struct CreatorView: View {
                 ForEach(b.validation.warnings, id: \.self) { w in
                     HStack(alignment: .top, spacing: 6) {
                         Image(systemName: "exclamationmark.triangle.fill")
-                            .font(.system(size: 11))
-                        Text(w).font(.system(size: 11, weight: .medium))
+                            .font(Kroma.font(.caption2, .regular))
+                        Text(w).font(Kroma.font(.caption2, .medium))
                         Spacer()
                     }
                     .foregroundStyle(Color(red: 0.85, green: 0.35, blue: 0.1))
@@ -1125,12 +1125,12 @@ struct CreatorHelpSheet: View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 8) {
                 Image(systemName: icon)
-                    .font(.system(size: 15, weight: .semibold))
+                    .font(Kroma.font(.subheadline, .semibold))
                 Text(title)
-                    .font(.system(size: 15, weight: .bold))
+                    .font(Kroma.font(.subheadline, .bold))
             }
             Text(body)
-                .font(.system(size: 13))
+                .font(Kroma.font(.footnote, .regular))
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
         }

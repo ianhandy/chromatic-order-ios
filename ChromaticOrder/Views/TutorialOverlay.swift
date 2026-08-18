@@ -14,7 +14,7 @@ struct TutorialTooltip: View {
 
     var body: some View {
         Text(text)
-            .font(.system(size: 20, weight: .bold, design: .rounded))
+            .font(Kroma.font(.title3, .bold))
             .foregroundStyle(.white)
             .multilineTextAlignment(.center)
             .lineSpacing(4)
@@ -210,7 +210,7 @@ struct TutorialBalloon: View {
             // Text suspended in the bubble. A drop shadow keeps it
             // legible against the translucent film + busy backdrop.
             Text(text)
-                .font(.system(size: 17, weight: .bold, design: .rounded))
+                .font(Kroma.font(.body, .bold))
                 .foregroundStyle(.white)
                 .multilineTextAlignment(.center)
                 .lineSpacing(2)
@@ -222,7 +222,7 @@ struct TutorialBalloon: View {
             // (zen-intro). Sits inside the bubble's upper-left arc.
             if cornerArrow {
                 Image(systemName: "arrow.up.left")
-                    .font(.system(size: 18, weight: .heavy))
+                    .font(Kroma.font(.headline, .heavy))
                     .foregroundStyle(.white)
                     .shadow(color: .black.opacity(0.30), radius: 1.5, y: 1)
                     .offset(x: -d * 0.26, y: -d * 0.26)
@@ -401,19 +401,23 @@ struct DailyShowAnswersPrompt: View {
     @Bindable var game: GameState
     let onResolved: () -> Void
 
+    /// Base size for the prompt's glyph. `@ScaledMetric` so it grows
+    /// with Dynamic Type instead of sitting fixed at 44pt.
+    @ScaledMetric(relativeTo: .largeTitle) private var iconSize: CGFloat = 44
+
     var body: some View {
         ZStack {
             Color.black.opacity(0.88).ignoresSafeArea()
             VStack(spacing: 18) {
                 Spacer()
                 Image(systemName: "eye.trianglebadge.exclamationmark")
-                    .font(.system(size: 44, weight: .light))
+                    .font(.system(size: iconSize, weight: .light))
                     .foregroundStyle(.white.opacity(0.80))
                 Text(Strings.DailyPrompt.title)
-                    .font(.system(size: 28, weight: .heavy, design: .rounded))
+                    .font(Kroma.font(.title, .heavy))
                     .foregroundStyle(.white)
                 Text(Strings.DailyPrompt.body)
-                    .font(.system(size: 14, weight: .regular, design: .rounded))
+                    .font(Kroma.font(.subheadline, .regular))
                     .foregroundStyle(.white.opacity(0.78))
                     .multilineTextAlignment(.center)
                     .lineSpacing(4)
@@ -426,7 +430,7 @@ struct DailyShowAnswersPrompt: View {
                         onResolved()
                     } label: {
                         Text(Strings.DailyPrompt.keepHidden)
-                            .font(.system(size: 14, weight: .bold, design: .rounded))
+                            .font(Kroma.font(.subheadline, .bold))
                             .padding(.horizontal, 22)
                             .frame(height: 46)
                             .background(Color.white.opacity(0.16), in: Capsule())
@@ -440,7 +444,7 @@ struct DailyShowAnswersPrompt: View {
                         onResolved()
                     } label: {
                         Text(Strings.DailyPrompt.enable)
-                            .font(.system(size: 14, weight: .bold, design: .rounded))
+                            .font(Kroma.font(.subheadline, .bold))
                             .padding(.horizontal, 22)
                             .frame(height: 46)
                             .background(Color(red: 0.92, green: 0.48, blue: 0.48)

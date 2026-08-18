@@ -534,7 +534,7 @@ struct MenuView: View {
                     .foregroundStyle(Color.white.opacity(opacity))
                 if locked {
                     Image(systemName: "lock.fill")
-                        .font(.caption.weight(.bold))
+                        .font(Kroma.font(.caption, .bold))
                         .foregroundStyle(Color.white.opacity(0.42))
                         .accessibilityHidden(true)
                 }

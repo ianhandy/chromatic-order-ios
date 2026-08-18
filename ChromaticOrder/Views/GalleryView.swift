@@ -72,6 +72,9 @@ struct GalleryView: View {
     /// False until the first load lands. Gates the empty state so the
     /// gallery never claims to be empty before it has read the disk.
     @State private var didLoad = false
+    /// Base size for the empty-state glyph. `@ScaledMetric` so it grows
+    /// with Dynamic Type instead of sitting fixed at 44pt.
+    @ScaledMetric(relativeTo: .largeTitle) private var emptyStateIconSize: CGFloat = 44
 
     var body: some View {
         NavigationStack(path: $navPath) {
@@ -315,19 +318,19 @@ struct GalleryView: View {
     private var emptyState: some View {
         VStack(spacing: 12) {
             Image(systemName: "square.grid.3x3")
-                .font(.system(size: 44))
+                .font(.system(size: emptyStateIconSize))
                 .foregroundStyle(.secondary)
             Text("No puzzles yet")
-                .font(.system(size: 16, weight: .semibold))
+                .font(Kroma.font(.callout, .semibold))
             Text("Create your own or receive one from a friend.")
-                .font(.system(size: 13))
+                .font(Kroma.font(.footnote, .regular))
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
             Button {
                 openCreator()
             } label: {
                 Label("Create New", systemImage: "plus")
-                    .font(.system(size: 14, weight: .bold, design: .rounded))
+                    .font(Kroma.font(.subheadline, .bold))
                     .padding(.horizontal, 18)
                     .padding(.vertical, 10)
                     .background(Color.accentColor, in: Capsule())
@@ -384,7 +387,7 @@ struct GalleryView: View {
             Section("Your puzzles") {
                 if puzzles.isEmpty {
                     Text("No saved puzzles yet. Tap + to create one.")
-                        .font(.system(size: 12, weight: .medium))
+                        .font(Kroma.font(.caption, .medium))
                         .foregroundStyle(.secondary)
                 } else {
                     ForEach(puzzles) { puzzle in
@@ -450,7 +453,7 @@ struct GalleryView: View {
             Section("Favorites") {
                 if favorites.isEmpty {
                     Text("Favorited puzzles from challenge / zen show up here.")
-                        .font(.system(size: 12, weight: .medium))
+                        .font(Kroma.font(.caption, .medium))
                         .foregroundStyle(.secondary)
                 } else {
                     ForEach(favorites) { puzzle in
@@ -521,7 +524,7 @@ struct GalleryView: View {
                         Task { await refreshCommunityFeed() }
                     } label: {
                         Image(systemName: "arrow.clockwise")
-                            .font(.system(size: 14, weight: .semibold))
+                            .font(Kroma.font(.subheadline, .semibold))
                     }
                     .buttonStyle(.plain)
                     .accessibilityLabel("Refresh community feed")
@@ -535,17 +538,17 @@ struct GalleryView: View {
 
             if let err = communityLoadError {
                 Text(err)
-                    .font(.system(size: 12, weight: .medium))
+                    .font(Kroma.font(.caption, .medium))
                     .foregroundStyle(.secondary)
             }
 
             if communityEntries == nil {
                 Text("Loading…")
-                    .font(.system(size: 12, weight: .medium))
+                    .font(Kroma.font(.caption, .medium))
                     .foregroundStyle(.secondary)
             } else if let list = communityEntries, list.isEmpty {
                 Text("No community puzzles yet.")
-                    .font(.system(size: 12, weight: .medium))
+                    .font(Kroma.font(.caption, .medium))
                     .foregroundStyle(.secondary)
             } else if let list = communityEntries {
                 // id-based diffing so a Top↔New sort flip doesn't
@@ -700,16 +703,16 @@ struct GalleryView: View {
     private func collectionRow(_ col: GalleryCollection) -> some View {
         HStack(spacing: 12) {
             Image(systemName: "folder.fill")
-                .font(.system(size: 22))
+                .font(Kroma.font(.title2, .regular))
                 .foregroundStyle(Color.accentColor)
                 .frame(width: 34)
             VStack(alignment: .leading, spacing: 2) {
                 Text(col.name)
-                    .font(.system(size: 14, weight: .semibold))
+                    .font(Kroma.font(.subheadline, .semibold))
                     .multilineTextAlignment(.leading)
                     .fixedSize(horizontal: false, vertical: true)
                 Text("\(col.puzzleCount) puzzle\(col.puzzleCount == 1 ? "" : "s")")
-                    .font(.system(size: 11))
+                    .font(Kroma.font(.caption2, .regular))
                     .foregroundStyle(.secondary)
             }
         }
@@ -829,7 +832,7 @@ struct GalleryRow: View {
             .overlay(alignment: .topLeading) {
                 if GallerySolvedStore.hasPerfected(puzzle.id) {
                     Image(systemName: "heart.fill")
-                        .font(.system(size: 10, weight: .heavy))
+                        .font(Kroma.font(.caption2, .heavy))
                         .foregroundStyle(Color(red: 1.0, green: 0.4, blue: 0.4))
                         .padding(2)
                         .background(
@@ -842,16 +845,16 @@ struct GalleryRow: View {
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(puzzle.displayName)
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(Kroma.font(.footnote, .semibold))
                     .multilineTextAlignment(.leading)
                     .fixedSize(horizontal: false, vertical: true)
                 Text("\(puzzle.subtitle) · \(relativeDate(puzzle.createdAt))")
-                    .font(.system(size: 11))
+                    .font(Kroma.font(.caption2, .regular))
                     .foregroundStyle(.secondary)
             }
             Spacer()
             Image(systemName: "chevron.right")
-                .font(.system(size: 12))
+                .font(Kroma.font(.caption, .regular))
                 .foregroundStyle(.tertiary)
         }
         .padding(.vertical, 8)
@@ -945,11 +948,11 @@ struct CommunityGalleryRow: View {
             }
             VStack(alignment: .leading, spacing: 2) {
                 Text(displayName)
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(Kroma.font(.footnote, .semibold))
                     .multilineTextAlignment(.leading)
                     .fixedSize(horizontal: false, vertical: true)
                 Text("lv \(entry.level)")
-                    .font(.system(size: 11))
+                    .font(Kroma.font(.caption2, .regular))
                     .foregroundStyle(.secondary)
             }
             Spacer(minLength: 0)
@@ -963,9 +966,9 @@ struct CommunityGalleryRow: View {
                     .foregroundStyle(entry.myVote == -1
                                      ? Self.dislikeRed : Color.secondary)
             }
-            .font(.system(size: 11, weight: .bold, design: .rounded))
+            .font(Kroma.font(.caption2, .bold))
             Image(systemName: expanded ? "chevron.up" : "chevron.down")
-                .font(.system(size: 11, weight: .bold))
+                .font(Kroma.font(.caption2, .bold))
                 .foregroundStyle(.tertiary)
         }
     }
@@ -985,9 +988,9 @@ struct CommunityGalleryRow: View {
             } label: {
                 HStack(spacing: 6) {
                     Image(systemName: "play.fill")
-                        .font(.system(size: 13, weight: .semibold))
+                        .font(Kroma.font(.footnote, .semibold))
                     Text("Play")
-                        .font(.system(size: 13, weight: .heavy, design: .rounded))
+                        .font(Kroma.font(.footnote, .heavy))
                 }
                 .foregroundStyle(.white)
                 .padding(.horizontal, 14)
@@ -1011,11 +1014,10 @@ struct CommunityGalleryRow: View {
         } label: {
             HStack(spacing: 5) {
                 Image(systemName: system)
-                    .font(.system(size: 16, weight: .heavy))
+                    .font(Kroma.font(.callout, .heavy))
                     .foregroundStyle(active ? color : Color.secondary)
                 Text("\(count)")
-                    .font(.system(size: 12, weight: .bold,
-                                   design: .rounded))
+                    .font(Kroma.font(.caption, .bold))
                     .foregroundStyle(active ? color : Color.secondary)
             }
             .padding(.vertical, 5)
