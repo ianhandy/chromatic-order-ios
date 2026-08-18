@@ -26,7 +26,7 @@ struct StatsView: View {
                 } header: {
                     Text("Streaks")
                 } footer: {
-                    Text("A clean solve is zero mistakes and no \"show incorrect\" peek.")
+                    Text("A clean solve is zero mistakes, no hint, and no \"show incorrect\" peek.")
                 }
 
                 Section {
@@ -34,6 +34,14 @@ struct StatsView: View {
                     row("Avg per solve", averageSolveTime)
                 } header: {
                     Text("Time")
+                }
+
+                Section {
+                    NavigationLink {
+                        DailyHistoryView()
+                    } label: {
+                        Label("Daily history", systemImage: "calendar")
+                    }
                 }
 
             }

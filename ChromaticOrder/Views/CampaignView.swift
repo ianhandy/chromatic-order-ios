@@ -18,6 +18,8 @@ struct CampaignView: View {
                 LazyVStack(alignment: .leading, spacing: Kroma.Space.xxl) {
                     continueButton
 
+                    quickAccessSection
+
                     ForEach(CampaignCatalog.chapters) { chapter in
                         chapterSection(chapter)
                     }
@@ -27,6 +29,56 @@ struct CampaignView: View {
             }
             .kromaSheet(Strings.Menu.campaign) { dismiss() }
         }
+    }
+
+    @ViewBuilder
+    private var quickAccessSection: some View {
+        let saved = CampaignStore.bookmarks
+        let recent = CampaignStore.recent
+        if !saved.isEmpty || !recent.isEmpty {
+            VStack(alignment: .leading, spacing: Kroma.Space.l) {
+                if !saved.isEmpty { quickRow("saved", levels: saved, symbol: "star.fill") }
+                if !recent.isEmpty { quickRow("recent", levels: recent, symbol: "clock") }
+            }
+        }
+    }
+
+    private func quickRow(_ title: String, levels: [Int], symbol: String) -> some View {
+        VStack(alignment: .leading, spacing: Kroma.Space.s) {
+            Label(title, systemImage: symbol)
+                .font(Kroma.font(.subheadline, .semibold))
+                .foregroundStyle(.secondary)
+                .accessibilityAddTraits(.isHeader)
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: Kroma.Space.s) {
+                    ForEach(levels, id: \.self) { index in
+                        Button { play(index) } label: {
+                            Text(shortLevelName(index))
+                                .font(Kroma.font(.subheadline, .bold))
+                                .foregroundStyle(.primary)
+                                .padding(.horizontal, Kroma.Space.m)
+                                .frame(minHeight: Kroma.Metrics.minTarget)
+                                .background(Color.primary.opacity(0.09), in: Capsule())
+                        }
+                        .buttonStyle(.kromaControl)
+                        .accessibilityLabel(accessibleLevelName(index))
+                    }
+                }
+            }
+        }
+    }
+
+    private func shortLevelName(_ index: Int) -> String {
+        guard let chapter = CampaignCatalog.chapter(containing: index),
+              let local = CampaignStore.localNumber(for: index) else { return "\(index)" }
+        return "\(chapter.title.lowercased()) \(local)"
+    }
+
+    private func accessibleLevelName(_ index: Int) -> String {
+        guard let chapter = CampaignCatalog.chapter(containing: index),
+              let local = CampaignStore.localNumber(for: index) else { return "level \(index)" }
+        return "\(chapter.title.lowercased()), level \(local)"
     }
 
     private var continueButton: some View {

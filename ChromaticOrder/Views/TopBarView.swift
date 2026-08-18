@@ -301,9 +301,10 @@ struct TopBarView: View {
     @ViewBuilder
     private var rightButtons: some View {
         HStack(spacing: Kroma.Space.s) {
-            let favorited = game.currentFavoriteURL != nil
+            let _ = game.campaignBookmarkRevision
+            let favorited = game.isCurrentPuzzleSaved
             Button {
-                game.toggleFavorite()
+                game.toggleCurrentPuzzleSaved()
             } label: {
                 Image(systemName: favorited ? "star.fill" : "star")
                     .font(.subheadline.weight(.semibold))
@@ -320,7 +321,7 @@ struct TopBarView: View {
             // Filled vs outline already distinguishes the two states
             // visually; this is what carries it to VoiceOver and to
             // anyone who can't read the fill.
-            .accessibilityLabel("favorite")
+            .accessibilityLabel(game.campaignIndex == nil ? "favorite" : "bookmark")
             .accessibilityValue(favorited ? "on" : "off")
 
             Button {

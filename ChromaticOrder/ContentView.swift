@@ -149,7 +149,9 @@ struct ContentView: View {
 
             // Campaign coaching line — one per level that introduces
             // something, shown once ever, tap to clear.
-            if let tip = game.campaignTip {
+            if let hint = game.hintMessage {
+                CampaignTipBanner(text: hint) { game.dismissHint() }
+            } else if let tip = game.campaignTip {
                 CampaignTipBanner(text: tip) { game.campaignTip = nil }
             }
 
@@ -497,6 +499,15 @@ struct ContentView: View {
         } message: {
             Text("Today's puzzle won't be submitted to the leaderboard.")
         }
+        .alert("Use a hint?",
+               isPresented: $game.dailyHintConfirmPending) {
+            Button("Hint — skip leaderboard") {
+                game.requestHint()
+            }
+            Button("Keep trying", role: .cancel) {}
+        } message: {
+            Text("Today's puzzle won't be submitted to the leaderboard.")
+        }
         .sheet(isPresented: $accessibilityOpen, onDismiss: {
             // Deferred regeneration: contrast + clamp sliders move
             // during the sheet but the board doesn't rebuild until
@@ -738,6 +749,7 @@ struct ContentView: View {
                         // re-presents the Gallery sheet, then fade back
                         // to the menu screen.
                         game.openGalleryOnMenuAppear = true
+                        game.parkInProgressSession()
                         transitioner.fade { started = false }
                     }
                 )

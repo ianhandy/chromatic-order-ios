@@ -189,6 +189,9 @@ final class GameState {
     /// leaderboard submission for today. The alert flips the flag
     /// back to false on either button.
     var dailyShowAnswersConfirmPending: Bool = false
+    /// Daily hints are allowed, but opt the run out of Game Center just
+    /// like revealing incorrect cells. The confirmation lives in ContentView.
+    var dailyHintConfirmPending: Bool = false
     /// Persisted zen progression. Live `level` tracks whichever mode
     /// is active; this variable is the zen-specific counterpart so
     /// switching into challenge (which always restarts at level 1)
@@ -365,6 +368,23 @@ final class GameState {
     /// non-community `loadCustomPuzzle` calls.
     var customTitle: String? = nil
 
+    // Exact-session restore. The snapshot is loaded eagerly so a killed game
+    // can reopen directly on the same board, while a deliberately parked game
+    // leaves a quiet resume affordance on the menu.
+    var hasInProgressSession: Bool = false
+    var shouldAutoResumeSession: Bool = false
+
+    // Progressive hint presentation. Hints narrow the search without placing
+    // a swatch: first a gradient run, then a matching bank swatch.
+    var hintedCells: Set<CellIndex> = []
+    var hintedBankSlot: Int? = nil
+    var hintMessage: String? = nil
+    var hintStage: Int = 0
+    var hintGradientID: Int? = nil
+    var usedHintThisLevel: Bool = false
+    var campaignBookmarkRevision: Int = 0
+    private var restoringInProgressSession = false
+
     // Interaction
     var selection: BoardSelection?
     var dragSource: DragSource?
@@ -383,6 +403,7 @@ final class GameState {
             // state (new puzzle, handleReset, etc.).
             if solved && !oldValue {
                 solvedAt = Date()
+                persistInProgressSession()
                 // Record perfect solves of gallery puzzles so the
                 // Gallery list can paint a heart on the completed
                 // row. Only fires on first transition to solved
@@ -601,7 +622,13 @@ final class GameState {
         // here triggers engine.start() before the audio converter
         // service is ready on physical devices (-302), producing a
         // black screen and crackling audio.
-        startLevel(level)
+        if let snapshot = InProgressSessionStore.load(), restoreSession(snapshot) {
+            hasInProgressSession = true
+            shouldAutoResumeSession = snapshot.autoResume
+        } else {
+            InProgressSessionStore.clear()
+            startLevel(level)
+        }
     }
 
     // ─── Accessibility ──────────────────────────────────────────────
@@ -977,6 +1004,163 @@ final class GameState {
         return (zl, 1, nil)
     }
 
+    // ─── Exact in-progress session ────────────────────────────────
+
+    /// Save the authored puzzle plus the live board/bank overlay. The puzzle
+    /// codec keeps the stable solution geometry; the compact overlay keeps the
+    /// player's exact choices without making every game model Codable.
+    func persistInProgressSession(autoResume: Bool? = nil) {
+        guard !restoringInProgressSession,
+              let p = puzzle, !generating,
+              let puzzleJSON = try? CreatorCodec.encodePuzzle(p) else { return }
+
+        var placements: [InProgressSessionStore.Placement] = []
+        for r in 0..<p.gridH {
+            for c in 0..<p.gridW {
+                guard p.board[r][c].kind == .cell,
+                      let color = p.board[r][c].placed else { continue }
+                placements.append(.init(
+                    r: r, c: c,
+                    color: InProgressSessionStore.ColorValue(color)
+                ))
+            }
+        }
+        let existingAutoResume = InProgressSessionStore.load()?.autoResume ?? false
+        let snapshot = InProgressSessionStore.Snapshot(
+            version: 1,
+            autoResume: autoResume ?? existingAutoResume,
+            savedAt: Date(),
+            puzzleJSON: puzzleJSON,
+            placements: placements,
+            bank: p.bank.map { $0.map { InProgressSessionStore.ColorValue($0.color) } },
+            mode: mode.rawValue,
+            level: level,
+            checks: checks,
+            challengeSolveCount: challengeSolveCount,
+            challengeBonusLevels: challengeBonusLevels,
+            consecutiveNoHeartSolves: consecutiveNoHeartSolves,
+            consecutivePerfectSolves: consecutivePerfectSolves,
+            heartLostThisLevel: heartLostThisLevel,
+            campaignIndex: campaignIndex,
+            dailyDateKey: dailyDateKey,
+            cameFromGallery: cameFromGallery,
+            galleryPuzzleID: currentGalleryPuzzleId,
+            galleryCollectionID: currentGalleryCollectionId,
+            favoritePath: currentFavoriteURL?.path,
+            customTitle: customTitle,
+            elapsedSeconds: timeSpentSec,
+            mistakeCount: mistakeCount,
+            moveCount: moveCount,
+            showedIncorrect: showedIncorrect,
+            showIncorrect: showIncorrect,
+            engagedThisLevel: engagedThisLevel,
+            solved: solved,
+            usedHint: usedHintThisLevel,
+            hintStage: hintStage,
+            hintGradientID: hintGradientID
+        )
+        InProgressSessionStore.save(snapshot)
+        hasInProgressSession = true
+        shouldAutoResumeSession = snapshot.autoResume
+        if mode == .challenge { saveChallengeRun() }
+    }
+
+    /// Mark a session as intentionally left. It remains resumable, but a later
+    /// cold launch opens on the menu rather than overriding that decision.
+    func parkInProgressSession() {
+        persistInProgressSession(autoResume: false)
+        shouldAutoResumeSession = false
+    }
+
+    func clearInProgressSession() {
+        InProgressSessionStore.clear()
+        hasInProgressSession = false
+        shouldAutoResumeSession = false
+    }
+
+    @discardableResult
+    func resumeInProgressSession() -> Bool {
+        guard let snapshot = InProgressSessionStore.load(), restoreSession(snapshot) else {
+            clearInProgressSession()
+            return false
+        }
+        InProgressSessionStore.setAutoResume(true)
+        shouldAutoResumeSession = true
+        hasInProgressSession = true
+        return true
+    }
+
+    private func restoreSession(_ snapshot: InProgressSessionStore.Snapshot) -> Bool {
+        guard let restoredMode = GameMode(rawValue: snapshot.mode),
+              !(restoredMode == .daily && snapshot.dailyDateKey != Daily.dateKey()),
+              let data = snapshot.puzzleJSON.data(using: .utf8),
+              let doc = try? CreatorCodec.decode(data),
+              var restoredPuzzle = CreatorCodec.rebuild(doc, level: snapshot.level),
+              restoredPuzzle.bank.count == snapshot.bank.count else { return false }
+
+        restoringInProgressSession = true
+        defer { restoringInProgressSession = false }
+
+        for r in 0..<restoredPuzzle.gridH {
+            for c in 0..<restoredPuzzle.gridW where restoredPuzzle.board[r][c].kind == .cell {
+                restoredPuzzle.board[r][c].placed = nil
+            }
+        }
+        for placement in snapshot.placements {
+            guard restoredPuzzle.board.indices.contains(placement.r),
+                  restoredPuzzle.board[placement.r].indices.contains(placement.c),
+                  restoredPuzzle.board[placement.r][placement.c].kind == .cell else { return false }
+            restoredPuzzle.board[placement.r][placement.c].placed = placement.color.color
+        }
+        restoredPuzzle.bank = snapshot.bank.enumerated().map { offset, value in
+            value.map { BankItem(id: 1_000_000 + offset, color: $0.color) }
+        }
+
+        loadToken += 1
+        mode = restoredMode
+        level = snapshot.level
+        checks = snapshot.checks
+        challengeSolveCount = snapshot.challengeSolveCount
+        challengeBonusLevels = snapshot.challengeBonusLevels
+        consecutiveNoHeartSolves = snapshot.consecutiveNoHeartSolves
+        consecutivePerfectSolves = snapshot.consecutivePerfectSolves
+        heartLostThisLevel = snapshot.heartLostThisLevel
+        campaignIndex = snapshot.campaignIndex
+        dailyDateKey = snapshot.dailyDateKey
+        cameFromGallery = snapshot.cameFromGallery
+        currentGalleryPuzzleId = snapshot.galleryPuzzleID
+        currentGalleryCollectionId = snapshot.galleryCollectionID
+        currentFavoriteURL = snapshot.favoritePath.map(URL.init(fileURLWithPath:))
+        customTitle = snapshot.customTitle
+        puzzleStartTime = Date().addingTimeInterval(-Double(max(0, snapshot.elapsedSeconds)))
+        mistakeCount = snapshot.mistakeCount
+        moveCount = snapshot.moveCount
+        showedIncorrect = snapshot.showedIncorrect
+        showIncorrect = snapshot.showIncorrect
+        engagedThisLevel = snapshot.engagedThisLevel
+        usedHintThisLevel = snapshot.usedHint
+        hintStage = snapshot.hintStage
+        hintGradientID = snapshot.hintGradientID
+        hintMessage = nil
+        hintedCells = []
+        hintedBankSlot = nil
+        selection = nil
+        dragSource = nil
+        dragLocation = nil
+        dropTarget = nil
+        activeColor = nil
+        campaignTip = nil
+        campaignComplete = false
+        runComplete = false
+        generating = false
+        dailyUnavailable = false
+        puzzle = restoredPuzzle
+        recomputePuzzleBounds()
+        solved = snapshot.solved ?? false
+        hasSavedChallengeRun = restoredMode == .challenge || Self.loadSavedChallengeRun() != nil
+        return true
+    }
+
     // ─── Challenge-run persistence ─────────────────────────────
 
     /// Snapshot of the in-progress challenge run written to
@@ -1026,6 +1210,14 @@ final class GameState {
     /// (hearts, slow-advance counter) are restored exactly so the
     /// run continues from where it stood.
     func resumeChallengeRun() {
+        if let snapshot = InProgressSessionStore.load(),
+           snapshot.mode == GameMode.challenge.rawValue,
+           restoreSession(snapshot) {
+            InProgressSessionStore.setAutoResume(true)
+            shouldAutoResumeSession = true
+            hasInProgressSession = true
+            return
+        }
         guard let run = Self.loadSavedChallengeRun() else { return }
         mode = .challenge
         level = run.level
@@ -1103,6 +1295,8 @@ final class GameState {
     // ─── lifecycle ──────────────────────────────────────────────────
 
     func startLevel(_ lv: Int) {
+        // A deliberate new-board request supersedes any older checkpoint.
+        clearInProgressSession()
         generating = true
         dailyUnavailable = false
         // Starting a level via the generator means we're no longer
@@ -1144,6 +1338,12 @@ final class GameState {
         mistakeCount = 0
         moveCount = 0
         liked = nil
+        hintedCells = []
+        hintedBankSlot = nil
+        hintMessage = nil
+        hintStage = 0
+        hintGradientID = nil
+        usedHintThisLevel = false
         // Capture state at dispatch time — the detached task runs off
         // the main actor and can't read properties. Snapshot everything
         // the generator needs so the call-through is self-contained.
@@ -1383,6 +1583,13 @@ final class GameState {
         selection = nil
         activeColor = nil
         showIncorrect = false
+        hintedCells = []
+        hintedBankSlot = nil
+        hintMessage = nil
+        hintStage = 0
+        hintGradientID = nil
+        usedHintThisLevel = false
+        persistInProgressSession()
     }
 
     /// Player-facing unlock — clears every pre-filled lock on the
@@ -1424,6 +1631,7 @@ final class GameState {
         selection = nil
         activeColor = nil
         showIncorrect = false
+        persistInProgressSession()
     }
 
     func handleNext() {
@@ -1438,7 +1646,7 @@ final class GameState {
         // puzzle counts as clean when the player made zero mistakes
         // AND didn't pop the "show incorrect" peek. The streak in
         // Stats rests on this same rule.
-        let cleanSolve = mistakeCount == 0 && !showedIncorrect
+        let cleanSolve = mistakeCount == 0 && !showedIncorrect && !usedHintThisLevel
         // Daily: one puzzle per day — submit the time + moves metrics
         // and reload the same seeded puzzle so retries are allowed but
         // the level never advances past today's assignment.
@@ -1448,7 +1656,7 @@ final class GameState {
             // puzzle solved, but their time / moves don't go on Game
             // Center. Stats are still recorded locally so the streak +
             // history stay accurate.
-            if !showedIncorrect {
+            if !showedIncorrect && !usedHintThisLevel {
                 // Raw time + moves to their own daily leaderboards.
                 // Game Center keeps the player's best per recurrence
                 // period, so today's re-solves only overwrite if they
@@ -1473,7 +1681,15 @@ final class GameState {
             // the menu grays out the option until the next daily rolls
             // over. Replay is explicitly disallowed by spec.
             dailyCompletedKey = Daily.dateKey()
+            DailyHistoryStore.recordCompletion(
+                dailyCompletedKey ?? Daily.dateKey(),
+                solveSeconds: timeSpentSec,
+                moveCount: moveCount,
+                clean: cleanSolve,
+                usedHint: usedHintThisLevel
+            )
             saveProgress()
+            clearInProgressSession()
             return
         }
         // If the player used "show incorrect" this puzzle, solving
@@ -1620,9 +1836,13 @@ final class GameState {
             Haptics.placeWrong()
             Task { @MainActor in
                 try? await Task.sleep(nanoseconds: 1_800_000_000)
-                if !solved { showIncorrect = false }
+                if !solved {
+                    showIncorrect = false
+                    persistInProgressSession()
+                }
             }
             saveProgress()
+            persistInProgressSession()
         } else {
             // Challenge wrong check: costs exactly one heart per
             // level and then reveals the solution — no second
@@ -1641,6 +1861,7 @@ final class GameState {
                 // bounces the player back to the main menu.
                 runComplete = true
                 discardSavedChallengeRun()
+                clearInProgressSession()
             } else {
                 saveChallengeRun()
             }
@@ -1672,6 +1893,77 @@ final class GameState {
         let next = !showIncorrect
         showIncorrect = next
         if next { showedIncorrect = true }
+        persistInProgressSession()
+    }
+
+    // ─── Progressive hints ─────────────────────────────────────────
+
+    func requestHint() {
+        guard let p = puzzle, !solved, !generating else { return }
+
+        let candidates = p.gradients.filter { gradient in
+            gradient.cells.contains { spec in
+                let cell = p.board[spec.r][spec.c]
+                guard !cell.locked else { return false }
+                guard let placed = cell.placed else { return true }
+                return !sameColor(placed, spec.color)
+            }
+        }
+        guard !candidates.isEmpty else { return }
+
+        let gradient: PuzzleGradient = {
+            if let id = hintGradientID,
+               let current = candidates.first(where: { $0.id == id }) {
+                return current
+            }
+            return candidates.max { lhs, rhs in
+                hintContextScore(lhs, in: p) < hintContextScore(rhs, in: p)
+            } ?? candidates[0]
+        }()
+
+        hintGradientID = gradient.id
+        hintedCells = Set(gradient.cells.compactMap { spec in
+            p.board[spec.r][spec.c].locked ? nil : CellIndex(r: spec.r, c: spec.c)
+        })
+        hintedBankSlot = nil
+        hintMessage = "look along this run"
+
+        if hintStage >= 1 {
+            let unresolved = gradient.cells.filter { spec in
+                let cell = p.board[spec.r][spec.c]
+                guard !cell.locked else { return false }
+                guard let placed = cell.placed else { return true }
+                return !sameColor(placed, spec.color)
+            }
+            outer: for spec in unresolved {
+                for (slot, item) in p.bank.enumerated() {
+                    if let item, sameColor(item.color, spec.color) {
+                        hintedBankSlot = slot
+                        hintMessage = "this swatch belongs in this run"
+                        break outer
+                    }
+                }
+            }
+        }
+
+        hintStage = min(2, hintStage + 1)
+        usedHintThisLevel = true
+        Haptics.pickup()
+        persistInProgressSession()
+    }
+
+    func dismissHint() {
+        hintMessage = nil
+        hintedCells = []
+        hintedBankSlot = nil
+    }
+
+    private func hintContextScore(_ gradient: PuzzleGradient, in puzzle: Puzzle) -> Int {
+        gradient.cells.reduce(into: 0) { score, spec in
+            let cell = puzzle.board[spec.r][spec.c]
+            if cell.locked { score += 2 }
+            else if let placed = cell.placed, sameColor(placed, spec.color) { score += 1 }
+        }
     }
 
     func toggleReduceMotion() {
@@ -1737,6 +2029,7 @@ final class GameState {
             discardSavedChallengeRun()
         case .daily:
             let key = Daily.dateKey()
+            DailyHistoryStore.recordAttempt(key)
             let sameSession = wasDaily && dailyDateKey == key && puzzle != nil
             if sameSession {
                 // Preserve puzzle + timer + moves + showedIncorrect
@@ -1774,6 +2067,7 @@ final class GameState {
         // Invalidate any generation still in flight so it can't land on top
         // of this board a moment from now.
         loadToken += 1
+        clearInProgressSession()
         generating = false
         solved = false
         selection = nil
@@ -1810,8 +2104,15 @@ final class GameState {
         puzzleStartTime = Date()
         mistakeCount = 0
         moveCount = 0
+        hintedCells = []
+        hintedBankSlot = nil
+        hintMessage = nil
+        hintStage = 0
+        hintGradientID = nil
+        usedHintThisLevel = false
         puzzle = p
         recomputePuzzleBounds()
+        persistInProgressSession()
     }
 
     // ─── Campaign ──────────────────────────────────────────────────
@@ -1827,7 +2128,7 @@ final class GameState {
         loadCustomPuzzle(puz, title: entry.name.lowercased())
         campaignIndex = index
         campaignComplete = false
-        CampaignStore.lastPlayed = index
+        CampaignStore.recordPlayed(index)
         // Tips are one-shot per level: they teach a mechanic, and a player
         // replaying an old level doesn't need to be told again.
         if let tip = entry.tip, !CampaignStore.hasSeenTip(index) {
@@ -1836,6 +2137,7 @@ final class GameState {
         } else {
             campaignTip = nil
         }
+        persistInProgressSession()
         return true
     }
 
@@ -1846,13 +2148,14 @@ final class GameState {
         CampaignStore.markCleared(index)
         StatsStore.recordSolve(
             mode: "campaign",
-            clean: mistakeCount == 0 && !showedIncorrect,
+            clean: mistakeCount == 0 && !showedIncorrect && !usedHintThisLevel,
             solveSeconds: timeSpentSec,
             cbMode: cbMode.rawValue
         )
         showedIncorrect = false
         if loadCampaignLevel(index + 1) { return true }
         campaignComplete = true
+        clearInProgressSession()
         return false
     }
 
@@ -1881,6 +2184,21 @@ final class GameState {
         }
     }
 
+    var isCurrentPuzzleSaved: Bool {
+        if let index = campaignIndex { return CampaignStore.isBookmarked(index) }
+        return currentFavoriteURL != nil
+    }
+
+    func toggleCurrentPuzzleSaved() {
+        if let index = campaignIndex {
+            CampaignStore.toggleBookmark(index)
+            campaignBookmarkRevision &+= 1
+        } else {
+            toggleFavorite()
+        }
+        persistInProgressSession()
+    }
+
     func resetProgress() {
         UserDefaults.standard.removeObject(forKey: progressKey)
         // Clear every first-run tutorial flag so a fresh install
@@ -1890,6 +2208,9 @@ final class GameState {
         // Drop any suspended challenge run too; entering challenge
         // after a reset should always start at level 1.
         discardSavedChallengeRun()
+        clearInProgressSession()
+        DailyHistoryStore.reset()
+        CampaignStore.resetAll()
         level = 1
         zenLevel = 1
         challengeMaxLevel = 1
@@ -2023,6 +2344,7 @@ final class GameState {
         GlassyAudio.shared.playPlaceChordTone(for: item.color)
         recordPlacementAt(r, c, from: p.board)
         checkAutoSolve()
+        persistInProgressSession()
     }
 
     func placeCellIntoSlot(_ from: CellIndex, slot: Int) {
@@ -2046,6 +2368,7 @@ final class GameState {
         // empty case is handled by the guard in recordPlacementAt.
         recordPlacementAt(from.r, from.c, from: p.board)
         checkAutoSolve()
+        persistInProgressSession()
     }
 
     func moveSlotToSlot(_ from: Int, _ to: Int) {
@@ -2060,6 +2383,7 @@ final class GameState {
         puzzle = p
         engagedThisLevel = true
         GlassyAudio.shared.playPlaceChordTone(for: movedItem.color)
+        persistInProgressSession()
     }
 
     func swapCells(_ a: CellIndex, _ b: CellIndex) {
@@ -2078,6 +2402,7 @@ final class GameState {
         recordPlacementAt(a.r, a.c, from: p.board)
         recordPlacementAt(b.r, b.c, from: p.board)
         checkAutoSolve()
+        persistInProgressSession()
     }
 
     func moveCellToCell(_ from: CellIndex, _ to: CellIndex) {
@@ -2097,6 +2422,7 @@ final class GameState {
         // `to` cell received the color; `from` went empty (no count).
         recordPlacementAt(to.r, to.c, from: p.board)
         checkAutoSolve()
+        persistInProgressSession()
     }
 
     // Drag-off-grid fallback — put the removed color into the first
@@ -2112,6 +2438,7 @@ final class GameState {
         puzzle = p
         engagedThisLevel = true
         GlassyAudio.shared.playPlaceChordTone(for: color)
+        persistInProgressSession()
     }
 
     // ─── tap handling ───────────────────────────────────────────────
@@ -2287,6 +2614,7 @@ final class GameState {
         let totalFree = p.initialBankCount
         return mistakeCount == 0
             && !showedIncorrect
+            && !usedHintThisLevel
             && moveCount == totalFree
     }
 }

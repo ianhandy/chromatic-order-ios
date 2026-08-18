@@ -33,6 +33,7 @@ struct MenuSheet: View {
         // incorrect cells is what Check does, at the cost of a heart.
         // Nothing to check once the puzzle is already solved.
         let canShowIncorrect = game.mode != .challenge && !game.solved
+        let canHint = game.puzzle != nil && !game.generating && !game.solved
 
         ZStack(alignment: .topTrailing) {
             if menuOpen {
@@ -46,6 +47,17 @@ struct MenuSheet: View {
                     .accessibilityAddTraits(.isButton)
 
                 VStack(alignment: .leading, spacing: 0) {
+                    MenuPanelRow(icon: "lightbulb",
+                                 label: "hint",
+                                 disabled: !canHint) {
+                        if game.mode == .daily && !game.usedHintThisLevel {
+                            game.dailyHintConfirmPending = true
+                        } else {
+                            game.requestHint()
+                        }
+                        menuOpen = false
+                    }
+
                     MenuPanelRow(icon: game.showIncorrect
                                     ? "eye.slash"
                                     : "exclamationmark.triangle",
@@ -118,18 +130,21 @@ struct MenuSheet: View {
         if game.cameFromGallery {
             MenuPanelRow(icon: "square.grid.2x2", label: Strings.Menu.gallery) {
                 menuOpen = false
+                game.parkInProgressSession()
                 game.openGalleryOnMenuAppear = true
                 transitioner.fade { started = false }
             }
         } else if game.campaignIndex != nil {
             MenuPanelRow(icon: "list.number", label: Strings.Menu.campaign) {
                 menuOpen = false
+                game.parkInProgressSession()
                 game.openCampaignOnMenuAppear = true
                 transitioner.fade { started = false }
             }
         } else {
             MenuPanelRow(icon: "house", label: "home") {
                 menuOpen = false
+                game.parkInProgressSession()
                 transitioner.fade { started = false }
             }
         }

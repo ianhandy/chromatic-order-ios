@@ -11,6 +11,8 @@ enum CampaignStore {
     private static let clearedKey = "kromaCampaignCleared_v1"
     private static let tipsKey = "kromaCampaignTipsSeen_v1"
     private static let lastPlayedKey = "kromaCampaignLastPlayed_v1"
+    private static let bookmarksKey = "kromaCampaignBookmarks_v1"
+    private static let recentKey = "kromaCampaignRecent_v1"
 
     // ─── Cleared levels ────────────────────────────────────────────
 
@@ -94,10 +96,45 @@ enum CampaignStore {
         set { UserDefaults.standard.set(newValue, forKey: lastPlayedKey) }
     }
 
+    // ─── Quick access ──────────────────────────────────────────────
+
+    static var bookmarks: [Int] {
+        (UserDefaults.standard.array(forKey: bookmarksKey) as? [Int] ?? [])
+            .filter { CampaignCatalog.level($0) != nil }
+            .sorted()
+    }
+
+    static func isBookmarked(_ index: Int) -> Bool {
+        bookmarks.contains(index)
+    }
+
+    static func toggleBookmark(_ index: Int) {
+        guard CampaignCatalog.level(index) != nil else { return }
+        var set = Set(bookmarks)
+        if set.contains(index) { set.remove(index) } else { set.insert(index) }
+        UserDefaults.standard.set(Array(set).sorted(), forKey: bookmarksKey)
+    }
+
+    /// Most-recent first, deduplicated and bounded so the picker stays quiet.
+    static var recent: [Int] {
+        (UserDefaults.standard.array(forKey: recentKey) as? [Int] ?? [])
+            .filter { CampaignCatalog.level($0) != nil }
+    }
+
+    static func recordPlayed(_ index: Int) {
+        guard CampaignCatalog.level(index) != nil else { return }
+        var values = recent.filter { $0 != index }
+        values.insert(index, at: 0)
+        UserDefaults.standard.set(Array(values.prefix(8)), forKey: recentKey)
+        lastPlayed = index
+    }
+
     /// Debug/reset path — also used by the Options "reset progress" flow.
     static func resetAll() {
         UserDefaults.standard.removeObject(forKey: clearedKey)
         UserDefaults.standard.removeObject(forKey: tipsKey)
         UserDefaults.standard.removeObject(forKey: lastPlayedKey)
+        UserDefaults.standard.removeObject(forKey: bookmarksKey)
+        UserDefaults.standard.removeObject(forKey: recentKey)
     }
 }

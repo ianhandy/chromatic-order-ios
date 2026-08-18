@@ -81,7 +81,12 @@ struct ChromaticOrderApp: App {
                 // `.firstLaunch` stays unseen deliberately: its tooltip is
                 // written for the challenge board, so it fires the first
                 // time the player actually picks challenge.
-                if !TutorialStore.hasSeen(.firstLaunch),
+                if game.shouldAutoResumeSession {
+                    started = true
+                } else if game.hasInProgressSession {
+                    // The player deliberately left this board at the menu.
+                    // Keep it available through the contextual resume row.
+                } else if !TutorialStore.hasSeen(.firstLaunch),
                    CampaignStore.clearedCount == 0,
                    game.loadCampaignLevel(1) {
                     started = true
@@ -118,6 +123,9 @@ struct ChromaticOrderApp: App {
                         await LikedPuzzleStore.refreshRemoteDislikedSignatures()
                     }
                 case .background:
+                    // iOS can terminate a backgrounded process without
+                    // another callback. Capture the exact live board first.
+                    if started { game.persistInProgressSession(autoResume: true) }
                     // Explicitly stop audio when the app enters the
                     // background. The AVAudioSession interruptionNotification
                     // doesn't always fire for simple app-switches on newer

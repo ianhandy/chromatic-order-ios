@@ -58,6 +58,13 @@ struct BankSlotView: View {
                 )
                 .opacity(isDragSource ? 0.15 : 1)
             }
+
+            if game.hintedBankSlot == slot {
+                RoundedRectangle(cornerRadius: radius, style: .continuous)
+                    .strokeBorder(Color.white.opacity(0.95), lineWidth: 3)
+                    .frame(width: size, height: size)
+                    .allowsHitTesting(false)
+            }
         }
         .frame(width: size, height: size)
         .background(
@@ -122,7 +129,9 @@ struct BankSlotView: View {
         .accessibilityLabel(item == nil
                             ? "empty slot \(slot + 1)"
                             : "swatch \(slot + 1)")
-        .accessibilityValue(isPicked ? "picked up" : "")
+        .accessibilityValue(game.hintedBankSlot == slot
+                            ? "hinted"
+                            : (isPicked ? "picked up" : ""))
         .accessibilityAddTraits(item == nil ? [] : .isButton)
         .accessibilityAction {
             game.tapSlot(slot)

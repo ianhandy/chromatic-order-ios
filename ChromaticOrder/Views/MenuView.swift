@@ -187,6 +187,13 @@ struct MenuView: View {
                         .accessibilityAddTraits(.isHeader)
 
                     VStack(alignment: .trailing, spacing: Kroma.Space.xs) {
+                        if game.hasInProgressSession && game.mode != .challenge {
+                            primaryRow("resume", detail: resumeDetail) {
+                                transitioner.fade {
+                                    if game.resumeInProgressSession() { started = true }
+                                }
+                            }
+                        }
                         // Campaign sits first: it's the on-ramp, and a new
                         // player should meet it before the endless modes.
                         primaryRow(Strings.Menu.campaign,
@@ -407,6 +414,20 @@ struct MenuView: View {
         let done = CampaignStore.clearedCount
         guard done > 0 else { return nil }
         return "\(done)/\(CampaignCatalog.count)"
+    }
+
+    private var resumeDetail: String {
+        if let index = game.campaignIndex,
+           let chapter = CampaignCatalog.chapter(containing: index),
+           let local = CampaignStore.localNumber(for: index) {
+            return "\(chapter.title.lowercased()) \(local)"
+        }
+        if game.cameFromGallery { return Strings.Menu.gallery }
+        switch game.mode {
+        case .daily: return "today"
+        case .challenge: return "challenge"
+        case .zen: return "zen"
+        }
     }
 
     /// Honor both the system preference and Kromatika's in-app toggle.

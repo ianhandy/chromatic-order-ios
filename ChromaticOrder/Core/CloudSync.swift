@@ -11,6 +11,7 @@ enum CloudSync {
     private static let keys = [
         "chromaticOrderProgress",  // zen level + challengeMaxLevel
         "kromaStats_v1",           // aggregate stats
+        "kromaDailyHistory_v1",    // daily completion calendar
     ]
     private static var externalChangeObserver: NSObjectProtocol?
 

@@ -136,6 +136,14 @@ struct CellView: View {
                         .frame(width: cellPx * 0.22, height: cellPx * 0.22)
                 }
 
+                if isHinted {
+                    RoundedRectangle(cornerRadius: radius, style: .continuous)
+                        .inset(by: 1.5)
+                        .stroke(Color.white.opacity(0.92), lineWidth: max(2.5, cellPx * 0.07))
+                        .frame(width: cellPx, height: cellPx)
+                        .allowsHitTesting(false)
+                }
+
             }
         }
         .opacity(isDragSource ? 0.3 : 1.0)
@@ -194,6 +202,15 @@ struct CellView: View {
                     }
                 }
         )
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("cell, row \(r + 1), column \(c + 1)")
+        .accessibilityValue(cell.locked
+                            ? "fixed"
+                            : (isHinted ? "hinted" : (filled ? "filled" : "empty")))
+        .accessibilityAddTraits(cell.locked || game.solved ? [] : .isButton)
+        .accessibilityAction {
+            if !cell.locked && !game.solved { game.tapCell(at: r, c) }
+        }
     }
 
     // ─── derived flags ──────────────────────────────────────────────
@@ -221,6 +238,10 @@ struct CellView: View {
         guard cell.kind == .cell, !cell.locked,
               let placed = cell.placed, let sol = cell.solution else { return false }
         return game.showIncorrect && !game.sameColor(placed, sol)
+    }
+
+    private var isHinted: Bool {
+        game.hintedCells.contains(CellIndex(r: r, c: c))
     }
 }
 
