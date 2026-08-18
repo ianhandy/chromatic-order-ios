@@ -64,6 +64,12 @@ struct ContentView: View {
     /// tooltip auto-dismisses once the player uses the level picker
     /// (game.level changes).
     @State private var zenTutorialBaselineLevel: Int? = nil
+    /// Global-space frames published by TopBarView's chips, BankView's
+    /// swatch grid, and the active tutorial balloon's own knot — see
+    /// `TutorialTargetFramesKey`. Stored via `.onPreferenceChange`
+    /// rather than resolved live inside `.overlayPreferenceValue`,
+    /// same pattern as `game.bankSlotFrames` (BankSlotFramesKey).
+    @State private var tutorialTargetFrames: [String: CGRect] = [:]
 
     /// Base size for the "perfect" celebration banner. `@ScaledMetric`
     /// grows this with Dynamic Type the same way a semantic text style
@@ -310,12 +316,12 @@ struct ContentView: View {
             // Predetermined tutorial seeds (TutorialFlag.puzzleSeed)
             // keep the board layout stable so this positioning
             // actually clears the cells every time.
-            if let flag = tutorialFlag {
-                tutorialTooltipLayer(for: flag,
-                                     presentationID: tutorialPresentationID)
-                    .zIndex(30)
+            if tutorialFlag != nil {
+                tutorialSpotlightAndContentLayer
+                    .zIndex(29)
                     .transition(.opacity)
-                balloonStringOverlay
+                tutorialStringLayer
+                    .zIndex(31)
             }
 
             // Challenge run-over overlay. Fires when the player
@@ -353,6 +359,9 @@ struct ContentView: View {
             game.dismissGameplayGuidance()
             if menuOpen { menuOpen = false }
             else if game.selection != nil { game.clearSelection() }
+        }
+        .onPreferenceChange(TutorialTargetFramesKey.self) { frames in
+            tutorialTargetFrames = frames
         }
         .onShake {
             // Shake-to-shuffle disabled: too easy to trigger
@@ -443,7 +452,12 @@ struct ContentView: View {
             }
         }
         .onChange(of: game.gameplayGuidanceDismissalID) { _, _ in
-            dismissTutorialImmediately()
+            // Any gameplay engagement — tapping the spotlighted target
+            // to do the real thing, or tapping elsewhere to wave it
+            // off — dismisses through the same graceful float-away as
+            // every other exit path, instead of hard-cutting the
+            // balloon mid-frame.
+            releaseTutorial()
         }
         .animation(.easeInOut(duration: 0.35), value: game.runComplete)
         .onChange(of: incomingPuzzle != nil) { _, hasIncoming in
@@ -804,111 +818,160 @@ struct ContentView: View {
         }
     }
 
-    /// Position the tooltip per-mode so it lands in the whitespace
-    /// around the grid. Challenge (firstLaunch) points at the bank
-    /// swatches at the bottom — tooltip sits just above them so the
-    /// arrow of attention lands on the colors the player is about
-    /// to drag. Zen and daily point at the top-bar controls, so
-    /// those tooltips sit just under the top bar.
+    /// Key into `tutorialTargetFrames` for the real control each
+    /// tutorial is pointing at — the spotlight hole and the pointer
+    /// line both resolve through this. Challenge points at
+    /// the bank (published by BankView); zen and daily point at their
+    /// respective top-bar chip (published by TopBarView).
+    private func tutorialTargetKey(for flag: TutorialFlag) -> String {
+        switch flag {
+        case .firstLaunch: return "bank"
+        case .zenIntro:    return "chip"
+        case .dailyIntro:  return "dailyChip"
+        }
+    }
+
+    /// Whether this flag's tooltip sits above its target (challenge,
+    /// pointing down at the bank) or below it (zen/daily, pointing up
+    /// at the top bar) — drives both the tooltip's own placement and
+    /// the corner-arrow glyph, which only reads correctly pointing
+    /// up-left at a target above the balloon.
+    private func tutorialTargetIsBelow(_ flag: TutorialFlag) -> Bool {
+        flag == .firstLaunch
+    }
+
+    /// Corner radius for the spotlight hole around a given target.
+    /// Chips render as capsules (`kromaSurface(.control)`'s default
+    /// shape), so their hole should be fully pill-rounded; the bank
+    /// spans a whole grid of swatches, so a fixed generous radius
+    /// reads better than a capsule there.
+    private func spotlightCornerRadius(for flag: TutorialFlag, holeRect: CGRect) -> CGFloat {
+        flag == .firstLaunch ? Kroma.Radius.panel : holeRect.height / 2
+    }
+
+    /// Gap, in points, between the spotlighted target's edge and the
+    /// tooltip/balloon that points at it. Small on purpose — the whole
+    /// point of the spotlight + pointer is that the arrow reads as
+    /// touching the thing it's calling out, not gesturing at it from
+    /// across the screen.
+    private static let tutorialTargetGap: CGFloat = 10
+
+    /// Dark scrim with a hole punched around the active tutorial's real
+    /// target, plus the tooltip/balloon itself positioned directly from
+    /// that same target's stored frame — its edge sits `tutorialTargetGap`
+    /// points from the target's edge, on whichever side the target is
+    /// (above for the bank, below for a top-bar chip), so it's genuinely
+    /// adjacent regardless of Dynamic Type, device size, or which target
+    /// it's pointing at.
     ///
-    /// Reduce-motion players see the old flat `TutorialTooltip`;
-    /// everyone else gets the balloon with passive sway + float-away
-    /// motion via `TutorialBalloon`. Both the system preference and
-    /// the in-app toggle count, matching MenuView — which also means
-    /// the balloon's display link never spins up for a player who has
-    /// asked the system for less motion.
+    /// Reduce-motion players see the flat `TutorialTooltip`; everyone
+    /// else gets the balloon with passive sway + float-away motion via
+    /// `TutorialBalloon`. Both the system preference and the in-app
+    /// toggle count, matching MenuView.
     @ViewBuilder
-    private func tutorialTooltipLayer(for flag: TutorialFlag,
-                                      presentationID: Int) -> some View {
-        if systemReduceMotion || game.reduceMotion {
-            flatTutorialLayer(for: flag, presentationID: presentationID)
-        } else {
-            balloonTutorialLayer(for: flag, presentationID: presentationID)
+    private var tutorialSpotlightAndContentLayer: some View {
+        if let flag = tutorialFlag, let target = tutorialTargetFrames[tutorialTargetKey(for: flag)] {
+            let belowTarget = tutorialTargetIsBelow(flag)
+            let padded = target.insetBy(dx: -8, dy: -8)
+            TutorialSpotlightOverlay(
+                holeRect: padded,
+                cornerRadius: spotlightCornerRadius(for: flag, holeRect: padded),
+                exit: tutorialExit,
+                onDismissTap: releaseTutorial
+            )
+            GeometryReader { geo in
+                VStack(spacing: 0) {
+                    if belowTarget {
+                        Spacer(minLength: 0)
+                        tutorialContent(for: flag, presentationID: tutorialPresentationID)
+                            .padding(.bottom, max(0, geo.size.height - target.minY + Self.tutorialTargetGap))
+                    } else {
+                        tutorialContent(for: flag, presentationID: tutorialPresentationID)
+                            .padding(.top, target.maxY + Self.tutorialTargetGap)
+                        Spacer(minLength: 0)
+                    }
+                }
+                .frame(width: geo.size.width, height: geo.size.height, alignment: .top)
+            }
+            .ignoresSafeArea()
         }
     }
 
     @ViewBuilder
-    private func flatTutorialLayer(for flag: TutorialFlag,
-                                   presentationID: Int) -> some View {
-        let released = tutorialExit != .alive
-        VStack(spacing: 0) {
-            TutorialTooltip(text: tooltipText(for: flag))
-                .frame(maxWidth: 340)
-                .padding(.top, 78)
-            Spacer(minLength: 0)
+    private func tutorialContent(for flag: TutorialFlag, presentationID: Int) -> some View {
+        if systemReduceMotion || game.reduceMotion {
+            flatTutorialContent(for: flag, presentationID: presentationID)
+        } else {
+            balloonTutorialContent(for: flag, presentationID: presentationID)
         }
-        .allowsHitTesting(false)
-        .opacity(released ? 0 : 1)
-        .animation(.easeOut(duration: 0.25), value: released)
-        .onChange(of: tutorialExit) { _, newVal in
-            if newVal != .alive {
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.28) {
-                    finishTutorialUnmount(for: flag, presentationID: presentationID)
+    }
+
+    @ViewBuilder
+    private func flatTutorialContent(for flag: TutorialFlag,
+                                     presentationID: Int) -> some View {
+        let released = tutorialExit != .alive
+        TutorialTooltip(text: tooltipText(for: flag))
+            .frame(maxWidth: 340)
+            .opacity(released ? 0 : 1)
+            .animation(.easeOut(duration: 0.25), value: released)
+            .onChange(of: tutorialExit) { _, newVal in
+                if newVal != .alive {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.28) {
+                        finishTutorialUnmount(for: flag, presentationID: presentationID)
+                    }
                 }
             }
-        }
     }
 
     @ViewBuilder
-    private func balloonTutorialLayer(for flag: TutorialFlag,
-                                      presentationID: Int) -> some View {
-        // Balloon position is fixed the same way the flat tooltip was
-        // (top-center under the top bar). Per-flag color tint reads as
-        // "slight tint" over a dark backdrop. The connector string to
-        // the level chip (zenIntro only) is drawn elsewhere at the
-        // ZStack root so it can see anchors from both subtrees — see
-        // `balloonStringOverlay`.
+    private func balloonTutorialContent(for flag: TutorialFlag,
+                                        presentationID: Int) -> some View {
         // Slight pink tint across every tutorial balloon — reads as a
         // unified "tutorial-speak" color without drifting into
         // mode-coded palettes.
         let tint = Color(red: 1.00, green: 0.72, blue: 0.82)
-        VStack(spacing: 0) {
-            TutorialBalloon(
-                text: tooltipText(for: flag),
-                tint: tint,
-                exit: tutorialExit,
-                onFinished: {
-                    finishTutorialUnmount(for: flag, presentationID: presentationID)
-                },
-                knotAnchorKey: "balloonKnot",
-                cornerArrow: flag == .zenIntro
-            )
-            .padding(.top, 78)
-            Spacer(minLength: 0)
-        }
+        TutorialBalloon(
+            text: tooltipText(for: flag),
+            tint: tint,
+            exit: tutorialExit,
+            onFinished: {
+                finishTutorialUnmount(for: flag, presentationID: presentationID)
+            },
+            knotAnchorKey: "balloonKnot",
+            // The glyph points up-left, which only reads correctly
+            // when the real target sits above the balloon.
+            cornerArrow: !tutorialTargetIsBelow(flag)
+        )
     }
 
-    /// Overlay drawn at the ZStack root so the connector string from
-    /// the balloon's knot to the level chip can resolve both anchors.
-    /// TopBarView and the tutorial layer are sibling subtrees — only a
-    /// common ancestor sees preferences from both. Hidden unless the
-    /// zenIntro balloon is live.
+    /// Connector line from the balloon's knot to the real target.
+    /// Drawn last (highest zIndex) so it sits visibly on top of both
+    /// the spotlight and the balloon it starts from. The knot frame
+    /// only exists once the balloon has actually rendered and
+    /// published it, which — since both are read from the same
+    /// `tutorialTargetFrames` state, updated asynchronously via
+    /// `.onPreferenceChange` — is naturally available a render or two
+    /// after `tutorialSpotlightAndContentLayer` first mounts the
+    /// balloon; the guard below just no-ops the string until then.
     @ViewBuilder
-    private var balloonStringOverlay: some View {
-        if tutorialFlag == .zenIntro, !systemReduceMotion, !game.reduceMotion {
-            Color.clear
-                .overlayPreferenceValue(TutorialAnchorsKey.self) { anchors in
-                    GeometryReader { geo in
-                        if let chipA = anchors["chip"],
-                           let knotA = anchors["balloonKnot"] {
-                            let chip = geo[chipA]
-                            let knot = geo[knotA]
-                            BalloonStringToTargetShape(
-                                knot: CGPoint(x: knot.midX, y: knot.midY),
-                                target: CGPoint(x: chip.maxX + 6, y: chip.midY)
-                            )
-                            .stroke(Color.white.opacity(0.85),
-                                    style: StrokeStyle(lineWidth: 2,
-                                                       lineCap: .round,
-                                                       lineJoin: .round))
-                            .opacity(tutorialExit == .alive ? 1 : 0.0)
-                            .animation(.easeOut(duration: 0.25),
-                                       value: tutorialExit)
-                        }
-                    }
-                }
-                .allowsHitTesting(false)
-                .zIndex(31)
+    private var tutorialStringLayer: some View {
+        if let flag = tutorialFlag, !systemReduceMotion, !game.reduceMotion,
+           let target = tutorialTargetFrames[tutorialTargetKey(for: flag)],
+           let knot = tutorialTargetFrames["balloonKnot"] {
+            BalloonStringToTargetShape(
+                knot: CGPoint(x: knot.midX, y: knot.midY),
+                target: tutorialTargetIsBelow(flag)
+                    ? CGPoint(x: target.midX, y: target.minY - 6)
+                    : CGPoint(x: target.maxX + 6, y: target.midY)
+            )
+            .stroke(Color.white.opacity(0.85),
+                    style: StrokeStyle(lineWidth: 2,
+                                       lineCap: .round,
+                                       lineJoin: .round))
+            .opacity(tutorialExit == .alive ? 1 : 0.0)
+            .animation(.easeOut(duration: 0.25), value: tutorialExit)
+            .allowsHitTesting(false)
+            .ignoresSafeArea()
         }
     }
 
@@ -949,18 +1012,6 @@ struct ContentView: View {
             if let f = tutorialFlag { TutorialStore.markSeen(f) }
             tutorialExit = .released
         }
-    }
-
-    /// Gameplay actions must clear guidance in the same state update so they
-    /// are never delayed by the balloon's optional dismissal choreography.
-    private func dismissTutorialImmediately() {
-        if let flag = tutorialFlag { TutorialStore.markSeen(flag) }
-        // Invalidate callbacks captured by the current presentation before
-        // clearing it. This matters if the same flag is reset and re-presented.
-        tutorialPresentationID += 1
-        tutorialFlag = nil
-        tutorialExit = .alive
-        zenTutorialBaselineLevel = nil
     }
 
     /// Called by the tutorial view (balloon or flat) once its exit

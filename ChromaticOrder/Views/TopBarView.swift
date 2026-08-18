@@ -119,15 +119,17 @@ struct TopBarView: View {
                 .buttonStyle(.kromaControl)
                 .accessibilityLabel("level \(game.level), \(t.label)")
                 .accessibilityHint("change level")
-                // Publish the chip's bounds into the shared tutorial
-                // anchor bag so the zen-intro tooltip overlay can draw a
-                // pointer line from itself directly to this chip without
-                // hard-coding the chip's screen position.
-                .transformAnchorPreference(
-                    key: TutorialAnchorsKey.self,
-                    value: .bounds
-                ) { value, anchor in
-                    value["chip"] = anchor
+                // Publish the chip's global frame into the shared
+                // tutorial frame bag so the zen-intro tooltip overlay
+                // can draw a pointer line + spotlight hole directly
+                // around this chip without hard-coding its position.
+                .background {
+                    GeometryReader { geo in
+                        Color.clear.preference(
+                            key: TutorialTargetFramesKey.self,
+                            value: ["chip": geo.frame(in: .global)]
+                        )
+                    }
                 }
             } else {
                 chipText("Lv \(game.level)")
@@ -141,6 +143,16 @@ struct TopBarView: View {
             chipText("daily")
                 .foregroundStyle(Self.primaryText)
                 .kromaSurface(.control)
+                // Same frame contract as the zen chip, for the
+                // daily-intro tutorial's pointer + spotlight.
+                .background {
+                    GeometryReader { geo in
+                        Color.clear.preference(
+                            key: TutorialTargetFramesKey.self,
+                            value: ["dailyChip": geo.frame(in: .global)]
+                        )
+                    }
+                }
         }
     }
 

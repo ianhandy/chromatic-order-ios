@@ -134,6 +134,19 @@ struct BankView: View {
                         }
                     }
                     .frame(width: availW, height: totalHeight, alignment: .top)
+                    // Global frame of the actual swatch grid (not the
+                    // wider GeometryReader around it) — the challenge
+                    // "drag a color" tutorial points its spotlight and
+                    // pointer line here. Same key/pattern as
+                    // BankSlotFramesKey just below.
+                    .background {
+                        GeometryReader { bankGeo in
+                            Color.clear.preference(
+                                key: TutorialTargetFramesKey.self,
+                                value: ["bank": bankGeo.frame(in: .global)]
+                            )
+                        }
+                    }
                 }
                 .frame(height: bankContentHeight(initialBankCount: p.initialBankCount))
                 .onPreferenceChange(BankSlotFramesKey.self) { frames in

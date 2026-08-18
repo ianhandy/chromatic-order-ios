@@ -23,20 +23,97 @@ struct TutorialTooltip: View {
             .padding(.vertical, Kroma.Space.l)
             .transition(.opacity.combined(with: .scale(scale: 0.96)))
             .allowsHitTesting(false)
+            .background(alignment: .bottom) {
+                // Same knot-frame contract as TutorialBalloon, so
+                // Reduce Motion players still get a pointer line from
+                // the tooltip to its target instead of losing the
+                // pointer entirely when the balloon is swapped out.
+                GeometryReader { geo in
+                    Color.clear.preference(
+                        key: TutorialTargetFramesKey.self,
+                        value: ["balloonKnot": geo.frame(in: .global)]
+                    )
+                }
+                .frame(width: 1, height: 1)
+            }
+    }
+}
+
+// ─── Tutorial spotlight ──────────────────────────────────────────────
+
+/// Full-bleed scrim with a punched-out hole around whatever the active
+/// tutorial is pointing at, so the target reads as lit against a
+/// dimmed table instead of competing with it for attention. The hole
+/// is a real absence in the shape (even-odd fill), not a blend trick,
+/// which means hit-testing naturally follows the same shape: taps
+/// inside the hole fall through to the real control underneath, taps
+/// on the dimmed field are caught here and treated as "dismiss."
+struct TutorialSpotlightShape: Shape {
+    var holeRect: CGRect
+    var cornerRadius: CGFloat
+
+    func path(in rect: CGRect) -> Path {
+        var p = Path(rect)
+        p.addRoundedRect(in: holeRect, cornerSize: CGSize(width: cornerRadius, height: cornerRadius))
+        return p
+    }
+
+    var animatableData: AnimatablePair<AnimatablePair<CGFloat, CGFloat>, AnimatablePair<CGFloat, CGFloat>> {
+        get {
+            AnimatablePair(AnimatablePair(holeRect.origin.x, holeRect.origin.y),
+                            AnimatablePair(holeRect.size.width, holeRect.size.height))
+        }
+        set {
+            holeRect = CGRect(x: newValue.first.first, y: newValue.first.second,
+                               width: newValue.second.first, height: newValue.second.second)
+        }
+    }
+}
+
+/// The dimming layer itself: a `TutorialSpotlightShape` filled and
+/// used as its own content shape (both even-odd), so the view only
+/// intercepts taps in the darkened field. Fades with `tutorialExit`
+/// like the balloon and its pointer line, and stops intercepting taps
+/// the instant release begins so the player's dismiss-tap reaches
+/// gameplay immediately rather than waiting on the float-away.
+struct TutorialSpotlightOverlay: View {
+    let holeRect: CGRect
+    let cornerRadius: CGFloat
+    let exit: TutorialBalloonExit
+    let onDismissTap: () -> Void
+
+    var body: some View {
+        let shape = TutorialSpotlightShape(holeRect: holeRect, cornerRadius: cornerRadius)
+        shape
+            .fill(Color.black.opacity(0.55), style: FillStyle(eoFill: true))
+            .contentShape(shape, eoFill: true)
+            .onTapGesture(perform: onDismissTap)
+            .ignoresSafeArea()
+            .allowsHitTesting(exit == .alive)
+            .opacity(exit == .alive ? 1 : 0)
+            .animation(.easeOut(duration: 0.25), value: exit)
     }
 }
 
 // ─── Tutorial pointer-line anchors + arrow ──────────────────────────
 
-/// Shared anchor bag so separate views (the level chip, the zen
-/// tooltip) can publish their on-screen frames and an overlay layer
-/// can resolve both in one pass to draw a line between them.
-struct TutorialAnchorsKey: PreferenceKey {
-    static var defaultValue: [String: Anchor<CGRect>] = [:]
-    static func reduce(
-        value: inout [String: Anchor<CGRect>],
-        nextValue: () -> [String: Anchor<CGRect>]
-    ) {
+/// Shared frame bag so separate views (the level chip, the bank, the
+/// balloon's own knot) can publish their on-screen `.global` frames
+/// for an overlay layer to resolve. Same shape and same `.global`
+/// coordinate space as `BankSlotFramesKey` in BankView.swift, which
+/// already drives drag-drop hit-testing reliably — plain `CGRect`
+/// values read via `.onPreferenceChange` into stored `@State`, not
+/// `Anchor<CGRect>` resolved live inside `.overlayPreferenceValue`.
+/// The anchor-based version of this turned out to be the wrong tool:
+/// `.overlayPreferenceValue` only reliably sees preferences published
+/// within its own view's subtree, not sibling subtrees elsewhere in
+/// the same ZStack, so the level chip and the bank (both several
+/// layers away from where the tutorial overlay reads them) never
+/// actually resolved. Storing into `@State` via `.onPreferenceChange`
+/// decouples the read from that same render pass entirely.
+struct TutorialTargetFramesKey: PreferenceKey {
+    static var defaultValue: [String: CGRect] = [:]
+    static func reduce(value: inout [String: CGRect], nextValue: () -> [String: CGRect]) {
         value.merge(nextValue()) { _, new in new }
     }
 }
@@ -110,9 +187,6 @@ struct TutorialBalloon: View {
     /// Guards `onFinished()` so at most one call fires per lifecycle.
     @State private var finishedFired: Bool = false
     private static let balloonSize = CGSize(width: 150, height: 170)
-    private static let knotHeight: CGFloat = 10
-    /// Length of the dangling string below the knot.
-    private static let stringLength: CGFloat = 50
 
     var body: some View {
         // TimelineView drives passive per-frame sway and float-away
@@ -129,8 +203,15 @@ struct TutorialBalloon: View {
                 .opacity(pose.opacity)
                 .animation(nil, value: ctx.date)
         }
-        .frame(width: Self.balloonSize.width,
-               height: Self.balloonSize.height + Self.knotHeight + Self.stringLength + 12)
+        // Just the bubble + a little breathing room for its shadow —
+        // the frame used to reserve space below for a knot + dangling
+        // string that the redesign to a plain floating bubble dropped
+        // visually (see `balloonVisual`'s comment). Keeping the old,
+        // much taller frame left ~45pt of invisible padding above the
+        // visible circle when this view is top-aligned against a
+        // target above/below it, which read as "not actually close"
+        // even though the positioning math was tight.
+        .frame(width: Self.balloonSize.width, height: Self.balloonSize.height)
         .allowsHitTesting(false)
         // Initialise appearAt once at mount so computePose has a
         // stable birth date without scheduling async state mutations
@@ -234,11 +315,13 @@ struct TutorialBalloon: View {
             Color.clear
                 .frame(width: 1, height: 1)
                 .offset(y: r)
-                .transformAnchorPreference(
-                    key: TutorialAnchorsKey.self,
-                    value: .bounds
-                ) { [knotAnchorKey] value, anchor in
-                    value[knotAnchorKey] = anchor
+                .background {
+                    GeometryReader { geo in
+                        Color.clear.preference(
+                            key: TutorialTargetFramesKey.self,
+                            value: [knotAnchorKey: geo.frame(in: .global)]
+                        )
+                    }
                 }
         }
     }
