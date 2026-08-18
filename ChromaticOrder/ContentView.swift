@@ -122,10 +122,7 @@ struct ContentView: View {
                                 .padding(.horizontal, Kroma.Space.xl)
                                 .padding(.vertical, Kroma.Space.m)
                                 .frame(minHeight: Kroma.Metrics.minTarget)
-                                .background(Color.white.opacity(0.12), in: Capsule())
-                                .overlay(
-                                    Capsule().stroke(Color.white.opacity(0.3), lineWidth: 1)
-                                )
+                                .kromaSurface(.control, in: Capsule())
                         }
                         .padding(.top, 4)
                     }

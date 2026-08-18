@@ -37,10 +37,7 @@ struct LikeFeedbackWidget: View {
         ratingRow
             .padding(.leading, Kroma.Space.m)
             .frame(minHeight: height)
-            .background(Color.white.opacity(0.06), in: Capsule())
-            .overlay(
-                Capsule().stroke(Color.white.opacity(0.14), lineWidth: 1)
-            )
+            .kromaSurface(.control, in: Capsule())
             .kromaAnimation(.easeOut(duration: 0.2), value: game.liked)
     }
 

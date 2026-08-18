@@ -1090,14 +1090,15 @@ private struct GalleryActionButton: View {
         }()
         Button(action: action) {
             Image(systemName: system)
-                .font(.system(size: 15, weight: .semibold))
+                .font(Kroma.font(.subheadline, .semibold))
                 .foregroundStyle(Color.white)
                 .frame(width: 38, height: 38)
                 .background(
                     Circle().fill(color)
                 )
+                .kromaHitTarget()
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.kromaControl)
         .accessibilityLabel(accessibilityLabel)
     }
 }
