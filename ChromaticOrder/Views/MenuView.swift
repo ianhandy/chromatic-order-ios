@@ -484,7 +484,13 @@ struct MenuView: View {
         menuRow(label,
                 detail: detail,
                 font: Kroma.font(.title, .semibold),
-                opacity: dimmed ? 0.34 : 0.78,
+                // 0.34 on black is ~2.9:1 — below WCAG AA's 4.5:1 and
+                // below even the 3:1 large-text allowance, on a row a
+                // player lands on every day once they've solved the
+                // daily. "Already done" is still carried by the detail
+                // text ("next in 5h 20m"); the label doesn't also need
+                // to be near-invisible to say it.
+                opacity: dimmed ? 0.50 : 0.78,
                 locked: locked,
                 accessibilityValue: locked ? "requires full version" : accessibilityValue,
                 action: action)
@@ -526,8 +532,12 @@ struct MenuView: View {
             HStack(alignment: .firstTextBaseline, spacing: Kroma.Space.m) {
                 if let detail {
                     Text(detail)
+                        // 0.45 lands at ~4.4:1, just under AA. This is
+                        // the streak / "next in" / "one puzzle free"
+                        // text on every primary row, so it's worth the
+                        // extra .05 to clear the bar.
                         .font(Kroma.font(.subheadline, .semibold))
-                        .foregroundStyle(Color.white.opacity(0.45))
+                        .foregroundStyle(Color.white.opacity(0.50))
                 }
                 Text(label)
                     .font(font)

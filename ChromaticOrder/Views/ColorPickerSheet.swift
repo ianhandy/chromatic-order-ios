@@ -20,10 +20,10 @@ struct ColorPickerSheet: View {
     @Binding var deltaL: Double
     @Binding var deltaC: Double
     @Binding var deltaH: Double
-    var title: String = "Color"
+    var title: String = "color"
     @Environment(\.dismiss) private var dismiss
 
-    init(color: Binding<OKLCh>, title: String = "Color") {
+    init(color: Binding<OKLCh>, title: String = "color") {
         self._color = color
         self.title = title
         self.allowNil = false
@@ -39,7 +39,7 @@ struct ColorPickerSheet: View {
         deltaL: Binding<Double>,
         deltaC: Binding<Double>,
         deltaH: Binding<Double>,
-        title: String = "End color"
+        title: String = "end color"
     ) {
         self._color = color
         self._isNilled = isNilled

@@ -186,7 +186,7 @@ struct CreatorView: View {
                 Text("Your puzzle won't be saved. Tap Save to keep it.")
             }
             .sheet(isPresented: $pickingStart) {
-                ColorPickerSheet(color: $state.startColor, title: "Start color")
+                ColorPickerSheet(color: $state.startColor, title: "start color")
             }
             .sheet(isPresented: $pickingEnd, onDismiss: syncEndToggle) {
                 ColorPickerSheet(
@@ -204,7 +204,7 @@ struct CreatorView: View {
                     deltaL: $state.deltaL,
                     deltaC: $state.deltaC,
                     deltaH: $state.deltaH,
-                    title: "End color"
+                    title: "end color"
                 )
             }
         }
@@ -723,7 +723,9 @@ struct CreatorView: View {
                 }
                 .buttonStyle(.bordered)
                 .controlSize(.small)
-                .tint(Color.white.opacity(0.4))
+                // Was 0.4 (~3.7:1) on an enabled, interactive control —
+                // WCAG exempts disabled controls, not live ones.
+                .tint(Color.white.opacity(0.55))
             }
             .padding(.horizontal, 14)
             .transition(.opacity)

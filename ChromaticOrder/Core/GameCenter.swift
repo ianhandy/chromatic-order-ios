@@ -11,7 +11,11 @@ import Foundation
 import GameKit
 import UIKit
 
+/// `@Observable` so `isAuthenticated` can actually drive SwiftUI.
+/// Without it the leaderboard sheet couldn't tell a signed-out player
+/// anything — it just presented Game Center's own empty view.
 @MainActor
+@Observable
 final class GameCenter {
     static let shared = GameCenter()
 

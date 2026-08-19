@@ -230,7 +230,7 @@ struct FeedbackSheet: View {
                 }
                 .font(Kroma.font(.body, .semibold))
                 .frame(maxWidth: .infinity)
-                .frame(height: 52)
+                .frame(minHeight: 52)
             }
             .buttonStyle(.borderedProminent)
             .disabled(sendState == .sending || sendState == .sent)
