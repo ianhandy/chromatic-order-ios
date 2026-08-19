@@ -12,15 +12,20 @@
     <array/>
 
     <!-- Data collected by the app. Kromatika sends a small amount of
-         gameplay data to its own backend; nothing identifies the
-         player. Listed here per the App Store Connect privacy
-         questionnaire.
+         gameplay data to its own backend, plus an optional feedback
+         report to a Google Form; nothing identifies the player.
+         Listed here per the App Store Connect privacy questionnaire.
+         The ASC answers must match this list exactly — five types.
          – Gameplay content: puzzle JSON the player explicitly opts
            into sharing via the like button.
+         – Other user content: free text the player types themselves
+           (see that entry for the two sources).
          – Product interaction: solve time, moves, likes, streaks,
            and other explicitly submitted play-session details.
          – Device ID: an opaque per-install UUID used for vote and
-           anonymous streak-record deduplication. -->
+           anonymous streak-record deduplication.
+         – Other diagnostic data: app version and iOS version
+           attached to a feedback submission. -->
     <key>NSPrivacyCollectedDataTypes</key>
     <array>
         <dict>
@@ -39,11 +44,27 @@
             </array>
         </dict>
         <dict>
-            <!-- "User Content → Other User Content" — two free-text
-                 fields the player types themselves: the notes box in
-                 the feedback sheet (sent to a Google Form), and the
-                 optional reason attached to a community-content
-                 report. Neither is required to use the app. -->
+            <!-- "User Content → Other User Content" — text the player
+                 types themselves. Two sources, both optional:
+                 1. The notes box in the feedback sheet
+                    (FeedbackSheet.swift `note`), sent to a Google
+                    Form. The menu row that opens the sheet ships in
+                    Release — it sits outside the #if DEBUG block in
+                    MenuSheet.swift.
+                 2. The puzzle/author name typed in the Creator
+                    (CreatorView.swift `submitterName`), uploaded with
+                    a community submission and shown to other players
+                    in the Gallery's community list. Classified here
+                    rather than as Contact Info → Name because it is a
+                    self-chosen label on a puzzle, not a solicited
+                    real name; there is no account behind it.
+                 NOT a source: the community report reason. That UI is
+                 a fixed reason picker with no text field
+                 (GalleryView.swift), and the call site omits the
+                 `note:` argument, so ModerationStore.report's free-
+                 text parameter is never populated. If a note field is
+                 ever added to that flow, this comment is already
+                 correct and needs no ASC change. -->
             <key>NSPrivacyCollectedDataType</key>
             <string>NSPrivacyCollectedDataTypeOtherUserContent</string>
             <key>NSPrivacyCollectedDataTypeLinked</key>
@@ -84,6 +105,31 @@
             <key>NSPrivacyCollectedDataTypePurposes</key>
             <array>
                 <string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+            </array>
+        </dict>
+        <dict>
+            <!-- "Diagnostics → Other Diagnostic Data" — the feedback
+                 sheet attaches the app version ("1.0.0 (33)") and the
+                 OS version ("iOS 26.5") to every submission so a
+                 report can be reproduced. Neither is a hardware
+                 model and neither is an identifier; see
+                 FeedbackSheet.swift `appVersionString` /
+                 `deviceString`. Declared explicitly rather than
+                 folded into Product Interaction: the data is
+                 technical rather than behavioural, it leaves the
+                 device to a third party (Google Forms), and
+                 under-declaring is the direction that gets an app
+                 rejected. -->
+            <key>NSPrivacyCollectedDataType</key>
+            <string>NSPrivacyCollectedDataTypeOtherDiagnosticData</string>
+            <key>NSPrivacyCollectedDataTypeLinked</key>
+            <false/>
+            <key>NSPrivacyCollectedDataTypeTracking</key>
+            <false/>
+            <key>NSPrivacyCollectedDataTypePurposes</key>
+            <array>
+                <string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+                <string>NSPrivacyCollectedDataTypePurposeAnalytics</string>
             </array>
         </dict>
     </array>

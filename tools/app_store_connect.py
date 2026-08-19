@@ -283,9 +283,14 @@ def full_version_iap_body(app_id: str) -> dict[str, Any]:
                 "productId": FULL_VERSION_PRODUCT_ID,
                 "inAppPurchaseType": "NON_CONSUMABLE",
                 "reviewNote": (
-                    "One-time unlock for campaign chapters 5-12, Zen, Challenge, "
-                    "Gallery, and the puzzle creator. Today's Puzzle and campaign "
-                    "chapters 1-4 remain free."
+                    "One-time non-consumable unlock. Free without it: Today's "
+                    "Puzzle, campaign chapters 1-4, the Gallery, and any puzzle "
+                    "opened from a shared link or file. The unlock adds campaign "
+                    "chapters 5-12, infinite Zen, Challenge runs, and the puzzle "
+                    "Creator. Zen, Challenge, and Creator each allow one free "
+                    "trial session before the paywall appears, so the first tap "
+                    "into those modes plays normally by design. Restore Purchase "
+                    "is on the paywall screen."
                 ),
                 "availableInAllTerritories": True,
             },
@@ -312,9 +317,19 @@ def command_ensure_full_version(client: ASCClient, args: argparse.Namespace) -> 
             raise AppStoreConnectError(
                 f"{FULL_VERSION_PRODUCT_ID} exists as {purchase_type}, not NON_CONSUMABLE"
             )
+        # NOTE: this path does not reconcile the review note, price,
+        # localization, or review screenshot against the existing
+        # resource — it only confirms the product ID and type. If
+        # `reviewNote` above has changed since the resource was
+        # created, App Store Connect still holds the old text and it
+        # has to be edited there by hand.
         print(
             f"Full-version purchase already exists: {match['id']} "
             f"({FULL_VERSION_PRODUCT_ID})"
+        )
+        print(
+            "Review note, price, localization, and review screenshot are NOT "
+            "reconciled by this command. Verify them in App Store Connect."
         )
         return
 
@@ -473,9 +488,24 @@ def command_submit(client: ASCClient, args: argparse.Namespace) -> None:
             },
         }
     )
+    # This command submits the app version and NOTHING ELSE. It creates a
+    # single reviewSubmissionItem whose only relationship is appStoreVersion,
+    # so in-app purchases and Game Center leaderboard versions are not carried
+    # into the review. A first-submission non-consumable that is not attached
+    # never gets approved, which means Product.products(for:) returns nothing
+    # on the reviewer's device and the paywall renders with no price and no
+    # purchase button. Attach it in App Store Connect before submitting.
+    warning = (
+        "WARNING: this submits the app version only. In-app purchases "
+        "(com.ianhandy.kroma.full_version) and Game Center leaderboard "
+        "versions are NOT included. Attach them in App Store Connect first, "
+        "or the paywall ships with no purchasable product."
+    )
     if not args.apply:
+        print(warning)
         print_json({"dryRun": True, "version": args.version, "requests": planned})
         return
+    print(warning)
     if not args.confirm_submit:
         raise AppStoreConnectError(
             "Refusing to send the version to App Review without --confirm-submit"
