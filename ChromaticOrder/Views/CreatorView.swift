@@ -186,9 +186,23 @@ struct CreatorView: View {
                 Text("Your puzzle won't be saved. Tap Save to keep it.")
             }
             .sheet(isPresented: $pickingStart) {
-                ColorPickerSheet(color: $state.startColor, title: "start color")
+                if state.selectedGradient != nil {
+                    // Editing what is already on the canvas: the picker
+                    // writes straight through and the gradient repaints
+                    // under the sheet as the sliders move.
+                    ColorPickerSheet(color: selectedEndpointBinding(.start),
+                                     title: "start color")
+                } else {
+                    ColorPickerSheet(color: $state.startColor, title: "start color")
+                }
             }
             .sheet(isPresented: $pickingEnd, onDismiss: syncEndToggle) {
+                if state.selectedGradient != nil {
+                    // A committed gradient always has a real color at each
+                    // end, so shift mode has nothing to say here.
+                    ColorPickerSheet(color: selectedEndpointBinding(.end),
+                                     title: "end color")
+                } else {
                 ColorPickerSheet(
                     color: Binding(
                         get: { state.endColor ?? state.startColor },
@@ -206,8 +220,18 @@ struct CreatorView: View {
                     deltaH: $state.deltaH,
                     title: "end color"
                 )
+                }
             }
         }
+    }
+
+    /// Read/write access to one end of the selected gradient, so the
+    /// existing picker can drive it without knowing about selections.
+    private func selectedEndpointBinding(_ endpoint: CreatorState.Endpoint) -> Binding<OKLCh> {
+        Binding(
+            get: { state.selectedColor(at: endpoint) ?? state.startColor },
+            set: { state.setSelectedColor($0, at: endpoint) }
+        )
     }
 
     private func syncEndToggle() {
@@ -314,7 +338,7 @@ struct CreatorView: View {
                 item: file,
                 subject: Text("A Kromatika puzzle"),
                 preview: SharePreview(
-                    "Kromatika puzzle (\(b.validation.difficulty)/10)",
+                    KromaPuzzleFile.shareTitle(difficulty: b.validation.difficulty),
                     image: previewImage ?? Image(systemName: "paintpalette.fill")
                 )
             ) {
@@ -476,7 +500,7 @@ struct CreatorView: View {
             // glyph so the score is visible without consuming any
             // vertical space. Hidden until at least one gradient is
             // laid (difficulty is undefined before that).
-            if let b = built {
+            if let b = built, CustomDifficultyDisplay.isVisible {
                 Label("\(b.validation.difficulty)/10", systemImage: "gauge")
                     .labelStyle(.titleAndIcon)
                     .font(Kroma.font(.footnote, .bold))
@@ -525,16 +549,36 @@ struct CreatorView: View {
     /// Start swatch + arrow + end swatch (or shift-preview strip).
     /// Chips are ~50pt tall, the arrow is bold and 22pt so it
     /// anchors the left side visually.
+    ///
+    /// The pair means "the colors of the gradient you are working on".
+    /// With a single gradient selected, that is the selected one and
+    /// editing a chip repaints it in place; otherwise it is the next
+    /// one you draw. One control, one meaning, and recoloring no longer
+    /// requires erasing and redrawing the stroke.
     private var colorCluster: some View {
-        HStack(spacing: 10) {
-            ColorChip(color: state.startColor) { pickingStart = true }
+        let selected = state.selectedGradient
+        return HStack(spacing: 10) {
+            ColorChip(color: state.selectedColor(at: .start) ?? state.startColor,
+                      label: selected == nil
+                        ? "start color for the next gradient"
+                        : "start color of the selected gradient") {
+                pickingStart = true
+            }
 
             Image(systemName: "arrow.right")
                 .font(Kroma.font(.title2, .heavy))
                 .foregroundStyle(Color.white.opacity(0.65))
 
-            if let end = state.endColor {
-                ColorChip(color: end) { pickingEnd = true }
+            if selected != nil {
+                ColorChip(color: state.selectedColor(at: .end) ?? state.startColor,
+                          label: "end color of the selected gradient") {
+                    pickingEnd = true
+                }
+            } else if let end = state.endColor {
+                ColorChip(color: end,
+                          label: "end color for the next gradient") {
+                    pickingEnd = true
+                }
             } else {
                 ShiftChip(
                     startColor: state.startColor,
@@ -542,6 +586,17 @@ struct CreatorView: View {
                     deltaC: state.deltaC,
                     deltaH: state.deltaH
                 ) { pickingEnd = true }
+            }
+        }
+        // Says which gradient the chips are pointed at without adding a
+        // second pair of chips to read.
+        .overlay(alignment: .bottomLeading) {
+            if selected != nil {
+                Text("editing selection")
+                    .font(Kroma.font(.caption2, .semibold))
+                    .foregroundStyle(Color.accentColor)
+                    .offset(y: 14)
+                    .accessibilityHidden(true)
             }
         }
     }
@@ -762,6 +817,7 @@ struct CreatorView: View {
 
 private struct ColorChip: View {
     let color: OKLCh
+    var label: String = "Pick color"
     let onTap: () -> Void
     var body: some View {
         Button(action: onTap) {
@@ -774,7 +830,8 @@ private struct ColorChip: View {
                 )
         }
         .buttonStyle(.plain)
-        .accessibilityLabel("Pick color")
+        .accessibilityLabel(label)
+        .accessibilityHint("opens the color picker")
     }
 }
 

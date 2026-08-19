@@ -39,7 +39,6 @@ enum InProgressSessionStore {
         let challengeSolveCount: Int
         let challengeBonusLevels: Int
         let consecutiveNoHeartSolves: Int
-        let consecutivePerfectSolves: Int
         let heartLostThisLevel: Bool
         let campaignIndex: Int?
         let dailyDateKey: String?

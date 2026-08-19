@@ -629,6 +629,77 @@ final class CreatorState {
 
     /// Toggle whether a cell is revealed at start. Only meaningful for
     /// committed cells — calling it on an empty cell is a no-op.
+    // ─── Editing a committed gradient's endpoints ───────────────────
+    //
+    // Three ideas were on the table for simplifying level creation:
+    // pick a color at each end and auto-link them; a "+" that appends
+    // another color stop; and press-drag-to-geometry with the colors
+    // chosen afterwards. Only the first one survives contact with the
+    // rest of the game.
+    //
+    // The press-and-drag already exists and already previews in real
+    // color, which is the better half of the third idea — deferring the
+    // color to a modal after every stroke would remove the preview and
+    // add a step. And an extra color stop cannot mean a bend: the whole
+    // deduction rests on a gradient being one straight line in OKLab
+    // (`interpolatedColors` lerps first-to-last, and PuzzleSolver's
+    // rule-2 step check rejects any placement whose adjacent deltas
+    // disagree with that single step). A stop that bends the line makes
+    // the puzzle unsolvable; a stop that doesn't bend it is a no-op.
+    // Appending one more *cell* is the useful reading, and tap-extend
+    // already does it.
+    //
+    // So the one real gap is that a committed gradient's colors are
+    // frozen. Changing them means erasing and redrawing. These let the
+    // two color chips address the selected gradient instead of the next
+    // stroke, so "pick a color at one end and a color at the other"
+    // works on something already on the canvas.
+
+    enum Endpoint { case start, end }
+
+    /// The single gradient the current selection covers, or nil when
+    /// nothing is selected or the selection spans more than one. The
+    /// color chips retarget only in the unambiguous case.
+    var selectedGradient: LaidGradient? {
+        guard !selectedCells.isEmpty else { return nil }
+        var found: LaidGradient?
+        for g in gradients where g.cells.contains(where: { selectedCells.contains($0) }) {
+            if found != nil { return nil }
+            found = g
+        }
+        return found
+    }
+
+    /// Color currently sitting at one end of the selected gradient.
+    func selectedColor(at endpoint: Endpoint) -> OKLCh? {
+        guard let g = selectedGradient, !g.colors.isEmpty else { return nil }
+        return endpoint == .start ? g.colors.first : g.colors.last
+    }
+
+    /// Repaint the selected gradient so `endpoint` becomes `color` and
+    /// every cell between the two ends is re-interpolated. Same OKLab
+    /// lerp the drag preview uses, so a recolored gradient is
+    /// indistinguishable from one drawn that way.
+    func setSelectedColor(_ color: OKLCh, at endpoint: Endpoint) {
+        guard let g = selectedGradient,
+              let i = gradients.firstIndex(where: { $0.id == g.id }),
+              !g.colors.isEmpty else { return }
+        pushUndoSnapshot()
+
+        let count = g.colors.count
+        guard count > 1 else {
+            gradients[i].colors = [color]
+            return
+        }
+        let a = endpoint == .start ? color : g.colors[0]
+        let b = endpoint == .end ? color : g.colors[count - 1]
+        gradients[i].colors = (0..<count).map { step in
+            if step == 0 { return a }
+            if step == count - 1 { return b }
+            return lerpLabT(a: a, b: b, t: Double(step) / Double(count - 1))
+        }
+    }
+
     func toggleLock(at idx: CellIndex) {
         guard committedCells[idx] != nil else { return }
         pushUndoSnapshot()

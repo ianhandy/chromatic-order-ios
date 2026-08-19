@@ -157,15 +157,22 @@ final class GameState {
     /// player did not lose a heart. Reset on any heart loss and on
     /// fresh challenge entry. Every 3rd consecutive no-heart solve
     /// grants one bonus level skip and resets the counter.
+    ///
+    /// This is the only streak ladder in challenge. A second ladder
+    /// counted "perfect" solves separately, but perfect now means
+    /// "correct on the first Check" — the same event as keeping the
+    /// heart — so the two fired together and paid a bonus twice for
+    /// one achievement. The perfect reward is the bonus heart.
     var consecutiveNoHeartSolves: Int = 0
-    /// Running count of consecutive challenge perfect solves (no
-    /// mistakes, no peeks, every placement first-try correct). Every
-    /// 2nd consecutive grants a bonus level skip and resets.
-    var consecutivePerfectSolves: Int = 0
     /// Accumulated streak-bonus levels that add on top of the normal
     /// challenge progression. Permanent for the duration of the
     /// current challenge run; reset on `enterMode(.challenge)` fresh.
     var challengeBonusLevels: Int = 0
+    /// Upper bound on banked hearts. Challenge awards a heart for every
+    /// perfect solve, and perfect now means "did not fail the Check" —
+    /// a bar a competent player clears most levels. Without a ceiling
+    /// the bank ratchets up forever and the run stops being able to end.
+    static let maxChecks = 5
     /// Set true whenever a heart is lost on the current level (via a
     /// failed check). Reset at `startLevel` so each level has its own
     /// flag. Drives the consecutive-no-heart streak counter.
@@ -333,8 +340,9 @@ final class GameState {
     /// link. Custom puzzles use the Zen board UI but remain distinct from the
     /// paid procedurally-generated Zen mode.
     var isCustomPuzzle: Bool = false
-    /// A free, one-puzzle preview of Zen or Challenge. Persisted with the
-    /// board so leaving the app never turns an unfinished preview into a use.
+    /// A free run of Zen or Challenge. The flag survives every generated
+    /// level and exact-session restore; returning to the main menu ends the
+    /// run, while backgrounding merely preserves it for resume.
     var isTrialSession: Bool = false
     /// 1-based index of the campaign level on the board, or nil when the
     /// current puzzle isn't a campaign level. Set by `loadCampaignLevel`
@@ -1118,7 +1126,6 @@ final class GameState {
             challengeSolveCount: challengeSolveCount,
             challengeBonusLevels: challengeBonusLevels,
             consecutiveNoHeartSolves: consecutiveNoHeartSolves,
-            consecutivePerfectSolves: consecutivePerfectSolves,
             heartLostThisLevel: heartLostThisLevel,
             campaignIndex: campaignIndex,
             dailyDateKey: dailyDateKey,
@@ -1158,6 +1165,16 @@ final class GameState {
         InProgressSessionStore.clear()
         hasInProgressSession = false
         shouldAutoResumeSession = false
+    }
+
+    /// End a free Zen/Challenge run at an intentional navigation boundary.
+    /// Trial runs are not parked for a later second entry: backgrounding is
+    /// resumable, but choosing Home/Campaign/Gallery is the end of the run.
+    func endTrialRun() {
+        guard isTrialSession else { return }
+        isTrialSession = false
+        if mode == .challenge { discardSavedChallengeRun() }
+        clearInProgressSession()
     }
 
     @discardableResult
@@ -1205,7 +1222,6 @@ final class GameState {
         challengeSolveCount = snapshot.challengeSolveCount
         challengeBonusLevels = snapshot.challengeBonusLevels
         consecutiveNoHeartSolves = snapshot.consecutiveNoHeartSolves
-        consecutivePerfectSolves = snapshot.consecutivePerfectSolves
         heartLostThisLevel = snapshot.heartLostThisLevel
         campaignIndex = snapshot.campaignIndex
         dailyDateKey = snapshot.dailyDateKey
@@ -1824,15 +1840,6 @@ final class GameState {
                     consecutiveNoHeartSolves = 0
                 }
             }
-            if isPerfectSolve {
-                consecutivePerfectSolves += 1
-                if consecutivePerfectSolves >= 2 {
-                    challengeBonusLevels += 1
-                    consecutivePerfectSolves = 0
-                }
-            } else {
-                consecutivePerfectSolves = 0
-            }
             nextLv = 1 + challengeSolveCount / challengeSolvesPerLevel
                 + challengeBonusLevels
         } else {
@@ -1854,7 +1861,7 @@ final class GameState {
             // flag is cleared at the top of `startLevel` so the next
             // perfect solve can claim again.
             if isPerfectSolve && !perfectHeartAlreadyAwarded {
-                checks += 1
+                checks = min(Self.maxChecks, checks + 1)
                 perfectHeartAlreadyAwarded = true
             }
             _ = justCompleted
@@ -2136,7 +2143,6 @@ final class GameState {
             challengeSolveCount = 0
             challengeBonusLevels = 0
             consecutiveNoHeartSolves = 0
-            consecutivePerfectSolves = 0
             heartLostThisLevel = false
             runComplete = false
             dailyDateKey = nil
@@ -2731,13 +2737,27 @@ final class GameState {
         return max(0, Int(end.timeIntervalSince(puzzleStartTime)))
     }
 
-    /// A "perfect" solve — no mistakes, never peeked at the solution
-    /// via Show Incorrect, AND the number of placements equals the
-    /// number of free cells (i.e., every move landed a swatch in its
-    /// correct slot on the first try; no swapping or relocating).
-    /// Drives the extra color-bleed + shine effect on solve.
+    /// True once at least one swatch the player owns is sitting on the
+    /// board. Locked givens don't count — they were never the player's to
+    /// place. Gates the "show incorrect" row so it can't be spent on an
+    /// untouched puzzle.
+    var hasPlacedSwatch: Bool {
+        guard let p = puzzle else { return false }
+        for row in p.board {
+            for cell in row where cell.kind == .cell && !cell.locked {
+                if cell.placed != nil { return true }
+            }
+        }
+        return false
+    }
+
+    /// In Challenge, "perfect" means the submitted board was correct on the
+    /// first Check. The player can rearrange as much as needed beforehand;
+    /// only a failed submission (and its lost heart) breaks perfection.
+    /// Other modes retain the stricter first-placement/no-peek definition.
     var isPerfectSolve: Bool {
         guard solved, let p = puzzle else { return false }
+        if mode == .challenge { return !heartLostThisLevel }
         let totalFree = p.initialBankCount
         return mistakeCount == 0
             && !showedIncorrect

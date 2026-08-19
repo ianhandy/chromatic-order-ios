@@ -24,6 +24,7 @@ struct MenuSheet: View {
     @Binding var accessibilityOpen: Bool
     @Binding var started: Bool
     @Environment(Transitioner.self) private var transitioner
+    @Environment(FullVersionStore.self) private var fullVersion
     @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
 
     var body: some View {
@@ -31,8 +32,12 @@ struct MenuSheet: View {
         // but using it disqualifies the leaderboard submission — handled
         // in GameState.handleNext). Challenge hides it: there, revealing
         // incorrect cells is what Check does, at the cost of a heart.
-        // Nothing to check once the puzzle is already solved.
-        let canShowIncorrect = game.mode != .challenge && !game.solved
+        //
+        // It also stays out of the menu entirely until the player has put
+        // something on the board. On an untouched puzzle the answer is
+        // "all of it", which the player already knows, so the row is only
+        // an invitation to spend a peek on nothing.
+        let offersShowIncorrect = game.mode != .challenge && game.hasPlacedSwatch
         let canHint = game.puzzle != nil && !game.generating && !game.solved
 
         ZStack(alignment: .topTrailing) {
@@ -58,14 +63,16 @@ struct MenuSheet: View {
                         menuOpen = false
                     }
 
-                    MenuPanelRow(icon: game.showIncorrect
-                                    ? "eye.slash"
-                                    : "exclamationmark.triangle",
-                                 label: game.showIncorrect
-                                    ? "hide incorrect"
-                                    : "show incorrect",
-                                 disabled: !canShowIncorrect,
-                                 action: toggleShowIncorrect)
+                    if offersShowIncorrect {
+                        MenuPanelRow(icon: game.showIncorrect
+                                        ? "eye.slash"
+                                        : "exclamationmark.triangle",
+                                     label: game.showIncorrect
+                                        ? "hide incorrect"
+                                        : "show incorrect",
+                                     disabled: game.solved,
+                                     action: toggleShowIncorrect)
+                    }
 
                     if let puzzle = game.puzzle {
                         MenuPanelDivider()
@@ -133,30 +140,36 @@ struct MenuSheet: View {
         systemReduceMotion || game.reduceMotion
     }
 
-    /// Leaving the game returns the player to wherever they entered
-    /// from, so the label names that place rather than saying "back".
+    /// Leaving a gallery puzzle returns to the gallery, because that list
+    /// is where the player was browsing and losing their place in it is a
+    /// real cost. Everything else — campaign included — goes Home: the
+    /// campaign list is one tap from there, and a bottom row that
+    /// sometimes says "home" and sometimes says "campaign" makes the way
+    /// out something you have to read instead of something you know.
     @ViewBuilder
     private var exitRow: some View {
         if game.cameFromGallery {
             MenuPanelRow(icon: "square.grid.2x2", label: Strings.Menu.gallery) {
                 menuOpen = false
-                game.parkInProgressSession()
+                parkOrEndTrialRun()
                 game.openGalleryOnMenuAppear = true
-                transitioner.fade { started = false }
-            }
-        } else if game.campaignIndex != nil {
-            MenuPanelRow(icon: "list.number", label: Strings.Menu.campaign) {
-                menuOpen = false
-                game.parkInProgressSession()
-                game.openCampaignOnMenuAppear = true
                 transitioner.fade { started = false }
             }
         } else {
             MenuPanelRow(icon: "house", label: "home") {
                 menuOpen = false
-                game.parkInProgressSession()
+                parkOrEndTrialRun()
                 transitioner.fade { started = false }
             }
+        }
+    }
+
+    private func parkOrEndTrialRun() {
+        if game.isTrialSession, let trial = FullVersionTrial(mode: game.mode) {
+            fullVersion.completeTrial(trial)
+            game.endTrialRun()
+        } else {
+            game.parkInProgressSession()
         }
     }
 
@@ -254,7 +267,7 @@ private struct MenuShareRow: View {
         let file = KromaPuzzleFile(json: json, difficulty: puzzle.difficulty)
         let previewImage = PuzzlePreviewRenderer.render(puzzle)
             ?? Image(systemName: "paintpalette.fill")
-        let title = "Kromatika puzzle (\(puzzle.difficulty)/10)"
+        let title = KromaPuzzleFile.shareTitle(difficulty: puzzle.difficulty)
         let preview = SharePreview(title, image: previewImage)
 
         Group {

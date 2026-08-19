@@ -256,13 +256,6 @@ struct ContentView: View {
                         // only, so it's spoken here too.
                         .accessibilityValue(saveImageStatus)
                         Button {
-                            if let trial = currentTrial,
-                               game.isTrialSession,
-                               fullVersion.hasTried(trial) {
-                                fullVersionFocus = trial.feature
-                                fullVersionOpen = true
-                                return
-                            }
                             // Campaign: last level clears the campaign, so
                             // check before advancing — after handleNext the
                             // index has already moved on.
@@ -379,11 +372,6 @@ struct ContentView: View {
         .animation(.easeInOut(duration: 0.7), value: perfectBannerVisible)
         .onChange(of: game.solved) { _, solvedNow in
             if solvedNow {
-                if game.isTrialSession,
-                   !game.showedIncorrect,
-                   let trial = currentTrial {
-                    fullVersion.completeTrial(trial)
-                }
                 beginSolvedEffects()
                 // Squish → wait for next quarter-note beat → snap
                 // back → chord + haptic. The visual "inhale" before
@@ -426,7 +414,8 @@ struct ContentView: View {
                         // no-op. Clearing happens in startLevel so
                         // the next perfect solve can claim again.
                         if !game.perfectHeartAlreadyAwarded {
-                            game.checks += 1
+                            game.checks = min(GameState.maxChecks,
+                                              game.checks + 1)
                             game.perfectHeartAlreadyAwarded = true
                         }
                         perfectHeartStage = .landed
@@ -460,6 +449,9 @@ struct ContentView: View {
             releaseTutorial()
         }
         .animation(.easeInOut(duration: 0.35), value: game.runComplete)
+        .onChange(of: game.runComplete) { _, completed in
+            if completed { finishTrialRunIfNeeded() }
+        }
         .onChange(of: incomingPuzzle != nil) { _, hasIncoming in
             if hasIncoming { loadIncomingPuzzleIfAny() }
         }
@@ -673,6 +665,12 @@ struct ContentView: View {
 
     private var currentTrial: FullVersionTrial? {
         FullVersionTrial(mode: game.mode)
+    }
+
+    private func finishTrialRunIfNeeded() {
+        guard game.isTrialSession, let trial = currentTrial else { return }
+        fullVersion.completeTrial(trial)
+        game.endTrialRun()
     }
 
     private func flashSaveIcon(success: Bool) {

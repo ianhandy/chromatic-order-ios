@@ -1,5 +1,5 @@
-//  OKLCh color picker sheet. Three sliders — L (lightness), c (chroma),
-//  h (hue) — with a big live preview swatch at top. Values clamp to
+//  OKLCh color picker sheet. Three sliders — h (hue) first, then
+//  L (lightness) and c (chroma) — with a big live preview swatch at top. Values clamp to
 //  the game's usable band so the picked colors stay visually coherent
 //  with generator output.
 //
@@ -82,7 +82,19 @@ struct ColorPickerSheet: View {
                 }
 
                 if !isNilled {
+                    // Hue first, in both modes. It is the control that
+                    // decides which color this is; lightness and chroma
+                    // only shade the answer hue already gave. Reaching
+                    // past two sliders to make the first decision is the
+                    // wrong way round.
                     VStack(spacing: 14) {
+                        LCHSlider(label: "Hue",
+                                  value: Binding(
+                                    get: { color.h },
+                                    set: { color.h = OK.normH($0) }
+                                  ),
+                                  range: 0...360,
+                                  format: { String(format: "%.0f°", $0) })
                         LCHSlider(label: "Lightness",
                                   value: Binding(
                                     get: { color.L },
@@ -97,13 +109,6 @@ struct ColorPickerSheet: View {
                                   ),
                                   range: OK.cMin...OK.cMax,
                                   format: { String(format: "%.2f", $0) })
-                        LCHSlider(label: "Hue",
-                                  value: Binding(
-                                    get: { color.h },
-                                    set: { color.h = OK.normH($0) }
-                                  ),
-                                  range: 0...360,
-                                  format: { String(format: "%.0f°", $0) })
                     }
                     .padding(.horizontal, Kroma.Space.screenMargin)
                 } else {
@@ -117,6 +122,10 @@ struct ColorPickerSheet: View {
                             .font(Kroma.font(.footnote, .bold))
                             .padding(.horizontal, Kroma.Space.screenMargin)
                         VStack(spacing: 14) {
+                            LCHSlider(label: "ΔHue",
+                                      value: $deltaH,
+                                      range: -90...90,
+                                      format: { String(format: "%+.0f°", $0) })
                             LCHSlider(label: "ΔLightness",
                                       value: $deltaL,
                                       range: -0.15...0.15,
@@ -125,10 +134,6 @@ struct ColorPickerSheet: View {
                                       value: $deltaC,
                                       range: -0.15...0.15,
                                       format: { String(format: "%+.2f", $0) })
-                            LCHSlider(label: "ΔHue",
-                                      value: $deltaH,
-                                      range: -90...90,
-                                      format: { String(format: "%+.0f°", $0) })
                         }
                         .padding(.horizontal, Kroma.Space.screenMargin)
                     }

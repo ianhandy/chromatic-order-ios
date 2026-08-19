@@ -7,6 +7,7 @@
 //  from time so redraws don't flicker.
 
 import SwiftUI
+import StoreKit
 
 struct MenuView: View {
     @Bindable var game: GameState
@@ -15,7 +16,9 @@ struct MenuView: View {
     @Binding var started: Bool
     @Environment(Transitioner.self) private var transitioner
     @Environment(FullVersionStore.self) private var fullVersion
+    @Environment(PlayerEngagementStore.self) private var engagement
     @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
+    @Environment(\.requestReview) private var requestReview
 
     @State private var accessibilityOpen = false
     @State private var galleryOpen = false
@@ -24,6 +27,12 @@ struct MenuView: View {
     @State private var statsOpen = false
     @State private var fullVersionOpen = false
     @State private var fullVersionFocus: FullVersionFeature?
+    @State private var feedbackOpen = false
+    /// The free run being offered right now, if the player just tapped a
+    /// mode they have not spent their run on yet. Drives the one-time
+    /// explanation that replaced the permanent menu blurb.
+    @State private var trialOnOffer: FullVersionTrial?
+    @State private var trialOfferOpen = false
     /// True when the player has tapped "challenge" with a saved run
     /// on disk and the inline "resume?" prompt is showing. Collapses
     /// back to false when the player picks yes, no, or taps elsewhere.
@@ -120,21 +129,35 @@ struct MenuView: View {
                                 pick(mode: .daily)
                             }
                         }
+                        // Gallery is primary navigation, not an app-level
+                        // aside: it sits with the things you can go play,
+                        // directly under the daily puzzle.
+                        primaryRow(Strings.Menu.gallery) {
+                            galleryOpen = true
+                        }
                         primaryRow(Strings.Menu.zen,
-                                   detail: zenTrialAvailable ? "one puzzle free" : nil,
+                                   detail: zenTrialAvailable ? Strings.Menu.oneRun : nil,
                                    locked: zenLocked) {
                             requireFullVersion(if: zenLocked, focus: .zen) {
-                                pick(mode: .zen, asTrial: zenTrialAvailable)
+                                if zenTrialAvailable {
+                                    offerTrial(.zen)
+                                } else {
+                                    pick(mode: .zen)
+                                }
                             }
                         }
                         primaryRow(Strings.Menu.challenge,
-                                   detail: challengeTrialAvailable ? "one puzzle free" : nil,
+                                   detail: challengeTrialAvailable ? Strings.Menu.oneRun : nil,
                                    locked: challengeLocked) {
                             requireFullVersion(if: challengeLocked, focus: .challenge) {
                                 // A saved run is the only thing that makes this
-                                // ambiguous, so that's the only time we ask.
+                                // ambiguous, so that's the only time we ask. It
+                                // outranks the trial offer: the player already
+                                // accepted the terms when the run started.
                                 if game.hasSavedChallengeRun {
                                     challengeResumeOpen = true
+                                } else if challengeTrialAvailable {
+                                    offerTrial(.challenge)
                                 } else {
                                     pick(mode: .challenge)
                                 }
@@ -143,9 +166,6 @@ struct MenuView: View {
                     }
 
                     VStack(alignment: .trailing, spacing: Kroma.Space.xs) {
-                        secondaryRow(Strings.Menu.gallery) {
-                            galleryOpen = true
-                        }
                         secondaryRow(Strings.Menu.stats) {
                             statsOpen = true
                             GameCenter.shared.reportAchievement(
@@ -157,6 +177,16 @@ struct MenuView: View {
                         }
                         secondaryRow(Strings.Menu.settings) {
                             accessibilityOpen = true
+                        }
+                        secondaryRow(Strings.Menu.feedback,
+                                     highlighted: engagement.activeMenuNudge == .feedback) {
+                            engagement.consumeMenuNudge(.feedback)
+                            feedbackOpen = true
+                        }
+                        secondaryRow(engagement.rateUsLabel,
+                                     highlighted: engagement.activeMenuNudge == .rate) {
+                            engagement.consumeMenuNudge(.rate)
+                            requestReview()
                         }
                     }
                 }
@@ -178,6 +208,7 @@ struct MenuView: View {
         .contentShape(Rectangle())
         .simultaneousGesture(fluidInteractionGesture)
         .onDisappear {
+            engagement.menuDidDisappear()
             GlassyAudio.shared.stopHum()
         }
         .sheet(isPresented: $accessibilityOpen, onDismiss: {
@@ -204,6 +235,9 @@ struct MenuView: View {
         .sheet(isPresented: $fullVersionOpen) {
             FullVersionView(focus: fullVersionFocus)
         }
+        .sheet(isPresented: $feedbackOpen) {
+            FeedbackSheet(game: game)
+        }
         // A suspended run is the only thing that makes "challenge"
         // ambiguous, so it's the only time we ask. This replaced an
         // inline "resume? yes no" strip that slid in beside the row and
@@ -219,11 +253,33 @@ struct MenuView: View {
                 }
             }
             Button("start over", role: .destructive) {
-                pick(mode: .challenge)
+                pick(mode: .challenge, asTrial: challengeTrialAvailable)
             }
             Button("cancel", role: .cancel) {}
         }
+        // Progressive disclosure for the free run. The menu used to carry a
+        // permanent paragraph explaining the offer, which read as clutter on
+        // a screen whose whole point is a short list of destinations. The
+        // explanation belongs at the moment the player spends the run — and
+        // spending it on a mistaken tap is the thing worth preventing, so
+        // this also gives them a way out.
+        .confirmationDialog(trialOfferTitle,
+                            isPresented: $trialOfferOpen,
+                            titleVisibility: .visible) {
+            Button(Strings.Menu.trialAccept) {
+                guard let trial = trialOnOffer else { return }
+                pick(mode: trial == .zen ? .zen : .challenge, asTrial: true)
+            }
+            // Deliberately not `role: .cancel` — this dialog style drops the
+            // cancel button and leaves only tap-outside, which is invisible
+            // to VoiceOver and unguessable for everyone else. Backing out is
+            // the reason this dialog exists, so it gets a real target.
+            Button("not yet") {}
+        } message: {
+            Text(Strings.Menu.trialOfferBody)
+        }
         .onAppear {
+            engagement.menuDidAppear()
             GlassyAudio.shared.startMusicIfNeeded()
             GlassyAudio.shared.startHum()
             // One-shot hop from the in-game "← Gallery" hamburger
@@ -427,6 +483,20 @@ struct MenuView: View {
     private var zenLocked: Bool { !fullVersion.isUnlocked && !zenTrialAvailable }
     private var challengeLocked: Bool { !fullVersion.isUnlocked && !challengeTrialAvailable }
 
+    /// Title for the free-run confirmation, named after the mode so the
+    /// dialog says what is being spent rather than "are you sure?".
+    private var trialOfferTitle: String {
+        switch trialOnOffer {
+        case .challenge: return Strings.Menu.trialTitleChallenge
+        default: return Strings.Menu.trialTitleZen
+        }
+    }
+
+    private func offerTrial(_ trial: FullVersionTrial) {
+        trialOnOffer = trial
+        trialOfferOpen = true
+    }
+
     private func pick(mode: GameMode, asTrial: Bool = false) {
         lastChillTick = nil
         withAnimation(shouldReduceMotion ? nil : .easeOut(duration: 0.9)) { chill = 0 }
@@ -492,6 +562,7 @@ struct MenuView: View {
                 // to be near-invisible to say it.
                 opacity: dimmed ? 0.50 : 0.78,
                 locked: locked,
+                highlighted: false,
                 accessibilityValue: locked ? "requires full version" : accessibilityValue,
                 action: action)
     }
@@ -500,12 +571,14 @@ struct MenuView: View {
     @ViewBuilder
     private func secondaryRow(_ label: String,
                               locked: Bool = false,
+                              highlighted: Bool = false,
                               action: @escaping () -> Void) -> some View {
         menuRow(label,
                 detail: nil,
                 font: Kroma.font(.headline, .medium),
                 opacity: 0.52,
                 locked: locked,
+                highlighted: highlighted,
                 accessibilityValue: locked ? "requires full version" : nil,
                 action: action)
     }
@@ -519,6 +592,7 @@ struct MenuView: View {
                          font: Font,
                          opacity: Double,
                          locked: Bool,
+                         highlighted: Bool,
                          accessibilityValue: String?,
                          action: @escaping () -> Void) -> some View {
         Button {
@@ -554,12 +628,24 @@ struct MenuView: View {
             // and must be allowed to grow.
             .padding(.vertical, Kroma.Space.m)
             .frame(minHeight: Kroma.Metrics.minTarget, alignment: .trailing)
+            .overlay {
+                if highlighted {
+                    Capsule()
+                        .stroke(Color.accentColor.opacity(0.90), lineWidth: 1.5)
+                        .padding(.horizontal, -Kroma.Space.m)
+                        .padding(.vertical, -Kroma.Space.xs)
+                        .shadow(color: Color.accentColor.opacity(0.80), radius: 12)
+                        .shadow(color: .white.opacity(0.22), radius: 22)
+                        .allowsHitTesting(false)
+                }
+            }
             .contentShape(Rectangle())
         }
         .buttonStyle(.kromaControl)
         .accessibilityElement(children: .combine)
         .accessibilityLabel(label)
         .accessibilityValue(accessibilityValue ?? detail ?? "")
+        .accessibilityHint(highlighted ? "suggested from your response" : "")
     }
 }
 

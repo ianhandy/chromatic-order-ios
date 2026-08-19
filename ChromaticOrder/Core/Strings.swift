@@ -33,6 +33,17 @@ enum Strings {
         static let settings = "settings"
         static let leaderboard = "leaderboard"
         static let stats = "stats"
+        static let feedback = "feedback"
+        static let rateUs = "rate us"
+        static let rateUsPlease = "rate us, please?"
+        static let oneRun = "one run"
+        // Shown once, at the moment the player spends a free run — not
+        // parked on the menu. The body has to answer the two questions a
+        // player actually has: how much do i get, and when does it stop.
+        static let trialTitleZen = "zen is part of the full version"
+        static let trialTitleChallenge = "challenge is part of the full version"
+        static let trialOfferBody = "this run is on me — play as many levels as you like. it ends when you leave for the menu."
+        static let trialAccept = "start my free run"
     }
 
     // MARK: – Top bar
@@ -81,6 +92,19 @@ enum Strings {
         // the trailing arrow buttons crowd the prompt against the
         // capsule edge. The shorter form survives the squeeze.
         static let prompt = "good?"
+    }
+
+    // MARK: – One-time enjoyment prompt
+
+    enum EnjoymentPrompt {
+        static let question = "are you enjoying the game?"
+        static let yes = "yes"
+        static let no = "no"
+        static let stopTalking = "stop talking to me"
+        static let good = "good"
+        static let sorry = "sorry"
+        static let okay = "ok"
+        static let justKidding = "…just kidding"
     }
 
     // MARK: – Tutorial tooltips

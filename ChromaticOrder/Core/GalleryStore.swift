@@ -20,10 +20,16 @@ struct GalleryPuzzle: Identifiable {
     /// `autoTitle` in the UI when absent.
     var displayName: String { doc.name?.isEmpty == false ? doc.name! : autoTitle }
     var autoTitle: String {
-        "Puzzle \(doc.difficulty ?? 0)/10 · \(doc.gradients.count) grads · \(doc.gridW)×\(doc.gridH)"
+        let shape = "\(doc.gradients.count) grads · \(doc.gridW)×\(doc.gridH)"
+        return CustomDifficultyDisplay.isVisible
+            ? "Puzzle \(doc.difficulty ?? 0)/10 · " + shape
+            : "Puzzle · " + shape
     }
     var subtitle: String {
-        "Difficulty \(doc.difficulty ?? 0)/10 · \(doc.gradients.count) gradients"
+        let gradients = "\(doc.gradients.count) gradients"
+        return CustomDifficultyDisplay.isVisible
+            ? "Difficulty \(doc.difficulty ?? 0)/10 · " + gradients
+            : "\(doc.gridW)×\(doc.gridH) · " + gradients
     }
 }
 

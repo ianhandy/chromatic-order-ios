@@ -26,11 +26,21 @@ struct KromaPuzzleFile: Transferable {
     let json: String
     let difficulty: Int
 
-    /// File name the system share sheet suggests when saving. The
-    /// difficulty in the name helps when a player's collected several
-    /// shared puzzles — sortable, legible at a glance.
+    /// File name the system share sheet suggests when saving. The score
+    /// used to ride in the name so a collected pile of shared puzzles
+    /// sorted by difficulty; it is suppressed with every other custom
+    /// difficulty indicator (see `CustomDifficultyDisplay`).
     var suggestedFilename: String {
-        "Kromatika puzzle (\(difficulty) of 10).kroma"
+        CustomDifficultyDisplay.isVisible
+            ? "Kromatika puzzle (\(difficulty) of 10).kroma"
+            : "Kromatika puzzle.kroma"
+    }
+
+    /// Title the share sheet shows above the preview image.
+    static func shareTitle(difficulty: Int) -> String {
+        CustomDifficultyDisplay.isVisible
+            ? "Kromatika puzzle (\(difficulty)/10)"
+            : "Kromatika puzzle"
     }
 
     static var transferRepresentation: some TransferRepresentation {

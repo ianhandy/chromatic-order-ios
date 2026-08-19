@@ -10,6 +10,7 @@ struct ChromaticOrderApp: App {
     @State private var started: Bool = false
     @State private var game = GameState()
     @State private var fullVersion = FullVersionStore()
+    @State private var engagement = PlayerEngagementStore()
     /// Drives the app-level fade-to-black overlay so navigation
     /// between the menu and the game is a symmetric crossfade.
     @State private var transitioner = Transitioner()
@@ -43,9 +44,16 @@ struct ChromaticOrderApp: App {
                     .opacity(transitioner.overlayOpacity)
                     .ignoresSafeArea()
                     .allowsHitTesting(transitioner.overlayOpacity > 0.01)
+
+                if engagement.isPromptPresented {
+                    EnjoymentPromptView()
+                        .zIndex(100)
+                        .transition(.opacity)
+                }
             }
             .environment(transitioner)
             .environment(fullVersion)
+            .environment(engagement)
             .task {
                 await fullVersion.prepare()
                 if !started,
@@ -60,6 +68,8 @@ struct ChromaticOrderApp: App {
                 }
             }
             .onAppear {
+                engagement.appDidBecomeActive()
+                if started { engagement.gameplayDidStart() }
                 // Sync audio + haptic flags now that the audio
                 // converter service is ready. Doing this during
                 // GameState.init() started the engine before iOS
@@ -118,6 +128,13 @@ struct ChromaticOrderApp: App {
                     started = true
                 }
             }
+            .onChange(of: started) { _, isPlaying in
+                if isPlaying {
+                    engagement.gameplayDidStart()
+                } else {
+                    engagement.gameplayDidEnd()
+                }
+            }
             .onOpenURL { url in
                 if url.scheme == "kroma" {
                     handleKromaURL(url)
@@ -130,6 +147,8 @@ struct ChromaticOrderApp: App {
             .onChange(of: scenePhase) { _, phase in
                 switch phase {
                 case .active:
+                    engagement.appDidBecomeActive()
+                    if started { engagement.gameplayDidStart() }
                     // Returning from background: iOS may have torn down
                     // the AVAudioEngine graph (interruption). Rebuild so
                     // the first play() call after resume doesn't crash on
@@ -145,6 +164,7 @@ struct ChromaticOrderApp: App {
                     }
                     Task { await StreakReminderStore.refresh() }
                 case .background:
+                    engagement.appDidResignActive()
                     // iOS can terminate a backgrounded process without
                     // another callback. Capture the exact live board first.
                     if started { game.persistInProgressSession(autoResume: true) }
@@ -156,7 +176,7 @@ struct ChromaticOrderApp: App {
                     // causing a crash on the first play() call.
                     GlassyAudio.shared.appDidEnterBackground()
                 case .inactive:
-                    break
+                    engagement.appDidResignActive()
                 @unknown default:
                     break
                 }

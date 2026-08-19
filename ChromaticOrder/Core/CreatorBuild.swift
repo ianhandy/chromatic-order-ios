@@ -4,6 +4,16 @@
 
 import Foundation
 
+/// Custom-level difficulty is still scored — the generator, the solver and
+/// the share payload all depend on it — but none of it is shown to players
+/// right now. A single "n/10" next to a puzzle someone made invites the
+/// wrong reaction: it reads as a grade on the author rather than a hint
+/// about the puzzle, and the score is not calibrated well enough to earn
+/// that weight. Flip this to `true` to bring every indicator back at once.
+enum CustomDifficultyDisplay {
+    static let isVisible = false
+}
+
 struct CreatorValidation {
     var gradientCount: Int
     var cellCount: Int

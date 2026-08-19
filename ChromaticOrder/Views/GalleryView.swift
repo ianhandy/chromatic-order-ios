@@ -1,6 +1,6 @@
 //  Gallery — player-authored and received puzzles, grouped together
 //  in a scrollable list. Every entry shows a tiny palette preview
-//  (first gradient's colors) + difficulty + cell layout. Tapping
+//  (first gradient's colors) + cell layout. Tapping
 //  loads the puzzle via GameState.loadCustomPuzzle and drops the
 //  player into the game. Long-press → delete.
 //
