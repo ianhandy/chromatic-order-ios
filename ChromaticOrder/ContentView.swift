@@ -78,6 +78,13 @@ struct ContentView: View {
     /// solved overlay that didn't answer to it.
     @ScaledMetric(relativeTo: .largeTitle) private var perfectBannerSize: CGFloat = 48
 
+    /// Global-space top edge of the bank, from the frames BankView
+    /// publishes. Lets the coaching banner sit above however many rows of
+    /// swatches this particular level ships instead of a fixed guess.
+    private var bankTopY: CGFloat? {
+        game.bankSlotFrames.values.map(\.minY).min()
+    }
+
     /// Scale applied to the grid on solve — shrinks to 0.85 then
     /// snaps back to 1.0 on the next quarter-note beat.
     @State private var solveSquishScale: CGFloat = 1.0
@@ -163,9 +170,9 @@ struct ContentView: View {
             // Campaign coaching line — one per level that introduces
             // something, shown once ever, tap to clear.
             if let hint = game.hintMessage {
-                CampaignTipBanner(text: hint) { game.dismissHint() }
+                CampaignTipBanner(text: hint, bankTopY: bankTopY) { game.dismissHint() }
             } else if let tip = game.campaignTip {
-                CampaignTipBanner(text: tip) { game.campaignTip = nil }
+                CampaignTipBanner(text: tip, bankTopY: bankTopY) { game.campaignTip = nil }
             }
 
             // Edge vignette — viewport-level, above content. Gated
@@ -372,6 +379,16 @@ struct ContentView: View {
         .animation(.easeInOut(duration: 0.7), value: perfectBannerVisible)
         .onChange(of: game.solved) { _, solvedNow in
             if solvedNow {
+                // Solving is the whole point, and every signal it fired —
+                // the glow, the squish, the chord, the row of buttons that
+                // replaces the bank — was visual, audible, or haptic only.
+                // VoiceOver got silence and a bottom bar that had quietly
+                // become something else. Announce it, and say whether it
+                // was clean, which is the fact the banner shows sighted
+                // players.
+                AccessibilityNotification.Announcement(
+                    game.isPerfectSolve ? "solved, perfect" : "solved"
+                ).post()
                 beginSolvedEffects()
                 // Squish → wait for next quarter-note beat → snap
                 // back → chord + haptic. The visual "inhale" before

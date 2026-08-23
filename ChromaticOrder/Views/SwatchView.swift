@@ -129,13 +129,25 @@ struct BankSlotView: View {
         .accessibilityLabel(item == nil
                             ? "empty slot \(slot + 1)"
                             : "swatch \(slot + 1)")
-        .accessibilityValue(game.hintedBankSlot == slot
-                            ? "hinted"
-                            : (isPicked ? "picked up" : ""))
+        // A swatch is nothing but its colour, so the value leads with it
+        // — an unnamed "swatch 1" gave VoiceOver nothing to choose with.
+        .accessibilityValue(accessibilityValue(for: item))
         .accessibilityAddTraits(item == nil ? [] : .isButton)
         .accessibilityAction {
             game.tapSlot(slot)
         }
+    }
+
+    /// "light orange", "dark blue, picked up", "teal, hinted". The colour
+    /// is what the player is choosing between; the state qualifies it.
+    private func accessibilityValue(for item: BankItem?) -> String {
+        guard let item else { return "" }
+        // The painted colour, not the stored one — same reasoning as the
+        // cell: describe the board the player is actually looking at.
+        var parts = [OK.spokenName(game.display(item.color))]
+        if game.hintedBankSlot == slot { parts.append("hinted") }
+        if isPicked { parts.append("picked up") }
+        return parts.joined(separator: ", ")
     }
 
     private var isPicked: Bool {

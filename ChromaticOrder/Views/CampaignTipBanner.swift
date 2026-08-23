@@ -7,32 +7,17 @@ import SwiftUI
 
 struct CampaignTipBanner: View {
     let text: String
+    /// Top edge of the bank in global space, once BankView has measured
+    /// itself. Nil before the first measurement, or when there is no bank.
+    let bankTopY: CGFloat?
     let onDismiss: () -> Void
 
     @State private var shown = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
-        VStack {
-            // Below the board, above the bank: the tip talks about the board
-            // and must not sit on top of the swatches the player needs to
-            // drag. The bank grows upward from the bottom, so this rides the
-            // gap between them rather than the screen edge.
-            Spacer()
-            Text(text.lowercased())
-                .font(Kroma.font(.callout, .medium))
-                .foregroundStyle(.white)
-                .multilineTextAlignment(.center)
-                .padding(.horizontal, Kroma.Space.l)
-                .padding(.vertical, Kroma.Space.m)
-                .kromaSurface(.panel,
-                              in: RoundedRectangle(cornerRadius: Kroma.Radius.card,
-                                                   style: .continuous))
-                .padding(.horizontal, Kroma.Space.xl)
-                // Clears a three-row bank with room to spare.
-                .padding(.bottom, 168)
-                .opacity(shown ? 1 : 0)
-                .offset(y: shown || reduceMotion ? 0 : 10)
+        GeometryReader { geo in
+            banner(bottomInset: bottomInset(in: geo))
         }
         .allowsHitTesting(false)
         // A rule the board can't demonstrate, so it's spoken as soon as
@@ -62,6 +47,44 @@ struct CampaignTipBanner: View {
             }
             dismiss()
         }
+    }
+
+    /// How far above the bottom of the screen the banner has to sit to
+    /// clear the bank. The bank's height is a function of how many swatches
+    /// the level ships, so this was a fixed 168pt that happened to fit the
+    /// boards it was written against — a nine-swatch level put the banner
+    /// straight across the top row of swatches for the full nine seconds.
+    /// Measured beats guessed; the constant survives only as the fallback
+    /// for the frame or two before BankView reports its geometry.
+    private func bottomInset(in geo: GeometryProxy) -> CGFloat {
+        let bottom = geo.frame(in: .global).maxY
+        guard let bankTopY, bankTopY > 0, bankTopY < bottom else { return 168 }
+        // Never so tall that the banner climbs into the board it describes.
+        return min(max(96, bottom - bankTopY + Kroma.Space.m), geo.size.height * 0.6)
+    }
+
+    private func banner(bottomInset: CGFloat) -> some View {
+        VStack {
+            // Below the board, above the bank: the tip talks about the board
+            // and must not sit on top of the swatches the player needs to
+            // drag. The bank grows upward from the bottom, so this rides the
+            // gap between them rather than the screen edge.
+            Spacer()
+            Text(text.lowercased())
+                .font(Kroma.font(.callout, .medium))
+                .foregroundStyle(.white)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, Kroma.Space.l)
+                .padding(.vertical, Kroma.Space.m)
+                .kromaSurface(.panel,
+                              in: RoundedRectangle(cornerRadius: Kroma.Radius.card,
+                                                   style: .continuous))
+                .padding(.horizontal, Kroma.Space.xl)
+                .padding(.bottom, bottomInset)
+                .opacity(shown ? 1 : 0)
+                .offset(y: shown || reduceMotion ? 0 : 10)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     private func dismiss() {

@@ -212,7 +212,8 @@ final class CampaignAuditTests: XCTestCase {
 
         XCTAssertTrue(game.loadCampaignLevel(1))
         XCTAssertEqual(game.campaignIndex, 1)
-        XCTAssertEqual(game.customTitle, CampaignCatalog.level(1)?.name.lowercased())
+        XCTAssertNil(game.customTitle,
+                     "campaign boards carry no authored shape name")
         XCTAssertNotNil(game.puzzle)
         XCTAssertFalse(game.generating, "authored levels don't wait on the generator")
         XCTAssertNotNil(game.campaignTip, "level 1 introduces the drag")
@@ -225,7 +226,7 @@ final class CampaignAuditTests: XCTestCase {
         game.handleNext()
         XCTAssertEqual(game.campaignIndex, 2)
         XCTAssertTrue(CampaignStore.isCleared(1))
-        XCTAssertEqual(game.customTitle, CampaignCatalog.level(2)?.name.lowercased())
+        XCTAssertNil(game.customTitle)
         XCTAssertFalse(game.campaignComplete)
 
         // A tip only ever shows once.
@@ -324,7 +325,7 @@ final class CampaignAuditTests: XCTestCase {
         try await Task.sleep(for: .seconds(2))
 
         XCTAssertEqual(game.campaignIndex, 1, "campaign tag was cleared")
-        XCTAssertEqual(game.customTitle, expected.name.lowercased())
+        XCTAssertNil(game.customTitle)
         let puzzle = try XCTUnwrap(game.puzzle)
         XCTAssertEqual(puzzle.gridW, expected.doc.gridW,
                        "a generated board replaced the campaign level")
@@ -642,13 +643,46 @@ final class CampaignAuditTests: XCTestCase {
         CampaignStore.resetAll()
     }
 
+    /// The campaign header is progression, not a picture caption. No level
+    /// may leak its authored shape name into the title the top bar renders,
+    /// at any point in the campaign — the header shows the chapter and the
+    /// chip shows the position, and both come from the catalog, not `name`.
     @MainActor
-    func testCampaignLevelHeaderUsesLowercaseAuthoredName() throws {
+    func testCampaignLevelsCarryNoAuthoredShapeName() throws {
         let game = GameState()
-        let entry = try XCTUnwrap(CampaignCatalog.level(1))
-        XCTAssertTrue(game.loadCampaignLevel(entry.index))
-        XCTAssertEqual(game.customTitle, entry.name.lowercased())
+        for index in [1, 2, 33, 100, 101, 200] {
+            let entry = try XCTUnwrap(CampaignCatalog.level(index))
+            XCTAssertTrue(game.loadCampaignLevel(entry.index))
+            XCTAssertNil(game.customTitle,
+                         "level \(index) put '\(entry.name)' in the top bar")
+            XCTAssertNotNil(CampaignCatalog.chapter(containing: index)?.title,
+                            "level \(index) has no chapter to name instead")
+        }
         CampaignStore.resetAll()
+    }
+
+    /// Chapter titles are the campaign's visible ladder, so they must name a
+    /// step in it rather than what the boards happen to depict. Locks the
+    /// shipped set against a regeneration quietly restoring the old ones.
+    func testChapterTitlesAreProgressionLed() throws {
+        let retired: Set<String> = [
+            "Everyday Things", "Creatures", "Landmarks",
+            "Workshop", "Orchestra", "Circuitry", "Interiors", "Grand Works",
+        ]
+        let titles = CampaignCatalog.chapters.map(\.title)
+        XCTAssertEqual(Set(titles).count, titles.count, "chapter titles must be unique")
+        for title in titles {
+            XCTAssertFalse(retired.contains(title),
+                           "\(title) is a picture-led chapter title")
+        }
+        // Every level agrees with the chapter that owns its index, so the
+        // picker's "\(chapter), level \(n)" label can never disagree with
+        // the header the board shows.
+        for level in CampaignCatalog.levels {
+            let owner = try XCTUnwrap(CampaignCatalog.chapter(containing: level.index))
+            XCTAssertEqual(level.chapter, owner.title,
+                           "level \(level.index) claims chapter \(level.chapter)")
+        }
     }
 
     @MainActor

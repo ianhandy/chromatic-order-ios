@@ -33,6 +33,10 @@ struct TopBarView: View {
     /// game screen and restoring the gallery sheet (see ContentView).
     var onBackToGallery: (() -> Void)? = nil
     @State private var levelPickerOpen: Bool = false
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+
+    /// Past the accessibility sizes the top bar stops being one row.
+    private var usesStackedChrome: Bool { dynamicTypeSize.isAccessibilitySize }
 
     // Palette for the dark-mode top bar. Primary text is near-white
     // (full white glares), secondary is a softer gray.
@@ -42,13 +46,35 @@ struct TopBarView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: Kroma.Space.xs) {
             // Where you are on the left, what you're playing in the
-            // middle, what you can do on the right.
+            // middle, what you can do on the right. The chip and the
+            // buttons are load-bearing — one says where you are, the other
+            // is the only way out — so they get the width they ask for and
+            // the wordmark in the middle is what gives. Without the
+            // priorities, an accessibility text size
+            // grew the wordmark until the two right-hand buttons were
+            // squeezed past zero spacing and drew on top of each other.
             HStack(alignment: .center, spacing: Kroma.Space.s) {
                 levelChip
+                    .layoutPriority(1)
                 Spacer(minLength: 0)
-                centerModeLabel
-                Spacer(minLength: 0)
+                if !usesStackedChrome {
+                    centerModeLabel
+                        .layoutPriority(-1)
+                    Spacer(minLength: 0)
+                }
                 rightButtons
+                    .layoutPriority(1)
+            }
+
+            // At an accessibility text size the chip and the two buttons
+            // already fill the row, and leaving the wordmark between them
+            // crushed it to a one-letter column reading vertically. It
+            // drops to its own full-width line instead — hiding it would
+            // take the label away from exactly the players who turned the
+            // text size up to read it.
+            if usesStackedChrome {
+                centerModeLabel
+                    .frame(maxWidth: .infinity, alignment: .leading)
             }
 
             // Progress readout, under the chip it belongs to. It used
@@ -161,6 +187,11 @@ struct TopBarView: View {
     private func chipText(_ text: String) -> some View {
         Text(text)
             .font(Kroma.font(.subheadline, .heavy))
+            // "1/200" is one token. Left to wrap, an accessibility text
+            // size broke it across two lines as "1/2" over "00", which
+            // reads as a different number entirely.
+            .lineLimit(1)
+            .minimumScaleFactor(0.7)
             .padding(.horizontal, Kroma.Space.m)
             .padding(.vertical, Kroma.Space.s)
             .frame(minHeight: Kroma.Metrics.chromeControl)
@@ -173,7 +204,24 @@ struct TopBarView: View {
         // sees the level's title instead of the generic "zen" label.
         // Long titles get a gentle width cap + truncation so the
         // top-bar layout stays balanced.
-        if let title = game.customTitle, !title.isEmpty {
+        if let index = game.campaignIndex {
+            // Campaign: the slot the other modes use for their wordmark
+            // carries where the player is in the ladder. The chip beside it
+            // already says "37/200"; this says which chapter that lands in,
+            // which is the thing that changes what the board asks of you.
+            Text(campaignChapterTitle(index))
+                .font(Kroma.font(.title3, .heavy))
+                .foregroundStyle(Self.primaryText)
+                .multilineTextAlignment(.center)
+                .lineLimit(2)
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: usesStackedChrome ? .infinity : 200,
+                       alignment: usesStackedChrome ? .leading : .center)
+                // The chip next to it already announces "campaign level 37
+                // of 200", so this only has to name the chapter.
+                .accessibilityLabel("chapter, \(campaignChapterTitle(index))")
+                .accessibilityAddTraits(.isHeader)
+        } else if let title = game.customTitle, !title.isEmpty {
             Text(title)
                 .font(Kroma.font(.title3, .heavy))
                 .foregroundStyle(Self.primaryText)
@@ -198,6 +246,14 @@ struct TopBarView: View {
                 heartsRow
             }
         }
+    }
+
+    /// Chapter the given campaign level sits in, lowercased to match the
+    /// rest of the chrome. Falls back to the plain mode wordmark's register
+    /// if the catalog can't place the index, which it only can't when the
+    /// bundled campaign failed to load at all.
+    private func campaignChapterTitle(_ index: Int) -> String {
+        CampaignCatalog.chapter(containing: index)?.title.lowercased() ?? "campaign"
     }
 
     /// Individual items rendered by the hearts-row ForEach. A flat
@@ -371,7 +427,13 @@ struct TopBarView: View {
                 // state and doesn't — it used to sit inside a second
                 // one-second timeline redrawing for nothing.
                 TimelineView(.periodic(from: .now, by: 1.0)) { _ in
-                    Text(formatElapsed(game.timeSpentSec))
+                    // The separator rides on the timer rather than sitting
+                    // between the two as its own view, so VoiceOver never
+                    // has a stray "dot" element to step through. Two
+                    // monospaced numbers with only a space between them
+                    // ran together at large text sizes — "0:50" and
+                    // "0 moves" read as "0:500 moves".
+                    Text("\(formatElapsed(game.timeSpentSec)) ·")
                         .accessibilityLabel("time \(formatElapsed(game.timeSpentSec))")
                 }
             }

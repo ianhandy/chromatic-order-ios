@@ -2253,7 +2253,13 @@ final class GameState {
     func loadCampaignLevel(_ index: Int) -> Bool {
         guard let entry = CampaignCatalog.level(index),
               let puz = entry.puzzle() else { return false }
-        loadCustomPuzzle(puz, title: entry.name.lowercased())
+        // No title. `entry.name` is the authoring pipeline's word for what
+        // the board depicts ("Tee", "Mandala", "Violin Case") — putting it
+        // over the board promised a picture that a grid of gradient steps
+        // never delivers, and said nothing about where the player is. The
+        // top bar carries chapter + position instead (see TopBarView), which
+        // is the fact that actually changes level to level.
+        loadCustomPuzzle(puz, title: nil)
         campaignIndex = index
         campaignComplete = false
         CampaignStore.recordPlayed(index)

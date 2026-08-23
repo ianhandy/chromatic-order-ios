@@ -204,13 +204,25 @@ struct CellView: View {
         )
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("cell, row \(r + 1), column \(c + 1)")
-        .accessibilityValue(cell.locked
-                            ? "fixed"
-                            : (isHinted ? "hinted" : (filled ? "filled" : "empty")))
+        // State first, then the colour that state is holding. `shown` is
+        // what's actually painted, so a compressed board describes itself
+        // the way it looks rather than the way it's stored.
+        .accessibilityValue(accessibilityValue(filled: filled, shown: shown))
         .accessibilityAddTraits(cell.locked || game.solved ? [] : .isButton)
         .accessibilityAction {
             if !cell.locked && !game.solved { game.tapCell(at: r, c) }
         }
+    }
+
+    /// "fixed, dark blue" / "filled, light orange" / "empty". A cell's
+    /// colour is the only reason to care about the cell, so it belongs in
+    /// the value rather than behind a custom rotor or a hint.
+    private func accessibilityValue(filled: Bool, shown: OKLCh?) -> String {
+        let state = cell.locked
+            ? "fixed"
+            : (isHinted ? "hinted" : (filled ? "filled" : "empty"))
+        guard let shown else { return state }
+        return "\(state), \(OK.spokenName(shown))"
     }
 
     // ─── derived flags ──────────────────────────────────────────────

@@ -1542,7 +1542,7 @@ def valid_entries(level: int, shape, name: str, tip: str | None, cfg: dict,
         entry = {
             "index": level,
             "name": name,
-            "chapter": chapter[0],
+            "chapter": shapes.display_title(chapter[0]),
             "tip": tip,
             "gradientCount": len(shape.gradients),
             "cellCount": len(board),
@@ -1663,8 +1663,13 @@ def build_all(verbose=True, workers=None) -> dict:
     return {
         "version": 1,
         "chapters": [
-            {"title": t, "first": f, "last": l, "blurb": b}
-            for (t, f, l, b) in shapes.CHAPTERS
+            {
+                "title": shapes.DISPLAY_CHAPTERS[t][0],
+                "first": f,
+                "last": l,
+                "blurb": shapes.DISPLAY_CHAPTERS[t][1],
+            }
+            for (t, f, l, _authoring_blurb) in shapes.CHAPTERS
         ],
         "levels": levels,
     }

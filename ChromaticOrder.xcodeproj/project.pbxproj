@@ -96,6 +96,7 @@
 		CE46B1DD55057FC0ED6FAA12 /* CBMode.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7ABE78F55223134DDFDF9698 /* CBMode.swift */; };
 		CE755B3B5C9E56D6A75CA63D /* GalleryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EED9AF64DB8B44E82237AD19 /* GalleryView.swift */; };
 		D46A6ECE05CF84DCDA8160B6 /* ColorPickerSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = EFD96AAE98A2EF5AD111E041 /* ColorPickerSheet.swift */; };
+		D9D7549465302E505C5DF623 /* SpokenColorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 60CF572D3AC98C24BE5398DD /* SpokenColorTests.swift */; };
 		DAA5C7BE0E673596B11FE0AF /* CommunityStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB5CA128E9F91DAD5B84834E /* CommunityStore.swift */; };
 		DFB96F379737B48917A4EF7B /* EnjoymentPromptView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 76163F946847B3F39EA73BA5 /* EnjoymentPromptView.swift */; };
 		E04EBD9DE8C0CCFDF58E294C /* Strings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0F9C8BFFB495AE36E277498C /* Strings.swift */; };
@@ -175,6 +176,7 @@
 		5CE5FD56C0B0EF2E4ED05FF4 /* FullVersionStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FullVersionStore.swift; sourceTree = "<group>"; };
 		5E6C13952A90DB8C288DB938 /* Haptics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Haptics.swift; sourceTree = "<group>"; };
 		60C1AF3FAF10C86541EE9315 /* FeedbackSubmitter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FeedbackSubmitter.swift; sourceTree = "<group>"; };
+		60CF572D3AC98C24BE5398DD /* SpokenColorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpokenColorTests.swift; sourceTree = "<group>"; };
 		618A23A276B3DEE750B5FCD2 /* Generate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Generate.swift; sourceTree = "<group>"; };
 		62AA3C30A87367588BC07E29 /* LadderExportTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LadderExportTests.swift; sourceTree = "<group>"; };
 		6575560348AFC2F3872179B2 /* MenuSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuSheet.swift; sourceTree = "<group>"; };
@@ -415,6 +417,7 @@
 				E689CABBFCE031788317CC9C /* MalformedPuzzleImportTests.swift */,
 				98E6B3AF92CEFE68761DB383 /* ModerationStoreTests.swift */,
 				4DC2D4F729E96B6CBCA818EA /* PlayerSupportFeatureTests.swift */,
+				60CF572D3AC98C24BE5398DD /* SpokenColorTests.swift */,
 				0AAADC5198634557D3B8F733 /* TestingFilterTests.swift */,
 			);
 			path = ChromaticOrderTests;
@@ -573,6 +576,7 @@
 				27BF737AA63B9B11B325E952 /* MalformedPuzzleImportTests.swift in Sources */,
 				E9E8CF9F43DC9426376632BE /* ModerationStoreTests.swift in Sources */,
 				EDA5B0C53314EA0DB89630B3 /* PlayerSupportFeatureTests.swift in Sources */,
+				D9D7549465302E505C5DF623 /* SpokenColorTests.swift in Sources */,
 				AE68A4D8D07978FCBE656443 /* TestingFilterTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
