@@ -183,42 +183,4 @@ enum OK {
     static func tint(_ c: OKLCh) -> OKLCh {
         OKLCh(L: 0.95, c: 0.035, h: c.h)
     }
-
-    // ─── Spoken colors ─────────────────────────────────────────────
-    //
-    // Every fact this game asks a player to weigh is a color, and until
-    // this existed VoiceOver read the board as "cell, row 2, column 3,
-    // empty" and the bank as "swatch 1" — the whole puzzle, withheld.
-    //
-    // The names are deliberately coarse. A ramp's neighbouring steps are
-    // a handful of ΔE apart, so any phrase precise enough to separate
-    // them would be handing over the solution; "dark blue" is orientation,
-    // not an answer, and it is the same register a sighted player gets at
-    // a glance before they start comparing.
-
-    /// Hue families, keyed to the sRGB primaries' OKLCh angles: red ≈ 29°,
-    /// yellow ≈ 110°, green ≈ 143°, cyan ≈ 195°, blue ≈ 264°, magenta ≈ 328°.
-    /// Upper bound of each band, in ascending order; anything above the
-    /// last band wraps back to pink.
-    private static let hueBands: [(upperBound: Double, name: String)] = [
-        (15, "pink"), (45, "red"), (80, "orange"), (120, "yellow"),
-        (165, "green"), (210, "teal"), (285, "blue"), (320, "purple"),
-    ]
-
-    /// A short spoken description of a color — "dark blue", "light orange",
-    /// "gray". Coarse by design; see the note above.
-    static func spokenName(_ color: OKLCh) -> String {
-        // Below the usable band's chroma floor there is no hue left to
-        // name, so lightness is the whole description.
-        guard color.c >= 0.045 else {
-            if color.L < 0.40 { return "dark gray" }
-            if color.L > 0.72 { return "light gray" }
-            return "gray"
-        }
-        let h = normH(color.h)
-        let family = hueBands.first { h < $0.upperBound }?.name ?? "pink"
-        if color.L < 0.40 { return "dark \(family)" }
-        if color.L > 0.72 { return "light \(family)" }
-        return family
-    }
 }

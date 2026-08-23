@@ -122,32 +122,35 @@ struct BankSlotView: View {
                 }
         )
         // The slot is driven entirely by a DragGesture, which VoiceOver
-        // cannot perform — so it needs an explicit action as well as a
-        // name. "Picked up" is the same fact the swatch's lift and
-        // shadow show sighted players.
+        // cannot perform — so it needs an explicit action, and a hint that
+        // says what that action will do.
+        //
+        // Slot number, state and control semantics — never the swatch's
+        // colour. Naming it would tell a VoiceOver player which swatch to
+        // reach for, and choosing between the swatches IS the puzzle. All
+        // strings come from BoardAccessibility, which cannot reach a
+        // colour; see the note at the top of that file.
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(item == nil
-                            ? "empty slot \(slot + 1)"
-                            : "swatch \(slot + 1)")
-        // A swatch is nothing but its colour, so the value leads with it
-        // — an unnamed "swatch 1" gave VoiceOver nothing to choose with.
-        .accessibilityValue(accessibilityValue(for: item))
+        .accessibilityLabel(BoardAccessibility.slotLabel(slot: slot, occupied: item != nil))
+        .accessibilityValue(BoardAccessibility.slotValue(accessibilityFacts(for: item)))
+        .accessibilityHint(BoardAccessibility.slotHint(accessibilityFacts(for: item),
+                                                       interaction: game.accessibilityInteraction))
         .accessibilityAddTraits(item == nil ? [] : .isButton)
         .accessibilityAction {
             game.tapSlot(slot)
         }
     }
 
-    /// "light orange", "dark blue, picked up", "teal, hinted". The colour
-    /// is what the player is choosing between; the state qualifies it.
-    private func accessibilityValue(for item: BankItem?) -> String {
-        guard let item else { return "" }
-        // The painted colour, not the stored one — same reasoning as the
-        // cell: describe the board the player is actually looking at.
-        var parts = [OK.spokenName(game.display(item.color))]
-        if game.hintedBankSlot == slot { parts.append("hinted") }
-        if isPicked { parts.append("picked up") }
-        return parts.joined(separator: ", ")
+    /// The colour-free facts about this slot: whether it holds a swatch,
+    /// whether that swatch is in hand, whether the hint is pointing at it.
+    /// Each is something the slot already shows — the dashed outline, the
+    /// lift and shadow, the white ring.
+    private func accessibilityFacts(for item: BankItem?) -> BoardAccessibility.SlotFacts {
+        BoardAccessibility.SlotFacts(
+            occupied: item != nil,
+            picked: isPicked,
+            hinted: game.hintedBankSlot == slot
+        )
     }
 
     private var isPicked: Bool {

@@ -202,27 +202,38 @@ struct CellView: View {
                     }
                 }
         )
+        // Position, state and control semantics — never the colour. A
+        // cell's colour IS the puzzle, so speaking it at any coarseness
+        // hands a VoiceOver player the comparison a sighted player has to
+        // make by eye. Every string below comes from BoardAccessibility,
+        // which has no way to reach a colour; see the note at the top of
+        // that file.
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("cell, row \(r + 1), column \(c + 1)")
-        // State first, then the colour that state is holding. `shown` is
-        // what's actually painted, so a compressed board describes itself
-        // the way it looks rather than the way it's stored.
-        .accessibilityValue(accessibilityValue(filled: filled, shown: shown))
+        // A dead cell is background, not a slot. It was still an element,
+        // so VoiceOver walked the board's whole bounding rectangle and
+        // read "empty" over holes the player can never fill.
+        .accessibilityHidden(cell.kind == .dead)
+        .accessibilityLabel(BoardAccessibility.cellLabel(row: r, column: c))
+        .accessibilityValue(BoardAccessibility.cellValue(accessibilityFacts(filled: filled)))
+        .accessibilityHint(BoardAccessibility.cellHint(accessibilityFacts(filled: filled),
+                                                       interaction: game.accessibilityInteraction))
         .accessibilityAddTraits(cell.locked || game.solved ? [] : .isButton)
         .accessibilityAction {
             if !cell.locked && !game.solved { game.tapCell(at: r, c) }
         }
     }
 
-    /// "fixed, dark blue" / "filled, light orange" / "empty". A cell's
-    /// colour is the only reason to care about the cell, so it belongs in
-    /// the value rather than behind a custom rotor or a hint.
-    private func accessibilityValue(filled: Bool, shown: OKLCh?) -> String {
-        let state = cell.locked
-            ? "fixed"
-            : (isHinted ? "hinted" : (filled ? "filled" : "empty"))
-        guard let shown else { return state }
-        return "\(state), \(OK.spokenName(shown))"
+    /// The colour-free facts about this cell. `isWrong` is already gated
+    /// on `game.showIncorrect`, so "incorrect" is spoken exactly while the
+    /// red outline is on screen and never outside it.
+    private func accessibilityFacts(filled: Bool) -> BoardAccessibility.CellFacts {
+        BoardAccessibility.CellFacts(
+            locked: cell.locked,
+            filled: filled,
+            selected: isSelected,
+            hinted: isHinted,
+            incorrect: isWrong
+        )
     }
 
     // ─── derived flags ──────────────────────────────────────────────

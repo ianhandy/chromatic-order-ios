@@ -377,6 +377,20 @@ struct ContentView: View {
         }
         .animation(.spring(response: 0.55, dampingFraction: 0.85), value: game.solved)
         .animation(.easeInOut(duration: 0.7), value: perfectBannerVisible)
+        // A failed daily check turns on the per-cell red outlines for a
+        // couple of seconds and fires a haptic. Neither says what
+        // happened, and a VoiceOver player would have to walk the whole
+        // board inside that window to find out. The count is the number
+        // of outlines that just appeared — it says how many placements
+        // are wrong, never what would have been right.
+        .onChange(of: game.showIncorrect) { _, showing in
+            guard showing, !game.solved else { return }
+            AccessibilityNotification.Announcement(
+                BoardAccessibility.failedCheckAnnouncement(
+                    incorrectCount: game.incorrectPlacementCount
+                )
+            ).post()
+        }
         .onChange(of: game.solved) { _, solvedNow in
             if solvedNow {
                 // Solving is the whole point, and every signal it fired —
@@ -386,8 +400,15 @@ struct ContentView: View {
                 // become something else. Announce it, and say whether it
                 // was clean, which is the fact the banner shows sighted
                 // players.
+                //
+                // `showedIncorrect` separates a solve from a reveal: a
+                // failed challenge check also flips `solved`, and calling
+                // that "solved" would be a lie told only to VoiceOver.
                 AccessibilityNotification.Announcement(
-                    game.isPerfectSolve ? "solved, perfect" : "solved"
+                    BoardAccessibility.solveAnnouncement(
+                        perfect: game.isPerfectSolve,
+                        revealed: game.showedIncorrect
+                    )
                 ).post()
                 beginSolvedEffects()
                 // Squish → wait for next quarter-note beat → snap
