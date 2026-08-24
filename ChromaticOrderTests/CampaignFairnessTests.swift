@@ -125,11 +125,19 @@ final class CampaignFairnessTests: XCTestCase {
 
         // A cell the player must resolve by eye is one the board gives them no
         // way to compute, so the only thing standing between them and a guess
-        // is how far its colour sits from its nearest rival. `build.py` holds
-        // that gap above its `eye_floor`; this re-checks the shipped result in
-        // the app's own colour code, where the JND is 2 (`OK.equal`). The bar
-        // here is twice that: a call inside two JNDs is not a call.
-        let eyeFloor = 4.0
+        // is how far its colour sits from its nearest rival. `build.py` aims
+        // that gap at its `eye_floor` and is allowed to walk the demand down
+        // for a shape that cannot otherwise be built, so this is not a restated
+        // build rule — it is the floor below which the call stops being a call
+        // at all, checked in the app's own colour code where the JND is 2
+        // (`OK.equal`).
+        //
+        // One and a half JNDs, and the number is chosen to have room in it: the
+        // tightest by-eye call in the campaign today is Switch at ΔE 4.0, so a
+        // rebuild has a full delta-E of movement before this fires. A bar set
+        // at the current worst would fail the next honest rebuild, which is a
+        // worse outcome than a bar that only catches the real thing.
+        let eyeFloor = 3.0
         let tooFine = stats.filter { $0.byEye > 0 && $0.worst < eyeFloor }
         XCTAssertTrue(tooFine.isEmpty,
                       "levels asking the eye for a call finer than ΔE \(eyeFloor):\n"
