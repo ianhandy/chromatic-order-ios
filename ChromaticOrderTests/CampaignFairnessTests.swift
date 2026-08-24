@@ -224,7 +224,49 @@ final class CampaignFairnessTests: XCTestCase {
 
         for entry in CampaignCatalog.levels {
             guard let puzzle = entry.puzzle() else { continue }
+            if let found = indistinguishableAlternative(puzzle) {
+                unfair.append("\(entry.index) \(entry.name): \(found) — every run "
+                              + "stays an even walk, so nothing on screen tells "
+                              + "the player which board is the answer")
+            }
+        }
 
+        XCTAssertTrue(unfair.isEmpty,
+                      "levels with a second arrangement no one can rule out:\n"
+                      + unfair.joined(separator: "\n"))
+    }
+
+    /// The check above has to be able to fail, or it is decoration.
+    ///
+    /// The board below is level 85 Harbor exactly as it shipped, and it is the
+    /// reason the family-trade construction exists: two masts of equal length
+    /// hang off one given cell at (2, 7), and their colours can be exchanged
+    /// with every run still reading as an even walk and the given cell not
+    /// moving. `PuzzleSolver.isUniquelySolvable` passes this board — it
+    /// compares exact colours — and so did the campaign's playtest harness,
+    /// which reported it as an unexplained solver failure for months.
+    func testTheAmbiguityCheckCatchesTheBoardThatMotivatedIt() throws {
+        let doc = try JSONDecoder().decode(
+            CreatorPuzzleDoc.self, from: Data(Self.shippedHarbor.utf8))
+        let puzzle = try XCTUnwrap(CreatorCodec.rebuild(doc, level: 85),
+                                   "the Harbor fixture no longer rebuilds")
+
+        // The old bar, for contrast: the exact-colour solver is happy with it.
+        XCTAssertTrue(PuzzleSolver.isUniquelySolvable(puzzle),
+                      "fixture is meant to be a board the exact-colour solver "
+                      + "accepts and a person still cannot solve")
+
+        let found = indistinguishableAlternative(puzzle)
+        XCTAssertNotNil(found, "the ambiguity check missed the board it was "
+                        + "written for — it can no longer fail, so it is no "
+                        + "longer a gate")
+        XCTAssertTrue(found?.hasPrefix("runs ") ?? false,
+                      "expected the family trade, got \(found ?? "nothing")")
+    }
+
+    /// The three constructions, or nil if none of them produces a board a
+    /// player could not tell from the authored one.
+    private func indistinguishableAlternative(_ puzzle: Puzzle) -> String? {
             var truth: [CellIndex: OKLCh] = [:]
             var locked: Set<CellIndex> = []
             var runs: [[CellIndex]] = []
@@ -322,16 +364,7 @@ final class CampaignFairnessTests: XCTestCase {
                 }
             }
 
-            if let found {
-                unfair.append("\(entry.index) \(entry.name): \(found) — every run "
-                              + "stays an even walk, so nothing on screen tells "
-                              + "the player which board is the answer")
-            }
-        }
-
-        XCTAssertTrue(unfair.isEmpty,
-                      "levels with a second arrangement no one can rule out:\n"
-                      + unfair.joined(separator: "\n"))
+            return found
     }
 
     /// Is every run in this arrangement an even walk, as a player judges it:
@@ -466,4 +499,43 @@ final class CampaignFairnessTests: XCTestCase {
                            + "start from and nothing to deduce")
         }
     }
+
+    /// Level 85 Harbor as it shipped in build 33, kept verbatim so the
+    /// ambiguity check keeps being shown to fail on a board that really was
+    /// unfair. Runs 2 and 3 are the two masts: three cells each, sharing the
+    /// given cell at (2, 7), and their free cells trade colours without
+    /// disturbing a single run's even walk.
+    private static let shippedHarbor = """
+    {"version":1,"gridW":11,"gridH":6,"name":"Harbor","gradients":[\
+    {"dir":"v","cells":[\
+    {"r":0,"c":2,"L":0.5202,"C":0.11816,"h":353.913,"locked":true},\
+    {"r":1,"c":2,"L":0.5202,"C":0.11816,"h":326.711,"locked":false},\
+    {"r":2,"c":2,"L":0.5202,"C":0.11816,"h":299.508,"locked":false},\
+    {"r":3,"c":2,"L":0.5202,"C":0.11816,"h":272.305,"locked":false},\
+    {"r":4,"c":2,"L":0.5202,"C":0.11816,"h":245.103,"locked":false}]},\
+    {"dir":"h","cells":[\
+    {"r":1,"c":0,"L":0.33289,"C":0.11816,"h":326.711,"locked":false},\
+    {"r":1,"c":1,"L":0.42654,"C":0.11816,"h":326.711,"locked":false},\
+    {"r":1,"c":2,"L":0.5202,"C":0.11816,"h":326.711,"locked":false}]},\
+    {"dir":"v","cells":[\
+    {"r":2,"c":7,"L":0.69828,"C":0.11001,"h":128.728,"locked":true},\
+    {"r":3,"c":7,"L":0.60352,"C":0.11001,"h":128.728,"locked":false},\
+    {"r":4,"c":7,"L":0.50876,"C":0.11001,"h":128.728,"locked":false}]},\
+    {"dir":"h","cells":[\
+    {"r":2,"c":5,"L":0.69828,"C":0.11001,"h":221.044,"locked":false},\
+    {"r":2,"c":6,"L":0.69828,"C":0.11001,"h":174.886,"locked":false},\
+    {"r":2,"c":7,"L":0.69828,"C":0.11001,"h":128.728,"locked":true}]},\
+    {"dir":"h","cells":[\
+    {"r":5,"c":0,"L":0.81653,"C":0.0892,"h":31.79,"locked":true},\
+    {"r":5,"c":1,"L":0.76506,"C":0.0892,"h":31.79,"locked":false},\
+    {"r":5,"c":2,"L":0.71358,"C":0.0892,"h":31.79,"locked":false},\
+    {"r":5,"c":3,"L":0.6621,"C":0.0892,"h":31.79,"locked":false},\
+    {"r":5,"c":4,"L":0.61063,"C":0.0892,"h":31.79,"locked":false},\
+    {"r":5,"c":5,"L":0.55915,"C":0.0892,"h":31.79,"locked":false},\
+    {"r":5,"c":6,"L":0.50767,"C":0.0892,"h":31.79,"locked":false},\
+    {"r":5,"c":7,"L":0.4562,"C":0.0892,"h":31.79,"locked":false},\
+    {"r":5,"c":8,"L":0.40472,"C":0.0892,"h":31.79,"locked":false},\
+    {"r":5,"c":9,"L":0.35324,"C":0.0892,"h":31.79,"locked":false},\
+    {"r":5,"c":10,"L":0.30176,"C":0.0892,"h":31.79,"locked":false}]}]}
+    """
 }
