@@ -202,15 +202,38 @@ struct CellView: View {
                     }
                 }
         )
+        // Position, state and control semantics — never the colour. A
+        // cell's colour IS the puzzle, so speaking it at any coarseness
+        // hands a VoiceOver player the comparison a sighted player has to
+        // make by eye. Every string below comes from BoardAccessibility,
+        // which has no way to reach a colour; see the note at the top of
+        // that file.
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("cell, row \(r + 1), column \(c + 1)")
-        .accessibilityValue(cell.locked
-                            ? "fixed"
-                            : (isHinted ? "hinted" : (filled ? "filled" : "empty")))
+        // A dead cell is background, not a slot. It was still an element,
+        // so VoiceOver walked the board's whole bounding rectangle and
+        // read "empty" over holes the player can never fill.
+        .accessibilityHidden(cell.kind == .dead)
+        .accessibilityLabel(BoardAccessibility.cellLabel(row: r, column: c))
+        .accessibilityValue(BoardAccessibility.cellValue(accessibilityFacts(filled: filled)))
+        .accessibilityHint(BoardAccessibility.cellHint(accessibilityFacts(filled: filled),
+                                                       interaction: game.accessibilityInteraction))
         .accessibilityAddTraits(cell.locked || game.solved ? [] : .isButton)
         .accessibilityAction {
             if !cell.locked && !game.solved { game.tapCell(at: r, c) }
         }
+    }
+
+    /// The colour-free facts about this cell. `isWrong` is already gated
+    /// on `game.showIncorrect`, so "incorrect" is spoken exactly while the
+    /// red outline is on screen and never outside it.
+    private func accessibilityFacts(filled: Bool) -> BoardAccessibility.CellFacts {
+        BoardAccessibility.CellFacts(
+            locked: cell.locked,
+            filled: filled,
+            selected: isSelected,
+            hinted: isHinted,
+            incorrect: isWrong
+        )
     }
 
     // ─── derived flags ──────────────────────────────────────────────

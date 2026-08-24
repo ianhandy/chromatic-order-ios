@@ -122,20 +122,35 @@ struct BankSlotView: View {
                 }
         )
         // The slot is driven entirely by a DragGesture, which VoiceOver
-        // cannot perform — so it needs an explicit action as well as a
-        // name. "Picked up" is the same fact the swatch's lift and
-        // shadow show sighted players.
+        // cannot perform — so it needs an explicit action, and a hint that
+        // says what that action will do.
+        //
+        // Slot number, state and control semantics — never the swatch's
+        // colour. Naming it would tell a VoiceOver player which swatch to
+        // reach for, and choosing between the swatches IS the puzzle. All
+        // strings come from BoardAccessibility, which cannot reach a
+        // colour; see the note at the top of that file.
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(item == nil
-                            ? "empty slot \(slot + 1)"
-                            : "swatch \(slot + 1)")
-        .accessibilityValue(game.hintedBankSlot == slot
-                            ? "hinted"
-                            : (isPicked ? "picked up" : ""))
+        .accessibilityLabel(BoardAccessibility.slotLabel(slot: slot, occupied: item != nil))
+        .accessibilityValue(BoardAccessibility.slotValue(accessibilityFacts(for: item)))
+        .accessibilityHint(BoardAccessibility.slotHint(accessibilityFacts(for: item),
+                                                       interaction: game.accessibilityInteraction))
         .accessibilityAddTraits(item == nil ? [] : .isButton)
         .accessibilityAction {
             game.tapSlot(slot)
         }
+    }
+
+    /// The colour-free facts about this slot: whether it holds a swatch,
+    /// whether that swatch is in hand, whether the hint is pointing at it.
+    /// Each is something the slot already shows — the dashed outline, the
+    /// lift and shadow, the white ring.
+    private func accessibilityFacts(for item: BankItem?) -> BoardAccessibility.SlotFacts {
+        BoardAccessibility.SlotFacts(
+            occupied: item != nil,
+            picked: isPicked,
+            hinted: game.hintedBankSlot == slot
+        )
     }
 
     private var isPicked: Bool {

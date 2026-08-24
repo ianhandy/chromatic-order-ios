@@ -78,6 +78,13 @@ struct ContentView: View {
     /// solved overlay that didn't answer to it.
     @ScaledMetric(relativeTo: .largeTitle) private var perfectBannerSize: CGFloat = 48
 
+    /// Global-space top edge of the bank, from the frames BankView
+    /// publishes. Lets the coaching banner sit above however many rows of
+    /// swatches this particular level ships instead of a fixed guess.
+    private var bankTopY: CGFloat? {
+        game.bankSlotFrames.values.map(\.minY).min()
+    }
+
     /// Scale applied to the grid on solve — shrinks to 0.85 then
     /// snaps back to 1.0 on the next quarter-note beat.
     @State private var solveSquishScale: CGFloat = 1.0
@@ -163,9 +170,9 @@ struct ContentView: View {
             // Campaign coaching line — one per level that introduces
             // something, shown once ever, tap to clear.
             if let hint = game.hintMessage {
-                CampaignTipBanner(text: hint) { game.dismissHint() }
+                CampaignTipBanner(text: hint, bankTopY: bankTopY) { game.dismissHint() }
             } else if let tip = game.campaignTip {
-                CampaignTipBanner(text: tip) { game.campaignTip = nil }
+                CampaignTipBanner(text: tip, bankTopY: bankTopY) { game.campaignTip = nil }
             }
 
             // Edge vignette — viewport-level, above content. Gated
@@ -370,8 +377,39 @@ struct ContentView: View {
         }
         .animation(.spring(response: 0.55, dampingFraction: 0.85), value: game.solved)
         .animation(.easeInOut(duration: 0.7), value: perfectBannerVisible)
+        // A failed daily check turns on the per-cell red outlines for a
+        // couple of seconds and fires a haptic. Neither says what
+        // happened, and a VoiceOver player would have to walk the whole
+        // board inside that window to find out. The count is the number
+        // of outlines that just appeared — it says how many placements
+        // are wrong, never what would have been right.
+        .onChange(of: game.showIncorrect) { _, showing in
+            guard showing, !game.solved else { return }
+            AccessibilityNotification.Announcement(
+                BoardAccessibility.failedCheckAnnouncement(
+                    incorrectCount: game.incorrectPlacementCount
+                )
+            ).post()
+        }
         .onChange(of: game.solved) { _, solvedNow in
             if solvedNow {
+                // Solving is the whole point, and every signal it fired —
+                // the glow, the squish, the chord, the row of buttons that
+                // replaces the bank — was visual, audible, or haptic only.
+                // VoiceOver got silence and a bottom bar that had quietly
+                // become something else. Announce it, and say whether it
+                // was clean, which is the fact the banner shows sighted
+                // players.
+                //
+                // `showedIncorrect` separates a solve from a reveal: a
+                // failed challenge check also flips `solved`, and calling
+                // that "solved" would be a lie told only to VoiceOver.
+                AccessibilityNotification.Announcement(
+                    BoardAccessibility.solveAnnouncement(
+                        perfect: game.isPerfectSolve,
+                        revealed: game.showedIncorrect
+                    )
+                ).post()
                 beginSolvedEffects()
                 // Squish → wait for next quarter-note beat → snap
                 // back → chord + haptic. The visual "inhale" before

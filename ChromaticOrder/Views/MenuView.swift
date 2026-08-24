@@ -19,6 +19,7 @@ struct MenuView: View {
     @Environment(PlayerEngagementStore.self) private var engagement
     @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
     @Environment(\.requestReview) private var requestReview
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     @State private var accessibilityOpen = false
     @State private var galleryOpen = false
@@ -583,6 +584,14 @@ struct MenuView: View {
                 action: action)
     }
 
+    /// The streak / "next in" / "one puzzle free" text on a menu row.
+    /// 0.45 lands at ~4.4:1, just under AA; 0.50 clears the bar.
+    private func detailText(_ detail: String) -> some View {
+        Text(detail)
+            .font(Kroma.font(.subheadline, .semibold))
+            .foregroundStyle(Color.white.opacity(0.50))
+    }
+
     /// Shared row body. The optional detail leads the label so every
     /// row's right edge stays on one axis no matter how long the
     /// countdown or progress fraction gets.
@@ -603,24 +612,29 @@ struct MenuView: View {
             withAnimation(shouldReduceMotion ? nil : .easeOut(duration: 0.9)) { chill = 0 }
             action()
         } label: {
-            HStack(alignment: .firstTextBaseline, spacing: Kroma.Space.m) {
-                if let detail {
-                    Text(detail)
-                        // 0.45 lands at ~4.4:1, just under AA. This is
-                        // the streak / "next in" / "one puzzle free"
-                        // text on every primary row, so it's worth the
-                        // extra .05 to clear the bar.
-                        .font(Kroma.font(.subheadline, .semibold))
-                        .foregroundStyle(Color.white.opacity(0.50))
+            // Detail beside label reads well until an accessibility text
+            // size, where the two of them fighting over one line left
+            // "resume" a column three characters wide and iOS broke it as
+            // "re-" / "sume". Past that threshold the detail moves onto
+            // its own line above and the label gets the full width.
+            let stackDetailAboveLabel = dynamicTypeSize.isAccessibilitySize
+            VStack(alignment: .trailing, spacing: Kroma.Space.xs) {
+                if let detail, stackDetailAboveLabel {
+                    detailText(detail)
                 }
-                Text(label)
-                    .font(font)
-                    .foregroundStyle(Color.white.opacity(opacity))
-                if locked {
-                    Image(systemName: "lock.fill")
-                        .font(Kroma.font(.caption, .bold))
-                        .foregroundStyle(Color.white.opacity(0.42))
-                        .accessibilityHidden(true)
+                HStack(alignment: .firstTextBaseline, spacing: Kroma.Space.m) {
+                    if let detail, !stackDetailAboveLabel {
+                        detailText(detail)
+                    }
+                    Text(label)
+                        .font(font)
+                        .foregroundStyle(Color.white.opacity(opacity))
+                    if locked {
+                        Image(systemName: "lock.fill")
+                            .font(Kroma.font(.caption, .bold))
+                            .foregroundStyle(Color.white.opacity(0.42))
+                            .accessibilityHidden(true)
+                    }
                 }
             }
             .multilineTextAlignment(.trailing)

@@ -2253,7 +2253,13 @@ final class GameState {
     func loadCampaignLevel(_ index: Int) -> Bool {
         guard let entry = CampaignCatalog.level(index),
               let puz = entry.puzzle() else { return false }
-        loadCustomPuzzle(puz, title: entry.name.lowercased())
+        // No title. `entry.name` is the authoring pipeline's word for what
+        // the board depicts ("Tee", "Mandala", "Violin Case") — putting it
+        // over the board promised a picture that a grid of gradient steps
+        // never delivers, and said nothing about where the player is. The
+        // top bar carries chapter + position instead (see TopBarView), which
+        // is the fact that actually changes level to level.
+        loadCustomPuzzle(puz, title: nil)
         campaignIndex = index
         campaignComplete = false
         CampaignStore.recordPlayed(index)
@@ -2582,6 +2588,36 @@ final class GameState {
     func dismissGameplayGuidance() {
         campaignTip = nil
         gameplayGuidanceDismissalID &+= 1
+    }
+
+    // ─── Accessibility facts ────────────────────────────────────────
+    //
+    // Both of these are deliberately colour-free. See BoardAccessibility.
+
+    /// Which of the three things a double-tap currently means. The board
+    /// is driven by a DragGesture that VoiceOver cannot perform, so the
+    /// cells and slots have to say what activating them will do, and that
+    /// changes depending on whether a swatch is already in hand.
+    var accessibilityInteraction: BoardAccessibility.Interaction {
+        if solved { return .boardFinished }
+        return selection == nil ? .idle : .holdingSwatch
+    }
+
+    /// How many placed swatches are currently wrong — the number of red
+    /// outlines on screen, no more. Only meaningful (and only spoken)
+    /// while `showIncorrect` is on, which costs the player a Check.
+    var incorrectPlacementCount: Int {
+        guard let p = puzzle else { return 0 }
+        var count = 0
+        for row in p.board {
+            for cell in row where cell.kind == .cell && !cell.locked {
+                if let placed = cell.placed, let solution = cell.solution,
+                   !sameColor(placed, solution) {
+                    count += 1
+                }
+            }
+        }
+        return count
     }
 
     func tapSlot(_ slot: Int) {

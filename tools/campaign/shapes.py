@@ -64,6 +64,34 @@ CHAPTERS = [
     ("Grand Works", 181, 200, "Large machines and landmarks at the campaign's limit."),
 ]
 
+# What the app actually shows. The CHAPTERS keys above are the authoring
+# pipeline's identifiers — build.py branches on them for per-chapter
+# difficulty tuning, and check_book2.py audits by them — so they stay put.
+# The shipped titles don't: naming a chapter after what its boards depict
+# ("Everyday Things", "Creatures", "Orchestra") promised the player a
+# picture the board can't deliver, and told them nothing about what the
+# chapter asks of them. These name the step in the ladder instead.
+DISPLAY_CHAPTERS = {
+    # authoring key      → (shipped title, shipped blurb)
+    "First Steps":     ("First Steps",  "One gradient. Read the ends, fill the middle."),
+    "Two Strokes":     ("Two Runs",     "Two gradients at a time, and the cells they share."),
+    "Crossings":       ("Crossings",    "Runs that cross, and the shared cell that settles both."),
+    "Everyday Things": ("Wider Boards", "Bigger boards, more gradients, tighter steps."),
+    "Creatures":       ("Chroma",       "Chroma ramps join in. Neighbors start to look alike."),
+    "Landmarks":       ("Long Ramps",   "Wide boards with long ramps to keep straight."),
+    "Mastery":         ("Mastery",      "Everything at once, with barely any given cells."),
+    "Workshop":        ("Shared Ends",  "Connected runs that hand each other their ends."),
+    "Orchestra":       ("Many Runs",    "More runs to sort and align at once."),
+    "Circuitry":       ("Networks",     "Dense networks where every crossing carries information."),
+    "Interiors":       ("Sections",     "Large boards settled one section at a time."),
+    "Grand Works":     ("The Limit",    "The widest boards and the longest ramps in the campaign."),
+}
+
+
+def display_title(key: str) -> str:
+    """Shipped title for an authoring chapter key."""
+    return DISPLAY_CHAPTERS[key][0]
+
 # ─── Chapter 1 — First Steps (1-6) ─────────────────────────────────
 # One gradient, both ends given. Teaches the core read: a gradient is an
 # even walk from one colour to another, so the middle is forced.

@@ -62,7 +62,13 @@ struct GridView: View {
             let availH = max(0, size.height - padding * 2)
             let perW = (availW / CGFloat(cols)) - margin * 2
             let perH = (availH / CGFloat(rows)) - margin * 2
-            let cellPx = max(10, min(64, min(perW, perH)))
+            // The cap only ever binds on the small boards — anything from
+            // about 7 columns up is already limited by the screen. At 64pt
+            // a three-cell opening level was a thumbnail adrift in black,
+            // which is a bad way to ask someone to compare two colours for
+            // the first time. 96 fills the opening chapters without letting
+            // a two-cell board turn into wallpaper.
+            let cellPx = max(10, min(96, min(perW, perH)))
 
             // Two zoom ceilings, both calibrated against screen width
             // so portrait + iPad-landscape obey the same rule (the

@@ -50,6 +50,7 @@
 		69EE9A80D26B46D5D370E294 /* CreatorState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 21305CA381198536A225AAF6 /* CreatorState.swift */; };
 		6BC79C3B5CEA167FA2139388 /* Level.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC9ABFAAC13A3EC91209CAC7 /* Level.swift */; };
 		6BC9DD496241820ED5C6D034 /* LevelPickerSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = CAE4735A73CF8D6795F2C87B /* LevelPickerSheet.swift */; };
+		6C8F91D061CF309E8A57F743 /* VoiceOverFairnessTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3CC3C59500CDC7165D554D34 /* VoiceOverFairnessTests.swift */; };
 		6D43F402DFFEF6DD348E21B2 /* CampaignCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = 177A912D85B75FE40838C71C /* CampaignCatalog.swift */; };
 		70AB44C290D6893634D7ED86 /* CBTransform.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A10E148A8D22F8B5896E7A3 /* CBTransform.swift */; };
 		73CC87BA62B8F64B5CE76103 /* CreatorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 243AC22FA234D5D50BF52A0D /* CreatorView.swift */; };
@@ -96,6 +97,7 @@
 		CE46B1DD55057FC0ED6FAA12 /* CBMode.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7ABE78F55223134DDFDF9698 /* CBMode.swift */; };
 		CE755B3B5C9E56D6A75CA63D /* GalleryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EED9AF64DB8B44E82237AD19 /* GalleryView.swift */; };
 		D46A6ECE05CF84DCDA8160B6 /* ColorPickerSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = EFD96AAE98A2EF5AD111E041 /* ColorPickerSheet.swift */; };
+		D8BB8E89FC2D448B2E99C4AE /* BoardAccessibility.swift in Sources */ = {isa = PBXBuildFile; fileRef = 981E39A8C6629963588503DA /* BoardAccessibility.swift */; };
 		DAA5C7BE0E673596B11FE0AF /* CommunityStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB5CA128E9F91DAD5B84834E /* CommunityStore.swift */; };
 		DFB96F379737B48917A4EF7B /* EnjoymentPromptView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 76163F946847B3F39EA73BA5 /* EnjoymentPromptView.swift */; };
 		E04EBD9DE8C0CCFDF58E294C /* Strings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0F9C8BFFB495AE36E277498C /* Strings.swift */; };
@@ -162,6 +164,7 @@
 		2EDE5327E1AA3D7BCC8E36E6 /* MenuView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuView.swift; sourceTree = "<group>"; };
 		333FC8788FF4E81B5E7DF11D /* GallerySolvedStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GallerySolvedStore.swift; sourceTree = "<group>"; };
 		3395BD7F6140655A87532271 /* OnboardingOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingOverlay.swift; sourceTree = "<group>"; };
+		3CC3C59500CDC7165D554D34 /* VoiceOverFairnessTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceOverFairnessTests.swift; sourceTree = "<group>"; };
 		41500A18A21C00DF321D45C7 /* Proximity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Proximity.swift; sourceTree = "<group>"; };
 		43B82FAB2C24A6433D8AA423 /* CreatorBuild.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CreatorBuild.swift; sourceTree = "<group>"; };
 		49C623023D8D07FF21BC731B /* ChromaticOrderTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = ChromaticOrderTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -201,6 +204,7 @@
 		91287C13AE1090C0E0AEBA84 /* GeneratorDeterminismTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GeneratorDeterminismTests.swift; sourceTree = "<group>"; };
 		914E56F8F2BE41F53D0A6973 /* campaign.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = campaign.json; sourceTree = "<group>"; };
 		96D29A1C979F5F2395EEE2B8 /* DailyFetcher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DailyFetcher.swift; sourceTree = "<group>"; };
+		981E39A8C6629963588503DA /* BoardAccessibility.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BoardAccessibility.swift; sourceTree = "<group>"; };
 		98E6B3AF92CEFE68761DB383 /* ModerationStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModerationStoreTests.swift; sourceTree = "<group>"; };
 		9A1D95583EDBA5EE171A1CEE /* LikeFeedbackSubmitter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LikeFeedbackSubmitter.swift; sourceTree = "<group>"; };
 		A32D00E4EFE865FCEBC78A98 /* TestingFilter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TestingFilter.swift; sourceTree = "<group>"; };
@@ -334,6 +338,7 @@
 		A83551F9C349D7A37B43D61F /* Core */ = {
 			isa = PBXGroup;
 			children = (
+				981E39A8C6629963588503DA /* BoardAccessibility.swift */,
 				177A912D85B75FE40838C71C /* CampaignCatalog.swift */,
 				21F3F9128AEC51A46907048B /* CampaignStore.swift */,
 				7ABE78F55223134DDFDF9698 /* CBMode.swift */,
@@ -416,6 +421,7 @@
 				98E6B3AF92CEFE68761DB383 /* ModerationStoreTests.swift */,
 				4DC2D4F729E96B6CBCA818EA /* PlayerSupportFeatureTests.swift */,
 				0AAADC5198634557D3B8F733 /* TestingFilterTests.swift */,
+				3CC3C59500CDC7165D554D34 /* VoiceOverFairnessTests.swift */,
 			);
 			path = ChromaticOrderTests;
 			sourceTree = "<group>";
@@ -574,6 +580,7 @@
 				E9E8CF9F43DC9426376632BE /* ModerationStoreTests.swift in Sources */,
 				EDA5B0C53314EA0DB89630B3 /* PlayerSupportFeatureTests.swift in Sources */,
 				AE68A4D8D07978FCBE656443 /* TestingFilterTests.swift in Sources */,
+				6C8F91D061CF309E8A57F743 /* VoiceOverFairnessTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -583,6 +590,7 @@
 			files = (
 				C8FD9062F6D933417A896A70 /* AccessibilitySheet.swift in Sources */,
 				363E7F73AB69D84CC6E1566A /* BankView.swift in Sources */,
+				D8BB8E89FC2D448B2E99C4AE /* BoardAccessibility.swift in Sources */,
 				E2B88FAF9FF065FFFD5B8F56 /* CBMode.swift in Sources */,
 				3AF75278F96975EA09CB0350 /* CBTransform.swift in Sources */,
 				6D43F402DFFEF6DD348E21B2 /* CampaignCatalog.swift in Sources */,
