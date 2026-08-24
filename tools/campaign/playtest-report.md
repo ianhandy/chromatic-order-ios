@@ -1,24 +1,6 @@
 # Campaign playtest, imperfect solver
 
-**CONTROL: 194/200 levels solved with a perfect eye** (sigma 0, k 0, t 0, no misclicks, strategy `reason`).
-
-
-6 levels are missed. All but 3 of them are **proved** unfair below: a second arrangement exists that uses exactly the bank swatches, keeps every given cell, and shows every run as an even walk to within the app's own sameness threshold, so no eye and no amount of thought can choose between it and the authored answer. Any level missed *without* such a proof is a suspected strategy bug and is named as one.
-
-
-4 levels carry that proof in total; the other 1 are ones where the alternative is even to within delta-E 2 but very slightly less even than the authored answer, so a literally perfect eye still picks the intended board while a human eye could not.
-
-| # | name | chapter | bank | unpinned runs | control | verdict |
-|---|---|---|---|---|---|---|
-| 36 | Rocket | Everyday Things | 10 | 2 | 17% | swap (5, 1) with (5, 3): both sit only on runs that stay even walks afterwards, and neither run's step stands out |
-| 66 | Spider | Creatures | 16 | 4 | 53% | swap (1, 6) with (3, 6): both sit only on runs that stay even walks afterwards, and neither run's step stands out |
-| 67 | Butterfly | Creatures | 14 | 3 | 0% | UNEXPLAINED, suspect strategy |
-| 74 | Castle | Landmarks | 18 | 5 | 52% | run 4 reversed: 6 cells change, first at (1, 0) |
-| 85 | Harbor | Landmarks | 20 | 1 | 0% | UNEXPLAINED, suspect strategy |
-| 97 | Citadel | Mastery | 29 | 6 | 0% | UNEXPLAINED, suspect strategy |
-
-
-Every difficulty number below is therefore reported over the 196 levels with a unique reasoned answer. The 4 unfair levels are excluded from the rankings, the chapter averages and the correlations, because their failure rate measures a coin, not a player.
+**CONTROL: 200/200 levels solved with a perfect eye** (sigma 0, k 0, t 0, no misclicks, strategy `reason`).
 
 
 200 levels, 60 trials per level per condition, 6 conditions, strategy `reason` (72,000 simulated playthroughs). Every trial is seeded from the level index and the trial number alone, so conditions share their random draws and the whole file reproduces exactly.
@@ -30,26 +12,26 @@ Fair levels only, ranked by mean success across the played conditions. `sep` is 
 
 | # | name | chapter | bank | sep | step | margin | mean | sharp | typical | tired | k=0.5 | fumbles |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|
-| 67 | Butterfly | Creatures | 14 | 9.9 | 7.3 | 7.3 | 0% | 0% | 0% | 0% | 0% | 0% |
-| 97 | Citadel | Mastery | 29 | 5.7 | 4.3 | 4.6 | 0% | 0% | 0% | 0% | 0% | 0% |
-| 94 | Palace | Mastery | 27 | 4.3 | 4.3 | 4.3 | 0% | 2% | 0% | 0% | 0% | 0% |
-| 85 | Harbor | Landmarks | 20 | 7.4 | 5.1 | 5.1 | 1% | 3% | 0% | 0% | 0% | 0% |
-| 90 | Circuit | Mastery | 22 | 8.1 | 5.7 | 5.7 | 1% | 3% | 0% | 0% | 0% | 0% |
-| 75 | Church | Landmarks | 19 | 5.8 | 4.9 | 4.9 | 2% | 10% | 2% | 0% | 0% | 0% |
-| 84 | Garden | Landmarks | 22 | 8.3 | 4.6 | 4.6 | 3% | 5% | 3% | 0% | 3% | 5% |
-| 68 | Snake | Creatures | 19 | 8.6 | 5.0 | 5.0 | 4% | 17% | 0% | 0% | 2% | 0% |
-| 78 | Fountain | Landmarks | 23 | 8.0 | 5.3 | 5.9 | 4% | 18% | 0% | 0% | 0% | 0% |
-| 95 | Carousel | Mastery | 28 | 4.3 | 4.4 | 4.3 | 4% | 13% | 3% | 0% | 0% | 2% |
-| 77 | Pyramid | Landmarks | 19 | 11.1 | 6.5 | 6.5 | 5% | 23% | 2% | 0% | 0% | 2% |
-| 96 | Organ | Mastery | 28 | 4.8 | 4.6 | 4.6 | 6% | 23% | 3% | 0% | 2% | 2% |
-| 83 | Observatory | Landmarks | 22 | 8.9 | 6.0 | 6.0 | 7% | 28% | 0% | 2% | 2% | 2% |
-| 89 | Cascade | Mastery | 16 | 6.4 | 4.5 | 4.5 | 8% | 33% | 2% | 0% | 0% | 3% |
-| 100 | Mandala | Mastery | 30 | 5.8 | 4.0 | 4.0 | 8% | 42% | 0% | 0% | 0% | 0% |
-| 81 | Ferris | Landmarks | 22 | 9.2 | 6.7 | 6.7 | 10% | 42% | 3% | 0% | 2% | 3% |
-| 86 | Waterfall | Landmarks | 24 | 8.5 | 5.8 | 5.8 | 11% | 35% | 8% | 2% | 0% | 10% |
-| 70 | Fox | Creatures | 15 | 6.5 | 7.2 | 6.5 | 15% | 55% | 10% | 2% | 0% | 7% |
-| 80 | Cathedral | Landmarks | 21 | 10.2 | 6.7 | 6.7 | 15% | 42% | 13% | 5% | 3% | 12% |
-| 177 | Banister | Interiors | 23 | 4.1 | 4.4 | 4.4 | 17% | 63% | 17% | 2% | 0% | 5% |
+| 197 | Kiln | Grand Works | 24 | 4.4 | 4.4 | 4.4 | 19% | 68% | 17% | 0% | 0% | 10% |
+| 177 | Banister | Interiors | 24 | 4.1 | 4.4 | 4.4 | 21% | 68% | 20% | 3% | 0% | 12% |
+| 200 | Ironworks | Grand Works | 23 | 4.2 | 4.2 | 4.2 | 21% | 88% | 8% | 2% | 0% | 7% |
+| 179 | Stove | Interiors | 19 | 4.1 | 4.1 | 4.1 | 21% | 87% | 10% | 2% | 0% | 8% |
+| 147 | Plug | Circuitry | 19 | 4.7 | 4.7 | 4.7 | 22% | 70% | 23% | 2% | 0% | 13% |
+| 195 | Powerhouse | Grand Works | 25 | 4.2 | 4.2 | 4.2 | 22% | 87% | 12% | 0% | 0% | 10% |
+| 198 | Breakwater | Grand Works | 23 | 4.4 | 4.4 | 4.4 | 22% | 90% | 12% | 0% | 0% | 8% |
+| 180 | Dome | Interiors | 22 | 4.0 | 4.0 | 4.0 | 23% | 95% | 12% | 0% | 0% | 8% |
+| 192 | Telescope | Grand Works | 24 | 4.2 | 4.2 | 4.2 | 23% | 92% | 8% | 3% | 0% | 12% |
+| 193 | Smelter | Grand Works | 24 | 4.0 | 4.0 | 4.0 | 23% | 95% | 15% | 0% | 0% | 7% |
+| 184 | Water Tower | Grand Works | 20 | 4.2 | 4.2 | 4.2 | 24% | 92% | 17% | 3% | 0% | 8% |
+| 199 | Scaffold | Grand Works | 27 | 4.6 | 4.6 | 4.6 | 24% | 97% | 13% | 0% | 0% | 12% |
+| 196 | Engine Shed | Grand Works | 29 | 4.7 | 4.7 | 4.7 | 25% | 93% | 20% | 0% | 0% | 13% |
+| 160 | Motherboard | Circuitry | 22 | 4.5 | 4.5 | 4.5 | 26% | 93% | 25% | 0% | 0% | 10% |
+| 128 | Microphone | Orchestra | 18 | 5.4 | 5.4 | 5.4 | 26% | 78% | 28% | 2% | 2% | 20% |
+| 186 | Gantry | Grand Works | 21 | 4.2 | 4.2 | 4.2 | 26% | 92% | 23% | 2% | 2% | 12% |
+| 191 | Terminal | Grand Works | 23 | 4.5 | 4.5 | 4.5 | 26% | 95% | 17% | 2% | 7% | 10% |
+| 194 | Derrick | Grand Works | 22 | 4.0 | 4.0 | 4.0 | 26% | 90% | 23% | 2% | 0% | 15% |
+| 171 | Skylight | Interiors | 19 | 4.2 | 4.2 | 4.2 | 26% | 87% | 28% | 2% | 0% | 15% |
+| 175 | Curtain | Interiors | 22 | 4.6 | 4.6 | 4.6 | 26% | 98% | 20% | 2% | 0% | 12% |
 
 
 ## Where the difficulty comes from, at `typical eye`
@@ -58,26 +40,26 @@ sigma=2 k=0 t=1.5 misclick=0, worst first, with the three channel measurements a
 
 | # | name | bank | sep | sep/sigma | step | step/sigma | margin | success | wrong | coin flips |
 |---|---|---|---|---|---|---|---|---|---|---|
-| 67 | Butterfly | 14 | 9.9 | 5.0 | 7.3 | 3.6 | 7.3 | 0% | 9.27 | 2.25 |
-| 68 | Snake | 19 | 8.6 | 4.3 | 5.0 | 2.5 | 5.0 | 0% | 11.38 | 2.92 |
-| 78 | Fountain | 23 | 8.0 | 4.0 | 5.3 | 2.7 | 5.9 | 0% | 12.03 | 3.27 |
-| 83 | Observatory | 22 | 8.9 | 4.4 | 6.0 | 3.0 | 6.0 | 0% | 11.68 | 3.28 |
-| 85 | Harbor | 20 | 7.4 | 3.7 | 5.1 | 2.6 | 5.1 | 0% | 13.53 | 4.53 |
-| 90 | Circuit | 22 | 8.1 | 4.1 | 5.7 | 2.9 | 5.7 | 0% | 16.20 | 4.58 |
-| 94 | Palace | 27 | 4.3 | 2.1 | 4.3 | 2.1 | 4.3 | 0% | 21.18 | 6.53 |
-| 97 | Citadel | 29 | 5.7 | 2.8 | 4.3 | 2.1 | 4.6 | 0% | 27.35 | 8.88 |
-| 100 | Mandala | 30 | 5.8 | 2.9 | 4.0 | 2.0 | 4.0 | 0% | 10.28 | 8.48 |
-| 75 | Church | 19 | 5.8 | 2.9 | 4.9 | 2.4 | 4.9 | 2% | 12.83 | 5.10 |
-| 77 | Pyramid | 19 | 11.1 | 5.6 | 6.5 | 3.2 | 6.5 | 2% | 11.37 | 3.23 |
-| 89 | Cascade | 16 | 6.4 | 3.2 | 4.5 | 2.3 | 4.5 | 2% | 9.10 | 4.05 |
-| 81 | Ferris | 22 | 9.2 | 4.6 | 6.7 | 3.4 | 6.7 | 3% | 14.90 | 4.25 |
-| 84 | Garden | 22 | 8.3 | 4.1 | 4.6 | 2.3 | 4.6 | 3% | 15.13 | 4.27 |
-| 95 | Carousel | 28 | 4.3 | 2.1 | 4.4 | 2.2 | 4.3 | 3% | 6.70 | 3.52 |
-| 96 | Organ | 28 | 4.8 | 2.4 | 4.6 | 2.3 | 4.6 | 3% | 11.27 | 4.13 |
-| 86 | Waterfall | 24 | 8.5 | 4.3 | 5.8 | 2.9 | 5.8 | 8% | 5.78 | 2.27 |
-| 92 | Lattice | 27 | 6.7 | 3.3 | 4.5 | 2.3 | 4.5 | 8% | 5.92 | 5.80 |
 | 192 | Telescope | 24 | 4.2 | 2.1 | 4.2 | 2.1 | 4.2 | 8% | 4.12 | 3.75 |
 | 200 | Ironworks | 23 | 4.2 | 2.1 | 4.2 | 2.1 | 4.2 | 8% | 4.35 | 3.08 |
+| 179 | Stove | 19 | 4.1 | 2.0 | 4.1 | 2.0 | 4.1 | 10% | 3.93 | 3.62 |
+| 180 | Dome | 22 | 4.0 | 2.0 | 4.0 | 2.0 | 4.0 | 12% | 3.73 | 3.40 |
+| 195 | Powerhouse | 25 | 4.2 | 2.1 | 4.2 | 2.1 | 4.2 | 12% | 3.53 | 3.23 |
+| 198 | Breakwater | 23 | 4.4 | 2.2 | 4.4 | 2.2 | 4.4 | 12% | 4.33 | 3.97 |
+| 199 | Scaffold | 27 | 4.6 | 2.3 | 4.6 | 2.3 | 4.6 | 13% | 4.55 | 3.58 |
+| 193 | Smelter | 24 | 4.0 | 2.0 | 4.0 | 2.0 | 4.0 | 15% | 3.78 | 3.77 |
+| 184 | Water Tower | 20 | 4.2 | 2.1 | 4.2 | 2.1 | 4.2 | 17% | 3.73 | 2.87 |
+| 191 | Terminal | 23 | 4.5 | 2.3 | 4.5 | 2.3 | 4.5 | 17% | 2.98 | 1.95 |
+| 197 | Kiln | 24 | 4.4 | 2.2 | 4.4 | 2.2 | 4.4 | 17% | 3.78 | 2.70 |
+| 168 | Chandelier | 20 | 4.3 | 2.2 | 4.3 | 2.2 | 4.3 | 18% | 2.95 | 1.98 |
+| 175 | Curtain | 22 | 4.6 | 2.3 | 4.6 | 2.3 | 4.6 | 20% | 3.40 | 3.12 |
+| 177 | Banister | 24 | 4.1 | 2.0 | 4.4 | 2.2 | 4.4 | 20% | 3.92 | 2.45 |
+| 196 | Engine Shed | 29 | 4.7 | 2.3 | 4.7 | 2.3 | 4.7 | 20% | 3.72 | 3.03 |
+| 153 | Radar Dish | 20 | 4.4 | 2.2 | 4.4 | 2.2 | 4.4 | 22% | 3.13 | 2.85 |
+| 159 | Oscilloscope | 26 | 4.6 | 2.3 | 4.6 | 2.3 | 4.6 | 22% | 3.30 | 3.15 |
+| 176 | Elevator | 23 | 4.5 | 2.3 | 4.5 | 2.3 | 4.5 | 22% | 3.35 | 3.00 |
+| 178 | Landing | 18 | 4.6 | 2.3 | 4.2 | 2.1 | 4.2 | 22% | 3.13 | 2.53 |
+| 182 | Dam | 19 | 4.2 | 2.1 | 4.2 | 2.1 | 4.2 | 22% | 2.93 | 2.43 |
 
 
 ## Per chapter
@@ -88,13 +70,13 @@ Mean success by chapter over fair levels, chapters in play order. Difficulty int
 |---|---|---|---|---|---|---|---|---|---|---|
 | First Steps | 1-6 | 0 | 99.0 | 12.8 | 100% | 100% | 100% | 100% | 100% | 99% |
 | Two Strokes | 7-18 | 0 | 13.5 | 9.9 | 100% | 100% | 100% | 96% | 98% | 95% |
-| Crossings | 19-32 | 0 | 11.5 | 8.0 | 100% | 100% | 98% | 86% | 93% | 87% |
-| Everyday Things | 33-52 | 1 | 9.4 | 6.8 | 100% | 98% | 83% | 54% | 67% | 66% |
-| Creatures | 53-70 | 2 | 8.2 | 7.3 | 94% | 78% | 53% | 29% | 40% | 43% |
-| Landmarks | 71-88 | 1 | 8.0 | 5.7 | 94% | 52% | 19% | 4% | 5% | 13% |
-| Mastery | 89-100 | 0 | 5.8 | 4.5 | 92% | 47% | 7% | 0% | 0% | 4% |
-| Workshop | 101-120 | 0 | 5.1 | 4.8 | 100% | 96% | 47% | 11% | 9% | 37% |
-| Orchestra | 121-140 | 0 | 5.2 | 4.9 | 100% | 94% | 39% | 7% | 6% | 28% |
+| Crossings | 19-32 | 0 | 11.5 | 8.0 | 100% | 98% | 96% | 85% | 95% | 86% |
+| Everyday Things | 33-52 | 0 | 8.7 | 6.7 | 100% | 100% | 89% | 60% | 71% | 73% |
+| Creatures | 53-70 | 0 | 8.0 | 7.0 | 100% | 96% | 75% | 44% | 59% | 60% |
+| Landmarks | 71-88 | 0 | 7.7 | 5.4 | 100% | 96% | 63% | 26% | 30% | 49% |
+| Mastery | 89-100 | 0 | 5.5 | 4.6 | 100% | 95% | 49% | 14% | 14% | 36% |
+| Workshop | 101-120 | 0 | 5.1 | 4.8 | 100% | 96% | 47% | 11% | 9% | 38% |
+| Orchestra | 121-140 | 0 | 5.2 | 4.9 | 100% | 95% | 38% | 6% | 6% | 28% |
 | Circuitry | 141-160 | 0 | 4.9 | 4.5 | 100% | 94% | 34% | 5% | 3% | 23% |
 | Interiors | 161-180 | 0 | 4.7 | 4.4 | 100% | 93% | 26% | 3% | 2% | 18% |
 | Grand Works | 181-200 | 0 | 4.5 | 4.4 | 100% | 92% | 20% | 2% | 1% | 14% |
@@ -102,48 +84,48 @@ Mean success by chapter over fair levels, chapters in play order. Difficulty int
 
 ## Which measurement predicts failure?
 
-Correlation with success rate at `typical eye` over the 196 fair levels. Positive means more of the quantity is an easier level, so the channel measurements should come out positive and `unpinned runs` negative.
+Correlation with success rate at `typical eye` over the 200 fair levels. Positive means more of the quantity is an easier level, so the channel measurements should come out positive and `unpinned runs` negative.
 
 | quantity | Pearson r | Spearman rho |
 |---|---|---|
-| between-run separation | +0.390 | +0.567 |
-| within-run step | +0.679 | +0.641 |
-| unpinned runs (count) | -0.389 | -0.435 |
-| hardest bank margin | +0.337 | +0.641 |
-| bank size | -0.824 | -0.773 |
+| between-run separation | +0.402 | +0.841 |
+| within-run step | +0.762 | +0.847 |
+| unpinned runs (count) | -0.030 | -0.052 |
+| hardest bank margin | +0.341 | +0.841 |
+| bank size | -0.882 | -0.881 |
 
 
 Bank size is in the table as a confound check: late levels have both tighter colours and more decisions, so a channel measurement only earns its keep if it beats plain counting. Success is a whole-board test, so it punishes size twice over (thirty decisions at 99% each still lose a quarter of the time). The table below removes that by asking the same question per cell.
 
 | quantity | Pearson r vs per-cell error | Spearman rho |
 |---|---|---|
-| between-run separation | -0.185 | -0.493 |
-| within-run step | -0.289 | -0.548 |
-| unpinned runs (count) | +0.820 | +0.519 |
-| hardest bank margin | -0.169 | -0.546 |
-| bank size | +0.444 | +0.632 |
+| between-run separation | -0.391 | -0.775 |
+| within-run step | -0.706 | -0.784 |
+| unpinned runs (count) | +0.093 | +0.132 |
+| hardest bank margin | -0.329 | -0.777 |
+| bank size | +0.775 | +0.756 |
 
 
-Negative is what a difficulty measurement should be here: more separation, fewer errors. Note that `within-run step` and `hardest bank margin` are the same number on 161 of the 196 fair levels, because the closest pair in the bank is almost always two neighbours on one run. The step is the more useful of the two to author against, since it is the quantity the generator can set directly.
+Negative is what a difficulty measurement should be here: more separation, fewer errors. Note that `within-run step` and `hardest bank margin` are the same number on 163 of the 200 fair levels, because the closest pair in the bank is almost always two neighbours on one run. The step is the more useful of the two to author against, since it is the quantity the generator can set directly.
 
 
 Banded by between-run separation against the perceptual noise:
 
 | band | levels | mean success | mean wrong cells |
 |---|---|---|---|
-| under 2 sigma (coin flip) | 1 | 23% | 3.30 |
-| 2 to 3 sigma (strained) | 100 | 31% | 3.34 |
-| 3 to 5 sigma (workable) | 58 | 50% | 3.54 |
-| over 5 sigma (comfortable) | 37 | 88% | 0.73 |
+| under 2 sigma (coin flip) | 2 | 38% | 2.44 |
+| 2 to 3 sigma (strained) | 104 | 37% | 2.41 |
+| 3 to 5 sigma (workable) | 59 | 70% | 0.98 |
+| over 5 sigma (comfortable) | 35 | 94% | 0.16 |
 
 
 Banded by within-run step against the perceptual noise:
 
 | band | levels | mean success | mean wrong cells |
 |---|---|---|---|
-| under 2 sigma (coin flip) | 1 | 23% | 3.30 |
-| 2 to 3 sigma (strained) | 129 | 32% | 3.69 |
-| 3 to 5 sigma (workable) | 56 | 75% | 1.62 |
+| under 2 sigma (coin flip) | 2 | 25% | 2.95 |
+| 2 to 3 sigma (strained) | 132 | 41% | 2.22 |
+| 3 to 5 sigma (workable) | 56 | 88% | 0.37 |
 | over 5 sigma (comfortable) | 10 | 100% | 0.00 |
 
 
@@ -151,12 +133,12 @@ Banded by within-run step against the perceptual noise:
 
 | condition | sigma | k | t | misclick | mean success (fair) | fair levels above 90% |
 |---|---|---|---|---|---|---|
-| noise-free control | 0 | 0 | 0 | 0 | 98% | 193 |
-| sharp eye | 1 | 0 | 1.5 | 0 | 87% | 149 |
-| typical eye | 2 | 0 | 1.5 | 0 | 48% | 46 |
-| tired eye | 3 | 0 | 1.5 | 0 | 26% | 23 |
-| compressed 50% | 1 | 0.5 | 1.5 | 0 | 28% | 30 |
-| typical eye + fumbles | 2 | 0 | 1.5 | 0.02 | 39% | 23 |
+| noise-free control | 0 | 0 | 0 | 0 | 100% | 200 |
+| sharp eye | 1 | 0 | 1.5 | 0 | 96% | 179 |
+| typical eye | 2 | 0 | 1.5 | 0 | 57% | 46 |
+| tired eye | 3 | 0 | 1.5 | 0 | 31% | 24 |
+| compressed 50% | 1 | 0.5 | 1.5 | 0 | 34% | 33 |
+| typical eye + fumbles | 2 | 0 | 1.5 | 0.02 | 46% | 23 |
 
 
 Parameter meanings, all in delta-E units scaled x100 as in `oklch.dist` (one JND is about 2):

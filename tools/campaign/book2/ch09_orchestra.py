@@ -14,7 +14,7 @@ c.....d
 c...e.d
 c...e.d
 +fff+f+
-""", "Place the longest run first, then work outward from the cells it fixes."),
+""", "Two runs span the whole board. Pin those and the short ones have nowhere left to go."),
 
     ("Music Stand", """
 aa+aaaa

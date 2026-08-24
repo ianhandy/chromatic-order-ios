@@ -59,6 +59,17 @@ TOTAL_LEVELS = 200
 # asking the eye to make a finer call than it already makes on level 100.
 COLOUR_CURVE_END = 100
 
+# Bank size at the opening and the closing of each of book one's later
+# chapters, sawtoothed the way book two's is. See `curve` for why these
+# chapters need a curve of their own; the first three keep the plain ramp,
+# where a bank of one to seven swatches is the whole teaching device.
+BOOK1_BANK = {
+    "Everyday Things": (9, 13),
+    "Creatures":       (11, 15),
+    "Landmarks":       (13, 17),
+    "Mastery":         (15, 19),
+}
+
 # Playable sub-band. Tighter than OK's full usable band so ramps never
 # sit against the edge where sRGB clipping starts flattening steps.
 L_LO, L_HI = 0.30, 0.82
@@ -101,6 +112,24 @@ def curve(level: int) -> dict:
     # a target, not a promise: `choose_locks` will hand out more given cells
     # when that is what makes a board deducible.
     bank_target = round(lerp(1, 30, t ** 1.15))
+    if ch in BOOK1_BANK:
+        # Book one's back half needs its own curve for the same reason book two
+        # did, and the evidence is the same evidence: the ramp above ends at 30
+        # swatches, and 30 is the number measured to leave a typical eye 14
+        # cells wrong. Landmarks was shipping at 21 and Mastery at 27, so the
+        # two chapters before the halfway point were handing the player more to
+        # place unaided than any chapter after it, and Mastery's finale handed
+        # out more than the game's own finale does.
+        #
+        # These openings and closings are lower than what the shapes had been
+        # taking, and deliberately so: the difficulty search below moves off
+        # them by up to BANK_WINDOW, and it can only pull a level back onto its
+        # target if the target is inside the window. Anchored so Mastery hands
+        # off to Workshop's 14 rather than dropping into it from 27.
+        _title, first, last, _blurb = shapes.chapter_of(level)
+        u = (level - first) / max(1, last - first)
+        opening, closing = BOOK1_BANK[ch]
+        bank_target = round(lerp(opening, closing, u))
     if level > COLOUR_CURVE_END:
         # Book two needs its own bank curve, because `t` is clamped and would
         # otherwise hold all hundred of its levels at 30 — the far end of book
@@ -1305,7 +1334,29 @@ def unmet_claims(shape, colors, locked, name) -> list[str]:
 # trials pin it to a few hundredths where the same trials leave a success rate
 # swinging ten points, which matters when the number is being used to choose
 # between candidates.
-BOOK2_DIFFICULTY = {
+#
+# Book one's back half is on this curve too, and that is the repair the
+# measurement asked for. Before it, only book two was built to a target and
+# book one took whatever its first valid palette happened to give. Landmarks
+# came out at 7.6 wrong cells and Mastery at 10.5, against 1.7 for Workshop,
+# the chapter that follows them. Levels 71-100 were the hardest thirty boards
+# in the game by a factor of four — harder than the finale — and the worst of
+# them (Citadel 27.4, Palace 21.2, Circuit 16.2) asked a typical player to
+# place most of a board wrong and then hunt for it with no Check and no
+# hearts. That is not a difficulty curve with a peak in it, it is a wall in
+# the middle of the game with the gentler half of the campaign behind it.
+#
+# The bands below put the whole game on one ramp with the same per-chapter
+# sawtooth: each chapter opens easier than the last one closed, then builds to
+# its own finale, and book two carries on from where Mastery leaves off. The
+# first three chapters stay off the curve: they measure 0.00, 0.01 and 0.07
+# wrong cells, which is what a teaching chapter should measure, and a target
+# could only make them worse.
+CHAPTER_DIFFICULTY = {
+    "Everyday Things": (0.1, 0.6),
+    "Creatures":       (0.4, 1.1),
+    "Landmarks":       (0.8, 1.6),
+    "Mastery":         (1.2, 2.2),
     "Workshop":    (1.2, 2.4),
     "Orchestra":   (1.6, 2.8),
     "Circuitry":   (2.0, 3.2),
@@ -1328,10 +1379,16 @@ CONTROL_TRIALS = 4
 def difficulty_target(level: int) -> float | None:
     """Wrong-cell target for this level, or None where none is set."""
     title, first, last, _blurb = shapes.chapter_of(level)
-    band = BOOK2_DIFFICULTY.get(title)
+    band = CHAPTER_DIFFICULTY.get(title)
     if band is None:
         return None
     return lerp(band[0], band[1], (level - first) / max(1, last - first))
+
+
+def _is_ambiguous(entry: dict) -> bool:
+    """Does a second arrangement exist that a player cannot rule out?"""
+    import playtest
+    return playtest._level_from_entry(entry).alt is not None
 
 
 def measure_difficulty(entry: dict) -> tuple[bool, float]:
@@ -1348,6 +1405,15 @@ def measure_difficulty(entry: dict) -> tuple[bool, float]:
     """
     import playtest
     level = playtest._level_from_entry(entry)
+    if level.alt is not None:
+        # A second arrangement exists that keeps every given cell, uses exactly
+        # the bank swatches and shows every run as an even walk. No eyesight
+        # and no reasoning separates it from the authored answer, so the player
+        # is guessing and the app will call half those guesses wrong. This is
+        # the one defect a difficulty number cannot express, and it is checked
+        # first because it is a property of the board rather than of anyone's
+        # play: a level that carries it is not hard, it is a coin.
+        return False, 0.0
     control = playtest.Settings("noise-free control", sigma=0.0, k=0.0, t=0.0,
                                 misclick=0.0)
     if playtest.run_level(level, control, CONTROL_TRIALS, "reason").success < 1.0:
@@ -1369,6 +1435,14 @@ def build_level(level: int, name: str, artwork: str, tip: str | None,
 
     if target is None:
         for entry in valid_entries(level, shape, name, tip, cfg):
+            # The teaching chapters carry no difficulty target, but the
+            # fairness rule is not a difficulty rule and applies everywhere: a
+            # board with a second indistinguishable arrangement is a coin
+            # wherever it sits. In practice this rejects nothing in chapters
+            # one to three — they are too small to hide one — which is exactly
+            # why it is cheap to demand.
+            if _is_ambiguous(entry):
+                continue
             if verbose:
                 print(f"  level {level:3d} {name:12s} {shape.grid_w}x{shape.grid_h} "
                       f"grads={entry['gradientCount']} cells={entry['cellCount']} "
@@ -1551,10 +1625,20 @@ def valid_entries(level: int, shape, name: str, tip: str | None, cfg: dict,
             "attempts": attempts,
             "doc": doc,
         }
-        # Book two only, so the first hundred's JSON keys stay exactly as they
-        # shipped and a rebuild diff still proves the curve clamp changed
-        # nothing there. This records what the partition demand actually got,
-        # which matters because it is allowed to give ground.
+        # The curve the level was built to, written next to what it measured,
+        # so the shipped resource states its own intent. Without it the only
+        # record of the intended difficulty lives in this file, and a test
+        # reading the campaign has nothing to hold the measurement against —
+        # which is how a hand-edited or half-regenerated resource goes
+        # unnoticed. Absent on the three teaching chapters, which are built to
+        # no target.
+        target = difficulty_target(level)
+        if target is not None:
+            entry["difficultyTarget"] = round(target, 2)
+        # Book two only, because the partition demand is only allowed to give
+        # ground there (see `curve`), and this records what it actually got.
+        # Book one either pays the ratio in full or is not asked for it, so
+        # there is nothing to record.
         if level > COLOUR_CURVE_END:
             entry["sepRatio"] = round(scaled["sep_ratio"], 3)
         yield entry

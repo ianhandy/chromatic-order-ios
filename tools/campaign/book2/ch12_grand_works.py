@@ -8,7 +8,7 @@ SHAPES = [
 .cf+ff+ff+.
 .c.a..d..b.
 .+g+gg+gg+g
-""", "Place the longest run first, then work outward from the cells it fixes."),
+""", "The widest run reaches almost every vertical. Place it and the rest lose most of their freedom."),
 
     ("Dam", """
 a+a+a+a+aa

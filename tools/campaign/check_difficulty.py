@@ -1,7 +1,7 @@
 """Check that the built campaign actually sits on its difficulty curve.
 
 `build.py` searches bank sizes and palettes until a level measures close to the
-target in `BOOK2_DIFFICULTY`, and records what it settled for in the level's
+target in `CHAPTER_DIFFICULTY`, and records what it settled for in the level's
 `typicalWrong`. This re-measures every board from the shipped JSON and holds
 the result against that target, so three separate things get caught:
 

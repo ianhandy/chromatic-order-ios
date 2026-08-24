@@ -35,6 +35,12 @@ struct CampaignLevel: Codable, Identifiable {
     let cellCount: Int
     /// Swatches the player has to place.
     let bankCount: Int
+    /// Cells a typical eye is expected to leave wrong on a first pass — the
+    /// difficulty this board was selected for, and the difficulty it measured
+    /// when it was built. `nil` on the three teaching chapters, which are
+    /// built to no target. See tools/campaign/build.py's CHAPTER_DIFFICULTY.
+    let difficultyTarget: Double?
+    let typicalWrong: Double?
     let doc: CreatorPuzzleDoc
 
     var id: Int { index }

@@ -360,13 +360,17 @@ def _alternative_arrangement(level: Level) -> str | None:
     no reasoning can choose between them, so the player is guessing and the app
     will call one of the guesses wrong.
 
-    Two constructions are tried, both of which a player would hit naturally:
+    Three constructions are tried, all of which a player would hit naturally:
 
     * swapping two bank swatches. Undetectable whenever both cells sit only on
       runs that stay even afterwards, which is automatic for a run of two cells
       since any two colours are an even walk. A two-cell run with its other cell
       given therefore constrains nothing at all, and two of them on a board can
       always trade swatches.
+    * two runs of equal length trading their families, which is what a pair of
+      matching arms on one shape invites and what neither of the other two
+      constructions can express: it moves more cells than a swap and it is not
+      a reversal of anything.
     * reversing a run whose direction nothing pins, since reversing an even walk
       leaves it even.
 
@@ -399,6 +403,36 @@ def _alternative_arrangement(level: Level) -> str | None:
                 return (f"swap {level.cells[i]} with {level.cells[j]}: both sit "
                         "only on runs that stay even walks afterwards, and "
                         "neither run's step stands out")
+
+    # Two runs of the same length can trade their whole families, which no
+    # pairwise swap can express and no reversal can reach. It is the shape a
+    # player meets constantly — two arms of a crane, two masts on a harbour,
+    # two legs under a table — and where the two runs hang off one shared cell
+    # the trade even keeps that cell's colour, so the board's one anchor says
+    # nothing about which family belongs on which arm. Only the free cells
+    # move, in either pairing, so a given cell is never disturbed.
+    for a in range(len(level.gradients)):
+        for b in range(a + 1, len(level.gradients)):
+            free_a = [c for c in level.gradients[a]
+                      if not level.locked[c] and c not in level.gradients[b]]
+            free_b = [c for c in level.gradients[b]
+                      if not level.locked[c] and c not in level.gradients[a]]
+            if not free_a or len(free_a) != len(free_b):
+                continue
+            for label, src in (("in order", free_b),
+                               ("reversed", list(reversed(free_b)))):
+                trial = dict(base)
+                for ca, cb in zip(free_a, src):
+                    trial[ca], trial[cb] = base[cb], base[ca]
+                if not any(dist(trial[i], base[i]) >= SAME
+                           for i in range(len(level.cells))):
+                    continue
+                if _step_oddity(level, trial) > ceiling:
+                    continue
+                if _even_walk(level, trial):
+                    return (f"runs {a} and {b} trade families ({label}): "
+                            f"{len(free_a)} cells each, every run still an "
+                            "even walk and no given cell moves")
 
     if not level.unpinned:
         return None
@@ -459,6 +493,13 @@ BIAS_VARIANCE_SHARE = 0.35
 # but drags in far anchors, and far anchors are where the hue-wrap ambiguity
 # bites. Four damps noise while staying local.
 MAX_ANCHORS = 4
+
+# How many readings of one judgement call the player will work through before
+# settling for the board they have. Four, because that is roughly where trying
+# again stops feeling like solving and starts feeling like enumerating, and
+# because it is enough: across the campaign no board that this recovers at all
+# needs more than four, and the levels that need none are unaffected.
+RETRY_PASSES = 4
 
 
 def shown_labs(level: Level, k: float) -> list[tuple[float, float, float]]:
@@ -590,12 +631,51 @@ def play_reason(level: Level, shown: list[tuple[float, float, float]],
     read, _ = _eye(level, shown, st, rng)
     seed = rng.randrange(1 << 30)
     first = _solve(level, read, st, random.Random(seed), trace)
-    if first[3] is not None:          # something was decided on a coin
-        second = _solve(level, read, st, random.Random(seed), trace,
-                        avoid=first[3])
-        if second[4] < first[4]:
-            first = second
-    content, guesses, records, _coin, _even = first
+    best = first
+    banned: list[tuple[int, int]] = []
+
+    # A coin the player knows they flipped is the obvious thing to try again.
+    if first[3] is not None:
+        banned.append(first[3])
+        trial = _solve(level, read, st, random.Random(seed), trace,
+                       avoid=tuple(banned))
+        if trial[4] < best[4]:
+            best = trial
+
+    # The board is the other check, and the stronger one. A run that does not
+    # read as an even walk is wrong however confident the call that made it
+    # felt, and the player can see that without being told which cell is bad.
+    # So they go back to the call they were least sure of and work down its
+    # alternatives until the board reads clean.
+    #
+    # This is half of the blind spot the report kept naming as "UNEXPLAINED,
+    # suspect strategy". Of the three levels a perfect eye supposedly could not
+    # solve, Harbor turned out to be genuinely ambiguous — two masts trading
+    # families, a construction the proof search could not express until it
+    # learned to — and Butterfly and Citadel were this. On Butterfly the model
+    # put a two-cell run's swatch into the middle of the tall column at a
+    # comfortable margin (the true hypothesis was its fourth choice, not its
+    # first), finished a board whose runs jump thirty delta-E off their own
+    # line, and shrugged. Nobody shrugs at that. Two-cell runs are what make it
+    # possible: any two colours are an even walk, so those swatches carry no
+    # family of their own and can pass for a member of any run. The answer a
+    # person reaches for is not better eyesight, it is trying the next reading.
+    if first[5] and _worst_unevenness(level, best[0], read) > SAME:
+        cell = first[5][0][1]
+        banned = banned + [(cell, first[5][0][2])]
+        for _ in range(RETRY_PASSES):
+            trial = _solve(level, read, st, random.Random(seed), trace,
+                           avoid=tuple(banned))
+            if trial[4] < best[4]:
+                best = trial
+            if _worst_unevenness(level, best[0], read) <= SAME:
+                break
+            chose = trial[0][cell]
+            if chose is None or (cell, chose) in banned:
+                break
+            banned.append((cell, chose))
+
+    content, guesses, records, _coin, _even, _doubt = best
     wrong = sum(1 for i in level.bank if content[i] != i)
     return Outcome(wrong=wrong, guesses=guesses, trace=records)
 
@@ -618,12 +698,39 @@ def _evenness(level: Level, content: list[int | None], read) -> float:
     return total
 
 
+def _worst_unevenness(level: Level, content: list[int | None], read) -> float:
+    """The largest single departure from an even walk anywhere on the board.
+
+    `_evenness` totals the departures, which is the right way to compare two
+    finished boards, and the wrong way to ask whether one of them looks wrong:
+    a long board accumulates a large total out of many cells that each sit
+    where they should. What a player notices is one cell that plainly does not
+    belong on its run, so that is what this returns. Measured on the player's
+    own readings, like everything else the player is allowed to check.
+    """
+    worst = 0.0
+    for path in level.gradients:
+        m = len(path)
+        if m < 3:
+            continue                  # any two colours are an even walk
+        if any(content[c] is None for c in path):
+            continue
+        ends = [(0, read[content[path[0]]]), (m - 1, read[content[path[-1]]])]
+        for i in range(1, m - 1):
+            worst = max(worst, lab_dist(read[content[path[i]]],
+                                        _predict(ends, i)))
+    return worst
+
+
 def _solve(level: Level, read, st: Settings, rng: random.Random,
            trace: bool, avoid: tuple | None = None):
-    """One pass over the board. `avoid` bans one option at the first coin flip.
+    """One pass over the board. `avoid` bans (cell, swatch) options outright.
 
-    Banning it is how the caller gets a genuinely different second reading of
-    the same board rather than the same coin landing the same way.
+    Banning them is how the caller gets a genuinely different reading of the
+    same board rather than the same call landing the same way. A ban names one
+    option at one cell, so it can only bite where that option is on the table,
+    which is what lets the caller walk down a single call's alternatives by
+    handing back a longer ban list each pass.
     """
     grads = level.gradients
     content: list[int | None] = [i if level.locked[i] else None
@@ -632,6 +739,12 @@ def _solve(level: Level, read, st: Settings, rng: random.Random,
     empty = set(level.bank)
     guesses = 0
     coin: tuple | None = None         # the first decision that came down to a coin
+    # The judgement call the player was least sure of, among the ones that felt
+    # decided: partition and orientation, the two that can put a whole family on
+    # the wrong run. This is what they go back to when the finished board does
+    # not read as an even walk. Kept separately from `coin`, which they already
+    # know they guessed.
+    doubts: list[tuple[float, int, int]] = []
     records: list[Decision] | None = [] if trace else None
     order = 0
 
@@ -639,7 +752,11 @@ def _solve(level: Level, read, st: Settings, rng: random.Random,
         gi, tier, holes, known = _pick_run(level, content)
         path = grads[gi]
         plan: list[tuple[int, int, int, float, bool, str]] = []  # gi, cell, swatch, margin, forced, why
-        ban = avoid if coin is None else None
+        # Offer the ban at every judgement call, not only until the first coin:
+        # it names one (cell, swatch) option and can only bite at the decision
+        # where that option is actually on the table, so passing it along is
+        # both harmless and what lets the caller re-open a confident call.
+        ban = avoid
 
         if tier == 0:
             # Two or more known cells: the ramp is arithmetic from here.
@@ -719,6 +836,8 @@ def _solve(level: Level, read, st: Settings, rng: random.Random,
                 guesses += 1
                 if coin is None and tier in (1, 2):
                     coin = (target, swatch)
+            elif tier in (1, 2) and math.isfinite(margin):
+                doubts.append((margin, target, swatch))
             if content[target] is not None:
                 # An earlier slip in this same batch already filled the cell this
                 # swatch was meant for, so the player puts it in the next hole on
@@ -741,7 +860,8 @@ def _solve(level: Level, read, st: Settings, rng: random.Random,
             if not pool:
                 break
 
-    return content, guesses, records, coin, _evenness(level, content, read)
+    return (content, guesses, records, coin, _evenness(level, content, read),
+            sorted(doubts))
 
 
 def _tier1_runs(level: Level, content: list[int | None]):
@@ -870,7 +990,7 @@ def _orient_run(gi: int, path: list[int], holes: list[int],
     p = known[0][0]
     anchor_read = read[known[0][1]]
     sides = [q for q in (p - 1, p + 1) if 0 <= q < n and q in holes]
-    cands = _nearest(anchor_read, pool, read, 2)
+    cands = _nearest(anchor_read, pool, read, ORIENT_CANDIDATES)
 
     scored = []
     for q in sides:
@@ -885,9 +1005,17 @@ def _orient_run(gi: int, path: list[int], holes: list[int],
     q, s, margin, forced = _pick_hypothesis(
         scored, t, rng, ban=(None if ban is None
                              else [(qq, ss) for _, qq, ss in scored
-                                   if (path[qq], ss) == ban]))
+                                   if (path[qq], ss) in ban]))
     return [(gi, path[q], s, margin, forced, "orient")]
 
+
+# How many candidate neighbours to weigh when a run has one anchor. Two is
+# enough to decide between the anchor's real neighbours and so to get the first
+# reading right, but it leaves the re-check above nowhere to go: ban both and
+# the call has no third answer to give. Four is what makes "try the next
+# reading" mean something, and it changes no first reading — the extra
+# hypotheses rank below the two that were already there.
+ORIENT_CANDIDATES = 4
 
 # How many candidate ramp ends to try when a run has to be seeded blind. The
 # ranking below is good, so the true end is nearly always in the first few, and
@@ -958,11 +1086,15 @@ def _seed_blind(gi: int, path: list[int], holes: list[int], pool: list[int],
         tied = [row for row in scored if row[0] <= scored[0][0] + max(t, TIE_EPS)]
         if ban:
             # The caller has already tried this seed and wants the other reading.
-            other = [row for row in tied if (path[row[1]], row[2]) != ban]
+            other = [row for row in tied if (path[row[1]], row[2]) not in ban]
             tied = other or tied
         _, q, s, s2 = rng.choice(tied)
     else:
-        _, q, s, s2 = scored[0]
+        # See `_pick_hypothesis`: the board disagreed with a confident seed, so
+        # the runner-up family gets its turn.
+        rest = [row for row in scored if (path[row[1]], row[2]) not in ban] \
+            if ban else scored
+        _, q, s, s2 = (rest or scored)[0]
     q2 = q + 1 if q == 0 else q - 1
     return [(gi, path[q], s, margin, forced, "blind seed"),
             (gi, path[q2], s2, margin, False, "blind seed")]
@@ -987,7 +1119,14 @@ def _pick_hypothesis(scored: list[tuple], t: float, rng: random.Random,
             tied = other or tied
         _, q, s = rng.choice(tied)
     else:
-        _, q, s = scored[0]
+        # A confident call can be banned too. The caller only does that after
+        # laying the whole board down and finding a run that is not a walk, so
+        # "I was sure" has already been answered by the board; the move is to
+        # take the runner-up. The margin reported is still the one the decision
+        # was made at, since that is what the trace is describing.
+        rest = [row for row in scored if (row[1], row[2]) not in ban] if ban \
+            else scored
+        _, q, s = (rest or scored)[0]
     return q, s, margin, forced
 
 
@@ -1480,12 +1619,16 @@ def build_report(levels: list[Level], results: list[LevelResult],
                        "can choose between it and the authored answer. Any level "
                        "missed *without* such a proof is a suspected strategy "
                        "bug and is named as one.\n")
-            out.append(f"\n{len(unfair)} levels carry that proof in total; the "
-                       f"other {len(unfair) - len(proven)} are ones where the "
-                       "alternative is even to within delta-E 2 but very "
-                       "slightly less even than the authored answer, so a "
-                       "literally perfect eye still picks the intended board "
-                       "while a human eye could not.\n")
+            spare = len(unfair) - len(proven)
+            out.append(f"\n{len(unfair)} levels carry that proof in total. "
+                       + (f"The remaining {spare} "
+                          + ("is one" if spare == 1 else "are ones")
+                          + " the control still happened to land, because the "
+                            "alternative is even to within delta-E 2 but very "
+                            "slightly less even than the authored answer: a "
+                            "literally perfect eye picks the intended board "
+                            "there, while a human eye could not.\n"
+                          if spare else "\n"))
             out.append(_table(
                 ["#", "name", "chapter", "bank", "unpinned runs", "control",
                  "verdict"],

@@ -54,7 +54,7 @@ CHAPTERS = [
     ("Two Strokes", 7, 18, "Two gradients at a time, and cells they share."),
     ("Crossings", 19, 32, "Shapes built from strokes that cross."),
     ("Everyday Things", 33, 52, "Bigger objects, more gradients, tighter steps."),
-    ("Creatures", 53, 70, "Chroma joins in. Neighbours start to look alike."),
+    ("Creatures", 53, 70, "Chroma joins in. Neighbors start to look alike."),
     ("Landmarks", 71, 88, "Wide scenes with long ramps to keep straight."),
     ("Mastery", 89, 100, "Everything at once, with barely any given cells."),
     ("Workshop", 101, 120, "Tools built from connected runs and shared joints."),
@@ -115,7 +115,7 @@ CH2 = [
 aaa
 ...
 bbb
-""", "Two gradients now. They are different colour families on purpose."),
+""", "Two gradients now. They are different color families on purpose."),
 
     ("Rails", """
 a.b
@@ -136,7 +136,7 @@ aa+aa
 ..b..
 ..b..
 ..b..
-""", "Where the strokes meet, one cell belongs to both: one colour doing two jobs."),
+""", "Where the strokes meet, one cell belongs to both: one color doing two jobs."),
 
     ("Cross", """
 ..a..
@@ -157,7 +157,7 @@ abbbb
     ("Track", """
 aaaaa
 bbbbb
-""", "Neighbours. Check which row a swatch belongs to before dropping it."),
+""", "Neighbors. Check which row a swatch belongs to before dropping it."),
 
     ("Hurdle", """
 ..b..
@@ -484,7 +484,7 @@ f.bbbbb
 fccccccc
 f.ddddd
 ...eeee
-""", "Chroma ramps now too: same hue, draining colour."),
+""", "Chroma ramps now too: same hue, draining color."),
 
     ("Crab", """
 a.....b

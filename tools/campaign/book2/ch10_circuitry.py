@@ -9,7 +9,7 @@ SHAPES = [
 .e.m.f...
 .e.m.f...
 .+g+g+g..
-""", "Start with the longest run, then work outward from the cells it fixes."),
+""", "Every crossing belongs to two runs at once. Solve one and you have solved a cell in both."),
 
     ("Fuse", """
 gg+..+hhhh
@@ -47,7 +47,7 @@ aa+.f...+bb
 ..d.f.h.e..
 ..d.f.h.e..
 ..+ggg+g+..
-""", "When one placement forces a neighbour, follow that chain as far as it goes before starting somewhere new."),
+""", "When one placement forces a neighbor, follow that chain as far as it goes before starting somewhere new."),
 
     ("Capacitor", """
 ....a.b...
@@ -167,7 +167,7 @@ aa+.i...h..
 bb+.i.j.+cc
 ..g...j.+dd
 ..+fff+f+..
-""", "Leave the short runs for last, once the long ones have pinned their neighbours."),
+""", "Leave the short runs for last, once the long ones have pinned their neighbors."),
 
     ("Power Strip", """
 ...f.......
