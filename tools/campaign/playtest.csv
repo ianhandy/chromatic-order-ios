@@ -32,73 +32,73 @@ reason,noise-free control,0,0,0,0,30,Ladder,Crossings,8,12,4,8.16,7.75,0,7.80,7.
 reason,noise-free control,0,0,0,0,31,Flag,Crossings,8,14,3,14.71,9.10,0,9.10,9.10,no,1.0000,0.000,0.000
 reason,noise-free control,0,0,0,0,32,Rake,Crossings,9,17,5,10.51,6.43,0,6.43,6.43,no,1.0000,0.000,0.000
 reason,noise-free control,0,0,0,0,33,House,Everyday Things,9,24,5,5.96,4.58,0,4.58,4.58,no,1.0000,0.000,0.000
-reason,noise-free control,0,0,0,0,34,Boat,Everyday Things,9,17,5,9.17,6.40,0,6.40,6.40,no,1.0000,0.000,0.000
+reason,noise-free control,0,0,0,0,34,Boat,Everyday Things,9,17,5,7.64,6.12,0,6.12,6.12,no,1.0000,0.000,0.000
 reason,noise-free control,0,0,0,0,35,Tree,Everyday Things,9,19,4,9.09,7.58,0,7.58,7.58,no,1.0000,0.000,0.000
-reason,noise-free control,0,0,0,0,36,Rocket,Everyday Things,10,14,4,9.27,7.12,2,7.12,7.12,yes,0.1667,4.167,2.000
-reason,noise-free control,0,0,0,0,37,Bridge,Everyday Things,10,17,3,8.98,6.30,0,6.30,6.30,no,1.0000,0.000,0.000
+reason,noise-free control,0,0,0,0,36,Rocket,Everyday Things,8,14,4,7.08,7.08,0,7.08,7.08,no,1.0000,0.000,0.000
+reason,noise-free control,0,0,0,0,37,Bridge,Everyday Things,10,17,3,9.17,6.42,0,6.42,6.42,no,1.0000,0.000,0.000
 reason,noise-free control,0,0,0,0,38,Train,Everyday Things,10,21,5,9.15,7.67,0,7.67,7.67,no,1.0000,0.000,0.000
-reason,noise-free control,0,0,0,0,39,Truck,Everyday Things,10,16,4,14.95,8.05,0,8.05,8.05,no,1.0000,0.000,0.000
-reason,noise-free control,0,0,0,0,40,Clock,Everyday Things,11,19,5,11.25,5.95,0,6.43,6.43,no,1.0000,0.000,0.000
-reason,noise-free control,0,0,0,0,41,Bell,Everyday Things,9,13,4,7.10,7.45,1,7.45,7.45,no,1.0000,0.000,0.000
-reason,noise-free control,0,0,0,0,42,Cup,Everyday Things,12,16,4,13.35,7.27,1,7.27,7.27,no,1.0000,0.000,0.000
-reason,noise-free control,0,0,0,0,43,Bottle,Everyday Things,12,22,6,6.92,6.68,0,6.92,6.92,no,1.0000,0.000,0.000
-reason,noise-free control,0,0,0,0,44,Envelope,Everyday Things,12,21,5,7.14,7.22,0,7.22,7.22,no,1.0000,0.000,0.000
+reason,noise-free control,0,0,0,0,39,Truck,Everyday Things,10,16,4,9.09,8.03,0,8.03,8.03,no,1.0000,0.000,0.000
+reason,noise-free control,0,0,0,0,40,Clock,Everyday Things,10,19,5,10.28,5.76,0,6.13,6.13,no,1.0000,0.000,0.000
+reason,noise-free control,0,0,0,0,41,Bell,Everyday Things,7,13,4,7.10,7.45,0,7.45,7.45,no,1.0000,0.000,0.000
+reason,noise-free control,0,0,0,0,42,Cup,Everyday Things,10,16,4,11.74,7.25,0,7.25,7.25,no,1.0000,0.000,0.000
+reason,noise-free control,0,0,0,0,43,Bottle,Everyday Things,11,22,6,7.24,6.68,0,7.24,7.24,no,1.0000,0.000,0.000
+reason,noise-free control,0,0,0,0,44,Envelope,Everyday Things,11,21,5,7.37,7.33,0,7.33,7.33,no,1.0000,0.000,0.000
 reason,noise-free control,0,0,0,0,45,Book,Everyday Things,12,24,5,6.90,6.22,0,6.22,6.22,no,1.0000,0.000,0.000
 reason,noise-free control,0,0,0,0,46,Pencil,Everyday Things,13,19,3,15.70,7.33,0,7.33,7.33,no,1.0000,0.000,0.000
 reason,noise-free control,0,0,0,0,47,Anchor,Everyday Things,12,17,5,12.79,5.10,0,5.23,5.23,no,1.0000,0.000,0.000
-reason,noise-free control,0,0,0,0,48,Wrench,Everyday Things,13,16,5,6.83,7.09,0,6.97,6.97,no,1.0000,0.000,0.000
-reason,noise-free control,0,0,0,0,49,Candle,Everyday Things,10,12,3,12.85,8.73,1,8.73,8.73,no,1.0000,0.000,1.000
-reason,noise-free control,0,0,0,0,50,Drum,Everyday Things,14,22,6,6.16,5.42,0,6.16,6.16,no,1.0000,0.000,0.000
-reason,noise-free control,0,0,0,0,51,Camera,Everyday Things,14,26,6,6.75,6.57,0,6.64,6.64,no,1.0000,0.000,0.000
-reason,noise-free control,0,0,0,0,52,Lantern,Everyday Things,15,21,5,7.55,6.99,0,7.22,7.22,no,1.0000,0.000,0.000
-reason,noise-free control,0,0,0,0,53,Fish,Creatures,15,28,6,7.30,7.33,0,7.33,7.33,no,1.0000,0.000,0.000
-reason,noise-free control,0,0,0,0,54,Crab,Creatures,13,20,6,9.62,7.21,0,7.21,7.21,no,1.0000,0.000,1.000
-reason,noise-free control,0,0,0,0,55,Snail,Creatures,15,17,5,10.13,7.10,2,7.10,7.10,no,1.0000,0.000,0.000
-reason,noise-free control,0,0,0,0,56,Bird,Creatures,13,21,6,7.16,7.59,0,7.32,7.32,no,1.0000,0.000,0.000
-reason,noise-free control,0,0,0,0,57,Owl,Creatures,16,24,6,8.14,6.33,0,6.33,6.33,no,1.0000,0.000,0.000
-reason,noise-free control,0,0,0,0,58,Cat,Creatures,13,16,6,9.00,9.72,3,9.00,9.00,no,1.0000,0.000,0.000
-reason,noise-free control,0,0,0,0,59,Dog,Creatures,14,23,6,7.65,7.36,0,7.36,7.36,no,1.0000,0.000,0.000
-reason,noise-free control,0,0,0,0,60,Bunny,Creatures,17,27,7,6.02,5.41,0,6.14,6.14,no,1.0000,0.000,0.000
-reason,noise-free control,0,0,0,0,61,Frog,Creatures,12,16,6,8.75,6.85,2,7.46,7.46,yes,1.0000,0.000,1.000
-reason,noise-free control,0,0,0,0,62,Turtle,Creatures,15,23,6,7.85,8.55,0,7.85,7.85,no,1.0000,0.000,0.000
+reason,noise-free control,0,0,0,0,48,Wrench,Everyday Things,12,16,5,6.83,7.09,0,6.97,6.97,no,1.0000,0.000,0.000
+reason,noise-free control,0,0,0,0,49,Candle,Everyday Things,9,12,3,12.85,8.73,0,8.73,8.73,no,1.0000,0.000,1.000
+reason,noise-free control,0,0,0,0,50,Drum,Everyday Things,13,22,6,5.55,5.00,0,5.00,5.00,no,1.0000,0.000,0.000
+reason,noise-free control,0,0,0,0,51,Camera,Everyday Things,13,26,6,5.31,5.33,0,5.31,5.31,no,1.0000,0.000,0.000
+reason,noise-free control,0,0,0,0,52,Lantern,Everyday Things,14,21,5,7.54,7.18,0,7.18,7.18,no,1.0000,0.000,0.000
+reason,noise-free control,0,0,0,0,53,Fish,Creatures,11,28,6,7.13,7.00,0,7.16,7.16,no,1.0000,0.000,0.000
+reason,noise-free control,0,0,0,0,54,Crab,Creatures,11,20,6,7.41,6.33,0,6.33,6.33,no,1.0000,0.000,0.000
+reason,noise-free control,0,0,0,0,55,Snail,Creatures,13,17,5,9.93,7.00,0,7.00,7.00,no,1.0000,0.000,0.000
+reason,noise-free control,0,0,0,0,56,Bird,Creatures,13,21,6,7.83,7.33,0,7.33,7.33,no,1.0000,0.000,0.000
+reason,noise-free control,0,0,0,0,57,Owl,Creatures,12,24,6,4.55,5.00,0,4.55,4.55,no,1.0000,0.000,0.000
+reason,noise-free control,0,0,0,0,58,Cat,Creatures,10,16,6,9.67,8.85,0,9.60,9.60,no,1.0000,0.000,0.000
+reason,noise-free control,0,0,0,0,59,Dog,Creatures,13,23,6,7.18,7.83,0,7.18,7.18,no,1.0000,0.000,0.000
+reason,noise-free control,0,0,0,0,60,Bunny,Creatures,15,27,7,6.02,5.41,0,6.14,6.14,no,1.0000,0.000,0.000
+reason,noise-free control,0,0,0,0,61,Frog,Creatures,10,16,6,7.01,7.00,0,7.00,7.00,no,1.0000,0.000,1.000
+reason,noise-free control,0,0,0,0,62,Turtle,Creatures,15,23,6,8.81,7.55,0,7.55,7.55,no,1.0000,0.000,0.000
 reason,noise-free control,0,0,0,0,63,Whale,Creatures,17,25,5,9.74,7.38,0,7.38,7.38,no,1.0000,0.000,0.000
-reason,noise-free control,0,0,0,0,64,Bee,Creatures,16,25,6,7.24,7.52,0,7.52,7.52,no,1.0000,0.000,0.000
+reason,noise-free control,0,0,0,0,64,Bee,Creatures,15,25,6,9.14,7.18,0,7.18,7.18,no,1.0000,0.000,0.000
 reason,noise-free control,0,0,0,0,65,Ant,Creatures,8,14,6,8.44,9.09,0,8.72,8.72,no,1.0000,0.000,0.000
-reason,noise-free control,0,0,0,0,66,Spider,Creatures,16,18,6,10.49,7.29,4,7.29,7.29,yes,0.5333,0.933,1.000
-reason,noise-free control,0,0,0,0,67,Butterfly,Creatures,14,15,5,9.94,7.26,3,7.26,7.26,no,0.0000,9.000,0.000
-reason,noise-free control,0,0,0,0,68,Snake,Creatures,19,20,5,8.56,4.99,3,4.99,4.99,no,1.0000,0.000,0.000
-reason,noise-free control,0,0,0,0,69,Penguin,Creatures,17,21,7,7.30,6.60,2,6.60,6.60,no,1.0000,0.000,0.000
-reason,noise-free control,0,0,0,0,70,Fox,Creatures,15,17,5,6.52,7.20,3,6.52,6.52,no,1.0000,0.000,0.000
-reason,noise-free control,0,0,0,0,71,Lighthouse,Landmarks,19,26,6,5.97,5.74,0,5.74,5.74,no,1.0000,0.000,0.000
-reason,noise-free control,0,0,0,0,72,Windmill,Landmarks,15,17,5,7.20,6.34,3,6.34,6.34,no,1.0000,0.000,1.000
-reason,noise-free control,0,0,0,0,73,Sailboat,Landmarks,16,18,5,9.46,7.33,3,7.33,7.33,no,1.0000,0.000,0.000
-reason,noise-free control,0,0,0,0,74,Castle,Landmarks,18,20,7,6.11,6.52,5,6.52,6.52,yes,0.5167,2.900,1.000
-reason,noise-free control,0,0,0,0,75,Church,Landmarks,19,21,5,5.79,4.88,3,4.88,4.88,no,1.0000,0.000,1.000
-reason,noise-free control,0,0,0,0,76,Skyline,Landmarks,22,29,6,7.26,4.75,0,4.75,4.75,no,1.0000,0.000,0.000
-reason,noise-free control,0,0,0,0,77,Pyramid,Landmarks,19,24,4,11.11,6.47,0,6.47,6.47,no,1.0000,0.000,0.000
-reason,noise-free control,0,0,0,0,78,Fountain,Landmarks,23,26,7,7.95,5.34,4,5.89,5.89,no,1.0000,0.000,1.000
-reason,noise-free control,0,0,0,0,79,Aqueduct,Landmarks,23,28,7,8.64,5.64,0,5.64,5.64,no,1.0000,0.000,0.000
-reason,noise-free control,0,0,0,0,80,Cathedral,Landmarks,21,29,6,10.19,6.72,1,6.72,6.72,no,1.0000,0.000,0.000
-reason,noise-free control,0,0,0,0,81,Ferris,Landmarks,22,25,8,9.15,6.73,4,6.73,6.73,no,1.0000,0.000,1.000
-reason,noise-free control,0,0,0,0,82,Temple,Landmarks,24,38,8,5.31,5.66,0,5.31,5.31,no,1.0000,0.000,0.000
-reason,noise-free control,0,0,0,0,83,Observatory,Landmarks,22,26,6,8.89,5.99,2,5.99,5.99,no,1.0000,0.000,0.000
-reason,noise-free control,0,0,0,0,84,Garden,Landmarks,22,26,7,8.30,4.61,3,4.61,4.61,no,1.0000,0.000,0.000
-reason,noise-free control,0,0,0,0,85,Harbor,Landmarks,20,23,5,7.37,5.15,1,5.15,5.15,no,0.0000,4.000,1.000
-reason,noise-free control,0,0,0,0,86,Waterfall,Landmarks,24,33,7,8.51,5.77,0,5.77,5.77,no,1.0000,0.000,0.000
-reason,noise-free control,0,0,0,0,87,Trainyard,Landmarks,26,36,6,8.48,4.88,0,4.88,4.88,no,1.0000,0.000,0.000
-reason,noise-free control,0,0,0,0,88,Cityscape,Landmarks,26,38,6,7.26,4.93,0,5.03,5.03,no,1.0000,0.000,0.000
-reason,noise-free control,0,0,0,0,89,Cascade,Mastery,16,17,7,6.45,4.54,6,4.54,4.54,no,1.0000,0.000,0.000
-reason,noise-free control,0,0,0,0,90,Circuit,Mastery,22,23,6,8.14,5.72,4,5.72,5.72,no,1.0000,0.000,0.000
-reason,noise-free control,0,0,0,0,91,Loom,Mastery,27,33,6,7.78,5.19,0,5.19,5.19,no,1.0000,0.000,0.000
-reason,noise-free control,0,0,0,0,92,Lattice,Mastery,27,43,7,6.66,4.50,0,4.50,4.50,no,1.0000,0.000,0.000
-reason,noise-free control,0,0,0,0,93,Reactor,Mastery,28,40,8,4.80,4.24,0,4.25,4.25,no,1.0000,0.000,0.000
-reason,noise-free control,0,0,0,0,94,Palace,Mastery,27,28,7,4.28,4.28,6,4.28,4.28,no,1.0000,0.000,1.000
-reason,noise-free control,0,0,0,0,95,Carousel,Mastery,28,37,6,4.27,4.37,0,4.27,4.27,no,1.0000,0.000,0.000
-reason,noise-free control,0,0,0,0,96,Organ,Mastery,28,35,7,4.83,4.65,0,4.65,4.65,no,1.0000,0.000,0.000
-reason,noise-free control,0,0,0,0,97,Citadel,Mastery,29,31,8,5.67,4.29,6,4.63,4.63,no,0.0000,24.000,1.000
-reason,noise-free control,0,0,0,0,98,Colossus,Mastery,29,42,10,4.34,4.36,2,4.36,4.36,no,1.0000,0.000,0.000
-reason,noise-free control,0,0,0,0,99,Vault,Mastery,30,37,6,6.11,4.22,0,4.22,4.22,no,1.0000,0.000,0.000
-reason,noise-free control,0,0,0,0,100,Mandala,Mastery,30,37,6,5.77,4.05,0,4.05,4.05,no,1.0000,0.000,0.000
+reason,noise-free control,0,0,0,0,66,Spider,Creatures,13,18,6,6.14,5.56,0,5.56,5.56,no,1.0000,0.000,0.000
+reason,noise-free control,0,0,0,0,67,Butterfly,Creatures,13,15,5,9.89,7.90,1,9.21,9.21,no,1.0000,0.000,1.000
+reason,noise-free control,0,0,0,0,68,Snake,Creatures,14,20,5,5.70,5.33,0,5.33,5.33,no,1.0000,0.000,0.000
+reason,noise-free control,0,0,0,0,69,Penguin,Creatures,13,21,7,7.30,6.60,0,6.60,6.60,no,1.0000,0.000,0.000
+reason,noise-free control,0,0,0,0,70,Fox,Creatures,12,17,5,11.56,7.46,1,7.46,7.46,no,1.0000,0.000,0.000
+reason,noise-free control,0,0,0,0,71,Lighthouse,Landmarks,13,26,6,5.97,5.74,0,5.74,5.74,no,1.0000,0.000,0.000
+reason,noise-free control,0,0,0,0,72,Windmill,Landmarks,12,17,5,7.02,6.64,2,6.64,6.64,no,1.0000,0.000,0.000
+reason,noise-free control,0,0,0,0,73,Sailboat,Landmarks,9,18,5,9.46,7.33,0,7.33,7.33,no,1.0000,0.000,0.000
+reason,noise-free control,0,0,0,0,74,Castle,Landmarks,13,20,7,7.06,5.68,0,5.68,5.68,no,1.0000,0.000,1.000
+reason,noise-free control,0,0,0,0,75,Church,Landmarks,13,21,5,5.79,4.88,0,4.88,4.88,no,1.0000,0.000,0.000
+reason,noise-free control,0,0,0,0,76,Skyline,Landmarks,19,29,6,6.19,4.66,0,4.66,4.66,no,1.0000,0.000,0.000
+reason,noise-free control,0,0,0,0,77,Pyramid,Landmarks,14,24,4,13.08,6.37,0,6.37,6.37,no,1.0000,0.000,0.000
+reason,noise-free control,0,0,0,0,78,Fountain,Landmarks,16,26,7,5.97,5.03,0,5.64,5.64,no,1.0000,0.000,0.000
+reason,noise-free control,0,0,0,0,79,Aqueduct,Landmarks,19,28,7,7.78,5.00,0,5.00,5.00,no,1.0000,0.000,0.000
+reason,noise-free control,0,0,0,0,80,Cathedral,Landmarks,19,29,6,7.95,4.94,0,4.94,4.94,no,1.0000,0.000,0.000
+reason,noise-free control,0,0,0,0,81,Ferris,Landmarks,19,25,8,6.94,6.20,0,6.20,6.20,no,1.0000,0.000,0.000
+reason,noise-free control,0,0,0,0,82,Temple,Landmarks,16,38,8,6.20,5.25,0,5.25,5.25,no,1.0000,0.000,0.000
+reason,noise-free control,0,0,0,0,83,Observatory,Landmarks,19,26,6,9.26,6.27,0,6.61,6.61,no,1.0000,0.000,0.000
+reason,noise-free control,0,0,0,0,84,Garden,Landmarks,15,26,7,8.30,4.61,0,4.64,4.64,no,1.0000,0.000,0.000
+reason,noise-free control,0,0,0,0,85,Harbor,Landmarks,14,23,5,8.99,4.76,0,4.76,4.76,no,1.0000,0.000,0.000
+reason,noise-free control,0,0,0,0,86,Waterfall,Landmarks,17,33,7,7.53,4.85,0,4.85,4.85,no,1.0000,0.000,0.000
+reason,noise-free control,0,0,0,0,87,Trainyard,Landmarks,18,36,6,8.48,4.88,0,4.88,4.88,no,1.0000,0.000,0.000
+reason,noise-free control,0,0,0,0,88,Cityscape,Landmarks,23,38,6,7.26,4.93,0,5.03,5.03,no,1.0000,0.000,0.000
+reason,noise-free control,0,0,0,0,89,Cascade,Mastery,11,17,7,6.43,4.52,1,4.52,4.52,no,1.0000,0.000,0.000
+reason,noise-free control,0,0,0,0,90,Circuit,Mastery,17,23,6,7.77,5.26,0,5.26,5.26,no,1.0000,0.000,0.000
+reason,noise-free control,0,0,0,0,91,Loom,Mastery,16,33,6,7.78,5.19,0,5.19,5.19,no,1.0000,0.000,0.000
+reason,noise-free control,0,0,0,0,92,Lattice,Mastery,16,43,7,7.25,4.45,0,4.45,4.45,no,1.0000,0.000,0.000
+reason,noise-free control,0,0,0,0,93,Reactor,Mastery,17,40,8,3.89,4.31,0,4.03,4.03,no,1.0000,0.000,0.000
+reason,noise-free control,0,0,0,0,94,Palace,Mastery,17,28,7,4.68,4.68,0,4.68,4.68,no,1.0000,0.000,0.000
+reason,noise-free control,0,0,0,0,95,Carousel,Mastery,19,37,6,4.38,4.67,0,4.38,4.38,no,1.0000,0.000,0.000
+reason,noise-free control,0,0,0,0,96,Organ,Mastery,19,35,7,4.83,4.65,0,4.83,4.83,no,1.0000,0.000,0.000
+reason,noise-free control,0,0,0,0,97,Citadel,Mastery,20,31,8,4.40,4.43,0,4.40,4.40,no,1.0000,0.000,0.000
+reason,noise-free control,0,0,0,0,98,Colossus,Mastery,18,42,10,4.34,4.36,0,4.36,4.36,no,1.0000,0.000,0.000
+reason,noise-free control,0,0,0,0,99,Vault,Mastery,19,37,6,4.25,4.50,0,4.50,4.50,no,1.0000,0.000,0.000
+reason,noise-free control,0,0,0,0,100,Mandala,Mastery,17,37,6,5.68,3.92,0,3.92,3.92,no,1.0000,0.000,0.000
 reason,noise-free control,0,0,0,0,101,Screwdriver,Workshop,14,23,6,4.72,4.72,0,4.72,4.72,no,1.0000,0.000,0.000
 reason,noise-free control,0,0,0,0,102,Try Square,Workshop,14,28,6,5.27,4.56,0,4.56,4.56,no,1.0000,0.000,0.000
 reason,noise-free control,0,0,0,0,103,Oil Can,Workshop,15,26,6,4.61,4.61,0,4.61,4.61,no,1.0000,0.000,0.000
@@ -135,7 +135,7 @@ reason,noise-free control,0,0,0,0,133,Cello,Orchestra,18,33,8,5.40,5.40,0,5.40,5
 reason,noise-free control,0,0,0,0,134,Banjo,Orchestra,20,35,8,4.94,4.94,0,4.94,4.94,no,1.0000,0.000,0.000
 reason,noise-free control,0,0,0,0,135,Trombone,Orchestra,20,34,8,4.91,4.91,0,4.91,4.91,no,1.0000,0.000,0.000
 reason,noise-free control,0,0,0,0,136,Violin Case,Orchestra,21,32,9,5.38,5.38,0,5.38,5.38,no,1.0000,0.000,0.000
-reason,noise-free control,0,0,0,0,137,Saxophone,Orchestra,18,33,9,4.50,4.35,0,4.35,4.35,no,1.0000,0.000,0.000
+reason,noise-free control,0,0,0,0,137,Saxophone,Orchestra,19,33,9,4.50,4.35,1,4.35,4.35,no,1.0000,0.000,1.000
 reason,noise-free control,0,0,0,0,138,Bagpipes,Orchestra,21,34,9,4.82,4.82,0,4.82,4.82,no,1.0000,0.000,0.000
 reason,noise-free control,0,0,0,0,139,Tuba,Orchestra,19,36,9,4.48,4.48,0,4.48,4.48,no,1.0000,0.000,0.000
 reason,noise-free control,0,0,0,0,140,Piano,Orchestra,20,34,9,5.80,4.35,0,4.35,4.35,no,1.0000,0.000,0.000
@@ -156,7 +156,7 @@ reason,noise-free control,0,0,0,0,154,Junction Box,Circuitry,21,34,9,4.32,4.32,0
 reason,noise-free control,0,0,0,0,155,Patch Bay,Circuitry,22,36,9,4.72,4.72,0,4.72,4.72,no,1.0000,0.000,0.000
 reason,noise-free control,0,0,0,0,156,Server Rack,Circuitry,24,40,9,4.65,4.54,0,4.54,4.54,no,1.0000,0.000,0.000
 reason,noise-free control,0,0,0,0,157,Microchip,Circuitry,21,32,10,6.24,4.58,0,4.58,4.58,no,1.0000,0.000,0.000
-reason,noise-free control,0,0,0,0,158,Power Strip,Circuitry,21,36,10,4.36,4.36,0,4.36,4.36,no,1.0000,0.000,0.000
+reason,noise-free control,0,0,0,0,158,Power Strip,Circuitry,22,36,10,4.36,4.36,0,4.36,4.36,no,1.0000,0.000,0.000
 reason,noise-free control,0,0,0,0,159,Oscilloscope,Circuitry,26,40,10,4.58,4.58,0,4.58,4.58,no,1.0000,0.000,0.000
 reason,noise-free control,0,0,0,0,160,Motherboard,Circuitry,22,37,10,4.51,4.51,0,4.51,4.51,no,1.0000,0.000,1.000
 reason,noise-free control,0,0,0,0,161,Staircase,Interiors,20,30,8,4.51,4.51,0,4.51,4.51,no,1.0000,0.000,0.000
@@ -175,7 +175,7 @@ reason,noise-free control,0,0,0,0,173,Atrium,Interiors,26,41,9,4.34,4.34,0,4.34,
 reason,noise-free control,0,0,0,0,174,Rafters,Interiors,22,41,9,4.36,4.36,0,4.36,4.36,no,1.0000,0.000,0.000
 reason,noise-free control,0,0,0,0,175,Curtain,Interiors,22,42,10,4.61,4.61,0,4.61,4.61,no,1.0000,0.000,0.000
 reason,noise-free control,0,0,0,0,176,Elevator,Interiors,23,42,10,4.51,4.51,0,4.51,4.51,no,1.0000,0.000,0.000
-reason,noise-free control,0,0,0,0,177,Banister,Interiors,23,38,10,4.08,4.40,1,4.40,4.40,no,1.0000,0.000,0.000
+reason,noise-free control,0,0,0,0,177,Banister,Interiors,24,38,10,4.08,4.40,1,4.40,4.40,no,1.0000,0.000,1.000
 reason,noise-free control,0,0,0,0,178,Landing,Interiors,18,34,10,4.58,4.21,0,4.21,4.21,no,1.0000,0.000,0.000
 reason,noise-free control,0,0,0,0,179,Stove,Interiors,19,39,10,4.08,4.08,0,4.08,4.08,no,1.0000,0.000,0.000
 reason,noise-free control,0,0,0,0,180,Dome,Interiors,22,41,10,4.04,4.04,0,4.04,4.04,no,1.0000,0.000,0.000
@@ -226,79 +226,79 @@ reason,sharp eye,1,0,1.5,0,24,Hammer,Crossings,6,13,3,7.91,7.91,0,7.91,7.91,no,1
 reason,sharp eye,1,0,1.5,0,25,Key,Crossings,7,10,3,15.08,8.72,0,8.72,8.72,no,1.0000,0.000,0.000
 reason,sharp eye,1,0,1.5,0,26,Lamp,Crossings,7,13,3,12.25,7.46,0,7.46,7.46,no,1.0000,0.000,0.000
 reason,sharp eye,1,0,1.5,0,27,Fork,Crossings,7,14,4,12.03,8.06,0,8.06,8.06,no,1.0000,0.000,0.000
-reason,sharp eye,1,0,1.5,0,28,Swing,Crossings,8,12,4,11.12,8.50,0,8.50,8.50,no,1.0000,0.000,0.017
+reason,sharp eye,1,0,1.5,0,28,Swing,Crossings,8,12,4,11.12,8.50,0,8.50,8.50,no,0.6833,0.950,0.067
 reason,sharp eye,1,0,1.5,0,29,Window,Crossings,8,16,5,7.69,7.71,0,7.69,7.69,no,1.0000,0.000,0.000
 reason,sharp eye,1,0,1.5,0,30,Ladder,Crossings,8,12,4,8.16,7.75,0,7.80,7.80,no,1.0000,0.000,0.000
 reason,sharp eye,1,0,1.5,0,31,Flag,Crossings,8,14,3,14.71,9.10,0,9.10,9.10,no,1.0000,0.000,0.000
 reason,sharp eye,1,0,1.5,0,32,Rake,Crossings,9,17,5,10.51,6.43,0,6.43,6.43,no,1.0000,0.000,0.000
 reason,sharp eye,1,0,1.5,0,33,House,Everyday Things,9,24,5,5.96,4.58,0,4.58,4.58,no,1.0000,0.000,0.017
-reason,sharp eye,1,0,1.5,0,34,Boat,Everyday Things,9,17,5,9.17,6.40,0,6.40,6.40,no,1.0000,0.000,0.000
+reason,sharp eye,1,0,1.5,0,34,Boat,Everyday Things,9,17,5,7.64,6.12,0,6.12,6.12,no,1.0000,0.000,0.000
 reason,sharp eye,1,0,1.5,0,35,Tree,Everyday Things,9,19,4,9.09,7.58,0,7.58,7.58,no,1.0000,0.000,0.000
-reason,sharp eye,1,0,1.5,0,36,Rocket,Everyday Things,10,14,4,9.27,7.12,2,7.12,7.12,yes,0.3333,2.633,2.017
-reason,sharp eye,1,0,1.5,0,37,Bridge,Everyday Things,10,17,3,8.98,6.30,0,6.30,6.30,no,1.0000,0.000,0.000
+reason,sharp eye,1,0,1.5,0,36,Rocket,Everyday Things,8,14,4,7.08,7.08,0,7.08,7.08,no,1.0000,0.000,0.000
+reason,sharp eye,1,0,1.5,0,37,Bridge,Everyday Things,10,17,3,9.17,6.42,0,6.42,6.42,no,1.0000,0.000,0.000
 reason,sharp eye,1,0,1.5,0,38,Train,Everyday Things,10,21,5,9.15,7.67,0,7.67,7.67,no,1.0000,0.000,0.000
-reason,sharp eye,1,0,1.5,0,39,Truck,Everyday Things,10,16,4,14.95,8.05,0,8.05,8.05,no,1.0000,0.000,0.000
-reason,sharp eye,1,0,1.5,0,40,Clock,Everyday Things,11,19,5,11.25,5.95,0,6.43,6.43,no,1.0000,0.000,0.000
-reason,sharp eye,1,0,1.5,0,41,Bell,Everyday Things,9,13,4,7.10,7.45,1,7.45,7.45,no,0.9167,0.333,0.150
-reason,sharp eye,1,0,1.5,0,42,Cup,Everyday Things,12,16,4,13.35,7.27,1,7.27,7.27,no,0.8667,0.317,0.217
-reason,sharp eye,1,0,1.5,0,43,Bottle,Everyday Things,12,22,6,6.92,6.68,0,6.92,6.92,no,1.0000,0.000,0.000
-reason,sharp eye,1,0,1.5,0,44,Envelope,Everyday Things,12,21,5,7.14,7.22,0,7.22,7.22,no,1.0000,0.000,0.000
+reason,sharp eye,1,0,1.5,0,39,Truck,Everyday Things,10,16,4,9.09,8.03,0,8.03,8.03,no,1.0000,0.000,0.000
+reason,sharp eye,1,0,1.5,0,40,Clock,Everyday Things,10,19,5,10.28,5.76,0,6.13,6.13,no,1.0000,0.000,0.000
+reason,sharp eye,1,0,1.5,0,41,Bell,Everyday Things,7,13,4,7.10,7.45,0,7.45,7.45,no,1.0000,0.000,0.000
+reason,sharp eye,1,0,1.5,0,42,Cup,Everyday Things,10,16,4,11.74,7.25,0,7.25,7.25,no,1.0000,0.000,0.000
+reason,sharp eye,1,0,1.5,0,43,Bottle,Everyday Things,11,22,6,7.24,6.68,0,7.24,7.24,no,1.0000,0.000,0.000
+reason,sharp eye,1,0,1.5,0,44,Envelope,Everyday Things,11,21,5,7.37,7.33,0,7.33,7.33,no,1.0000,0.000,0.000
 reason,sharp eye,1,0,1.5,0,45,Book,Everyday Things,12,24,5,6.90,6.22,0,6.22,6.22,no,1.0000,0.000,0.000
 reason,sharp eye,1,0,1.5,0,46,Pencil,Everyday Things,13,19,3,15.70,7.33,0,7.33,7.33,no,1.0000,0.000,0.000
 reason,sharp eye,1,0,1.5,0,47,Anchor,Everyday Things,12,17,5,12.79,5.10,0,5.23,5.23,no,1.0000,0.000,0.000
-reason,sharp eye,1,0,1.5,0,48,Wrench,Everyday Things,13,16,5,6.83,7.09,0,6.97,6.97,no,0.9833,0.067,0.050
-reason,sharp eye,1,0,1.5,0,49,Candle,Everyday Things,10,12,3,12.85,8.73,1,8.73,8.73,no,0.8667,0.467,0.317
-reason,sharp eye,1,0,1.5,0,50,Drum,Everyday Things,14,22,6,6.16,5.42,0,6.16,6.16,no,1.0000,0.000,0.000
-reason,sharp eye,1,0,1.5,0,51,Camera,Everyday Things,14,26,6,6.75,6.57,0,6.64,6.64,no,1.0000,0.000,0.000
-reason,sharp eye,1,0,1.5,0,52,Lantern,Everyday Things,15,21,5,7.55,6.99,0,7.22,7.22,no,1.0000,0.000,0.000
-reason,sharp eye,1,0,1.5,0,53,Fish,Creatures,15,28,6,7.30,7.33,0,7.33,7.33,no,1.0000,0.000,0.000
-reason,sharp eye,1,0,1.5,0,54,Crab,Creatures,13,20,6,9.62,7.21,0,7.21,7.21,no,0.8833,0.250,0.333
-reason,sharp eye,1,0,1.5,0,55,Snail,Creatures,15,17,5,10.13,7.10,2,7.10,7.10,no,0.6167,1.417,0.583
-reason,sharp eye,1,0,1.5,0,56,Bird,Creatures,13,21,6,7.16,7.59,0,7.32,7.32,no,1.0000,0.000,0.000
-reason,sharp eye,1,0,1.5,0,57,Owl,Creatures,16,24,6,8.14,6.33,0,6.33,6.33,no,1.0000,0.000,0.000
-reason,sharp eye,1,0,1.5,0,58,Cat,Creatures,13,16,6,9.00,9.72,3,9.00,9.00,no,0.9000,0.350,0.133
-reason,sharp eye,1,0,1.5,0,59,Dog,Creatures,14,23,6,7.65,7.36,0,7.36,7.36,no,1.0000,0.000,0.000
-reason,sharp eye,1,0,1.5,0,60,Bunny,Creatures,17,27,7,6.02,5.41,0,6.14,6.14,no,1.0000,0.000,0.000
-reason,sharp eye,1,0,1.5,0,61,Frog,Creatures,12,16,6,8.75,6.85,2,7.46,7.46,yes,0.2000,5.583,1.567
-reason,sharp eye,1,0,1.5,0,62,Turtle,Creatures,15,23,6,7.85,8.55,0,7.85,7.85,no,1.0000,0.000,0.050
+reason,sharp eye,1,0,1.5,0,48,Wrench,Everyday Things,12,16,5,6.83,7.09,0,6.97,6.97,no,1.0000,0.000,0.017
+reason,sharp eye,1,0,1.5,0,49,Candle,Everyday Things,9,12,3,12.85,8.73,0,8.73,8.73,no,0.9667,0.083,0.217
+reason,sharp eye,1,0,1.5,0,50,Drum,Everyday Things,13,22,6,5.55,5.00,0,5.00,5.00,no,1.0000,0.000,0.050
+reason,sharp eye,1,0,1.5,0,51,Camera,Everyday Things,13,26,6,5.31,5.33,0,5.31,5.31,no,1.0000,0.000,0.000
+reason,sharp eye,1,0,1.5,0,52,Lantern,Everyday Things,14,21,5,7.54,7.18,0,7.18,7.18,no,1.0000,0.000,0.000
+reason,sharp eye,1,0,1.5,0,53,Fish,Creatures,11,28,6,7.13,7.00,0,7.16,7.16,no,1.0000,0.000,0.000
+reason,sharp eye,1,0,1.5,0,54,Crab,Creatures,11,20,6,7.41,6.33,0,6.33,6.33,no,1.0000,0.000,0.000
+reason,sharp eye,1,0,1.5,0,55,Snail,Creatures,13,17,5,9.93,7.00,0,7.00,7.00,no,0.9833,0.033,0.017
+reason,sharp eye,1,0,1.5,0,56,Bird,Creatures,13,21,6,7.83,7.33,0,7.33,7.33,no,0.9667,0.083,0.017
+reason,sharp eye,1,0,1.5,0,57,Owl,Creatures,12,24,6,4.55,5.00,0,4.55,4.55,no,0.9667,0.067,0.050
+reason,sharp eye,1,0,1.5,0,58,Cat,Creatures,10,16,6,9.67,8.85,0,9.60,9.60,no,1.0000,0.000,0.000
+reason,sharp eye,1,0,1.5,0,59,Dog,Creatures,13,23,6,7.18,7.83,0,7.18,7.18,no,0.9333,0.217,0.033
+reason,sharp eye,1,0,1.5,0,60,Bunny,Creatures,15,27,7,6.02,5.41,0,6.14,6.14,no,0.9667,0.100,0.017
+reason,sharp eye,1,0,1.5,0,61,Frog,Creatures,10,16,6,7.01,7.00,0,7.00,7.00,no,0.9333,0.150,0.350
+reason,sharp eye,1,0,1.5,0,62,Turtle,Creatures,15,23,6,8.81,7.55,0,7.55,7.55,no,0.9833,0.033,0.017
 reason,sharp eye,1,0,1.5,0,63,Whale,Creatures,17,25,5,9.74,7.38,0,7.38,7.38,no,1.0000,0.000,0.000
-reason,sharp eye,1,0,1.5,0,64,Bee,Creatures,16,25,6,7.24,7.52,0,7.52,7.52,no,0.6833,1.217,0.417
+reason,sharp eye,1,0,1.5,0,64,Bee,Creatures,15,25,6,9.14,7.18,0,7.18,7.18,no,0.9833,0.033,0.017
 reason,sharp eye,1,0,1.5,0,65,Ant,Creatures,8,14,6,8.44,9.09,0,8.72,8.72,no,1.0000,0.000,0.033
-reason,sharp eye,1,0,1.5,0,66,Spider,Creatures,16,18,6,10.49,7.29,4,7.29,7.29,yes,0.2833,2.917,1.967
-reason,sharp eye,1,0,1.5,0,67,Butterfly,Creatures,14,15,5,9.94,7.26,3,7.26,7.26,no,0.0000,8.067,1.483
-reason,sharp eye,1,0,1.5,0,68,Snake,Creatures,19,20,5,8.56,4.99,3,4.99,4.99,no,0.1667,5.817,2.083
-reason,sharp eye,1,0,1.5,0,69,Penguin,Creatures,17,21,7,7.30,6.60,2,6.60,6.60,no,0.6167,1.167,0.483
-reason,sharp eye,1,0,1.5,0,70,Fox,Creatures,15,17,5,6.52,7.20,3,6.52,6.52,no,0.5500,1.967,0.900
-reason,sharp eye,1,0,1.5,0,71,Lighthouse,Landmarks,19,26,6,5.97,5.74,0,5.74,5.74,no,0.5833,1.350,0.700
-reason,sharp eye,1,0,1.5,0,72,Windmill,Landmarks,15,17,5,7.20,6.34,3,6.34,6.34,no,0.7333,0.917,0.767
-reason,sharp eye,1,0,1.5,0,73,Sailboat,Landmarks,16,18,5,9.46,7.33,3,7.33,7.33,no,0.5833,1.833,0.717
-reason,sharp eye,1,0,1.5,0,74,Castle,Landmarks,18,20,7,6.11,6.52,5,6.52,6.52,yes,0.2167,6.050,2.417
-reason,sharp eye,1,0,1.5,0,75,Church,Landmarks,19,21,5,5.79,4.88,3,4.88,4.88,no,0.1000,7.583,3.350
-reason,sharp eye,1,0,1.5,0,76,Skyline,Landmarks,22,29,6,7.26,4.75,0,4.75,4.75,no,0.9000,0.350,0.417
-reason,sharp eye,1,0,1.5,0,77,Pyramid,Landmarks,19,24,4,11.11,6.47,0,6.47,6.47,no,0.2333,6.350,1.933
-reason,sharp eye,1,0,1.5,0,78,Fountain,Landmarks,23,26,7,7.95,5.34,4,5.89,5.89,no,0.1833,7.417,2.000
-reason,sharp eye,1,0,1.5,0,79,Aqueduct,Landmarks,23,28,7,8.64,5.64,0,5.64,5.64,no,1.0000,0.000,0.000
-reason,sharp eye,1,0,1.5,0,80,Cathedral,Landmarks,21,29,6,10.19,6.72,1,6.72,6.72,no,0.4167,2.650,0.800
-reason,sharp eye,1,0,1.5,0,81,Ferris,Landmarks,22,25,8,9.15,6.73,4,6.73,6.73,no,0.4167,8.500,2.467
-reason,sharp eye,1,0,1.5,0,82,Temple,Landmarks,24,38,8,5.31,5.66,0,5.31,5.31,no,1.0000,0.000,0.017
-reason,sharp eye,1,0,1.5,0,83,Observatory,Landmarks,22,26,6,8.89,5.99,2,5.99,5.99,no,0.2833,4.517,1.483
-reason,sharp eye,1,0,1.5,0,84,Garden,Landmarks,22,26,7,8.30,4.61,3,4.61,4.61,no,0.0500,10.100,3.383
-reason,sharp eye,1,0,1.5,0,85,Harbor,Landmarks,20,23,5,7.37,5.15,1,5.15,5.15,no,0.0333,9.067,3.100
-reason,sharp eye,1,0,1.5,0,86,Waterfall,Landmarks,24,33,7,8.51,5.77,0,5.77,5.77,no,0.3500,2.983,1.283
-reason,sharp eye,1,0,1.5,0,87,Trainyard,Landmarks,26,36,6,8.48,4.88,0,4.88,4.88,no,1.0000,0.000,0.000
-reason,sharp eye,1,0,1.5,0,88,Cityscape,Landmarks,26,38,6,7.26,4.93,0,5.03,5.03,no,0.9833,0.033,0.033
-reason,sharp eye,1,0,1.5,0,89,Cascade,Mastery,16,17,7,6.45,4.54,6,4.54,4.54,no,0.3333,4.867,2.283
-reason,sharp eye,1,0,1.5,0,90,Circuit,Mastery,22,23,6,8.14,5.72,4,5.72,5.72,no,0.0333,11.700,3.783
-reason,sharp eye,1,0,1.5,0,91,Loom,Mastery,27,33,6,7.78,5.19,0,5.19,5.19,no,1.0000,0.000,0.050
-reason,sharp eye,1,0,1.5,0,92,Lattice,Mastery,27,43,7,6.66,4.50,0,4.50,4.50,no,0.8500,0.533,0.400
-reason,sharp eye,1,0,1.5,0,93,Reactor,Mastery,28,40,8,4.80,4.24,0,4.25,4.25,no,0.9667,0.067,0.133
-reason,sharp eye,1,0,1.5,0,94,Palace,Mastery,27,28,7,4.28,4.28,6,4.28,4.28,no,0.0167,14.483,4.700
-reason,sharp eye,1,0,1.5,0,95,Carousel,Mastery,28,37,6,4.27,4.37,0,4.27,4.27,no,0.1333,3.900,2.100
-reason,sharp eye,1,0,1.5,0,96,Organ,Mastery,28,35,7,4.83,4.65,0,4.65,4.65,no,0.2333,5.150,1.933
-reason,sharp eye,1,0,1.5,0,97,Citadel,Mastery,29,31,8,5.67,4.29,6,4.63,4.63,no,0.0000,26.100,8.383
-reason,sharp eye,1,0,1.5,0,98,Colossus,Mastery,29,42,10,4.34,4.36,2,4.36,4.36,no,0.7667,0.550,0.250
-reason,sharp eye,1,0,1.5,0,99,Vault,Mastery,30,37,6,6.11,4.22,0,4.22,4.22,no,0.9333,0.183,0.267
-reason,sharp eye,1,0,1.5,0,100,Mandala,Mastery,30,37,6,5.77,4.05,0,4.05,4.05,no,0.4167,1.917,1.750
+reason,sharp eye,1,0,1.5,0,66,Spider,Creatures,13,18,6,6.14,5.56,0,5.56,5.56,no,1.0000,0.000,0.000
+reason,sharp eye,1,0,1.5,0,67,Butterfly,Creatures,13,15,5,9.89,7.90,1,9.21,9.21,no,0.9667,0.233,0.583
+reason,sharp eye,1,0,1.5,0,68,Snake,Creatures,14,20,5,5.70,5.33,0,5.33,5.33,no,1.0000,0.000,0.000
+reason,sharp eye,1,0,1.5,0,69,Penguin,Creatures,13,21,7,7.30,6.60,0,6.60,6.60,no,0.8500,0.317,0.150
+reason,sharp eye,1,0,1.5,0,70,Fox,Creatures,12,17,5,11.56,7.46,1,7.46,7.46,no,0.7667,0.717,0.267
+reason,sharp eye,1,0,1.5,0,71,Lighthouse,Landmarks,13,26,6,5.97,5.74,0,5.74,5.74,no,1.0000,0.000,0.000
+reason,sharp eye,1,0,1.5,0,72,Windmill,Landmarks,12,17,5,7.02,6.64,2,6.64,6.64,no,1.0000,0.000,0.000
+reason,sharp eye,1,0,1.5,0,73,Sailboat,Landmarks,9,18,5,9.46,7.33,0,7.33,7.33,no,1.0000,0.000,0.000
+reason,sharp eye,1,0,1.5,0,74,Castle,Landmarks,13,20,7,7.06,5.68,0,5.68,5.68,no,0.9333,0.150,0.233
+reason,sharp eye,1,0,1.5,0,75,Church,Landmarks,13,21,5,5.79,4.88,0,4.88,4.88,no,1.0000,0.000,0.050
+reason,sharp eye,1,0,1.5,0,76,Skyline,Landmarks,19,29,6,6.19,4.66,0,4.66,4.66,no,0.9833,0.033,0.033
+reason,sharp eye,1,0,1.5,0,77,Pyramid,Landmarks,14,24,4,13.08,6.37,0,6.37,6.37,no,0.9500,0.100,0.000
+reason,sharp eye,1,0,1.5,0,78,Fountain,Landmarks,16,26,7,5.97,5.03,0,5.64,5.64,no,1.0000,0.000,0.000
+reason,sharp eye,1,0,1.5,0,79,Aqueduct,Landmarks,19,28,7,7.78,5.00,0,5.00,5.00,no,0.9667,0.067,0.050
+reason,sharp eye,1,0,1.5,0,80,Cathedral,Landmarks,19,29,6,7.95,4.94,0,4.94,4.94,no,1.0000,0.000,0.000
+reason,sharp eye,1,0,1.5,0,81,Ferris,Landmarks,19,25,8,6.94,6.20,0,6.20,6.20,no,1.0000,0.000,0.000
+reason,sharp eye,1,0,1.5,0,82,Temple,Landmarks,16,38,8,6.20,5.25,0,5.25,5.25,no,1.0000,0.000,0.000
+reason,sharp eye,1,0,1.5,0,83,Observatory,Landmarks,19,26,6,9.26,6.27,0,6.61,6.61,no,0.6000,1.250,0.400
+reason,sharp eye,1,0,1.5,0,84,Garden,Landmarks,15,26,7,8.30,4.61,0,4.64,4.64,no,0.9833,0.033,0.017
+reason,sharp eye,1,0,1.5,0,85,Harbor,Landmarks,14,23,5,8.99,4.76,0,4.76,4.76,no,0.9667,0.067,0.067
+reason,sharp eye,1,0,1.5,0,86,Waterfall,Landmarks,17,33,7,7.53,4.85,0,4.85,4.85,no,1.0000,0.000,0.000
+reason,sharp eye,1,0,1.5,0,87,Trainyard,Landmarks,18,36,6,8.48,4.88,0,4.88,4.88,no,1.0000,0.000,0.000
+reason,sharp eye,1,0,1.5,0,88,Cityscape,Landmarks,23,38,6,7.26,4.93,0,5.03,5.03,no,0.9833,0.033,0.017
+reason,sharp eye,1,0,1.5,0,89,Cascade,Mastery,11,17,7,6.43,4.52,1,4.52,4.52,no,0.7667,0.467,0.300
+reason,sharp eye,1,0,1.5,0,90,Circuit,Mastery,17,23,6,7.77,5.26,0,5.26,5.26,no,1.0000,0.000,0.000
+reason,sharp eye,1,0,1.5,0,91,Loom,Mastery,16,33,6,7.78,5.19,0,5.19,5.19,no,0.9833,0.033,0.033
+reason,sharp eye,1,0,1.5,0,92,Lattice,Mastery,16,43,7,7.25,4.45,0,4.45,4.45,no,0.9833,0.033,0.033
+reason,sharp eye,1,0,1.5,0,93,Reactor,Mastery,17,40,8,3.89,4.31,0,4.03,4.03,no,0.9500,0.100,0.067
+reason,sharp eye,1,0,1.5,0,94,Palace,Mastery,17,28,7,4.68,4.68,0,4.68,4.68,no,1.0000,0.000,0.000
+reason,sharp eye,1,0,1.5,0,95,Carousel,Mastery,19,37,6,4.38,4.67,0,4.38,4.38,no,0.9500,0.100,0.050
+reason,sharp eye,1,0,1.5,0,96,Organ,Mastery,19,35,7,4.83,4.65,0,4.83,4.83,no,1.0000,0.000,0.000
+reason,sharp eye,1,0,1.5,0,97,Citadel,Mastery,20,31,8,4.40,4.43,0,4.40,4.40,no,0.9833,0.033,0.017
+reason,sharp eye,1,0,1.5,0,98,Colossus,Mastery,18,42,10,4.34,4.36,0,4.36,4.36,no,0.9333,0.133,0.050
+reason,sharp eye,1,0,1.5,0,99,Vault,Mastery,19,37,6,4.25,4.50,0,4.50,4.50,no,0.9667,0.067,0.100
+reason,sharp eye,1,0,1.5,0,100,Mandala,Mastery,17,37,6,5.68,3.92,0,3.92,3.92,no,0.9000,0.217,0.217
 reason,sharp eye,1,0,1.5,0,101,Screwdriver,Workshop,14,23,6,4.72,4.72,0,4.72,4.72,no,0.9833,0.033,0.067
 reason,sharp eye,1,0,1.5,0,102,Try Square,Workshop,14,28,6,5.27,4.56,0,4.56,4.56,no,1.0000,0.000,0.000
 reason,sharp eye,1,0,1.5,0,103,Oil Can,Workshop,15,26,6,4.61,4.61,0,4.61,4.61,no,1.0000,0.000,0.017
@@ -318,8 +318,8 @@ reason,sharp eye,1,0,1.5,0,116,Lathe,Workshop,17,31,8,4.57,4.57,0,4.57,4.57,no,0
 reason,sharp eye,1,0,1.5,0,117,Bandsaw,Workshop,18,30,8,5.62,5.62,0,5.62,5.62,no,1.0000,0.000,0.017
 reason,sharp eye,1,0,1.5,0,118,Hand Plane,Workshop,18,27,8,7.60,4.62,0,4.62,4.62,no,1.0000,0.000,0.000
 reason,sharp eye,1,0,1.5,0,119,Belt Sander,Workshop,20,32,8,4.51,4.51,0,4.51,4.51,no,0.9833,0.033,0.117
-reason,sharp eye,1,0,1.5,0,120,Workbench,Workshop,21,32,8,4.51,4.51,1,4.51,4.51,no,0.9667,0.067,0.283
-reason,sharp eye,1,0,1.5,0,121,Metronome,Orchestra,17,27,7,6.33,5.63,0,5.63,5.63,no,0.7667,0.483,0.483
+reason,sharp eye,1,0,1.5,0,120,Workbench,Workshop,21,32,8,4.51,4.51,1,4.51,4.51,no,0.9667,0.067,0.300
+reason,sharp eye,1,0,1.5,0,121,Metronome,Orchestra,17,27,7,6.33,5.63,0,5.63,5.63,no,0.7833,0.433,0.483
 reason,sharp eye,1,0,1.5,0,122,Music Stand,Orchestra,17,32,7,5.20,5.20,0,5.20,5.20,no,1.0000,0.000,0.000
 reason,sharp eye,1,0,1.5,0,123,Music Note,Orchestra,16,24,7,4.00,4.24,0,4.00,4.00,no,0.8833,0.233,0.233
 reason,sharp eye,1,0,1.5,0,124,Cymbal,Orchestra,16,35,7,4.21,4.21,0,4.21,4.21,no,0.9833,0.033,0.050
@@ -330,12 +330,12 @@ reason,sharp eye,1,0,1.5,0,128,Microphone,Orchestra,18,28,8,5.41,5.41,0,5.41,5.4
 reason,sharp eye,1,0,1.5,0,129,Xylophone,Orchestra,21,30,8,5.25,5.25,0,5.25,5.25,no,0.9500,0.217,0.083
 reason,sharp eye,1,0,1.5,0,130,Accordion,Orchestra,16,32,8,4.74,4.74,0,4.74,4.74,no,1.0000,0.000,0.000
 reason,sharp eye,1,0,1.5,0,131,Amplifier,Orchestra,24,33,8,5.55,5.54,0,5.54,5.54,no,0.9833,0.050,0.050
-reason,sharp eye,1,0,1.5,0,132,Guitar,Orchestra,19,30,8,5.55,5.55,0,5.55,5.55,no,0.9000,0.267,0.133
+reason,sharp eye,1,0,1.5,0,132,Guitar,Orchestra,19,30,8,5.55,5.55,0,5.55,5.55,no,0.9000,0.233,0.150
 reason,sharp eye,1,0,1.5,0,133,Cello,Orchestra,18,33,8,5.40,5.40,0,5.40,5.40,no,0.9833,0.033,0.000
 reason,sharp eye,1,0,1.5,0,134,Banjo,Orchestra,20,35,8,4.94,4.94,0,4.94,4.94,no,0.9667,0.067,0.050
 reason,sharp eye,1,0,1.5,0,135,Trombone,Orchestra,20,34,8,4.91,4.91,0,4.91,4.91,no,0.9667,0.100,0.067
 reason,sharp eye,1,0,1.5,0,136,Violin Case,Orchestra,21,32,9,5.38,5.38,0,5.38,5.38,no,0.9333,0.167,0.183
-reason,sharp eye,1,0,1.5,0,137,Saxophone,Orchestra,18,33,9,4.50,4.35,0,4.35,4.35,no,0.8500,0.450,0.183
+reason,sharp eye,1,0,1.5,0,137,Saxophone,Orchestra,19,33,9,4.50,4.35,1,4.35,4.35,no,0.9000,0.200,0.800
 reason,sharp eye,1,0,1.5,0,138,Bagpipes,Orchestra,21,34,9,4.82,4.82,0,4.82,4.82,no,1.0000,0.000,0.050
 reason,sharp eye,1,0,1.5,0,139,Tuba,Orchestra,19,36,9,4.48,4.48,0,4.48,4.48,no,0.9833,0.033,0.050
 reason,sharp eye,1,0,1.5,0,140,Piano,Orchestra,20,34,9,5.80,4.35,0,4.35,4.35,no,0.9500,0.100,0.117
@@ -345,7 +345,7 @@ reason,sharp eye,1,0,1.5,0,143,Switch,Circuitry,17,29,7,6.15,4.04,0,4.04,4.04,no
 reason,sharp eye,1,0,1.5,0,144,Battery,Circuitry,18,32,7,4.82,4.82,0,4.82,4.82,no,0.9833,0.033,0.017
 reason,sharp eye,1,0,1.5,0,145,Resistor,Circuitry,18,29,8,4.51,4.51,0,4.51,4.51,no,0.9833,0.033,0.083
 reason,sharp eye,1,0,1.5,0,146,Capacitor,Circuitry,18,34,8,4.64,4.04,0,4.04,4.04,no,0.9333,0.150,0.150
-reason,sharp eye,1,0,1.5,0,147,Plug,Circuitry,19,30,8,4.71,4.71,0,4.71,4.71,no,0.7000,0.767,0.683
+reason,sharp eye,1,0,1.5,0,147,Plug,Circuitry,19,30,8,4.71,4.71,0,4.71,4.71,no,0.7000,0.650,0.683
 reason,sharp eye,1,0,1.5,0,148,Relay,Circuitry,26,37,8,4.76,4.76,0,4.76,4.76,no,1.0000,0.000,0.017
 reason,sharp eye,1,0,1.5,0,149,Speaker,Circuitry,24,37,8,6.55,4.62,0,4.62,4.62,no,0.9167,0.183,0.133
 reason,sharp eye,1,0,1.5,0,150,Transformer,Circuitry,20,39,9,4.32,4.32,0,4.32,4.32,no,0.9667,0.067,0.133
@@ -355,10 +355,10 @@ reason,sharp eye,1,0,1.5,0,153,Radar Dish,Circuitry,20,35,9,4.38,4.38,0,4.38,4.3
 reason,sharp eye,1,0,1.5,0,154,Junction Box,Circuitry,21,34,9,4.32,4.32,0,4.32,4.32,no,0.9167,0.167,0.150
 reason,sharp eye,1,0,1.5,0,155,Patch Bay,Circuitry,22,36,9,4.72,4.72,0,4.72,4.72,no,1.0000,0.000,0.050
 reason,sharp eye,1,0,1.5,0,156,Server Rack,Circuitry,24,40,9,4.65,4.54,0,4.54,4.54,no,0.9833,0.033,0.100
-reason,sharp eye,1,0,1.5,0,157,Microchip,Circuitry,21,32,10,6.24,4.58,0,4.58,4.58,no,0.9500,0.183,0.200
-reason,sharp eye,1,0,1.5,0,158,Power Strip,Circuitry,21,36,10,4.36,4.36,0,4.36,4.36,no,0.9333,0.200,0.217
+reason,sharp eye,1,0,1.5,0,157,Microchip,Circuitry,21,32,10,6.24,4.58,0,4.58,4.58,no,0.9500,0.267,0.167
+reason,sharp eye,1,0,1.5,0,158,Power Strip,Circuitry,22,36,10,4.36,4.36,0,4.36,4.36,no,0.9000,0.283,0.267
 reason,sharp eye,1,0,1.5,0,159,Oscilloscope,Circuitry,26,40,10,4.58,4.58,0,4.58,4.58,no,0.9667,0.083,0.083
-reason,sharp eye,1,0,1.5,0,160,Motherboard,Circuitry,22,37,10,4.51,4.51,0,4.51,4.51,no,0.9167,0.217,0.783
+reason,sharp eye,1,0,1.5,0,160,Motherboard,Circuitry,22,37,10,4.51,4.51,0,4.51,4.51,no,0.9333,0.167,0.783
 reason,sharp eye,1,0,1.5,0,161,Staircase,Interiors,20,30,8,4.51,4.51,0,4.51,4.51,no,0.9167,0.183,0.233
 reason,sharp eye,1,0,1.5,0,162,Bookshelf,Interiors,22,41,8,4.34,4.34,0,4.34,4.34,no,0.9833,0.033,0.050
 reason,sharp eye,1,0,1.5,0,163,Colonnade,Interiors,22,41,8,7.09,4.94,0,4.94,4.94,no,0.9833,0.050,0.083
@@ -375,7 +375,7 @@ reason,sharp eye,1,0,1.5,0,173,Atrium,Interiors,26,41,9,4.34,4.34,0,4.34,4.34,no
 reason,sharp eye,1,0,1.5,0,174,Rafters,Interiors,22,41,9,4.36,4.36,0,4.36,4.36,no,0.9500,0.100,0.167
 reason,sharp eye,1,0,1.5,0,175,Curtain,Interiors,22,42,10,4.61,4.61,0,4.61,4.61,no,0.9833,0.033,0.050
 reason,sharp eye,1,0,1.5,0,176,Elevator,Interiors,23,42,10,4.51,4.51,0,4.51,4.51,no,0.9667,0.117,0.150
-reason,sharp eye,1,0,1.5,0,177,Banister,Interiors,23,38,10,4.08,4.40,1,4.40,4.40,no,0.6333,1.117,0.583
+reason,sharp eye,1,0,1.5,0,177,Banister,Interiors,24,38,10,4.08,4.40,1,4.40,4.40,no,0.6833,1.067,0.833
 reason,sharp eye,1,0,1.5,0,178,Landing,Interiors,18,34,10,4.58,4.21,0,4.21,4.21,no,1.0000,0.000,0.067
 reason,sharp eye,1,0,1.5,0,179,Stove,Interiors,19,39,10,4.08,4.08,0,4.08,4.08,no,0.8667,0.283,0.350
 reason,sharp eye,1,0,1.5,0,180,Dome,Interiors,22,41,10,4.04,4.04,0,4.04,4.04,no,0.9500,0.100,0.183
@@ -426,79 +426,79 @@ reason,typical eye,2,0,1.5,0,24,Hammer,Crossings,6,13,3,7.91,7.91,0,7.91,7.91,no
 reason,typical eye,2,0,1.5,0,25,Key,Crossings,7,10,3,15.08,8.72,0,8.72,8.72,no,0.9833,0.033,0.033
 reason,typical eye,2,0,1.5,0,26,Lamp,Crossings,7,13,3,12.25,7.46,0,7.46,7.46,no,0.9667,0.067,0.033
 reason,typical eye,2,0,1.5,0,27,Fork,Crossings,7,14,4,12.03,8.06,0,8.06,8.06,no,0.9667,0.067,0.000
-reason,typical eye,2,0,1.5,0,28,Swing,Crossings,8,12,4,11.12,8.50,0,8.50,8.50,no,0.8500,0.567,0.100
+reason,typical eye,2,0,1.5,0,28,Swing,Crossings,8,12,4,11.12,8.50,0,8.50,8.50,no,0.6500,1.233,0.100
 reason,typical eye,2,0,1.5,0,29,Window,Crossings,8,16,5,7.69,7.71,0,7.69,7.69,no,0.9667,0.117,0.033
 reason,typical eye,2,0,1.5,0,30,Ladder,Crossings,8,12,4,8.16,7.75,0,7.80,7.80,no,1.0000,0.000,0.000
 reason,typical eye,2,0,1.5,0,31,Flag,Crossings,8,14,3,14.71,9.10,0,9.10,9.10,no,1.0000,0.000,0.000
 reason,typical eye,2,0,1.5,0,32,Rake,Crossings,9,17,5,10.51,6.43,0,6.43,6.43,no,0.9833,0.033,0.033
 reason,typical eye,2,0,1.5,0,33,House,Everyday Things,9,24,5,5.96,4.58,0,4.58,4.58,no,0.9000,0.200,0.233
-reason,typical eye,2,0,1.5,0,34,Boat,Everyday Things,9,17,5,9.17,6.40,0,6.40,6.40,no,0.9833,0.033,0.050
+reason,typical eye,2,0,1.5,0,34,Boat,Everyday Things,9,17,5,7.64,6.12,0,6.12,6.12,no,0.9667,0.067,0.050
 reason,typical eye,2,0,1.5,0,35,Tree,Everyday Things,9,19,4,9.09,7.58,0,7.58,7.58,no,0.8833,0.233,0.033
-reason,typical eye,2,0,1.5,0,36,Rocket,Everyday Things,10,14,4,9.27,7.12,2,7.12,7.12,yes,0.1000,3.483,2.300
-reason,typical eye,2,0,1.5,0,37,Bridge,Everyday Things,10,17,3,8.98,6.30,0,6.30,6.30,no,0.8167,0.483,0.317
+reason,typical eye,2,0,1.5,0,36,Rocket,Everyday Things,8,14,4,7.08,7.08,0,7.08,7.08,no,0.8167,0.400,0.283
+reason,typical eye,2,0,1.5,0,37,Bridge,Everyday Things,10,17,3,9.17,6.42,0,6.42,6.42,no,0.8833,0.317,0.200
 reason,typical eye,2,0,1.5,0,38,Train,Everyday Things,10,21,5,9.15,7.67,0,7.67,7.67,no,0.9833,0.033,0.017
-reason,typical eye,2,0,1.5,0,39,Truck,Everyday Things,10,16,4,14.95,8.05,0,8.05,8.05,no,0.9500,0.100,0.067
-reason,typical eye,2,0,1.5,0,40,Clock,Everyday Things,11,19,5,11.25,5.95,0,6.43,6.43,no,0.9667,0.100,0.050
-reason,typical eye,2,0,1.5,0,41,Bell,Everyday Things,9,13,4,7.10,7.45,1,7.45,7.45,no,0.5667,1.250,0.433
-reason,typical eye,2,0,1.5,0,42,Cup,Everyday Things,12,16,4,13.35,7.27,1,7.27,7.27,no,0.5167,1.383,0.400
-reason,typical eye,2,0,1.5,0,43,Bottle,Everyday Things,12,22,6,6.92,6.68,0,6.92,6.92,no,0.8500,0.467,0.150
-reason,typical eye,2,0,1.5,0,44,Envelope,Everyday Things,12,21,5,7.14,7.22,0,7.22,7.22,no,0.9833,0.033,0.067
+reason,typical eye,2,0,1.5,0,39,Truck,Everyday Things,10,16,4,9.09,8.03,0,8.03,8.03,no,0.9667,0.083,0.100
+reason,typical eye,2,0,1.5,0,40,Clock,Everyday Things,10,19,5,10.28,5.76,0,6.13,6.13,no,0.9667,0.067,0.083
+reason,typical eye,2,0,1.5,0,41,Bell,Everyday Things,7,13,4,7.10,7.45,0,7.45,7.45,no,0.9333,0.133,0.033
+reason,typical eye,2,0,1.5,0,42,Cup,Everyday Things,10,16,4,11.74,7.25,0,7.25,7.25,no,0.8833,0.333,0.100
+reason,typical eye,2,0,1.5,0,43,Bottle,Everyday Things,11,22,6,7.24,6.68,0,7.24,7.24,no,0.8667,0.367,0.000
+reason,typical eye,2,0,1.5,0,44,Envelope,Everyday Things,11,21,5,7.37,7.33,0,7.33,7.33,no,0.9333,0.133,0.033
 reason,typical eye,2,0,1.5,0,45,Book,Everyday Things,12,24,5,6.90,6.22,0,6.22,6.22,no,0.9000,0.283,0.200
 reason,typical eye,2,0,1.5,0,46,Pencil,Everyday Things,13,19,3,15.70,7.33,0,7.33,7.33,no,0.9667,0.067,0.100
 reason,typical eye,2,0,1.5,0,47,Anchor,Everyday Things,12,17,5,12.79,5.10,0,5.23,5.23,no,0.7667,0.600,0.533
-reason,typical eye,2,0,1.5,0,48,Wrench,Everyday Things,13,16,5,6.83,7.09,0,6.97,6.97,no,0.4833,2.017,0.700
-reason,typical eye,2,0,1.5,0,49,Candle,Everyday Things,10,12,3,12.85,8.73,1,8.73,8.73,no,0.4667,2.300,0.617
-reason,typical eye,2,0,1.5,0,50,Drum,Everyday Things,14,22,6,6.16,5.42,0,6.16,6.16,no,0.9167,0.200,0.100
-reason,typical eye,2,0,1.5,0,51,Camera,Everyday Things,14,26,6,6.75,6.57,0,6.64,6.64,no,0.9333,0.200,0.150
-reason,typical eye,2,0,1.5,0,52,Lantern,Everyday Things,15,21,5,7.55,6.99,0,7.22,7.22,no,1.0000,0.000,0.033
-reason,typical eye,2,0,1.5,0,53,Fish,Creatures,15,28,6,7.30,7.33,0,7.33,7.33,no,0.9500,0.100,0.067
-reason,typical eye,2,0,1.5,0,54,Crab,Creatures,13,20,6,9.62,7.21,0,7.21,7.21,no,0.5167,1.667,0.667
-reason,typical eye,2,0,1.5,0,55,Snail,Creatures,15,17,5,10.13,7.10,2,7.10,7.10,no,0.1833,4.367,1.467
-reason,typical eye,2,0,1.5,0,56,Bird,Creatures,13,21,6,7.16,7.59,0,7.32,7.32,no,0.8333,0.483,0.350
-reason,typical eye,2,0,1.5,0,57,Owl,Creatures,16,24,6,8.14,6.33,0,6.33,6.33,no,0.8833,0.267,0.200
-reason,typical eye,2,0,1.5,0,58,Cat,Creatures,13,16,6,9.00,9.72,3,9.00,9.00,no,0.3667,3.717,1.100
-reason,typical eye,2,0,1.5,0,59,Dog,Creatures,14,23,6,7.65,7.36,0,7.36,7.36,no,1.0000,0.000,0.050
-reason,typical eye,2,0,1.5,0,60,Bunny,Creatures,17,27,7,6.02,5.41,0,6.14,6.14,no,0.9500,0.183,0.200
-reason,typical eye,2,0,1.5,0,61,Frog,Creatures,12,16,6,8.75,6.85,2,7.46,7.46,yes,0.0667,7.050,1.917
-reason,typical eye,2,0,1.5,0,62,Turtle,Creatures,15,23,6,7.85,8.55,0,7.85,7.85,no,0.6333,0.967,0.500
+reason,typical eye,2,0,1.5,0,48,Wrench,Everyday Things,12,16,5,6.83,7.09,0,6.97,6.97,no,0.8167,0.383,0.117
+reason,typical eye,2,0,1.5,0,49,Candle,Everyday Things,9,12,3,12.85,8.73,0,8.73,8.73,no,0.8333,0.483,0.200
+reason,typical eye,2,0,1.5,0,50,Drum,Everyday Things,13,22,6,5.55,5.00,0,5.00,5.00,no,0.8167,0.450,0.400
+reason,typical eye,2,0,1.5,0,51,Camera,Everyday Things,13,26,6,5.31,5.33,0,5.31,5.31,no,0.8000,0.467,0.300
+reason,typical eye,2,0,1.5,0,52,Lantern,Everyday Things,14,21,5,7.54,7.18,0,7.18,7.18,no,0.9000,0.233,0.133
+reason,typical eye,2,0,1.5,0,53,Fish,Creatures,11,28,6,7.13,7.00,0,7.16,7.16,no,0.9667,0.067,0.033
+reason,typical eye,2,0,1.5,0,54,Crab,Creatures,11,20,6,7.41,6.33,0,6.33,6.33,no,0.8333,0.450,0.283
+reason,typical eye,2,0,1.5,0,55,Snail,Creatures,13,17,5,9.93,7.00,0,7.00,7.00,no,0.9167,0.183,0.183
+reason,typical eye,2,0,1.5,0,56,Bird,Creatures,13,21,6,7.83,7.33,0,7.33,7.33,no,0.8167,0.500,0.233
+reason,typical eye,2,0,1.5,0,57,Owl,Creatures,12,24,6,4.55,5.00,0,4.55,4.55,no,0.6333,0.817,0.583
+reason,typical eye,2,0,1.5,0,58,Cat,Creatures,10,16,6,9.67,8.85,0,9.60,9.60,no,0.9833,0.050,0.033
+reason,typical eye,2,0,1.5,0,59,Dog,Creatures,13,23,6,7.18,7.83,0,7.18,7.18,no,0.6167,1.233,0.333
+reason,typical eye,2,0,1.5,0,60,Bunny,Creatures,15,27,7,6.02,5.41,0,6.14,6.14,no,0.6833,1.000,0.400
+reason,typical eye,2,0,1.5,0,61,Frog,Creatures,10,16,6,7.01,7.00,0,7.00,7.00,no,0.7167,0.800,0.450
+reason,typical eye,2,0,1.5,0,62,Turtle,Creatures,15,23,6,8.81,7.55,0,7.55,7.55,no,0.7667,0.700,0.283
 reason,typical eye,2,0,1.5,0,63,Whale,Creatures,17,25,5,9.74,7.38,0,7.38,7.38,no,0.9167,0.183,0.183
-reason,typical eye,2,0,1.5,0,64,Bee,Creatures,16,25,6,7.24,7.52,0,7.52,7.52,no,0.2833,3.417,1.233
-reason,typical eye,2,0,1.5,0,65,Ant,Creatures,8,14,6,8.44,9.09,0,8.72,8.72,no,0.8333,0.617,0.433
-reason,typical eye,2,0,1.5,0,66,Spider,Creatures,16,18,6,10.49,7.29,4,7.29,7.29,yes,0.0333,6.583,2.800
-reason,typical eye,2,0,1.5,0,67,Butterfly,Creatures,14,15,5,9.94,7.26,3,7.26,7.26,no,0.0000,9.267,2.250
-reason,typical eye,2,0,1.5,0,68,Snake,Creatures,19,20,5,8.56,4.99,3,4.99,4.99,no,0.0000,11.383,2.917
-reason,typical eye,2,0,1.5,0,69,Penguin,Creatures,17,21,7,7.30,6.60,2,6.60,6.60,no,0.1000,5.917,1.517
-reason,typical eye,2,0,1.5,0,70,Fox,Creatures,15,17,5,6.52,7.20,3,6.52,6.52,no,0.1000,6.717,2.350
-reason,typical eye,2,0,1.5,0,71,Lighthouse,Landmarks,19,26,6,5.97,5.74,0,5.74,5.74,no,0.2833,3.100,0.883
-reason,typical eye,2,0,1.5,0,72,Windmill,Landmarks,15,17,5,7.20,6.34,3,6.34,6.34,no,0.1500,5.433,1.800
-reason,typical eye,2,0,1.5,0,73,Sailboat,Landmarks,16,18,5,9.46,7.33,3,7.33,7.33,no,0.1167,5.600,1.867
-reason,typical eye,2,0,1.5,0,74,Castle,Landmarks,18,20,7,6.11,6.52,5,6.52,6.52,yes,0.0167,10.617,3.967
-reason,typical eye,2,0,1.5,0,75,Church,Landmarks,19,21,5,5.79,4.88,3,4.88,4.88,no,0.0167,12.833,5.100
-reason,typical eye,2,0,1.5,0,76,Skyline,Landmarks,22,29,6,7.26,4.75,0,4.75,4.75,no,0.3500,3.050,1.800
-reason,typical eye,2,0,1.5,0,77,Pyramid,Landmarks,19,24,4,11.11,6.47,0,6.47,6.47,no,0.0167,11.367,3.233
-reason,typical eye,2,0,1.5,0,78,Fountain,Landmarks,23,26,7,7.95,5.34,4,5.89,5.89,no,0.0000,12.033,3.267
-reason,typical eye,2,0,1.5,0,79,Aqueduct,Landmarks,23,28,7,8.64,5.64,0,5.64,5.64,no,0.7167,1.050,0.783
-reason,typical eye,2,0,1.5,0,80,Cathedral,Landmarks,21,29,6,10.19,6.72,1,6.72,6.72,no,0.1333,5.900,1.500
-reason,typical eye,2,0,1.5,0,81,Ferris,Landmarks,22,25,8,9.15,6.73,4,6.73,6.73,no,0.0333,14.900,4.250
-reason,typical eye,2,0,1.5,0,82,Temple,Landmarks,24,38,8,5.31,5.66,0,5.31,5.31,no,0.5333,1.383,1.150
-reason,typical eye,2,0,1.5,0,83,Observatory,Landmarks,22,26,6,8.89,5.99,2,5.99,5.99,no,0.0000,11.683,3.283
-reason,typical eye,2,0,1.5,0,84,Garden,Landmarks,22,26,7,8.30,4.61,3,4.61,4.61,no,0.0333,15.133,4.267
-reason,typical eye,2,0,1.5,0,85,Harbor,Landmarks,20,23,5,7.37,5.15,1,5.15,5.15,no,0.0000,13.533,4.533
-reason,typical eye,2,0,1.5,0,86,Waterfall,Landmarks,24,33,7,8.51,5.77,0,5.77,5.77,no,0.0833,5.783,2.267
-reason,typical eye,2,0,1.5,0,87,Trainyard,Landmarks,26,36,6,8.48,4.88,0,4.88,4.88,no,0.3167,2.433,2.133
-reason,typical eye,2,0,1.5,0,88,Cityscape,Landmarks,26,38,6,7.26,4.93,0,5.03,5.03,no,0.4833,1.700,1.517
-reason,typical eye,2,0,1.5,0,89,Cascade,Mastery,16,17,7,6.45,4.54,6,4.54,4.54,no,0.0167,9.100,4.050
-reason,typical eye,2,0,1.5,0,90,Circuit,Mastery,22,23,6,8.14,5.72,4,5.72,5.72,no,0.0000,16.200,4.583
-reason,typical eye,2,0,1.5,0,91,Loom,Mastery,27,33,6,7.78,5.19,0,5.19,5.19,no,0.1500,4.633,4.217
-reason,typical eye,2,0,1.5,0,92,Lattice,Mastery,27,43,7,6.66,4.50,0,4.50,4.50,no,0.0833,5.917,5.800
-reason,typical eye,2,0,1.5,0,93,Reactor,Mastery,28,40,8,4.80,4.24,0,4.25,4.25,no,0.3167,2.167,1.983
-reason,typical eye,2,0,1.5,0,94,Palace,Mastery,27,28,7,4.28,4.28,6,4.28,4.28,no,0.0000,21.183,6.533
-reason,typical eye,2,0,1.5,0,95,Carousel,Mastery,28,37,6,4.27,4.37,0,4.27,4.27,no,0.0333,6.700,3.517
-reason,typical eye,2,0,1.5,0,96,Organ,Mastery,28,35,7,4.83,4.65,0,4.65,4.65,no,0.0333,11.267,4.133
-reason,typical eye,2,0,1.5,0,97,Citadel,Mastery,29,31,8,5.67,4.29,6,4.63,4.63,no,0.0000,27.350,8.883
-reason,typical eye,2,0,1.5,0,98,Colossus,Mastery,29,42,10,4.34,4.36,2,4.36,4.36,no,0.1333,5.900,2.917
-reason,typical eye,2,0,1.5,0,99,Vault,Mastery,30,37,6,6.11,4.22,0,4.22,4.22,no,0.1000,4.983,3.767
-reason,typical eye,2,0,1.5,0,100,Mandala,Mastery,30,37,6,5.77,4.05,0,4.05,4.05,no,0.0000,10.283,8.483
+reason,typical eye,2,0,1.5,0,64,Bee,Creatures,15,25,6,9.14,7.18,0,7.18,7.18,no,0.6500,1.183,0.333
+reason,typical eye,2,0,1.5,0,65,Ant,Creatures,8,14,6,8.44,9.09,0,8.72,8.72,no,0.7833,0.783,0.550
+reason,typical eye,2,0,1.5,0,66,Spider,Creatures,13,18,6,6.14,5.56,0,5.56,5.56,no,0.8000,0.817,0.700
+reason,typical eye,2,0,1.5,0,67,Butterfly,Creatures,13,15,5,9.89,7.90,1,9.21,9.21,no,0.6333,1.283,0.700
+reason,typical eye,2,0,1.5,0,68,Snake,Creatures,14,20,5,5.70,5.33,0,5.33,5.33,no,0.7333,0.717,0.633
+reason,typical eye,2,0,1.5,0,69,Penguin,Creatures,13,21,7,7.30,6.60,0,6.60,6.60,no,0.6000,1.083,0.483
+reason,typical eye,2,0,1.5,0,70,Fox,Creatures,12,17,5,11.56,7.46,1,7.46,7.46,no,0.4667,2.000,0.633
+reason,typical eye,2,0,1.5,0,71,Lighthouse,Landmarks,13,26,6,5.97,5.74,0,5.74,5.74,no,0.8167,0.450,0.233
+reason,typical eye,2,0,1.5,0,72,Windmill,Landmarks,12,17,5,7.02,6.64,2,6.64,6.64,no,0.8167,0.567,0.250
+reason,typical eye,2,0,1.5,0,73,Sailboat,Landmarks,9,18,5,9.46,7.33,0,7.33,7.33,no,0.9500,0.117,0.117
+reason,typical eye,2,0,1.5,0,74,Castle,Landmarks,13,20,7,7.06,5.68,0,5.68,5.68,no,0.5500,1.650,0.750
+reason,typical eye,2,0,1.5,0,75,Church,Landmarks,13,21,5,5.79,4.88,0,4.88,4.88,no,0.5833,1.467,1.150
+reason,typical eye,2,0,1.5,0,76,Skyline,Landmarks,19,29,6,6.19,4.66,0,4.66,4.66,no,0.6667,0.783,0.650
+reason,typical eye,2,0,1.5,0,77,Pyramid,Landmarks,14,24,4,13.08,6.37,0,6.37,6.37,no,0.6833,0.633,0.100
+reason,typical eye,2,0,1.5,0,78,Fountain,Landmarks,16,26,7,5.97,5.03,0,5.64,5.64,no,0.7333,0.567,0.500
+reason,typical eye,2,0,1.5,0,79,Aqueduct,Landmarks,19,28,7,7.78,5.00,0,5.00,5.00,no,0.6000,1.033,1.033
+reason,typical eye,2,0,1.5,0,80,Cathedral,Landmarks,19,29,6,7.95,4.94,0,4.94,4.94,no,0.6000,1.133,0.800
+reason,typical eye,2,0,1.5,0,81,Ferris,Landmarks,19,25,8,6.94,6.20,0,6.20,6.20,no,0.7167,0.967,0.800
+reason,typical eye,2,0,1.5,0,82,Temple,Landmarks,16,38,8,6.20,5.25,0,5.25,5.25,no,0.6333,1.300,0.617
+reason,typical eye,2,0,1.5,0,83,Observatory,Landmarks,19,26,6,9.26,6.27,0,6.61,6.61,no,0.3333,2.483,0.750
+reason,typical eye,2,0,1.5,0,84,Garden,Landmarks,15,26,7,8.30,4.61,0,4.64,4.64,no,0.4500,1.600,1.367
+reason,typical eye,2,0,1.5,0,85,Harbor,Landmarks,14,23,5,8.99,4.76,0,4.76,4.76,no,0.5000,1.767,1.033
+reason,typical eye,2,0,1.5,0,86,Waterfall,Landmarks,17,33,7,7.53,4.85,0,4.85,4.85,no,0.6333,0.867,0.700
+reason,typical eye,2,0,1.5,0,87,Trainyard,Landmarks,18,36,6,8.48,4.88,0,4.88,4.88,no,0.5333,1.550,1.167
+reason,typical eye,2,0,1.5,0,88,Cityscape,Landmarks,23,38,6,7.26,4.93,0,5.03,5.03,no,0.5667,1.250,1.250
+reason,typical eye,2,0,1.5,0,89,Cascade,Mastery,11,17,7,6.43,4.52,1,4.52,4.52,no,0.5500,1.450,0.933
+reason,typical eye,2,0,1.5,0,90,Circuit,Mastery,17,23,6,7.77,5.26,0,5.26,5.26,no,0.6333,1.083,1.000
+reason,typical eye,2,0,1.5,0,91,Loom,Mastery,16,33,6,7.78,5.19,0,5.19,5.19,no,0.5000,1.500,1.233
+reason,typical eye,2,0,1.5,0,92,Lattice,Mastery,16,43,7,7.25,4.45,0,4.45,4.45,no,0.5500,1.267,1.100
+reason,typical eye,2,0,1.5,0,93,Reactor,Mastery,17,40,8,3.89,4.31,0,4.03,4.03,no,0.5333,1.583,1.000
+reason,typical eye,2,0,1.5,0,94,Palace,Mastery,17,28,7,4.68,4.68,0,4.68,4.68,no,0.5333,1.317,1.150
+reason,typical eye,2,0,1.5,0,95,Carousel,Mastery,19,37,6,4.38,4.67,0,4.38,4.38,no,0.5833,1.583,1.233
+reason,typical eye,2,0,1.5,0,96,Organ,Mastery,19,35,7,4.83,4.65,0,4.83,4.83,no,0.5667,1.483,0.900
+reason,typical eye,2,0,1.5,0,97,Citadel,Mastery,20,31,8,4.40,4.43,0,4.40,4.40,no,0.4333,1.717,1.617
+reason,typical eye,2,0,1.5,0,98,Colossus,Mastery,18,42,10,4.34,4.36,0,4.36,4.36,no,0.3167,1.867,0.667
+reason,typical eye,2,0,1.5,0,99,Vault,Mastery,19,37,6,4.25,4.50,0,4.50,4.50,no,0.4500,2.117,1.667
+reason,typical eye,2,0,1.5,0,100,Mandala,Mastery,17,37,6,5.68,3.92,0,3.92,3.92,no,0.2667,2.600,2.583
 reason,typical eye,2,0,1.5,0,101,Screwdriver,Workshop,14,23,6,4.72,4.72,0,4.72,4.72,no,0.4833,1.483,1.483
 reason,typical eye,2,0,1.5,0,102,Try Square,Workshop,14,28,6,5.27,4.56,0,4.56,4.56,no,0.5167,1.283,1.050
 reason,typical eye,2,0,1.5,0,103,Oil Can,Workshop,15,26,6,4.61,4.61,0,4.61,4.61,no,0.5667,1.250,1.083
@@ -507,59 +507,59 @@ reason,typical eye,2,0,1.5,0,105,C Clamp,Workshop,15,29,6,4.50,4.50,0,4.50,4.50,
 reason,typical eye,2,0,1.5,0,106,Vise,Workshop,16,31,6,4.91,4.91,0,4.91,4.91,no,0.5833,1.133,0.700
 reason,typical eye,2,0,1.5,0,107,Toolbox,Workshop,16,30,7,5.44,4.61,0,4.61,4.61,no,0.4167,1.667,1.000
 reason,typical eye,2,0,1.5,0,108,Handsaw,Workshop,16,30,7,4.91,4.91,0,4.91,4.91,no,0.5500,1.367,1.050
-reason,typical eye,2,0,1.5,0,109,Pliers,Workshop,14,23,7,5.41,5.41,0,5.41,5.41,no,0.5000,1.633,1.017
+reason,typical eye,2,0,1.5,0,109,Pliers,Workshop,14,23,7,5.41,5.41,0,5.41,5.41,no,0.5000,1.950,0.900
 reason,typical eye,2,0,1.5,0,110,Level,Workshop,19,29,7,5.72,5.72,0,5.72,5.72,no,0.4500,1.767,1.017
-reason,typical eye,2,0,1.5,0,111,Tool Rack,Workshop,17,26,7,4.81,4.81,0,4.84,4.84,no,0.4667,1.850,0.967
+reason,typical eye,2,0,1.5,0,111,Tool Rack,Workshop,17,26,7,4.81,4.81,0,4.84,4.84,no,0.4667,1.900,0.950
 reason,typical eye,2,0,1.5,0,112,Pipe Clamp,Workshop,16,26,7,4.61,4.61,0,4.61,4.61,no,0.4333,1.867,1.550
 reason,typical eye,2,0,1.5,0,113,Hacksaw,Workshop,18,32,7,4.69,4.69,0,4.69,4.69,no,0.3667,1.783,1.183
 reason,typical eye,2,0,1.5,0,114,Caliper,Workshop,18,29,8,6.40,4.44,0,4.44,4.44,no,0.5000,1.733,1.817
 reason,typical eye,2,0,1.5,0,115,Grinder,Workshop,18,30,8,4.90,4.90,0,4.90,4.90,no,0.4167,2.200,2.050
 reason,typical eye,2,0,1.5,0,116,Lathe,Workshop,17,31,8,4.57,4.57,0,4.57,4.57,no,0.3000,2.050,1.883
 reason,typical eye,2,0,1.5,0,117,Bandsaw,Workshop,18,30,8,5.62,5.62,0,5.62,5.62,no,0.5500,1.267,0.833
-reason,typical eye,2,0,1.5,0,118,Hand Plane,Workshop,18,27,8,7.60,4.62,0,4.62,4.62,no,0.4833,2.300,1.533
+reason,typical eye,2,0,1.5,0,118,Hand Plane,Workshop,18,27,8,7.60,4.62,0,4.62,4.62,no,0.4833,2.317,1.533
 reason,typical eye,2,0,1.5,0,119,Belt Sander,Workshop,20,32,8,4.51,4.51,0,4.51,4.51,no,0.3500,2.117,1.983
-reason,typical eye,2,0,1.5,0,120,Workbench,Workshop,21,32,8,4.51,4.51,1,4.51,4.51,no,0.3667,2.500,2.017
-reason,typical eye,2,0,1.5,0,121,Metronome,Orchestra,17,27,7,6.33,5.63,0,5.63,5.63,no,0.3667,1.583,0.783
+reason,typical eye,2,0,1.5,0,120,Workbench,Workshop,21,32,8,4.51,4.51,1,4.51,4.51,no,0.3500,2.550,2.033
+reason,typical eye,2,0,1.5,0,121,Metronome,Orchestra,17,27,7,6.33,5.63,0,5.63,5.63,no,0.3667,1.567,0.800
 reason,typical eye,2,0,1.5,0,122,Music Stand,Orchestra,17,32,7,5.20,5.20,0,5.20,5.20,no,0.5167,2.100,1.533
 reason,typical eye,2,0,1.5,0,123,Music Note,Orchestra,16,24,7,4.00,4.24,0,4.00,4.00,no,0.4333,1.683,1.267
 reason,typical eye,2,0,1.5,0,124,Cymbal,Orchestra,16,35,7,4.21,4.21,0,4.21,4.21,no,0.4500,1.583,1.367
 reason,typical eye,2,0,1.5,0,125,Flute,Orchestra,17,27,7,4.40,4.40,0,4.40,4.40,no,0.3833,2.033,1.767
 reason,typical eye,2,0,1.5,0,126,Trumpet,Orchestra,17,29,7,7.59,4.40,0,4.40,4.40,no,0.4833,1.650,1.433
 reason,typical eye,2,0,1.5,0,127,Harp,Orchestra,22,35,7,4.84,4.84,0,4.91,4.91,no,0.5000,1.400,1.233
-reason,typical eye,2,0,1.5,0,128,Microphone,Orchestra,18,28,8,5.41,5.41,0,5.41,5.41,no,0.2833,2.617,1.817
+reason,typical eye,2,0,1.5,0,128,Microphone,Orchestra,18,28,8,5.41,5.41,0,5.41,5.41,no,0.2833,2.583,1.900
 reason,typical eye,2,0,1.5,0,129,Xylophone,Orchestra,21,30,8,5.25,5.25,0,5.25,5.25,no,0.3833,2.417,2.017
 reason,typical eye,2,0,1.5,0,130,Accordion,Orchestra,16,32,8,4.74,4.74,0,4.74,4.74,no,0.3333,2.183,1.800
 reason,typical eye,2,0,1.5,0,131,Amplifier,Orchestra,24,33,8,5.55,5.54,0,5.54,5.54,no,0.4833,2.100,1.800
-reason,typical eye,2,0,1.5,0,132,Guitar,Orchestra,19,30,8,5.55,5.55,0,5.55,5.55,no,0.3167,2.717,1.750
+reason,typical eye,2,0,1.5,0,132,Guitar,Orchestra,19,30,8,5.55,5.55,0,5.55,5.55,no,0.3167,2.600,1.817
 reason,typical eye,2,0,1.5,0,133,Cello,Orchestra,18,33,8,5.40,5.40,0,5.40,5.40,no,0.2833,2.250,1.650
 reason,typical eye,2,0,1.5,0,134,Banjo,Orchestra,20,35,8,4.94,4.94,0,4.94,4.94,no,0.4833,1.883,1.700
 reason,typical eye,2,0,1.5,0,135,Trombone,Orchestra,20,34,8,4.91,4.91,0,4.91,4.91,no,0.3667,2.583,2.200
 reason,typical eye,2,0,1.5,0,136,Violin Case,Orchestra,21,32,9,5.38,5.38,0,5.38,5.38,no,0.2833,2.767,2.250
-reason,typical eye,2,0,1.5,0,137,Saxophone,Orchestra,18,33,9,4.50,4.35,0,4.35,4.35,no,0.4000,2.500,1.433
+reason,typical eye,2,0,1.5,0,137,Saxophone,Orchestra,19,33,9,4.50,4.35,1,4.35,4.35,no,0.3167,2.567,2.117
 reason,typical eye,2,0,1.5,0,138,Bagpipes,Orchestra,21,34,9,4.82,4.82,0,4.82,4.82,no,0.2500,2.900,2.617
 reason,typical eye,2,0,1.5,0,139,Tuba,Orchestra,19,36,9,4.48,4.48,0,4.48,4.48,no,0.2833,3.000,2.567
 reason,typical eye,2,0,1.5,0,140,Piano,Orchestra,20,34,9,5.80,4.35,0,4.35,4.35,no,0.4833,1.367,0.900
 reason,typical eye,2,0,1.5,0,141,Antenna,Circuitry,16,29,7,4.62,4.62,0,4.62,4.62,no,0.4333,1.700,1.450
 reason,typical eye,2,0,1.5,0,142,Fuse,Circuitry,16,27,7,5.09,5.08,0,5.08,5.08,no,0.4833,2.083,1.700
-reason,typical eye,2,0,1.5,0,143,Switch,Circuitry,17,29,7,6.15,4.04,0,4.04,4.04,no,0.3833,2.050,1.683
+reason,typical eye,2,0,1.5,0,143,Switch,Circuitry,17,29,7,6.15,4.04,0,4.04,4.04,no,0.3833,2.100,1.683
 reason,typical eye,2,0,1.5,0,144,Battery,Circuitry,18,32,7,4.82,4.82,0,4.82,4.82,no,0.5000,1.967,1.817
 reason,typical eye,2,0,1.5,0,145,Resistor,Circuitry,18,29,8,4.51,4.51,0,4.51,4.51,no,0.3833,1.950,1.833
 reason,typical eye,2,0,1.5,0,146,Capacitor,Circuitry,18,34,8,4.64,4.04,0,4.04,4.04,no,0.2667,2.683,2.367
-reason,typical eye,2,0,1.5,0,147,Plug,Circuitry,19,30,8,4.71,4.71,0,4.71,4.71,no,0.2167,2.950,2.133
-reason,typical eye,2,0,1.5,0,148,Relay,Circuitry,26,37,8,4.76,4.76,0,4.76,4.76,no,0.4833,1.833,1.600
+reason,typical eye,2,0,1.5,0,147,Plug,Circuitry,19,30,8,4.71,4.71,0,4.71,4.71,no,0.2333,2.733,2.183
+reason,typical eye,2,0,1.5,0,148,Relay,Circuitry,26,37,8,4.76,4.76,0,4.76,4.76,no,0.4833,1.783,1.600
 reason,typical eye,2,0,1.5,0,149,Speaker,Circuitry,24,37,8,6.55,4.62,0,4.62,4.62,no,0.3667,2.200,2.433
 reason,typical eye,2,0,1.5,0,150,Transformer,Circuitry,20,39,9,4.32,4.32,0,4.32,4.32,no,0.2833,2.217,2.167
-reason,typical eye,2,0,1.5,0,151,Heatsink,Circuitry,27,36,9,5.11,4.61,0,4.61,4.61,no,0.4667,2.483,1.600
+reason,typical eye,2,0,1.5,0,151,Heatsink,Circuitry,27,36,9,5.11,4.61,0,4.61,4.61,no,0.4667,2.533,1.583
 reason,typical eye,2,0,1.5,0,152,Satellite,Circuitry,16,33,9,4.47,4.47,0,4.47,4.47,no,0.2667,2.617,2.400
 reason,typical eye,2,0,1.5,0,153,Radar Dish,Circuitry,20,35,9,4.38,4.38,0,4.38,4.38,no,0.2167,3.133,2.850
 reason,typical eye,2,0,1.5,0,154,Junction Box,Circuitry,21,34,9,4.32,4.32,0,4.32,4.32,no,0.3833,2.200,2.283
 reason,typical eye,2,0,1.5,0,155,Patch Bay,Circuitry,22,36,9,4.72,4.72,0,4.72,4.72,no,0.2500,3.350,2.767
 reason,typical eye,2,0,1.5,0,156,Server Rack,Circuitry,24,40,9,4.65,4.54,0,4.54,4.54,no,0.2500,2.733,2.533
-reason,typical eye,2,0,1.5,0,157,Microchip,Circuitry,21,32,10,6.24,4.58,0,4.58,4.58,no,0.3833,2.617,1.700
-reason,typical eye,2,0,1.5,0,158,Power Strip,Circuitry,21,36,10,4.36,4.36,0,4.36,4.36,no,0.3167,3.350,2.733
-reason,typical eye,2,0,1.5,0,159,Oscilloscope,Circuitry,26,40,10,4.58,4.58,0,4.58,4.58,no,0.2167,3.267,3.150
-reason,typical eye,2,0,1.5,0,160,Motherboard,Circuitry,22,37,10,4.51,4.51,0,4.51,4.51,no,0.2000,3.383,3.250
-reason,typical eye,2,0,1.5,0,161,Staircase,Interiors,20,30,8,4.51,4.51,0,4.51,4.51,no,0.3000,2.733,2.167
+reason,typical eye,2,0,1.5,0,157,Microchip,Circuitry,21,32,10,6.24,4.58,0,4.58,4.58,no,0.3833,2.883,1.700
+reason,typical eye,2,0,1.5,0,158,Power Strip,Circuitry,22,36,10,4.36,4.36,0,4.36,4.36,no,0.2333,3.800,3.217
+reason,typical eye,2,0,1.5,0,159,Oscilloscope,Circuitry,26,40,10,4.58,4.58,0,4.58,4.58,no,0.2167,3.300,3.150
+reason,typical eye,2,0,1.5,0,160,Motherboard,Circuitry,22,37,10,4.51,4.51,0,4.51,4.51,no,0.2500,3.300,3.233
+reason,typical eye,2,0,1.5,0,161,Staircase,Interiors,20,30,8,4.51,4.51,0,4.51,4.51,no,0.3000,2.833,2.167
 reason,typical eye,2,0,1.5,0,162,Bookshelf,Interiors,22,41,8,4.34,4.34,0,4.34,4.34,no,0.3667,2.383,1.733
 reason,typical eye,2,0,1.5,0,163,Colonnade,Interiors,22,41,8,7.09,4.94,0,4.94,4.94,no,0.4333,2.050,1.617
 reason,typical eye,2,0,1.5,0,164,Balcony,Interiors,18,37,8,4.62,4.62,0,4.62,4.62,no,0.3833,2.667,2.500
@@ -571,12 +571,12 @@ reason,typical eye,2,0,1.5,0,169,Alcove,Interiors,20,40,9,4.60,4.60,0,4.60,4.60,
 reason,typical eye,2,0,1.5,0,170,Wardrobe,Interiors,22,41,9,4.51,4.51,0,4.51,4.51,no,0.2500,2.950,2.567
 reason,typical eye,2,0,1.5,0,171,Skylight,Interiors,19,30,9,4.21,4.21,0,4.21,4.21,no,0.2833,3.050,2.500
 reason,typical eye,2,0,1.5,0,172,Mezzanine,Interiors,22,41,9,4.37,4.37,0,4.37,4.37,no,0.3000,3.183,2.400
-reason,typical eye,2,0,1.5,0,173,Atrium,Interiors,26,41,9,4.34,4.34,0,4.34,4.34,no,0.3667,2.750,2.583
+reason,typical eye,2,0,1.5,0,173,Atrium,Interiors,26,41,9,4.34,4.34,0,4.34,4.34,no,0.3667,2.783,2.583
 reason,typical eye,2,0,1.5,0,174,Rafters,Interiors,22,41,9,4.36,4.36,0,4.36,4.36,no,0.2500,3.167,3.017
 reason,typical eye,2,0,1.5,0,175,Curtain,Interiors,22,42,10,4.61,4.61,0,4.61,4.61,no,0.2000,3.400,3.117
 reason,typical eye,2,0,1.5,0,176,Elevator,Interiors,23,42,10,4.51,4.51,0,4.51,4.51,no,0.2167,3.350,3.000
-reason,typical eye,2,0,1.5,0,177,Banister,Interiors,23,38,10,4.08,4.40,1,4.40,4.40,no,0.1667,3.733,2.033
-reason,typical eye,2,0,1.5,0,178,Landing,Interiors,18,34,10,4.58,4.21,0,4.21,4.21,no,0.2167,3.100,2.533
+reason,typical eye,2,0,1.5,0,177,Banister,Interiors,24,38,10,4.08,4.40,1,4.40,4.40,no,0.2000,3.917,2.450
+reason,typical eye,2,0,1.5,0,178,Landing,Interiors,18,34,10,4.58,4.21,0,4.21,4.21,no,0.2167,3.133,2.533
 reason,typical eye,2,0,1.5,0,179,Stove,Interiors,19,39,10,4.08,4.08,0,4.08,4.08,no,0.1000,3.933,3.617
 reason,typical eye,2,0,1.5,0,180,Dome,Interiors,22,41,10,4.04,4.04,0,4.04,4.04,no,0.1167,3.733,3.400
 reason,typical eye,2,0,1.5,0,181,Refinery,Grand Works,18,44,9,4.34,4.34,0,4.34,4.34,no,0.2500,2.833,2.217
@@ -626,79 +626,79 @@ reason,tired eye,3,0,1.5,0,24,Hammer,Crossings,6,13,3,7.91,7.91,0,7.91,7.91,no,0
 reason,tired eye,3,0,1.5,0,25,Key,Crossings,7,10,3,15.08,8.72,0,8.72,8.72,no,0.8500,0.367,0.250
 reason,tired eye,3,0,1.5,0,26,Lamp,Crossings,7,13,3,12.25,7.46,0,7.46,7.46,no,0.9000,0.217,0.150
 reason,tired eye,3,0,1.5,0,27,Fork,Crossings,7,14,4,12.03,8.06,0,8.06,8.06,no,0.8333,0.350,0.117
-reason,tired eye,3,0,1.5,0,28,Swing,Crossings,8,12,4,11.12,8.50,0,8.50,8.50,no,0.6167,1.550,0.383
+reason,tired eye,3,0,1.5,0,28,Swing,Crossings,8,12,4,11.12,8.50,0,8.50,8.50,no,0.4333,2.367,0.267
 reason,tired eye,3,0,1.5,0,29,Window,Crossings,8,16,5,7.69,7.71,0,7.69,7.69,no,0.7000,0.983,0.283
 reason,tired eye,3,0,1.5,0,30,Ladder,Crossings,8,12,4,8.16,7.75,0,7.80,7.80,no,0.7833,0.533,0.300
 reason,tired eye,3,0,1.5,0,31,Flag,Crossings,8,14,3,14.71,9.10,0,9.10,9.10,no,0.9667,0.083,0.117
-reason,tired eye,3,0,1.5,0,32,Rake,Crossings,9,17,5,10.51,6.43,0,6.43,6.43,no,0.8833,0.250,0.183
+reason,tired eye,3,0,1.5,0,32,Rake,Crossings,9,17,5,10.51,6.43,0,6.43,6.43,no,0.8833,0.267,0.183
 reason,tired eye,3,0,1.5,0,33,House,Everyday Things,9,24,5,5.96,4.58,0,4.58,4.58,no,0.7000,0.700,0.367
-reason,tired eye,3,0,1.5,0,34,Boat,Everyday Things,9,17,5,9.17,6.40,0,6.40,6.40,no,0.8000,0.483,0.367
+reason,tired eye,3,0,1.5,0,34,Boat,Everyday Things,9,17,5,7.64,6.12,0,6.12,6.12,no,0.8333,0.333,0.283
 reason,tired eye,3,0,1.5,0,35,Tree,Everyday Things,9,19,4,9.09,7.58,0,7.58,7.58,no,0.4833,1.200,0.267
-reason,tired eye,3,0,1.5,0,36,Rocket,Everyday Things,10,14,4,9.27,7.12,2,7.12,7.12,yes,0.1000,4.433,2.800
-reason,tired eye,3,0,1.5,0,37,Bridge,Everyday Things,10,17,3,8.98,6.30,0,6.30,6.30,no,0.4333,1.917,1.367
+reason,tired eye,3,0,1.5,0,36,Rocket,Everyday Things,8,14,4,7.08,7.08,0,7.08,7.08,no,0.4500,1.533,0.600
+reason,tired eye,3,0,1.5,0,37,Bridge,Everyday Things,10,17,3,9.17,6.42,0,6.42,6.42,no,0.5000,1.450,1.150
 reason,tired eye,3,0,1.5,0,38,Train,Everyday Things,10,21,5,9.15,7.67,0,7.67,7.67,no,0.9000,0.233,0.233
-reason,tired eye,3,0,1.5,0,39,Truck,Everyday Things,10,16,4,14.95,8.05,0,8.05,8.05,no,0.8333,0.400,0.283
-reason,tired eye,3,0,1.5,0,40,Clock,Everyday Things,11,19,5,11.25,5.95,0,6.43,6.43,no,0.7000,0.700,0.417
-reason,tired eye,3,0,1.5,0,41,Bell,Everyday Things,9,13,4,7.10,7.45,1,7.45,7.45,no,0.3667,2.033,0.683
-reason,tired eye,3,0,1.5,0,42,Cup,Everyday Things,12,16,4,13.35,7.27,1,7.27,7.27,no,0.2167,2.717,0.967
-reason,tired eye,3,0,1.5,0,43,Bottle,Everyday Things,12,22,6,6.92,6.68,0,6.92,6.92,no,0.3833,2.533,0.750
-reason,tired eye,3,0,1.5,0,44,Envelope,Everyday Things,12,21,5,7.14,7.22,0,7.22,7.22,no,0.7500,0.717,0.450
+reason,tired eye,3,0,1.5,0,39,Truck,Everyday Things,10,16,4,9.09,8.03,0,8.03,8.03,no,0.8000,0.550,0.367
+reason,tired eye,3,0,1.5,0,40,Clock,Everyday Things,10,19,5,10.28,5.76,0,6.13,6.13,no,0.8167,0.417,0.317
+reason,tired eye,3,0,1.5,0,41,Bell,Everyday Things,7,13,4,7.10,7.45,0,7.45,7.45,no,0.6500,0.750,0.117
+reason,tired eye,3,0,1.5,0,42,Cup,Everyday Things,10,16,4,11.74,7.25,0,7.25,7.25,no,0.5667,1.383,0.483
+reason,tired eye,3,0,1.5,0,43,Bottle,Everyday Things,11,22,6,7.24,6.68,0,7.24,7.24,no,0.6167,1.083,0.233
+reason,tired eye,3,0,1.5,0,44,Envelope,Everyday Things,11,21,5,7.37,7.33,0,7.33,7.33,no,0.6167,1.050,0.383
 reason,tired eye,3,0,1.5,0,45,Book,Everyday Things,12,24,5,6.90,6.22,0,6.22,6.22,no,0.4500,1.667,0.883
 reason,tired eye,3,0,1.5,0,46,Pencil,Everyday Things,13,19,3,15.70,7.33,0,7.33,7.33,no,0.7167,0.817,0.650
 reason,tired eye,3,0,1.5,0,47,Anchor,Everyday Things,12,17,5,12.79,5.10,0,5.23,5.23,no,0.4500,1.600,1.000
-reason,tired eye,3,0,1.5,0,48,Wrench,Everyday Things,13,16,5,6.83,7.09,0,6.97,6.97,no,0.1333,4.300,1.383
-reason,tired eye,3,0,1.5,0,49,Candle,Everyday Things,10,12,3,12.85,8.73,1,8.73,8.73,no,0.1500,3.933,1.133
-reason,tired eye,3,0,1.5,0,50,Drum,Everyday Things,14,22,6,6.16,5.42,0,6.16,6.16,no,0.5167,1.233,0.533
-reason,tired eye,3,0,1.5,0,51,Camera,Everyday Things,14,26,6,6.75,6.57,0,6.64,6.64,no,0.6500,1.050,0.483
-reason,tired eye,3,0,1.5,0,52,Lantern,Everyday Things,15,21,5,7.55,6.99,0,7.22,7.22,no,0.6833,0.817,0.667
-reason,tired eye,3,0,1.5,0,53,Fish,Creatures,15,28,6,7.30,7.33,0,7.33,7.33,no,0.7500,1.067,0.617
-reason,tired eye,3,0,1.5,0,54,Crab,Creatures,13,20,6,9.62,7.21,0,7.21,7.21,no,0.1167,3.417,1.033
-reason,tired eye,3,0,1.5,0,55,Snail,Creatures,15,17,5,10.13,7.10,2,7.10,7.10,no,0.0500,6.150,1.900
-reason,tired eye,3,0,1.5,0,56,Bird,Creatures,13,21,6,7.16,7.59,0,7.32,7.32,no,0.4500,1.567,1.033
-reason,tired eye,3,0,1.5,0,57,Owl,Creatures,16,24,6,8.14,6.33,0,6.33,6.33,no,0.5667,1.433,0.950
-reason,tired eye,3,0,1.5,0,58,Cat,Creatures,13,16,6,9.00,9.72,3,9.00,9.00,no,0.0000,7.800,1.967
-reason,tired eye,3,0,1.5,0,59,Dog,Creatures,14,23,6,7.65,7.36,0,7.36,7.36,no,0.7000,0.917,0.667
-reason,tired eye,3,0,1.5,0,60,Bunny,Creatures,17,27,7,6.02,5.41,0,6.14,6.14,no,0.5500,1.717,1.100
-reason,tired eye,3,0,1.5,0,61,Frog,Creatures,12,16,6,8.75,6.85,2,7.46,7.46,yes,0.0167,8.300,2.367
-reason,tired eye,3,0,1.5,0,62,Turtle,Creatures,15,23,6,7.85,8.55,0,7.85,7.85,no,0.3000,2.300,1.033
+reason,tired eye,3,0,1.5,0,48,Wrench,Everyday Things,12,16,5,6.83,7.09,0,6.97,6.97,no,0.5167,1.483,0.700
+reason,tired eye,3,0,1.5,0,49,Candle,Everyday Things,9,12,3,12.85,8.73,0,8.73,8.73,no,0.6500,1.067,0.467
+reason,tired eye,3,0,1.5,0,50,Drum,Everyday Things,13,22,6,5.55,5.00,0,5.00,5.00,no,0.3167,2.467,1.033
+reason,tired eye,3,0,1.5,0,51,Camera,Everyday Things,13,26,6,5.31,5.33,0,5.31,5.31,no,0.5500,1.367,0.983
+reason,tired eye,3,0,1.5,0,52,Lantern,Everyday Things,14,21,5,7.54,7.18,0,7.18,7.18,no,0.4833,2.117,1.083
+reason,tired eye,3,0,1.5,0,53,Fish,Creatures,11,28,6,7.13,7.00,0,7.16,7.16,no,0.9000,0.350,0.150
+reason,tired eye,3,0,1.5,0,54,Crab,Creatures,11,20,6,7.41,6.33,0,6.33,6.33,no,0.4667,1.567,0.717
+reason,tired eye,3,0,1.5,0,55,Snail,Creatures,13,17,5,9.93,7.00,0,7.00,7.00,no,0.6167,1.183,0.767
+reason,tired eye,3,0,1.5,0,56,Bird,Creatures,13,21,6,7.83,7.33,0,7.33,7.33,no,0.4333,2.050,1.017
+reason,tired eye,3,0,1.5,0,57,Owl,Creatures,12,24,6,4.55,5.00,0,4.55,4.55,no,0.2333,2.317,1.450
+reason,tired eye,3,0,1.5,0,58,Cat,Creatures,10,16,6,9.67,8.85,0,9.60,9.60,no,0.8667,0.417,0.317
+reason,tired eye,3,0,1.5,0,59,Dog,Creatures,13,23,6,7.18,7.83,0,7.18,7.18,no,0.3667,2.267,1.033
+reason,tired eye,3,0,1.5,0,60,Bunny,Creatures,15,27,7,6.02,5.41,0,6.14,6.14,no,0.3500,2.850,1.300
+reason,tired eye,3,0,1.5,0,61,Frog,Creatures,10,16,6,7.01,7.00,0,7.00,7.00,no,0.3500,2.667,1.083
+reason,tired eye,3,0,1.5,0,62,Turtle,Creatures,15,23,6,8.81,7.55,0,7.55,7.55,no,0.5167,2.067,1.200
 reason,tired eye,3,0,1.5,0,63,Whale,Creatures,17,25,5,9.74,7.38,0,7.38,7.38,no,0.5167,1.750,1.000
-reason,tired eye,3,0,1.5,0,64,Bee,Creatures,16,25,6,7.24,7.52,0,7.52,7.52,no,0.0333,6.200,1.533
-reason,tired eye,3,0,1.5,0,65,Ant,Creatures,8,14,6,8.44,9.09,0,8.72,8.72,no,0.5667,1.833,1.250
-reason,tired eye,3,0,1.5,0,66,Spider,Creatures,16,18,6,10.49,7.29,4,7.29,7.29,yes,0.0000,8.700,3.050
-reason,tired eye,3,0,1.5,0,67,Butterfly,Creatures,14,15,5,9.94,7.26,3,7.26,7.26,no,0.0000,10.467,2.800
-reason,tired eye,3,0,1.5,0,68,Snake,Creatures,19,20,5,8.56,4.99,3,4.99,4.99,no,0.0000,14.317,3.633
-reason,tired eye,3,0,1.5,0,69,Penguin,Creatures,17,21,7,7.30,6.60,2,6.60,6.60,no,0.0333,9.950,1.950
-reason,tired eye,3,0,1.5,0,70,Fox,Creatures,15,17,5,6.52,7.20,3,6.52,6.52,no,0.0167,9.483,2.983
-reason,tired eye,3,0,1.5,0,71,Lighthouse,Landmarks,19,26,6,5.97,5.74,0,5.74,5.74,no,0.0833,4.567,1.733
-reason,tired eye,3,0,1.5,0,72,Windmill,Landmarks,15,17,5,7.20,6.34,3,6.34,6.34,no,0.0167,8.900,2.633
-reason,tired eye,3,0,1.5,0,73,Sailboat,Landmarks,16,18,5,9.46,7.33,3,7.33,7.33,no,0.0333,8.433,1.883
-reason,tired eye,3,0,1.5,0,74,Castle,Landmarks,18,20,7,6.11,6.52,5,6.52,6.52,yes,0.0000,12.433,4.600
-reason,tired eye,3,0,1.5,0,75,Church,Landmarks,19,21,5,5.79,4.88,3,4.88,4.88,no,0.0000,14.467,5.083
-reason,tired eye,3,0,1.5,0,76,Skyline,Landmarks,22,29,6,7.26,4.75,0,4.75,4.75,no,0.1000,6.000,3.033
-reason,tired eye,3,0,1.5,0,77,Pyramid,Landmarks,19,24,4,11.11,6.47,0,6.47,6.47,no,0.0000,13.633,3.250
-reason,tired eye,3,0,1.5,0,78,Fountain,Landmarks,23,26,7,7.95,5.34,4,5.89,5.89,no,0.0000,15.100,4.200
-reason,tired eye,3,0,1.5,0,79,Aqueduct,Landmarks,23,28,7,8.64,5.64,0,5.64,5.64,no,0.2167,4.483,2.300
-reason,tired eye,3,0,1.5,0,80,Cathedral,Landmarks,21,29,6,10.19,6.72,1,6.72,6.72,no,0.0500,8.383,2.800
-reason,tired eye,3,0,1.5,0,81,Ferris,Landmarks,22,25,8,9.15,6.73,4,6.73,6.73,no,0.0000,17.367,4.900
-reason,tired eye,3,0,1.5,0,82,Temple,Landmarks,24,38,8,5.31,5.66,0,5.31,5.31,no,0.1000,5.400,3.533
-reason,tired eye,3,0,1.5,0,83,Observatory,Landmarks,22,26,6,8.89,5.99,2,5.99,5.99,no,0.0167,14.467,4.250
-reason,tired eye,3,0,1.5,0,84,Garden,Landmarks,22,26,7,8.30,4.61,3,4.61,4.61,no,0.0000,17.317,4.383
-reason,tired eye,3,0,1.5,0,85,Harbor,Landmarks,20,23,5,7.37,5.15,1,5.15,5.15,no,0.0000,14.883,4.750
-reason,tired eye,3,0,1.5,0,86,Waterfall,Landmarks,24,33,7,8.51,5.77,0,5.77,5.77,no,0.0167,8.750,2.867
-reason,tired eye,3,0,1.5,0,87,Trainyard,Landmarks,26,36,6,8.48,4.88,0,4.88,4.88,no,0.0333,7.167,3.983
-reason,tired eye,3,0,1.5,0,88,Cityscape,Landmarks,26,38,6,7.26,4.93,0,5.03,5.03,no,0.0167,6.317,4.483
-reason,tired eye,3,0,1.5,0,89,Cascade,Mastery,16,17,7,6.45,4.54,6,4.54,4.54,no,0.0000,11.100,4.217
-reason,tired eye,3,0,1.5,0,90,Circuit,Mastery,22,23,6,8.14,5.72,4,5.72,5.72,no,0.0000,17.633,5.367
-reason,tired eye,3,0,1.5,0,91,Loom,Mastery,27,33,6,7.78,5.19,0,5.19,5.19,no,0.0000,10.867,7.933
-reason,tired eye,3,0,1.5,0,92,Lattice,Mastery,27,43,7,6.66,4.50,0,4.50,4.50,no,0.0000,12.500,8.933
-reason,tired eye,3,0,1.5,0,93,Reactor,Mastery,28,40,8,4.80,4.24,0,4.25,4.25,no,0.0333,6.350,3.683
-reason,tired eye,3,0,1.5,0,94,Palace,Mastery,27,28,7,4.28,4.28,6,4.28,4.28,no,0.0000,23.617,7.300
-reason,tired eye,3,0,1.5,0,95,Carousel,Mastery,28,37,6,4.27,4.37,0,4.27,4.27,no,0.0000,9.833,4.800
-reason,tired eye,3,0,1.5,0,96,Organ,Mastery,28,35,7,4.83,4.65,0,4.65,4.65,no,0.0000,15.750,5.883
-reason,tired eye,3,0,1.5,0,97,Citadel,Mastery,29,31,8,5.67,4.29,6,4.63,4.63,no,0.0000,26.683,8.850
-reason,tired eye,3,0,1.5,0,98,Colossus,Mastery,29,42,10,4.34,4.36,2,4.36,4.36,no,0.0000,14.167,5.583
-reason,tired eye,3,0,1.5,0,99,Vault,Mastery,30,37,6,6.11,4.22,0,4.22,4.22,no,0.0167,10.100,6.333
-reason,tired eye,3,0,1.5,0,100,Mandala,Mastery,30,37,6,5.77,4.05,0,4.05,4.05,no,0.0000,16.800,10.367
+reason,tired eye,3,0,1.5,0,64,Bee,Creatures,15,25,6,9.14,7.18,0,7.18,7.18,no,0.2500,3.550,1.250
+reason,tired eye,3,0,1.5,0,65,Ant,Creatures,8,14,6,8.44,9.09,0,8.72,8.72,no,0.5667,1.900,1.067
+reason,tired eye,3,0,1.5,0,66,Spider,Creatures,13,18,6,6.14,5.56,0,5.56,5.56,no,0.3000,3.800,1.450
+reason,tired eye,3,0,1.5,0,67,Butterfly,Creatures,13,15,5,9.89,7.90,1,9.21,9.21,no,0.3833,3.117,1.300
+reason,tired eye,3,0,1.5,0,68,Snake,Creatures,14,20,5,5.70,5.33,0,5.33,5.33,no,0.3000,2.733,1.967
+reason,tired eye,3,0,1.5,0,69,Penguin,Creatures,13,21,7,7.30,6.60,0,6.60,6.60,no,0.3000,2.550,0.883
+reason,tired eye,3,0,1.5,0,70,Fox,Creatures,12,17,5,11.56,7.46,1,7.46,7.46,no,0.2667,3.150,0.850
+reason,tired eye,3,0,1.5,0,71,Lighthouse,Landmarks,13,26,6,5.97,5.74,0,5.74,5.74,no,0.3333,2.383,0.817
+reason,tired eye,3,0,1.5,0,72,Windmill,Landmarks,12,17,5,7.02,6.64,2,6.64,6.64,no,0.4333,1.933,1.083
+reason,tired eye,3,0,1.5,0,73,Sailboat,Landmarks,9,18,5,9.46,7.33,0,7.33,7.33,no,0.8000,0.517,0.283
+reason,tired eye,3,0,1.5,0,74,Castle,Landmarks,13,20,7,7.06,5.68,0,5.68,5.68,no,0.1667,3.600,1.483
+reason,tired eye,3,0,1.5,0,75,Church,Landmarks,13,21,5,5.79,4.88,0,4.88,4.88,no,0.1167,3.900,2.450
+reason,tired eye,3,0,1.5,0,76,Skyline,Landmarks,19,29,6,6.19,4.66,0,4.66,4.66,no,0.2000,2.883,1.917
+reason,tired eye,3,0,1.5,0,77,Pyramid,Landmarks,14,24,4,13.08,6.37,0,6.37,6.37,no,0.4500,1.667,0.567
+reason,tired eye,3,0,1.5,0,78,Fountain,Landmarks,16,26,7,5.97,5.03,0,5.64,5.64,no,0.4167,1.833,1.517
+reason,tired eye,3,0,1.5,0,79,Aqueduct,Landmarks,19,28,7,7.78,5.00,0,5.00,5.00,no,0.1500,3.600,1.667
+reason,tired eye,3,0,1.5,0,80,Cathedral,Landmarks,19,29,6,7.95,4.94,0,4.94,4.94,no,0.2000,2.883,1.783
+reason,tired eye,3,0,1.5,0,81,Ferris,Landmarks,19,25,8,6.94,6.20,0,6.20,6.20,no,0.2167,4.100,3.117
+reason,tired eye,3,0,1.5,0,82,Temple,Landmarks,16,38,8,6.20,5.25,0,5.25,5.25,no,0.2500,3.383,1.500
+reason,tired eye,3,0,1.5,0,83,Observatory,Landmarks,19,26,6,9.26,6.27,0,6.61,6.61,no,0.1667,3.900,1.300
+reason,tired eye,3,0,1.5,0,84,Garden,Landmarks,15,26,7,8.30,4.61,0,4.64,4.64,no,0.1667,3.817,2.000
+reason,tired eye,3,0,1.5,0,85,Harbor,Landmarks,14,23,5,8.99,4.76,0,4.76,4.76,no,0.1167,3.800,1.683
+reason,tired eye,3,0,1.5,0,86,Waterfall,Landmarks,17,33,7,7.53,4.85,0,4.85,4.85,no,0.2333,2.867,1.350
+reason,tired eye,3,0,1.5,0,87,Trainyard,Landmarks,18,36,6,8.48,4.88,0,4.88,4.88,no,0.1167,5.750,2.467
+reason,tired eye,3,0,1.5,0,88,Cityscape,Landmarks,23,38,6,7.26,4.93,0,5.03,5.03,no,0.1167,4.967,3.667
+reason,tired eye,3,0,1.5,0,89,Cascade,Mastery,11,17,7,6.43,4.52,1,4.52,4.52,no,0.2333,3.050,1.700
+reason,tired eye,3,0,1.5,0,90,Circuit,Mastery,17,23,6,7.77,5.26,0,5.26,5.26,no,0.1500,3.800,2.583
+reason,tired eye,3,0,1.5,0,91,Loom,Mastery,16,33,6,7.78,5.19,0,5.19,5.19,no,0.1167,4.667,3.317
+reason,tired eye,3,0,1.5,0,92,Lattice,Mastery,16,43,7,7.25,4.45,0,4.45,4.45,no,0.1500,3.183,2.617
+reason,tired eye,3,0,1.5,0,93,Reactor,Mastery,17,40,8,3.89,4.31,0,4.03,4.03,no,0.1167,3.717,1.533
+reason,tired eye,3,0,1.5,0,94,Palace,Mastery,17,28,7,4.68,4.68,0,4.68,4.68,no,0.2167,3.533,2.567
+reason,tired eye,3,0,1.5,0,95,Carousel,Mastery,19,37,6,4.38,4.67,0,4.38,4.38,no,0.1500,4.133,2.667
+reason,tired eye,3,0,1.5,0,96,Organ,Mastery,19,35,7,4.83,4.65,0,4.83,4.83,no,0.1667,3.867,2.167
+reason,tired eye,3,0,1.5,0,97,Citadel,Mastery,20,31,8,4.40,4.43,0,4.40,4.40,no,0.1333,4.817,3.583
+reason,tired eye,3,0,1.5,0,98,Colossus,Mastery,18,42,10,4.34,4.36,0,4.36,4.36,no,0.1000,4.750,1.833
+reason,tired eye,3,0,1.5,0,99,Vault,Mastery,19,37,6,4.25,4.50,0,4.50,4.50,no,0.0833,5.350,3.483
+reason,tired eye,3,0,1.5,0,100,Mandala,Mastery,17,37,6,5.68,3.92,0,3.92,3.92,no,0.0500,5.817,3.550
 reason,tired eye,3,0,1.5,0,101,Screwdriver,Workshop,14,23,6,4.72,4.72,0,4.72,4.72,no,0.1500,4.200,2.783
 reason,tired eye,3,0,1.5,0,102,Try Square,Workshop,14,28,6,5.27,4.56,0,4.56,4.56,no,0.1333,3.417,2.233
 reason,tired eye,3,0,1.5,0,103,Oil Can,Workshop,15,26,6,4.61,4.61,0,4.61,4.61,no,0.1500,3.867,2.650
@@ -707,9 +707,9 @@ reason,tired eye,3,0,1.5,0,105,C Clamp,Workshop,15,29,6,4.50,4.50,0,4.50,4.50,no
 reason,tired eye,3,0,1.5,0,106,Vise,Workshop,16,31,6,4.91,4.91,0,4.91,4.91,no,0.2000,3.250,1.833
 reason,tired eye,3,0,1.5,0,107,Toolbox,Workshop,16,30,7,5.44,4.61,0,4.61,4.61,no,0.0833,4.617,2.783
 reason,tired eye,3,0,1.5,0,108,Handsaw,Workshop,16,30,7,4.91,4.91,0,4.91,4.91,no,0.1333,4.033,2.967
-reason,tired eye,3,0,1.5,0,109,Pliers,Workshop,14,23,7,5.41,5.41,0,5.41,5.41,no,0.1333,3.983,1.883
+reason,tired eye,3,0,1.5,0,109,Pliers,Workshop,14,23,7,5.41,5.41,0,5.41,5.41,no,0.1500,4.183,1.950
 reason,tired eye,3,0,1.5,0,110,Level,Workshop,19,29,7,5.72,5.72,0,5.72,5.72,no,0.1000,4.317,3.217
-reason,tired eye,3,0,1.5,0,111,Tool Rack,Workshop,17,26,7,4.81,4.81,0,4.84,4.84,no,0.1333,4.650,2.167
+reason,tired eye,3,0,1.5,0,111,Tool Rack,Workshop,17,26,7,4.81,4.81,0,4.84,4.84,no,0.1667,4.683,2.183
 reason,tired eye,3,0,1.5,0,112,Pipe Clamp,Workshop,16,26,7,4.61,4.61,0,4.61,4.61,no,0.0500,4.450,3.283
 reason,tired eye,3,0,1.5,0,113,Hacksaw,Workshop,18,32,7,4.69,4.69,0,4.69,4.69,no,0.0667,4.650,2.583
 reason,tired eye,3,0,1.5,0,114,Caliper,Workshop,18,29,8,6.40,4.44,0,4.44,4.44,no,0.1333,4.900,3.467
@@ -718,48 +718,48 @@ reason,tired eye,3,0,1.5,0,116,Lathe,Workshop,17,31,8,4.57,4.57,0,4.57,4.57,no,0
 reason,tired eye,3,0,1.5,0,117,Bandsaw,Workshop,18,30,8,5.62,5.62,0,5.62,5.62,no,0.2000,3.783,2.600
 reason,tired eye,3,0,1.5,0,118,Hand Plane,Workshop,18,27,8,7.60,4.62,0,4.62,4.62,no,0.1000,5.700,3.517
 reason,tired eye,3,0,1.5,0,119,Belt Sander,Workshop,20,32,8,4.51,4.51,0,4.51,4.51,no,0.0333,6.400,4.300
-reason,tired eye,3,0,1.5,0,120,Workbench,Workshop,21,32,8,4.51,4.51,1,4.51,4.51,no,0.0167,6.033,3.983
-reason,tired eye,3,0,1.5,0,121,Metronome,Orchestra,17,27,7,6.33,5.63,0,5.63,5.63,no,0.0833,3.917,2.150
+reason,tired eye,3,0,1.5,0,120,Workbench,Workshop,21,32,8,4.51,4.51,1,4.51,4.51,no,0.0333,6.067,3.950
+reason,tired eye,3,0,1.5,0,121,Metronome,Orchestra,17,27,7,6.33,5.63,0,5.63,5.63,no,0.0833,3.967,2.183
 reason,tired eye,3,0,1.5,0,122,Music Stand,Orchestra,17,32,7,5.20,5.20,0,5.20,5.20,no,0.0500,5.583,3.267
 reason,tired eye,3,0,1.5,0,123,Music Note,Orchestra,16,24,7,4.00,4.24,0,4.00,4.00,no,0.1000,4.317,2.867
 reason,tired eye,3,0,1.5,0,124,Cymbal,Orchestra,16,35,7,4.21,4.21,0,4.21,4.21,no,0.0833,4.483,3.400
 reason,tired eye,3,0,1.5,0,125,Flute,Orchestra,17,27,7,4.40,4.40,0,4.40,4.40,no,0.0833,4.617,3.233
 reason,tired eye,3,0,1.5,0,126,Trumpet,Orchestra,17,29,7,7.59,4.40,0,4.40,4.40,no,0.1167,4.350,2.633
 reason,tired eye,3,0,1.5,0,127,Harp,Orchestra,22,35,7,4.84,4.84,0,4.91,4.91,no,0.0833,4.650,3.800
-reason,tired eye,3,0,1.5,0,128,Microphone,Orchestra,18,28,8,5.41,5.41,0,5.41,5.41,no,0.0167,6.483,3.783
+reason,tired eye,3,0,1.5,0,128,Microphone,Orchestra,18,28,8,5.41,5.41,0,5.41,5.41,no,0.0167,6.300,3.867
 reason,tired eye,3,0,1.5,0,129,Xylophone,Orchestra,21,30,8,5.25,5.25,0,5.25,5.25,no,0.0833,6.517,4.033
 reason,tired eye,3,0,1.5,0,130,Accordion,Orchestra,16,32,8,4.74,4.74,0,4.74,4.74,no,0.0333,5.067,3.667
 reason,tired eye,3,0,1.5,0,131,Amplifier,Orchestra,24,33,8,5.55,5.54,0,5.54,5.54,no,0.1000,5.550,3.833
-reason,tired eye,3,0,1.5,0,132,Guitar,Orchestra,19,30,8,5.55,5.55,0,5.55,5.55,no,0.0667,6.167,4.133
+reason,tired eye,3,0,1.5,0,132,Guitar,Orchestra,19,30,8,5.55,5.55,0,5.55,5.55,no,0.0833,6.033,4.233
 reason,tired eye,3,0,1.5,0,133,Cello,Orchestra,18,33,8,5.40,5.40,0,5.40,5.40,no,0.0500,5.450,3.783
 reason,tired eye,3,0,1.5,0,134,Banjo,Orchestra,20,35,8,4.94,4.94,0,4.94,4.94,no,0.0167,5.467,3.917
 reason,tired eye,3,0,1.5,0,135,Trombone,Orchestra,20,34,8,4.91,4.91,0,4.91,4.91,no,0.0167,6.950,4.800
 reason,tired eye,3,0,1.5,0,136,Violin Case,Orchestra,21,32,9,5.38,5.38,0,5.38,5.38,no,0.0167,7.583,4.383
-reason,tired eye,3,0,1.5,0,137,Saxophone,Orchestra,18,33,9,4.50,4.35,0,4.35,4.35,no,0.1000,5.733,2.850
+reason,tired eye,3,0,1.5,0,137,Saxophone,Orchestra,19,33,9,4.50,4.35,1,4.35,4.35,no,0.0167,5.967,3.367
 reason,tired eye,3,0,1.5,0,138,Bagpipes,Orchestra,21,34,9,4.82,4.82,0,4.82,4.82,no,0.0000,7.450,5.383
 reason,tired eye,3,0,1.5,0,139,Tuba,Orchestra,19,36,9,4.48,4.48,0,4.48,4.48,no,0.0333,6.517,4.500
 reason,tired eye,3,0,1.5,0,140,Piano,Orchestra,20,34,9,5.80,4.35,0,4.35,4.35,no,0.2167,4.250,2.200
 reason,tired eye,3,0,1.5,0,141,Antenna,Circuitry,16,29,7,4.62,4.62,0,4.62,4.62,no,0.1500,3.917,3.267
 reason,tired eye,3,0,1.5,0,142,Fuse,Circuitry,16,27,7,5.09,5.08,0,5.08,5.08,no,0.0500,5.367,3.583
-reason,tired eye,3,0,1.5,0,143,Switch,Circuitry,17,29,7,6.15,4.04,0,4.04,4.04,no,0.0833,5.300,3.383
+reason,tired eye,3,0,1.5,0,143,Switch,Circuitry,17,29,7,6.15,4.04,0,4.04,4.04,no,0.0833,5.333,3.383
 reason,tired eye,3,0,1.5,0,144,Battery,Circuitry,18,32,7,4.82,4.82,0,4.82,4.82,no,0.0833,4.817,3.317
 reason,tired eye,3,0,1.5,0,145,Resistor,Circuitry,18,29,8,4.51,4.51,0,4.51,4.51,no,0.1333,5.050,3.500
 reason,tired eye,3,0,1.5,0,146,Capacitor,Circuitry,18,34,8,4.64,4.04,0,4.04,4.04,no,0.0333,5.433,4.350
-reason,tired eye,3,0,1.5,0,147,Plug,Circuitry,19,30,8,4.71,4.71,0,4.71,4.71,no,0.0000,6.600,3.883
-reason,tired eye,3,0,1.5,0,148,Relay,Circuitry,26,37,8,4.76,4.76,0,4.76,4.76,no,0.0500,7.200,4.167
+reason,tired eye,3,0,1.5,0,147,Plug,Circuitry,19,30,8,4.71,4.71,0,4.71,4.71,no,0.0167,6.417,3.983
+reason,tired eye,3,0,1.5,0,148,Relay,Circuitry,26,37,8,4.76,4.76,0,4.76,4.76,no,0.0500,7.133,4.167
 reason,tired eye,3,0,1.5,0,149,Speaker,Circuitry,24,37,8,6.55,4.62,0,4.62,4.62,no,0.0500,6.617,4.717
 reason,tired eye,3,0,1.5,0,150,Transformer,Circuitry,20,39,9,4.32,4.32,0,4.32,4.32,no,0.0667,6.017,4.317
-reason,tired eye,3,0,1.5,0,151,Heatsink,Circuitry,27,36,9,5.11,4.61,0,4.61,4.61,no,0.0500,7.683,3.967
+reason,tired eye,3,0,1.5,0,151,Heatsink,Circuitry,27,36,9,5.11,4.61,0,4.61,4.61,no,0.0500,7.450,3.883
 reason,tired eye,3,0,1.5,0,152,Satellite,Circuitry,16,33,9,4.47,4.47,0,4.47,4.47,no,0.0500,5.617,4.067
 reason,tired eye,3,0,1.5,0,153,Radar Dish,Circuitry,20,35,9,4.38,4.38,0,4.38,4.38,no,0.0333,6.683,5.183
 reason,tired eye,3,0,1.5,0,154,Junction Box,Circuitry,21,34,9,4.32,4.32,0,4.32,4.32,no,0.0167,6.700,4.633
 reason,tired eye,3,0,1.5,0,155,Patch Bay,Circuitry,22,36,9,4.72,4.72,0,4.72,4.72,no,0.0000,7.550,5.783
 reason,tired eye,3,0,1.5,0,156,Server Rack,Circuitry,24,40,9,4.65,4.54,0,4.54,4.54,no,0.0000,7.667,5.133
-reason,tired eye,3,0,1.5,0,157,Microchip,Circuitry,21,32,10,6.24,4.58,0,4.58,4.58,no,0.0333,7.800,3.750
-reason,tired eye,3,0,1.5,0,158,Power Strip,Circuitry,21,36,10,4.36,4.36,0,4.36,4.36,no,0.0167,6.883,4.883
-reason,tired eye,3,0,1.5,0,159,Oscilloscope,Circuitry,26,40,10,4.58,4.58,0,4.58,4.58,no,0.0333,9.350,7.117
-reason,tired eye,3,0,1.5,0,160,Motherboard,Circuitry,22,37,10,4.51,4.51,0,4.51,4.51,no,0.0000,8.250,5.717
-reason,tired eye,3,0,1.5,0,161,Staircase,Interiors,20,30,8,4.51,4.51,0,4.51,4.51,no,0.0167,6.433,4.050
+reason,tired eye,3,0,1.5,0,157,Microchip,Circuitry,21,32,10,6.24,4.58,0,4.58,4.58,no,0.0333,8.150,3.700
+reason,tired eye,3,0,1.5,0,158,Power Strip,Circuitry,22,36,10,4.36,4.36,0,4.36,4.36,no,0.0167,8.250,5.683
+reason,tired eye,3,0,1.5,0,159,Oscilloscope,Circuitry,26,40,10,4.58,4.58,0,4.58,4.58,no,0.0333,9.400,7.117
+reason,tired eye,3,0,1.5,0,160,Motherboard,Circuitry,22,37,10,4.51,4.51,0,4.51,4.51,no,0.0000,8.183,5.717
+reason,tired eye,3,0,1.5,0,161,Staircase,Interiors,20,30,8,4.51,4.51,0,4.51,4.51,no,0.0167,6.533,4.050
 reason,tired eye,3,0,1.5,0,162,Bookshelf,Interiors,22,41,8,4.34,4.34,0,4.34,4.34,no,0.0333,5.883,4.033
 reason,tired eye,3,0,1.5,0,163,Colonnade,Interiors,22,41,8,7.09,4.94,0,4.94,4.94,no,0.0833,5.217,3.667
 reason,tired eye,3,0,1.5,0,164,Balcony,Interiors,18,37,8,4.62,4.62,0,4.62,4.62,no,0.0333,6.333,4.450
@@ -769,14 +769,14 @@ reason,tired eye,3,0,1.5,0,167,Arcade,Interiors,22,42,9,7.07,4.91,0,4.91,4.91,no
 reason,tired eye,3,0,1.5,0,168,Chandelier,Interiors,20,39,9,4.34,4.34,0,4.34,4.34,no,0.0500,6.400,4.517
 reason,tired eye,3,0,1.5,0,169,Alcove,Interiors,20,40,9,4.60,4.60,0,4.60,4.60,no,0.0333,6.450,4.700
 reason,tired eye,3,0,1.5,0,170,Wardrobe,Interiors,22,41,9,4.51,4.51,0,4.51,4.51,no,0.0333,6.617,5.517
-reason,tired eye,3,0,1.5,0,171,Skylight,Interiors,19,30,9,4.21,4.21,0,4.21,4.21,no,0.0167,6.550,4.517
+reason,tired eye,3,0,1.5,0,171,Skylight,Interiors,19,30,9,4.21,4.21,0,4.21,4.21,no,0.0167,6.533,4.517
 reason,tired eye,3,0,1.5,0,172,Mezzanine,Interiors,22,41,9,4.37,4.37,0,4.37,4.37,no,0.0167,7.500,4.750
-reason,tired eye,3,0,1.5,0,173,Atrium,Interiors,26,41,9,4.34,4.34,0,4.34,4.34,no,0.0000,7.583,6.050
+reason,tired eye,3,0,1.5,0,173,Atrium,Interiors,26,41,9,4.34,4.34,0,4.34,4.34,no,0.0000,7.617,6.000
 reason,tired eye,3,0,1.5,0,174,Rafters,Interiors,22,41,9,4.36,4.36,0,4.36,4.36,no,0.0000,7.650,5.433
 reason,tired eye,3,0,1.5,0,175,Curtain,Interiors,22,42,10,4.61,4.61,0,4.61,4.61,no,0.0167,7.550,5.467
 reason,tired eye,3,0,1.5,0,176,Elevator,Interiors,23,42,10,4.51,4.51,0,4.51,4.51,no,0.0167,7.700,5.233
-reason,tired eye,3,0,1.5,0,177,Banister,Interiors,23,38,10,4.08,4.40,1,4.40,4.40,no,0.0167,7.533,3.467
-reason,tired eye,3,0,1.5,0,178,Landing,Interiors,18,34,10,4.58,4.21,0,4.21,4.21,no,0.0333,6.750,4.917
+reason,tired eye,3,0,1.5,0,177,Banister,Interiors,24,38,10,4.08,4.40,1,4.40,4.40,no,0.0333,8.100,4.033
+reason,tired eye,3,0,1.5,0,178,Landing,Interiors,18,34,10,4.58,4.21,0,4.21,4.21,no,0.0333,6.800,4.917
 reason,tired eye,3,0,1.5,0,179,Stove,Interiors,19,39,10,4.08,4.08,0,4.08,4.08,no,0.0167,6.783,5.233
 reason,tired eye,3,0,1.5,0,180,Dome,Interiors,22,41,10,4.04,4.04,0,4.04,4.04,no,0.0000,7.283,5.733
 reason,tired eye,3,0,1.5,0,181,Refinery,Grand Works,18,44,9,4.34,4.34,0,4.34,4.34,no,0.0333,5.583,3.833
@@ -826,79 +826,79 @@ reason,compressed 50%,1,0.5,1.5,0,24,Hammer,Crossings,6,13,3,7.91,7.91,0,7.91,3.
 reason,compressed 50%,1,0.5,1.5,0,25,Key,Crossings,7,10,3,15.08,8.72,0,8.72,4.36,no,0.9333,0.133,0.283
 reason,compressed 50%,1,0.5,1.5,0,26,Lamp,Crossings,7,13,3,12.25,7.46,0,7.46,3.73,no,0.9000,0.217,0.183
 reason,compressed 50%,1,0.5,1.5,0,27,Fork,Crossings,7,14,4,12.03,8.06,0,8.06,4.03,no,0.9833,0.067,0.050
-reason,compressed 50%,1,0.5,1.5,0,28,Swing,Crossings,8,12,4,11.12,8.50,0,8.50,4.25,no,0.9000,0.233,0.250
+reason,compressed 50%,1,0.5,1.5,0,28,Swing,Crossings,8,12,4,11.12,8.50,0,8.50,4.25,no,0.9333,0.150,0.217
 reason,compressed 50%,1,0.5,1.5,0,29,Window,Crossings,8,16,5,7.69,7.71,0,7.69,3.84,no,0.8667,0.267,0.317
 reason,compressed 50%,1,0.5,1.5,0,30,Ladder,Crossings,8,12,4,8.16,7.75,0,7.80,3.90,no,0.9167,0.183,0.200
 reason,compressed 50%,1,0.5,1.5,0,31,Flag,Crossings,8,14,3,14.71,9.10,0,9.10,4.55,no,0.9833,0.033,0.033
-reason,compressed 50%,1,0.5,1.5,0,32,Rake,Crossings,9,17,5,10.51,6.43,0,6.43,3.21,no,0.7500,0.533,0.483
+reason,compressed 50%,1,0.5,1.5,0,32,Rake,Crossings,9,17,5,10.51,6.43,0,6.43,3.21,no,0.9500,0.100,0.483
 reason,compressed 50%,1,0.5,1.5,0,33,House,Everyday Things,9,24,5,5.96,4.58,0,4.58,2.29,no,0.7000,0.683,0.817
-reason,compressed 50%,1,0.5,1.5,0,34,Boat,Everyday Things,9,17,5,9.17,6.40,0,6.40,3.20,no,0.8833,0.233,0.367
+reason,compressed 50%,1,0.5,1.5,0,34,Boat,Everyday Things,9,17,5,7.64,6.12,0,6.12,3.06,no,0.8500,0.367,0.350
 reason,compressed 50%,1,0.5,1.5,0,35,Tree,Everyday Things,9,19,4,9.09,7.58,0,7.58,3.79,no,0.8500,0.333,0.167
-reason,compressed 50%,1,0.5,1.5,0,36,Rocket,Everyday Things,10,14,4,9.27,7.12,2,7.12,3.56,yes,0.0333,4.517,2.817
-reason,compressed 50%,1,0.5,1.5,0,37,Bridge,Everyday Things,10,17,3,8.98,6.30,0,6.30,3.15,no,0.5833,1.283,1.500
+reason,compressed 50%,1,0.5,1.5,0,36,Rocket,Everyday Things,8,14,4,7.08,7.08,0,7.08,3.54,no,0.5667,1.083,0.917
+reason,compressed 50%,1,0.5,1.5,0,37,Bridge,Everyday Things,10,17,3,9.17,6.42,0,6.42,3.21,no,0.6500,1.083,1.183
 reason,compressed 50%,1,0.5,1.5,0,38,Train,Everyday Things,10,21,5,9.15,7.67,0,7.67,3.84,no,0.9167,0.200,0.133
-reason,compressed 50%,1,0.5,1.5,0,39,Truck,Everyday Things,10,16,4,14.95,8.05,0,8.05,4.02,no,0.9167,0.167,0.167
-reason,compressed 50%,1,0.5,1.5,0,40,Clock,Everyday Things,11,19,5,11.25,5.95,0,6.43,3.22,no,0.7833,0.467,0.600
-reason,compressed 50%,1,0.5,1.5,0,41,Bell,Everyday Things,9,13,4,7.10,7.45,1,7.45,3.72,no,0.5000,1.450,0.833
-reason,compressed 50%,1,0.5,1.5,0,42,Cup,Everyday Things,12,16,4,13.35,7.27,1,7.27,3.63,no,0.3500,1.900,1.350
-reason,compressed 50%,1,0.5,1.5,0,43,Bottle,Everyday Things,12,22,6,6.92,6.68,0,6.92,3.46,no,0.5000,1.483,1.433
-reason,compressed 50%,1,0.5,1.5,0,44,Envelope,Everyday Things,12,21,5,7.14,7.22,0,7.22,3.61,no,0.8000,0.483,0.483
+reason,compressed 50%,1,0.5,1.5,0,39,Truck,Everyday Things,10,16,4,9.09,8.03,0,8.03,4.01,no,0.9000,0.217,0.217
+reason,compressed 50%,1,0.5,1.5,0,40,Clock,Everyday Things,10,19,5,10.28,5.76,0,6.13,3.06,no,0.7333,0.617,0.633
+reason,compressed 50%,1,0.5,1.5,0,41,Bell,Everyday Things,7,13,4,7.10,7.45,0,7.45,3.72,no,0.8500,0.350,0.317
+reason,compressed 50%,1,0.5,1.5,0,42,Cup,Everyday Things,10,16,4,11.74,7.25,0,7.25,3.62,no,0.6833,0.967,0.500
+reason,compressed 50%,1,0.5,1.5,0,43,Bottle,Everyday Things,11,22,6,7.24,6.68,0,7.24,3.62,no,0.8500,0.300,0.317
+reason,compressed 50%,1,0.5,1.5,0,44,Envelope,Everyday Things,11,21,5,7.37,7.33,0,7.33,3.67,no,0.8167,0.400,0.333
 reason,compressed 50%,1,0.5,1.5,0,45,Book,Everyday Things,12,24,5,6.90,6.22,0,6.22,3.11,no,0.6167,0.917,1.083
 reason,compressed 50%,1,0.5,1.5,0,46,Pencil,Everyday Things,13,19,3,15.70,7.33,0,7.33,3.67,no,0.7667,0.533,0.467
 reason,compressed 50%,1,0.5,1.5,0,47,Anchor,Everyday Things,12,17,5,12.79,5.10,0,5.23,2.62,no,0.4833,1.500,1.700
-reason,compressed 50%,1,0.5,1.5,0,48,Wrench,Everyday Things,13,16,5,6.83,7.09,0,6.97,3.48,no,0.3833,2.717,2.050
-reason,compressed 50%,1,0.5,1.5,0,49,Candle,Everyday Things,10,12,3,12.85,8.73,1,8.73,4.37,no,0.2167,3.533,1.633
-reason,compressed 50%,1,0.5,1.5,0,50,Drum,Everyday Things,14,22,6,6.16,5.42,0,6.16,3.08,no,0.8667,0.317,0.450
-reason,compressed 50%,1,0.5,1.5,0,51,Camera,Everyday Things,14,26,6,6.75,6.57,0,6.64,3.32,no,0.8333,0.483,0.417
-reason,compressed 50%,1,0.5,1.5,0,52,Lantern,Everyday Things,15,21,5,7.55,6.99,0,7.22,3.61,no,0.7667,0.550,0.600
-reason,compressed 50%,1,0.5,1.5,0,53,Fish,Creatures,15,28,6,7.30,7.33,0,7.33,3.67,no,0.8500,0.600,0.367
-reason,compressed 50%,1,0.5,1.5,0,54,Crab,Creatures,13,20,6,9.62,7.21,0,7.21,3.60,no,0.3833,1.883,1.667
-reason,compressed 50%,1,0.5,1.5,0,55,Snail,Creatures,15,17,5,10.13,7.10,2,7.10,3.55,no,0.0833,5.233,2.967
-reason,compressed 50%,1,0.5,1.5,0,56,Bird,Creatures,13,21,6,7.16,7.59,0,7.32,3.66,no,0.6833,0.850,0.950
-reason,compressed 50%,1,0.5,1.5,0,57,Owl,Creatures,16,24,6,8.14,6.33,0,6.33,3.17,no,0.5667,1.117,0.983
-reason,compressed 50%,1,0.5,1.5,0,58,Cat,Creatures,13,16,6,9.00,9.72,3,9.00,4.50,no,0.1667,7.300,3.083
-reason,compressed 50%,1,0.5,1.5,0,59,Dog,Creatures,14,23,6,7.65,7.36,0,7.36,3.68,no,0.7833,0.550,0.550
-reason,compressed 50%,1,0.5,1.5,0,60,Bunny,Creatures,17,27,7,6.02,5.41,0,6.14,3.07,no,0.4333,2.050,1.950
-reason,compressed 50%,1,0.5,1.5,0,61,Frog,Creatures,12,16,6,8.75,6.85,2,7.46,3.73,yes,0.0667,7.033,2.817
-reason,compressed 50%,1,0.5,1.5,0,62,Turtle,Creatures,15,23,6,7.85,8.55,0,7.85,3.92,no,0.5000,1.333,1.133
+reason,compressed 50%,1,0.5,1.5,0,48,Wrench,Everyday Things,12,16,5,6.83,7.09,0,6.97,3.48,no,0.6000,1.050,0.733
+reason,compressed 50%,1,0.5,1.5,0,49,Candle,Everyday Things,9,12,3,12.85,8.73,0,8.73,4.37,no,0.7500,0.667,0.717
+reason,compressed 50%,1,0.5,1.5,0,50,Drum,Everyday Things,13,22,6,5.55,5.00,0,5.00,2.50,no,0.5333,1.200,1.367
+reason,compressed 50%,1,0.5,1.5,0,51,Camera,Everyday Things,13,26,6,5.31,5.33,0,5.31,2.65,no,0.3833,1.650,1.500
+reason,compressed 50%,1,0.5,1.5,0,52,Lantern,Everyday Things,14,21,5,7.54,7.18,0,7.18,3.59,no,0.6333,1.083,1.233
+reason,compressed 50%,1,0.5,1.5,0,53,Fish,Creatures,11,28,6,7.13,7.00,0,7.16,3.58,no,0.9333,0.150,0.133
+reason,compressed 50%,1,0.5,1.5,0,54,Crab,Creatures,11,20,6,7.41,6.33,0,6.33,3.17,no,0.6167,0.950,0.767
+reason,compressed 50%,1,0.5,1.5,0,55,Snail,Creatures,13,17,5,9.93,7.00,0,7.00,3.50,no,0.7167,0.800,0.917
+reason,compressed 50%,1,0.5,1.5,0,56,Bird,Creatures,13,21,6,7.83,7.33,0,7.33,3.67,no,0.4833,2.583,1.333
+reason,compressed 50%,1,0.5,1.5,0,57,Owl,Creatures,12,24,6,4.55,5.00,0,4.55,2.28,no,0.2500,1.800,1.933
+reason,compressed 50%,1,0.5,1.5,0,58,Cat,Creatures,10,16,6,9.67,8.85,0,9.60,4.80,no,0.9833,0.083,0.067
+reason,compressed 50%,1,0.5,1.5,0,59,Dog,Creatures,13,23,6,7.18,7.83,0,7.18,3.59,no,0.8667,0.433,0.517
+reason,compressed 50%,1,0.5,1.5,0,60,Bunny,Creatures,15,27,7,6.02,5.41,0,6.14,3.07,no,0.6333,1.283,1.200
+reason,compressed 50%,1,0.5,1.5,0,61,Frog,Creatures,10,16,6,7.01,7.00,0,7.00,3.50,no,0.5167,1.483,1.367
+reason,compressed 50%,1,0.5,1.5,0,62,Turtle,Creatures,15,23,6,8.81,7.55,0,7.55,3.77,no,0.6333,1.267,0.817
 reason,compressed 50%,1,0.5,1.5,0,63,Whale,Creatures,17,25,5,9.74,7.38,0,7.38,3.69,no,0.7667,0.717,0.867
-reason,compressed 50%,1,0.5,1.5,0,64,Bee,Creatures,16,25,6,7.24,7.52,0,7.52,3.76,no,0.1833,3.967,2.367
-reason,compressed 50%,1,0.5,1.5,0,65,Ant,Creatures,8,14,6,8.44,9.09,0,8.72,4.36,no,0.8667,0.367,0.983
-reason,compressed 50%,1,0.5,1.5,0,66,Spider,Creatures,16,18,6,10.49,7.29,4,7.29,3.65,yes,0.0000,7.300,4.350
-reason,compressed 50%,1,0.5,1.5,0,67,Butterfly,Creatures,14,15,5,9.94,7.26,3,7.26,3.63,no,0.0000,9.300,4.033
-reason,compressed 50%,1,0.5,1.5,0,68,Snake,Creatures,19,20,5,8.56,4.99,3,4.99,2.49,no,0.0167,12.250,6.450
-reason,compressed 50%,1,0.5,1.5,0,69,Penguin,Creatures,17,21,7,7.30,6.60,2,6.60,3.30,no,0.1500,5.933,2.900
-reason,compressed 50%,1,0.5,1.5,0,70,Fox,Creatures,15,17,5,6.52,7.20,3,6.52,3.26,no,0.0000,8.100,4.967
-reason,compressed 50%,1,0.5,1.5,0,71,Lighthouse,Landmarks,19,26,6,5.97,5.74,0,5.74,2.87,no,0.1000,4.400,2.867
-reason,compressed 50%,1,0.5,1.5,0,72,Windmill,Landmarks,15,17,5,7.20,6.34,3,6.34,3.17,no,0.0667,6.383,3.633
-reason,compressed 50%,1,0.5,1.5,0,73,Sailboat,Landmarks,16,18,5,9.46,7.33,3,7.33,3.67,no,0.1000,5.850,3.467
-reason,compressed 50%,1,0.5,1.5,0,74,Castle,Landmarks,18,20,7,6.11,6.52,5,6.52,3.26,yes,0.0333,10.967,6.583
-reason,compressed 50%,1,0.5,1.5,0,75,Church,Landmarks,19,21,5,5.79,4.88,3,4.88,2.44,no,0.0000,13.233,8.883
-reason,compressed 50%,1,0.5,1.5,0,76,Skyline,Landmarks,22,29,6,7.26,4.75,0,4.75,2.38,no,0.1167,5.283,5.133
-reason,compressed 50%,1,0.5,1.5,0,77,Pyramid,Landmarks,19,24,4,11.11,6.47,0,6.47,3.23,no,0.0000,11.733,5.900
-reason,compressed 50%,1,0.5,1.5,0,78,Fountain,Landmarks,23,26,7,7.95,5.34,4,5.89,2.94,no,0.0000,12.450,6.933
-reason,compressed 50%,1,0.5,1.5,0,79,Aqueduct,Landmarks,23,28,7,8.64,5.64,0,5.64,2.82,no,0.2500,3.517,3.367
-reason,compressed 50%,1,0.5,1.5,0,80,Cathedral,Landmarks,21,29,6,10.19,6.72,1,6.72,3.36,no,0.0333,6.717,3.783
-reason,compressed 50%,1,0.5,1.5,0,81,Ferris,Landmarks,22,25,8,9.15,6.73,4,6.73,3.37,no,0.0167,16.433,8.217
-reason,compressed 50%,1,0.5,1.5,0,82,Temple,Landmarks,24,38,8,5.31,5.66,0,5.31,2.65,no,0.1333,4.400,4.533
-reason,compressed 50%,1,0.5,1.5,0,83,Observatory,Landmarks,22,26,6,8.89,5.99,2,5.99,3.00,no,0.0167,11.100,6.450
-reason,compressed 50%,1,0.5,1.5,0,84,Garden,Landmarks,22,26,7,8.30,4.61,3,4.61,2.31,no,0.0333,14.517,7.633
-reason,compressed 50%,1,0.5,1.5,0,85,Harbor,Landmarks,20,23,5,7.37,5.15,1,5.15,2.57,no,0.0000,14.267,7.683
-reason,compressed 50%,1,0.5,1.5,0,86,Waterfall,Landmarks,24,33,7,8.51,5.77,0,5.77,2.88,no,0.0000,7.483,4.817
-reason,compressed 50%,1,0.5,1.5,0,87,Trainyard,Landmarks,26,36,6,8.48,4.88,0,4.88,2.44,no,0.0667,5.633,6.050
-reason,compressed 50%,1,0.5,1.5,0,88,Cityscape,Landmarks,26,38,6,7.26,4.93,0,5.03,2.52,no,0.0000,8.167,8.917
-reason,compressed 50%,1,0.5,1.5,0,89,Cascade,Mastery,16,17,7,6.45,4.54,6,4.54,2.27,no,0.0000,10.167,6.950
-reason,compressed 50%,1,0.5,1.5,0,90,Circuit,Mastery,22,23,6,8.14,5.72,4,5.72,2.86,no,0.0000,15.950,8.450
-reason,compressed 50%,1,0.5,1.5,0,91,Loom,Mastery,27,33,6,7.78,5.19,0,5.19,2.60,no,0.0000,11.800,12.283
-reason,compressed 50%,1,0.5,1.5,0,92,Lattice,Mastery,27,43,7,6.66,4.50,0,4.50,2.25,no,0.0000,14.850,15.483
-reason,compressed 50%,1,0.5,1.5,0,93,Reactor,Mastery,28,40,8,4.80,4.24,0,4.25,2.12,no,0.0167,6.733,7.300
-reason,compressed 50%,1,0.5,1.5,0,94,Palace,Mastery,27,28,7,4.28,4.28,6,4.28,2.14,no,0.0000,22.033,11.633
-reason,compressed 50%,1,0.5,1.5,0,95,Carousel,Mastery,28,37,6,4.27,4.37,0,4.27,2.14,no,0.0000,10.350,8.783
-reason,compressed 50%,1,0.5,1.5,0,96,Organ,Mastery,28,35,7,4.83,4.65,0,4.65,2.32,no,0.0167,13.283,9.383
-reason,compressed 50%,1,0.5,1.5,0,97,Citadel,Mastery,29,31,8,5.67,4.29,6,4.63,2.31,no,0.0000,27.067,14.283
-reason,compressed 50%,1,0.5,1.5,0,98,Colossus,Mastery,29,42,10,4.34,4.36,2,4.36,2.18,no,0.0000,10.200,8.533
-reason,compressed 50%,1,0.5,1.5,0,99,Vault,Mastery,30,37,6,6.11,4.22,0,4.22,2.11,no,0.0000,12.150,12.650
-reason,compressed 50%,1,0.5,1.5,0,100,Mandala,Mastery,30,37,6,5.77,4.05,0,4.05,2.02,no,0.0000,18.350,18.550
+reason,compressed 50%,1,0.5,1.5,0,64,Bee,Creatures,15,25,6,9.14,7.18,0,7.18,3.59,no,0.5833,1.167,0.850
+reason,compressed 50%,1,0.5,1.5,0,65,Ant,Creatures,8,14,6,8.44,9.09,0,8.72,4.36,no,0.8500,0.450,1.033
+reason,compressed 50%,1,0.5,1.5,0,66,Spider,Creatures,13,18,6,6.14,5.56,0,5.56,2.78,no,0.2500,4.467,3.250
+reason,compressed 50%,1,0.5,1.5,0,67,Butterfly,Creatures,13,15,5,9.89,7.90,1,9.21,4.61,no,0.4833,2.017,1.783
+reason,compressed 50%,1,0.5,1.5,0,68,Snake,Creatures,14,20,5,5.70,5.33,0,5.33,2.66,no,0.2667,2.583,2.717
+reason,compressed 50%,1,0.5,1.5,0,69,Penguin,Creatures,13,21,7,7.30,6.60,0,6.60,3.30,no,0.5333,1.467,0.800
+reason,compressed 50%,1,0.5,1.5,0,70,Fox,Creatures,12,17,5,11.56,7.46,1,7.46,3.73,no,0.3167,2.750,1.683
+reason,compressed 50%,1,0.5,1.5,0,71,Lighthouse,Landmarks,13,26,6,5.97,5.74,0,5.74,2.87,no,0.3500,1.683,1.483
+reason,compressed 50%,1,0.5,1.5,0,72,Windmill,Landmarks,12,17,5,7.02,6.64,2,6.64,3.32,no,0.5000,1.550,1.117
+reason,compressed 50%,1,0.5,1.5,0,73,Sailboat,Landmarks,9,18,5,9.46,7.33,0,7.33,3.67,no,0.8500,0.317,0.267
+reason,compressed 50%,1,0.5,1.5,0,74,Castle,Landmarks,13,20,7,7.06,5.68,0,5.68,2.84,no,0.3333,2.317,1.917
+reason,compressed 50%,1,0.5,1.5,0,75,Church,Landmarks,13,21,5,5.79,4.88,0,4.88,2.44,no,0.1000,4.333,4.133
+reason,compressed 50%,1,0.5,1.5,0,76,Skyline,Landmarks,19,29,6,6.19,4.66,0,4.66,2.33,no,0.2167,2.250,2.333
+reason,compressed 50%,1,0.5,1.5,0,77,Pyramid,Landmarks,14,24,4,13.08,6.37,0,6.37,3.19,no,0.7333,0.650,0.733
+reason,compressed 50%,1,0.5,1.5,0,78,Fountain,Landmarks,16,26,7,5.97,5.03,0,5.64,2.82,no,0.4167,1.650,1.750
+reason,compressed 50%,1,0.5,1.5,0,79,Aqueduct,Landmarks,19,28,7,7.78,5.00,0,5.00,2.50,no,0.2667,3.233,3.167
+reason,compressed 50%,1,0.5,1.5,0,80,Cathedral,Landmarks,19,29,6,7.95,4.94,0,4.94,2.47,no,0.1667,3.550,3.233
+reason,compressed 50%,1,0.5,1.5,0,81,Ferris,Landmarks,19,25,8,6.94,6.20,0,6.20,3.10,no,0.1500,4.367,4.617
+reason,compressed 50%,1,0.5,1.5,0,82,Temple,Landmarks,16,38,8,6.20,5.25,0,5.25,2.62,no,0.3000,2.517,2.200
+reason,compressed 50%,1,0.5,1.5,0,83,Observatory,Landmarks,19,26,6,9.26,6.27,0,6.61,3.31,no,0.1833,3.500,2.283
+reason,compressed 50%,1,0.5,1.5,0,84,Garden,Landmarks,15,26,7,8.30,4.61,0,4.64,2.32,no,0.1667,3.750,3.583
+reason,compressed 50%,1,0.5,1.5,0,85,Harbor,Landmarks,14,23,5,8.99,4.76,0,4.76,2.38,no,0.1833,3.283,3.017
+reason,compressed 50%,1,0.5,1.5,0,86,Waterfall,Landmarks,17,33,7,7.53,4.85,0,4.85,2.43,no,0.4167,1.700,1.833
+reason,compressed 50%,1,0.5,1.5,0,87,Trainyard,Landmarks,18,36,6,8.48,4.88,0,4.88,2.44,no,0.0833,4.067,3.917
+reason,compressed 50%,1,0.5,1.5,0,88,Cityscape,Landmarks,23,38,6,7.26,4.93,0,5.03,2.52,no,0.0167,6.000,6.900
+reason,compressed 50%,1,0.5,1.5,0,89,Cascade,Mastery,11,17,7,6.43,4.52,1,4.52,2.26,no,0.2667,3.083,2.517
+reason,compressed 50%,1,0.5,1.5,0,90,Circuit,Mastery,17,23,6,7.77,5.26,0,5.26,2.63,no,0.1667,3.417,3.700
+reason,compressed 50%,1,0.5,1.5,0,91,Loom,Mastery,16,33,6,7.78,5.19,0,5.19,2.60,no,0.1167,4.767,5.433
+reason,compressed 50%,1,0.5,1.5,0,92,Lattice,Mastery,16,43,7,7.25,4.45,0,4.45,2.22,no,0.1500,3.783,4.000
+reason,compressed 50%,1,0.5,1.5,0,93,Reactor,Mastery,17,40,8,3.89,4.31,0,4.03,2.01,no,0.0833,3.050,2.850
+reason,compressed 50%,1,0.5,1.5,0,94,Palace,Mastery,17,28,7,4.68,4.68,0,4.68,2.34,no,0.1833,3.400,3.700
+reason,compressed 50%,1,0.5,1.5,0,95,Carousel,Mastery,19,37,6,4.38,4.67,0,4.38,2.19,no,0.1333,4.117,4.317
+reason,compressed 50%,1,0.5,1.5,0,96,Organ,Mastery,19,35,7,4.83,4.65,0,4.83,2.41,no,0.2167,2.633,2.567
+reason,compressed 50%,1,0.5,1.5,0,97,Citadel,Mastery,20,31,8,4.40,4.43,0,4.40,2.20,no,0.0333,5.183,5.550
+reason,compressed 50%,1,0.5,1.5,0,98,Colossus,Mastery,18,42,10,4.34,4.36,0,4.36,2.18,no,0.2167,3.233,2.800
+reason,compressed 50%,1,0.5,1.5,0,99,Vault,Mastery,19,37,6,4.25,4.50,0,4.50,2.25,no,0.1167,4.750,5.383
+reason,compressed 50%,1,0.5,1.5,0,100,Mandala,Mastery,17,37,6,5.68,3.92,0,3.92,1.96,no,0.0333,5.400,6.000
 reason,compressed 50%,1,0.5,1.5,0,101,Screwdriver,Workshop,14,23,6,4.72,4.72,0,4.72,2.36,no,0.0500,4.367,4.450
 reason,compressed 50%,1,0.5,1.5,0,102,Try Square,Workshop,14,28,6,5.27,4.56,0,4.56,2.28,no,0.1333,3.133,3.717
 reason,compressed 50%,1,0.5,1.5,0,103,Oil Can,Workshop,15,26,6,4.61,4.61,0,4.61,2.31,no,0.1167,3.617,3.883
@@ -907,9 +907,9 @@ reason,compressed 50%,1,0.5,1.5,0,105,C Clamp,Workshop,15,29,6,4.50,4.50,0,4.50,
 reason,compressed 50%,1,0.5,1.5,0,106,Vise,Workshop,16,31,6,4.91,4.91,0,4.91,2.46,no,0.1500,2.850,2.933
 reason,compressed 50%,1,0.5,1.5,0,107,Toolbox,Workshop,16,30,7,5.44,4.61,0,4.61,2.31,no,0.1333,3.650,4.200
 reason,compressed 50%,1,0.5,1.5,0,108,Handsaw,Workshop,16,30,7,4.91,4.91,0,4.91,2.46,no,0.0667,4.450,4.567
-reason,compressed 50%,1,0.5,1.5,0,109,Pliers,Workshop,14,23,7,5.41,5.41,0,5.41,2.70,no,0.2000,3.500,3.117
+reason,compressed 50%,1,0.5,1.5,0,109,Pliers,Workshop,14,23,7,5.41,5.41,0,5.41,2.70,no,0.1667,3.850,3.117
 reason,compressed 50%,1,0.5,1.5,0,110,Level,Workshop,19,29,7,5.72,5.72,0,5.72,2.86,no,0.0167,5.167,4.833
-reason,compressed 50%,1,0.5,1.5,0,111,Tool Rack,Workshop,17,26,7,4.81,4.81,0,4.84,2.42,no,0.1833,3.533,2.850
+reason,compressed 50%,1,0.5,1.5,0,111,Tool Rack,Workshop,17,26,7,4.81,4.81,0,4.84,2.42,no,0.1833,3.633,3.000
 reason,compressed 50%,1,0.5,1.5,0,112,Pipe Clamp,Workshop,16,26,7,4.61,4.61,0,4.61,2.31,no,0.1500,4.217,4.350
 reason,compressed 50%,1,0.5,1.5,0,113,Hacksaw,Workshop,18,32,7,4.69,4.69,0,4.69,2.35,no,0.0500,4.283,4.583
 reason,compressed 50%,1,0.5,1.5,0,114,Caliper,Workshop,18,29,8,6.40,4.44,0,4.44,2.22,no,0.0500,5.850,6.183
@@ -918,48 +918,48 @@ reason,compressed 50%,1,0.5,1.5,0,116,Lathe,Workshop,17,31,8,4.57,4.57,0,4.57,2.
 reason,compressed 50%,1,0.5,1.5,0,117,Bandsaw,Workshop,18,30,8,5.62,5.62,0,5.62,2.81,no,0.2333,2.817,3.567
 reason,compressed 50%,1,0.5,1.5,0,118,Hand Plane,Workshop,18,27,8,7.60,4.62,0,4.62,2.31,no,0.0500,6.833,6.050
 reason,compressed 50%,1,0.5,1.5,0,119,Belt Sander,Workshop,20,32,8,4.51,4.51,0,4.51,2.25,no,0.0833,5.700,6.017
-reason,compressed 50%,1,0.5,1.5,0,120,Workbench,Workshop,21,32,8,4.51,4.51,1,4.51,2.25,no,0.0167,7.300,6.650
-reason,compressed 50%,1,0.5,1.5,0,121,Metronome,Orchestra,17,27,7,6.33,5.63,0,5.63,2.82,no,0.1833,2.850,2.683
+reason,compressed 50%,1,0.5,1.5,0,120,Workbench,Workshop,21,32,8,4.51,4.51,1,4.51,2.25,no,0.0167,7.350,6.633
+reason,compressed 50%,1,0.5,1.5,0,121,Metronome,Orchestra,17,27,7,6.33,5.63,0,5.63,2.82,no,0.1833,2.883,2.683
 reason,compressed 50%,1,0.5,1.5,0,122,Music Stand,Orchestra,17,32,7,5.20,5.20,0,5.20,2.60,no,0.0500,4.867,4.950
 reason,compressed 50%,1,0.5,1.5,0,123,Music Note,Orchestra,16,24,7,4.00,4.24,0,4.00,2.00,no,0.1000,3.900,3.867
 reason,compressed 50%,1,0.5,1.5,0,124,Cymbal,Orchestra,16,35,7,4.21,4.21,0,4.21,2.11,no,0.0333,4.517,4.667
 reason,compressed 50%,1,0.5,1.5,0,125,Flute,Orchestra,17,27,7,4.40,4.40,0,4.40,2.20,no,0.1000,5.317,5.633
 reason,compressed 50%,1,0.5,1.5,0,126,Trumpet,Orchestra,17,29,7,7.59,4.40,0,4.40,2.20,no,0.1667,3.867,4.100
 reason,compressed 50%,1,0.5,1.5,0,127,Harp,Orchestra,22,35,7,4.84,4.84,0,4.91,2.45,no,0.0333,5.633,5.933
-reason,compressed 50%,1,0.5,1.5,0,128,Microphone,Orchestra,18,28,8,5.41,5.41,0,5.41,2.70,no,0.0167,6.350,6.167
+reason,compressed 50%,1,0.5,1.5,0,128,Microphone,Orchestra,18,28,8,5.41,5.41,0,5.41,2.70,no,0.0167,6.250,6.150
 reason,compressed 50%,1,0.5,1.5,0,129,Xylophone,Orchestra,21,30,8,5.25,5.25,0,5.25,2.62,no,0.0000,7.650,7.633
 reason,compressed 50%,1,0.5,1.5,0,130,Accordion,Orchestra,16,32,8,4.74,4.74,0,4.74,2.37,no,0.0167,5.100,5.600
 reason,compressed 50%,1,0.5,1.5,0,131,Amplifier,Orchestra,24,33,8,5.55,5.54,0,5.54,2.77,no,0.0333,6.350,6.650
-reason,compressed 50%,1,0.5,1.5,0,132,Guitar,Orchestra,19,30,8,5.55,5.55,0,5.55,2.78,no,0.0000,6.817,6.583
+reason,compressed 50%,1,0.5,1.5,0,132,Guitar,Orchestra,19,30,8,5.55,5.55,0,5.55,2.78,no,0.0000,6.717,6.700
 reason,compressed 50%,1,0.5,1.5,0,133,Cello,Orchestra,18,33,8,5.40,5.40,0,5.40,2.70,no,0.0333,6.667,7.267
 reason,compressed 50%,1,0.5,1.5,0,134,Banjo,Orchestra,20,35,8,4.94,4.94,0,4.94,2.47,no,0.0167,5.967,6.083
 reason,compressed 50%,1,0.5,1.5,0,135,Trombone,Orchestra,20,34,8,4.91,4.91,0,4.91,2.46,no,0.0000,7.050,7.033
 reason,compressed 50%,1,0.5,1.5,0,136,Violin Case,Orchestra,21,32,9,5.38,5.38,0,5.38,2.69,no,0.0500,6.600,7.383
-reason,compressed 50%,1,0.5,1.5,0,137,Saxophone,Orchestra,18,33,9,4.50,4.35,0,4.35,2.18,no,0.0333,5.767,4.983
+reason,compressed 50%,1,0.5,1.5,0,137,Saxophone,Orchestra,19,33,9,4.50,4.35,1,4.35,2.18,no,0.0500,5.300,5.517
 reason,compressed 50%,1,0.5,1.5,0,138,Bagpipes,Orchestra,21,34,9,4.82,4.82,0,4.82,2.41,no,0.0000,7.967,8.417
 reason,compressed 50%,1,0.5,1.5,0,139,Tuba,Orchestra,19,36,9,4.48,4.48,0,4.48,2.24,no,0.0333,6.733,7.533
 reason,compressed 50%,1,0.5,1.5,0,140,Piano,Orchestra,20,34,9,5.80,4.35,0,4.35,2.18,no,0.2667,3.217,3.200
 reason,compressed 50%,1,0.5,1.5,0,141,Antenna,Circuitry,16,29,7,4.62,4.62,0,4.62,2.31,no,0.0833,4.933,5.200
 reason,compressed 50%,1,0.5,1.5,0,142,Fuse,Circuitry,16,27,7,5.09,5.08,0,5.08,2.54,no,0.0333,6.183,5.450
-reason,compressed 50%,1,0.5,1.5,0,143,Switch,Circuitry,17,29,7,6.15,4.04,0,4.04,2.02,no,0.0500,5.300,5.250
+reason,compressed 50%,1,0.5,1.5,0,143,Switch,Circuitry,17,29,7,6.15,4.04,0,4.04,2.02,no,0.0500,5.417,5.250
 reason,compressed 50%,1,0.5,1.5,0,144,Battery,Circuitry,18,32,7,4.82,4.82,0,4.82,2.41,no,0.0833,5.483,5.950
 reason,compressed 50%,1,0.5,1.5,0,145,Resistor,Circuitry,18,29,8,4.51,4.51,0,4.51,2.25,no,0.0667,5.150,5.617
 reason,compressed 50%,1,0.5,1.5,0,146,Capacitor,Circuitry,18,34,8,4.64,4.04,0,4.04,2.02,no,0.0167,6.200,6.417
-reason,compressed 50%,1,0.5,1.5,0,147,Plug,Circuitry,19,30,8,4.71,4.71,0,4.71,2.35,no,0.0000,7.783,6.383
-reason,compressed 50%,1,0.5,1.5,0,148,Relay,Circuitry,26,37,8,4.76,4.76,0,4.76,2.38,no,0.1333,5.367,5.533
+reason,compressed 50%,1,0.5,1.5,0,147,Plug,Circuitry,19,30,8,4.71,4.71,0,4.71,2.35,no,0.0000,7.367,6.717
+reason,compressed 50%,1,0.5,1.5,0,148,Relay,Circuitry,26,37,8,4.76,4.76,0,4.76,2.38,no,0.1333,5.400,5.533
 reason,compressed 50%,1,0.5,1.5,0,149,Speaker,Circuitry,24,37,8,6.55,4.62,0,4.62,2.31,no,0.0000,7.217,8.117
 reason,compressed 50%,1,0.5,1.5,0,150,Transformer,Circuitry,20,39,9,4.32,4.32,0,4.32,2.16,no,0.0000,6.983,7.433
-reason,compressed 50%,1,0.5,1.5,0,151,Heatsink,Circuitry,27,36,9,5.11,4.61,0,4.61,2.30,no,0.0333,8.083,6.900
+reason,compressed 50%,1,0.5,1.5,0,151,Heatsink,Circuitry,27,36,9,5.11,4.61,0,4.61,2.30,no,0.0333,8.133,6.750
 reason,compressed 50%,1,0.5,1.5,0,152,Satellite,Circuitry,16,33,9,4.47,4.47,0,4.47,2.23,no,0.0167,6.417,6.867
 reason,compressed 50%,1,0.5,1.5,0,153,Radar Dish,Circuitry,20,35,9,4.38,4.38,0,4.38,2.19,no,0.0167,8.033,8.000
 reason,compressed 50%,1,0.5,1.5,0,154,Junction Box,Circuitry,21,34,9,4.32,4.32,0,4.32,2.16,no,0.0167,6.967,7.333
 reason,compressed 50%,1,0.5,1.5,0,155,Patch Bay,Circuitry,22,36,9,4.72,4.72,0,4.72,2.36,no,0.0000,7.983,8.933
 reason,compressed 50%,1,0.5,1.5,0,156,Server Rack,Circuitry,24,40,9,4.65,4.54,0,4.54,2.27,no,0.0000,7.817,8.650
-reason,compressed 50%,1,0.5,1.5,0,157,Microchip,Circuitry,21,32,10,6.24,4.58,0,4.58,2.29,no,0.0500,8.000,6.583
-reason,compressed 50%,1,0.5,1.5,0,158,Power Strip,Circuitry,21,36,10,4.36,4.36,0,4.36,2.18,no,0.0167,7.667,8.050
-reason,compressed 50%,1,0.5,1.5,0,159,Oscilloscope,Circuitry,26,40,10,4.58,4.58,0,4.58,2.29,no,0.0000,10.633,11.483
-reason,compressed 50%,1,0.5,1.5,0,160,Motherboard,Circuitry,22,37,10,4.51,4.51,0,4.51,2.25,no,0.0000,8.017,9.083
-reason,compressed 50%,1,0.5,1.5,0,161,Staircase,Interiors,20,30,8,4.51,4.51,0,4.51,2.25,no,0.0000,6.817,6.633
+reason,compressed 50%,1,0.5,1.5,0,157,Microchip,Circuitry,21,32,10,6.24,4.58,0,4.58,2.29,no,0.0500,8.600,6.567
+reason,compressed 50%,1,0.5,1.5,0,158,Power Strip,Circuitry,22,36,10,4.36,4.36,0,4.36,2.18,no,0.0167,8.533,8.883
+reason,compressed 50%,1,0.5,1.5,0,159,Oscilloscope,Circuitry,26,40,10,4.58,4.58,0,4.58,2.29,no,0.0000,10.700,11.483
+reason,compressed 50%,1,0.5,1.5,0,160,Motherboard,Circuitry,22,37,10,4.51,4.51,0,4.51,2.25,no,0.0000,8.200,9.067
+reason,compressed 50%,1,0.5,1.5,0,161,Staircase,Interiors,20,30,8,4.51,4.51,0,4.51,2.25,no,0.0000,6.867,6.633
 reason,compressed 50%,1,0.5,1.5,0,162,Bookshelf,Interiors,22,41,8,4.34,4.34,0,4.34,2.17,no,0.0667,5.233,5.633
 reason,compressed 50%,1,0.5,1.5,0,163,Colonnade,Interiors,22,41,8,7.09,4.94,0,4.94,2.47,no,0.0667,5.600,5.800
 reason,compressed 50%,1,0.5,1.5,0,164,Balcony,Interiors,18,37,8,4.62,4.62,0,4.62,2.31,no,0.0167,7.167,7.483
@@ -971,12 +971,12 @@ reason,compressed 50%,1,0.5,1.5,0,169,Alcove,Interiors,20,40,9,4.60,4.60,0,4.60,
 reason,compressed 50%,1,0.5,1.5,0,170,Wardrobe,Interiors,22,41,9,4.51,4.51,0,4.51,2.25,no,0.0000,7.850,8.033
 reason,compressed 50%,1,0.5,1.5,0,171,Skylight,Interiors,19,30,9,4.21,4.21,0,4.21,2.11,no,0.0000,8.367,8.533
 reason,compressed 50%,1,0.5,1.5,0,172,Mezzanine,Interiors,22,41,9,4.37,4.37,0,4.37,2.18,no,0.0167,7.133,7.683
-reason,compressed 50%,1,0.5,1.5,0,173,Atrium,Interiors,26,41,9,4.34,4.34,0,4.34,2.17,no,0.0000,8.867,9.517
+reason,compressed 50%,1,0.5,1.5,0,173,Atrium,Interiors,26,41,9,4.34,4.34,0,4.34,2.17,no,0.0000,9.000,9.500
 reason,compressed 50%,1,0.5,1.5,0,174,Rafters,Interiors,22,41,9,4.36,4.36,0,4.36,2.18,no,0.0167,8.633,9.583
 reason,compressed 50%,1,0.5,1.5,0,175,Curtain,Interiors,22,42,10,4.61,4.61,0,4.61,2.31,no,0.0000,8.333,9.250
 reason,compressed 50%,1,0.5,1.5,0,176,Elevator,Interiors,23,42,10,4.51,4.51,0,4.51,2.25,no,0.0000,8.667,9.217
-reason,compressed 50%,1,0.5,1.5,0,177,Banister,Interiors,23,38,10,4.08,4.40,1,4.40,2.20,no,0.0000,7.167,5.817
-reason,compressed 50%,1,0.5,1.5,0,178,Landing,Interiors,18,34,10,4.58,4.21,0,4.21,2.11,no,0.0333,6.467,7.033
+reason,compressed 50%,1,0.5,1.5,0,177,Banister,Interiors,24,38,10,4.08,4.40,1,4.40,2.20,no,0.0000,7.417,6.517
+reason,compressed 50%,1,0.5,1.5,0,178,Landing,Interiors,18,34,10,4.58,4.21,0,4.21,2.11,no,0.0333,6.517,7.033
 reason,compressed 50%,1,0.5,1.5,0,179,Stove,Interiors,19,39,10,4.08,4.08,0,4.08,2.04,no,0.0000,8.667,9.450
 reason,compressed 50%,1,0.5,1.5,0,180,Dome,Interiors,22,41,10,4.04,4.04,0,4.04,2.02,no,0.0000,9.000,9.717
 reason,compressed 50%,1,0.5,1.5,0,181,Refinery,Grand Works,18,44,9,4.34,4.34,0,4.34,2.17,no,0.0500,5.750,6.033
@@ -1019,86 +1019,86 @@ reason,typical eye + fumbles,2,0,1.5,0.02,17,Sword,Two Strokes,5,12,2,9.75,6.86,
 reason,typical eye + fumbles,2,0,1.5,0.02,18,Hook,Two Strokes,5,9,2,13.79,11.38,0,11.38,11.38,no,0.9833,0.033,0.000
 reason,typical eye + fumbles,2,0,1.5,0.02,19,Goalpost,Crossings,5,11,3,12.09,7.65,0,7.65,7.65,no,0.9333,0.133,0.000
 reason,typical eye + fumbles,2,0,1.5,0.02,20,Table,Crossings,5,11,3,11.20,7.72,0,8.12,8.12,no,0.9000,0.233,0.000
-reason,typical eye + fumbles,2,0,1.5,0.02,21,Chair,Crossings,6,9,3,14.02,9.54,0,9.54,9.54,no,0.9333,0.183,0.000
+reason,typical eye + fumbles,2,0,1.5,0.02,21,Chair,Crossings,6,9,3,14.02,9.54,0,9.54,9.54,no,0.9500,0.150,0.000
 reason,typical eye + fumbles,2,0,1.5,0.02,22,Bed,Crossings,6,12,3,11.66,7.91,0,7.91,7.91,no,0.9000,0.267,0.067
 reason,typical eye + fumbles,2,0,1.5,0.02,23,Frame,Crossings,6,14,4,12.59,8.24,0,15.07,15.07,no,0.9333,0.167,0.000
 reason,typical eye + fumbles,2,0,1.5,0.02,24,Hammer,Crossings,6,13,3,7.91,7.91,0,7.91,7.91,no,0.8500,0.383,0.050
 reason,typical eye + fumbles,2,0,1.5,0.02,25,Key,Crossings,7,10,3,15.08,8.72,0,8.72,8.72,no,0.8833,0.350,0.033
 reason,typical eye + fumbles,2,0,1.5,0.02,26,Lamp,Crossings,7,13,3,12.25,7.46,0,7.46,7.46,no,0.8833,0.267,0.050
 reason,typical eye + fumbles,2,0,1.5,0.02,27,Fork,Crossings,7,14,4,12.03,8.06,0,8.06,8.06,no,0.8500,0.417,0.033
-reason,typical eye + fumbles,2,0,1.5,0.02,28,Swing,Crossings,8,12,4,11.12,8.50,0,8.50,8.50,no,0.7667,0.833,0.117
+reason,typical eye + fumbles,2,0,1.5,0.02,28,Swing,Crossings,8,12,4,11.12,8.50,0,8.50,8.50,no,0.6000,1.383,0.150
 reason,typical eye + fumbles,2,0,1.5,0.02,29,Window,Crossings,8,16,5,7.69,7.71,0,7.69,7.69,no,0.8667,0.433,0.033
 reason,typical eye + fumbles,2,0,1.5,0.02,30,Ladder,Crossings,8,12,4,8.16,7.75,0,7.80,7.80,no,0.8500,0.500,0.050
 reason,typical eye + fumbles,2,0,1.5,0.02,31,Flag,Crossings,8,14,3,14.71,9.10,0,9.10,9.10,no,0.8333,0.417,0.000
 reason,typical eye + fumbles,2,0,1.5,0.02,32,Rake,Crossings,9,17,5,10.51,6.43,0,6.43,6.43,no,0.8333,0.600,0.083
 reason,typical eye + fumbles,2,0,1.5,0.02,33,House,Everyday Things,9,24,5,5.96,4.58,0,4.58,4.58,no,0.7167,0.783,0.233
-reason,typical eye + fumbles,2,0,1.5,0.02,34,Boat,Everyday Things,9,17,5,9.17,6.40,0,6.40,6.40,no,0.8167,0.467,0.050
+reason,typical eye + fumbles,2,0,1.5,0.02,34,Boat,Everyday Things,9,17,5,7.64,6.12,0,6.12,6.12,no,0.8167,0.450,0.050
 reason,typical eye + fumbles,2,0,1.5,0.02,35,Tree,Everyday Things,9,19,4,9.09,7.58,0,7.58,7.58,no,0.7667,0.683,0.133
-reason,typical eye + fumbles,2,0,1.5,0.02,36,Rocket,Everyday Things,10,14,4,9.27,7.12,2,7.12,7.12,yes,0.1167,3.817,2.383
-reason,typical eye + fumbles,2,0,1.5,0.02,37,Bridge,Everyday Things,10,17,3,8.98,6.30,0,6.30,6.30,no,0.6667,0.967,0.333
+reason,typical eye + fumbles,2,0,1.5,0.02,36,Rocket,Everyday Things,8,14,4,7.08,7.08,0,7.08,7.08,no,0.7000,0.683,0.317
+reason,typical eye + fumbles,2,0,1.5,0.02,37,Bridge,Everyday Things,10,17,3,9.17,6.42,0,6.42,6.42,no,0.7167,0.883,0.283
 reason,typical eye + fumbles,2,0,1.5,0.02,38,Train,Everyday Things,10,21,5,9.15,7.67,0,7.67,7.67,no,0.7667,0.750,0.033
-reason,typical eye + fumbles,2,0,1.5,0.02,39,Truck,Everyday Things,10,16,4,14.95,8.05,0,8.05,8.05,no,0.8333,0.400,0.067
-reason,typical eye + fumbles,2,0,1.5,0.02,40,Clock,Everyday Things,11,19,5,11.25,5.95,0,6.43,6.43,no,0.8000,0.683,0.100
-reason,typical eye + fumbles,2,0,1.5,0.02,41,Bell,Everyday Things,9,13,4,7.10,7.45,1,7.45,7.45,no,0.5000,2.050,0.517
-reason,typical eye + fumbles,2,0,1.5,0.02,42,Cup,Everyday Things,12,16,4,13.35,7.27,1,7.27,7.27,no,0.4833,2.050,0.450
-reason,typical eye + fumbles,2,0,1.5,0.02,43,Bottle,Everyday Things,12,22,6,6.92,6.68,0,6.92,6.92,no,0.5667,1.617,0.250
-reason,typical eye + fumbles,2,0,1.5,0.02,44,Envelope,Everyday Things,12,21,5,7.14,7.22,0,7.22,7.22,no,0.7667,0.617,0.100
+reason,typical eye + fumbles,2,0,1.5,0.02,39,Truck,Everyday Things,10,16,4,9.09,8.03,0,8.03,8.03,no,0.8667,0.550,0.150
+reason,typical eye + fumbles,2,0,1.5,0.02,40,Clock,Everyday Things,10,19,5,10.28,5.76,0,6.13,6.13,no,0.8000,0.533,0.133
+reason,typical eye + fumbles,2,0,1.5,0.02,41,Bell,Everyday Things,7,13,4,7.10,7.45,0,7.45,7.45,no,0.8000,0.600,0.067
+reason,typical eye + fumbles,2,0,1.5,0.02,42,Cup,Everyday Things,10,16,4,11.74,7.25,0,7.25,7.25,no,0.7333,1.000,0.183
+reason,typical eye + fumbles,2,0,1.5,0.02,43,Bottle,Everyday Things,11,22,6,7.24,6.68,0,7.24,7.24,no,0.6500,1.233,0.050
+reason,typical eye + fumbles,2,0,1.5,0.02,44,Envelope,Everyday Things,11,21,5,7.37,7.33,0,7.33,7.33,no,0.7667,0.733,0.100
 reason,typical eye + fumbles,2,0,1.5,0.02,45,Book,Everyday Things,12,24,5,6.90,6.22,0,6.22,6.22,no,0.6667,1.517,0.367
 reason,typical eye + fumbles,2,0,1.5,0.02,46,Pencil,Everyday Things,13,19,3,15.70,7.33,0,7.33,7.33,no,0.7167,1.050,0.117
 reason,typical eye + fumbles,2,0,1.5,0.02,47,Anchor,Everyday Things,12,17,5,12.79,5.10,0,5.23,5.23,no,0.6500,0.917,0.550
-reason,typical eye + fumbles,2,0,1.5,0.02,48,Wrench,Everyday Things,13,16,5,6.83,7.09,0,6.97,6.97,no,0.2833,3.467,0.933
-reason,typical eye + fumbles,2,0,1.5,0.02,49,Candle,Everyday Things,10,12,3,12.85,8.73,1,8.73,8.73,no,0.4500,2.500,0.767
-reason,typical eye + fumbles,2,0,1.5,0.02,50,Drum,Everyday Things,14,22,6,6.16,5.42,0,6.16,6.16,no,0.7333,0.850,0.183
-reason,typical eye + fumbles,2,0,1.5,0.02,51,Camera,Everyday Things,14,26,6,6.75,6.57,0,6.64,6.64,no,0.6833,1.017,0.217
-reason,typical eye + fumbles,2,0,1.5,0.02,52,Lantern,Everyday Things,15,21,5,7.55,6.99,0,7.22,7.22,no,0.7000,0.967,0.150
-reason,typical eye + fumbles,2,0,1.5,0.02,53,Fish,Creatures,15,28,6,7.30,7.33,0,7.33,7.33,no,0.7833,0.833,0.133
-reason,typical eye + fumbles,2,0,1.5,0.02,54,Crab,Creatures,13,20,6,9.62,7.21,0,7.21,7.21,no,0.4000,2.250,0.700
-reason,typical eye + fumbles,2,0,1.5,0.02,55,Snail,Creatures,15,17,5,10.13,7.10,2,7.10,7.10,no,0.1167,4.900,1.400
-reason,typical eye + fumbles,2,0,1.5,0.02,56,Bird,Creatures,13,21,6,7.16,7.59,0,7.32,7.32,no,0.6667,1.400,0.517
-reason,typical eye + fumbles,2,0,1.5,0.02,57,Owl,Creatures,16,24,6,8.14,6.33,0,6.33,6.33,no,0.7667,0.833,0.233
-reason,typical eye + fumbles,2,0,1.5,0.02,58,Cat,Creatures,13,16,6,9.00,9.72,3,9.00,9.00,no,0.3333,4.450,1.117
-reason,typical eye + fumbles,2,0,1.5,0.02,59,Dog,Creatures,14,23,6,7.65,7.36,0,7.36,7.36,no,0.7500,1.017,0.150
-reason,typical eye + fumbles,2,0,1.5,0.02,60,Bunny,Creatures,17,27,7,6.02,5.41,0,6.14,6.14,no,0.8167,0.933,0.300
-reason,typical eye + fumbles,2,0,1.5,0.02,61,Frog,Creatures,12,16,6,8.75,6.85,2,7.46,7.46,yes,0.1000,6.933,1.767
-reason,typical eye + fumbles,2,0,1.5,0.02,62,Turtle,Creatures,15,23,6,7.85,8.55,0,7.85,7.85,no,0.4000,2.200,0.500
+reason,typical eye + fumbles,2,0,1.5,0.02,48,Wrench,Everyday Things,12,16,5,6.83,7.09,0,6.97,6.97,no,0.6833,1.067,0.217
+reason,typical eye + fumbles,2,0,1.5,0.02,49,Candle,Everyday Things,9,12,3,12.85,8.73,0,8.73,8.73,no,0.7833,0.767,0.233
+reason,typical eye + fumbles,2,0,1.5,0.02,50,Drum,Everyday Things,13,22,6,5.55,5.00,0,5.00,5.00,no,0.6000,1.417,0.500
+reason,typical eye + fumbles,2,0,1.5,0.02,51,Camera,Everyday Things,13,26,6,5.31,5.33,0,5.31,5.31,no,0.6833,1.033,0.333
+reason,typical eye + fumbles,2,0,1.5,0.02,52,Lantern,Everyday Things,14,21,5,7.54,7.18,0,7.18,7.18,no,0.7000,0.833,0.317
+reason,typical eye + fumbles,2,0,1.5,0.02,53,Fish,Creatures,11,28,6,7.13,7.00,0,7.16,7.16,no,0.8500,0.517,0.067
+reason,typical eye + fumbles,2,0,1.5,0.02,54,Crab,Creatures,11,20,6,7.41,6.33,0,6.33,6.33,no,0.7333,0.900,0.333
+reason,typical eye + fumbles,2,0,1.5,0.02,55,Snail,Creatures,13,17,5,9.93,7.00,0,7.00,7.00,no,0.7167,1.017,0.350
+reason,typical eye + fumbles,2,0,1.5,0.02,56,Bird,Creatures,13,21,6,7.83,7.33,0,7.33,7.33,no,0.6000,1.417,0.333
+reason,typical eye + fumbles,2,0,1.5,0.02,57,Owl,Creatures,12,24,6,4.55,5.00,0,4.55,4.55,no,0.5333,1.250,0.700
+reason,typical eye + fumbles,2,0,1.5,0.02,58,Cat,Creatures,10,16,6,9.67,8.85,0,9.60,9.60,no,0.8333,0.517,0.050
+reason,typical eye + fumbles,2,0,1.5,0.02,59,Dog,Creatures,13,23,6,7.18,7.83,0,7.18,7.18,no,0.5000,1.733,0.367
+reason,typical eye + fumbles,2,0,1.5,0.02,60,Bunny,Creatures,15,27,7,6.02,5.41,0,6.14,6.14,no,0.6000,1.750,0.533
+reason,typical eye + fumbles,2,0,1.5,0.02,61,Frog,Creatures,10,16,6,7.01,7.00,0,7.00,7.00,no,0.5667,1.317,0.483
+reason,typical eye + fumbles,2,0,1.5,0.02,62,Turtle,Creatures,15,23,6,8.81,7.55,0,7.55,7.55,no,0.4833,2.150,0.650
 reason,typical eye + fumbles,2,0,1.5,0.02,63,Whale,Creatures,17,25,5,9.74,7.38,0,7.38,7.38,no,0.6667,0.900,0.250
-reason,typical eye + fumbles,2,0,1.5,0.02,64,Bee,Creatures,16,25,6,7.24,7.52,0,7.52,7.52,no,0.2167,4.250,1.250
-reason,typical eye + fumbles,2,0,1.5,0.02,65,Ant,Creatures,8,14,6,8.44,9.09,0,8.72,8.72,no,0.7667,0.867,0.433
-reason,typical eye + fumbles,2,0,1.5,0.02,66,Spider,Creatures,16,18,6,10.49,7.29,4,7.29,7.29,yes,0.0167,7.383,2.833
-reason,typical eye + fumbles,2,0,1.5,0.02,67,Butterfly,Creatures,14,15,5,9.94,7.26,3,7.26,7.26,no,0.0000,9.250,2.083
-reason,typical eye + fumbles,2,0,1.5,0.02,68,Snake,Creatures,19,20,5,8.56,4.99,3,4.99,4.99,no,0.0000,12.500,3.050
-reason,typical eye + fumbles,2,0,1.5,0.02,69,Penguin,Creatures,17,21,7,7.30,6.60,2,6.60,6.60,no,0.0667,7.017,1.633
-reason,typical eye + fumbles,2,0,1.5,0.02,70,Fox,Creatures,15,17,5,6.52,7.20,3,6.52,6.52,no,0.0667,7.000,2.317
-reason,typical eye + fumbles,2,0,1.5,0.02,71,Lighthouse,Landmarks,19,26,6,5.97,5.74,0,5.74,5.74,no,0.1667,4.250,1.183
-reason,typical eye + fumbles,2,0,1.5,0.02,72,Windmill,Landmarks,15,17,5,7.20,6.34,3,6.34,6.34,no,0.1167,6.233,1.833
-reason,typical eye + fumbles,2,0,1.5,0.02,73,Sailboat,Landmarks,16,18,5,9.46,7.33,3,7.33,7.33,no,0.0333,6.250,2.050
-reason,typical eye + fumbles,2,0,1.5,0.02,74,Castle,Landmarks,18,20,7,6.11,6.52,5,6.52,6.52,yes,0.0000,10.750,4.217
-reason,typical eye + fumbles,2,0,1.5,0.02,75,Church,Landmarks,19,21,5,5.79,4.88,3,4.88,4.88,no,0.0000,13.317,4.800
-reason,typical eye + fumbles,2,0,1.5,0.02,76,Skyline,Landmarks,22,29,6,7.26,4.75,0,4.75,4.75,no,0.1500,4.500,1.983
-reason,typical eye + fumbles,2,0,1.5,0.02,77,Pyramid,Landmarks,19,24,4,11.11,6.47,0,6.47,6.47,no,0.0167,11.317,3.083
-reason,typical eye + fumbles,2,0,1.5,0.02,78,Fountain,Landmarks,23,26,7,7.95,5.34,4,5.89,5.89,no,0.0000,12.567,3.333
-reason,typical eye + fumbles,2,0,1.5,0.02,79,Aqueduct,Landmarks,23,28,7,8.64,5.64,0,5.64,5.64,no,0.4167,2.583,1.083
-reason,typical eye + fumbles,2,0,1.5,0.02,80,Cathedral,Landmarks,21,29,6,10.19,6.72,1,6.72,6.72,no,0.1167,7.017,1.500
-reason,typical eye + fumbles,2,0,1.5,0.02,81,Ferris,Landmarks,22,25,8,9.15,6.73,4,6.73,6.73,no,0.0333,14.850,3.983
-reason,typical eye + fumbles,2,0,1.5,0.02,82,Temple,Landmarks,24,38,8,5.31,5.66,0,5.31,5.31,no,0.4500,2.117,1.183
-reason,typical eye + fumbles,2,0,1.5,0.02,83,Observatory,Landmarks,22,26,6,8.89,5.99,2,5.99,5.99,no,0.0167,12.667,3.433
-reason,typical eye + fumbles,2,0,1.5,0.02,84,Garden,Landmarks,22,26,7,8.30,4.61,3,4.61,4.61,no,0.0500,14.983,4.067
-reason,typical eye + fumbles,2,0,1.5,0.02,85,Harbor,Landmarks,20,23,5,7.37,5.15,1,5.15,5.15,no,0.0000,13.633,4.683
-reason,typical eye + fumbles,2,0,1.5,0.02,86,Waterfall,Landmarks,24,33,7,8.51,5.77,0,5.77,5.77,no,0.1000,6.450,2.483
-reason,typical eye + fumbles,2,0,1.5,0.02,87,Trainyard,Landmarks,26,36,6,8.48,4.88,0,4.88,4.88,no,0.2000,4.017,2.467
-reason,typical eye + fumbles,2,0,1.5,0.02,88,Cityscape,Landmarks,26,38,6,7.26,4.93,0,5.03,5.03,no,0.3833,3.367,2.000
-reason,typical eye + fumbles,2,0,1.5,0.02,89,Cascade,Mastery,16,17,7,6.45,4.54,6,4.54,4.54,no,0.0333,9.367,4.233
-reason,typical eye + fumbles,2,0,1.5,0.02,90,Circuit,Mastery,22,23,6,8.14,5.72,4,5.72,5.72,no,0.0000,16.200,4.733
-reason,typical eye + fumbles,2,0,1.5,0.02,91,Loom,Mastery,27,33,6,7.78,5.19,0,5.19,5.19,no,0.0667,6.317,4.617
-reason,typical eye + fumbles,2,0,1.5,0.02,92,Lattice,Mastery,27,43,7,6.66,4.50,0,4.50,4.50,no,0.0500,7.417,5.617
-reason,typical eye + fumbles,2,0,1.5,0.02,93,Reactor,Mastery,28,40,8,4.80,4.24,0,4.25,4.25,no,0.2000,4.233,2.350
-reason,typical eye + fumbles,2,0,1.5,0.02,94,Palace,Mastery,27,28,7,4.28,4.28,6,4.28,4.28,no,0.0000,21.467,6.817
-reason,typical eye + fumbles,2,0,1.5,0.02,95,Carousel,Mastery,28,37,6,4.27,4.37,0,4.27,4.27,no,0.0167,7.683,3.867
-reason,typical eye + fumbles,2,0,1.5,0.02,96,Organ,Mastery,28,35,7,4.83,4.65,0,4.65,4.65,no,0.0167,11.633,4.200
-reason,typical eye + fumbles,2,0,1.5,0.02,97,Citadel,Mastery,29,31,8,5.67,4.29,6,4.63,4.63,no,0.0000,27.267,8.783
-reason,typical eye + fumbles,2,0,1.5,0.02,98,Colossus,Mastery,29,42,10,4.34,4.36,2,4.36,4.36,no,0.1333,7.000,3.083
-reason,typical eye + fumbles,2,0,1.5,0.02,99,Vault,Mastery,30,37,6,6.11,4.22,0,4.22,4.22,no,0.0167,6.483,3.967
-reason,typical eye + fumbles,2,0,1.5,0.02,100,Mandala,Mastery,30,37,6,5.77,4.05,0,4.05,4.05,no,0.0000,12.233,8.800
+reason,typical eye + fumbles,2,0,1.5,0.02,64,Bee,Creatures,15,25,6,9.14,7.18,0,7.18,7.18,no,0.5333,2.333,0.500
+reason,typical eye + fumbles,2,0,1.5,0.02,65,Ant,Creatures,8,14,6,8.44,9.09,0,8.72,8.72,no,0.7333,1.017,0.567
+reason,typical eye + fumbles,2,0,1.5,0.02,66,Spider,Creatures,13,18,6,6.14,5.56,0,5.56,5.56,no,0.5667,1.900,0.817
+reason,typical eye + fumbles,2,0,1.5,0.02,67,Butterfly,Creatures,13,15,5,9.89,7.90,1,9.21,9.21,no,0.4667,2.333,0.717
+reason,typical eye + fumbles,2,0,1.5,0.02,68,Snake,Creatures,14,20,5,5.70,5.33,0,5.33,5.33,no,0.4833,1.817,0.883
+reason,typical eye + fumbles,2,0,1.5,0.02,69,Penguin,Creatures,13,21,7,7.30,6.60,0,6.60,6.60,no,0.4833,1.950,0.517
+reason,typical eye + fumbles,2,0,1.5,0.02,70,Fox,Creatures,12,17,5,11.56,7.46,1,7.46,7.46,no,0.4333,2.067,0.683
+reason,typical eye + fumbles,2,0,1.5,0.02,71,Lighthouse,Landmarks,13,26,6,5.97,5.74,0,5.74,5.74,no,0.5500,1.333,0.300
+reason,typical eye + fumbles,2,0,1.5,0.02,72,Windmill,Landmarks,12,17,5,7.02,6.64,2,6.64,6.64,no,0.6667,1.200,0.317
+reason,typical eye + fumbles,2,0,1.5,0.02,73,Sailboat,Landmarks,9,18,5,9.46,7.33,0,7.33,7.33,no,0.8167,0.500,0.133
+reason,typical eye + fumbles,2,0,1.5,0.02,74,Castle,Landmarks,13,20,7,7.06,5.68,0,5.68,5.68,no,0.4833,1.933,0.733
+reason,typical eye + fumbles,2,0,1.5,0.02,75,Church,Landmarks,13,21,5,5.79,4.88,0,4.88,4.88,no,0.4167,2.217,1.200
+reason,typical eye + fumbles,2,0,1.5,0.02,76,Skyline,Landmarks,19,29,6,6.19,4.66,0,4.66,4.66,no,0.4167,2.183,0.967
+reason,typical eye + fumbles,2,0,1.5,0.02,77,Pyramid,Landmarks,14,24,4,13.08,6.37,0,6.37,6.37,no,0.5667,1.017,0.100
+reason,typical eye + fumbles,2,0,1.5,0.02,78,Fountain,Landmarks,16,26,7,5.97,5.03,0,5.64,5.64,no,0.6833,1.333,0.617
+reason,typical eye + fumbles,2,0,1.5,0.02,79,Aqueduct,Landmarks,19,28,7,7.78,5.00,0,5.00,5.00,no,0.4167,2.550,1.117
+reason,typical eye + fumbles,2,0,1.5,0.02,80,Cathedral,Landmarks,19,29,6,7.95,4.94,0,4.94,4.94,no,0.5333,2.317,1.017
+reason,typical eye + fumbles,2,0,1.5,0.02,81,Ferris,Landmarks,19,25,8,6.94,6.20,0,6.20,6.20,no,0.5167,2.000,0.883
+reason,typical eye + fumbles,2,0,1.5,0.02,82,Temple,Landmarks,16,38,8,6.20,5.25,0,5.25,5.25,no,0.5333,1.867,0.700
+reason,typical eye + fumbles,2,0,1.5,0.02,83,Observatory,Landmarks,19,26,6,9.26,6.27,0,6.61,6.61,no,0.2667,3.233,0.833
+reason,typical eye + fumbles,2,0,1.5,0.02,84,Garden,Landmarks,15,26,7,8.30,4.61,0,4.64,4.64,no,0.3000,2.567,1.400
+reason,typical eye + fumbles,2,0,1.5,0.02,85,Harbor,Landmarks,14,23,5,8.99,4.76,0,4.76,4.76,no,0.3167,2.883,1.100
+reason,typical eye + fumbles,2,0,1.5,0.02,86,Waterfall,Landmarks,17,33,7,7.53,4.85,0,4.85,4.85,no,0.4500,1.617,0.733
+reason,typical eye + fumbles,2,0,1.5,0.02,87,Trainyard,Landmarks,18,36,6,8.48,4.88,0,4.88,4.88,no,0.4500,2.350,1.233
+reason,typical eye + fumbles,2,0,1.5,0.02,88,Cityscape,Landmarks,23,38,6,7.26,4.93,0,5.03,5.03,no,0.3667,2.500,1.400
+reason,typical eye + fumbles,2,0,1.5,0.02,89,Cascade,Mastery,11,17,7,6.43,4.52,1,4.52,4.52,no,0.4500,1.717,0.883
+reason,typical eye + fumbles,2,0,1.5,0.02,90,Circuit,Mastery,17,23,6,7.77,5.26,0,5.26,5.26,no,0.4333,2.183,1.150
+reason,typical eye + fumbles,2,0,1.5,0.02,91,Loom,Mastery,16,33,6,7.78,5.19,0,5.19,5.19,no,0.3167,2.283,1.467
+reason,typical eye + fumbles,2,0,1.5,0.02,92,Lattice,Mastery,16,43,7,7.25,4.45,0,4.45,4.45,no,0.5333,1.617,1.083
+reason,typical eye + fumbles,2,0,1.5,0.02,93,Reactor,Mastery,17,40,8,3.89,4.31,0,4.03,4.03,no,0.2833,3.067,1.300
+reason,typical eye + fumbles,2,0,1.5,0.02,94,Palace,Mastery,17,28,7,4.68,4.68,0,4.68,4.68,no,0.4333,1.983,1.167
+reason,typical eye + fumbles,2,0,1.5,0.02,95,Carousel,Mastery,19,37,6,4.38,4.67,0,4.38,4.38,no,0.3500,2.717,1.267
+reason,typical eye + fumbles,2,0,1.5,0.02,96,Organ,Mastery,19,35,7,4.83,4.65,0,4.83,4.83,no,0.3667,2.567,1.067
+reason,typical eye + fumbles,2,0,1.5,0.02,97,Citadel,Mastery,20,31,8,4.40,4.43,0,4.40,4.40,no,0.3500,2.383,1.633
+reason,typical eye + fumbles,2,0,1.5,0.02,98,Colossus,Mastery,18,42,10,4.34,4.36,0,4.36,4.36,no,0.2667,2.650,0.750
+reason,typical eye + fumbles,2,0,1.5,0.02,99,Vault,Mastery,19,37,6,4.25,4.50,0,4.50,4.50,no,0.3833,2.867,1.783
+reason,typical eye + fumbles,2,0,1.5,0.02,100,Mandala,Mastery,17,37,6,5.68,3.92,0,3.92,3.92,no,0.1833,3.783,2.650
 reason,typical eye + fumbles,2,0,1.5,0.02,101,Screwdriver,Workshop,14,23,6,4.72,4.72,0,4.72,4.72,no,0.3833,2.050,1.667
 reason,typical eye + fumbles,2,0,1.5,0.02,102,Try Square,Workshop,14,28,6,5.27,4.56,0,4.56,4.56,no,0.5333,1.633,1.150
 reason,typical eye + fumbles,2,0,1.5,0.02,103,Oil Can,Workshop,15,26,6,4.61,4.61,0,4.61,4.61,no,0.5167,1.750,1.133
@@ -1107,59 +1107,59 @@ reason,typical eye + fumbles,2,0,1.5,0.02,105,C Clamp,Workshop,15,29,6,4.50,4.50
 reason,typical eye + fumbles,2,0,1.5,0.02,106,Vise,Workshop,16,31,6,4.91,4.91,0,4.91,4.91,no,0.4833,1.867,0.767
 reason,typical eye + fumbles,2,0,1.5,0.02,107,Toolbox,Workshop,16,30,7,5.44,4.61,0,4.61,4.61,no,0.2333,2.633,1.133
 reason,typical eye + fumbles,2,0,1.5,0.02,108,Handsaw,Workshop,16,30,7,4.91,4.91,0,4.91,4.91,no,0.4500,1.867,1.033
-reason,typical eye + fumbles,2,0,1.5,0.02,109,Pliers,Workshop,14,23,7,5.41,5.41,0,5.41,5.41,no,0.5167,1.817,1.033
+reason,typical eye + fumbles,2,0,1.5,0.02,109,Pliers,Workshop,14,23,7,5.41,5.41,0,5.41,5.41,no,0.5500,1.767,0.983
 reason,typical eye + fumbles,2,0,1.5,0.02,110,Level,Workshop,19,29,7,5.72,5.72,0,5.72,5.72,no,0.3000,2.467,1.067
-reason,typical eye + fumbles,2,0,1.5,0.02,111,Tool Rack,Workshop,17,26,7,4.81,4.81,0,4.84,4.84,no,0.2333,2.867,1.083
+reason,typical eye + fumbles,2,0,1.5,0.02,111,Tool Rack,Workshop,17,26,7,4.81,4.81,0,4.84,4.84,no,0.2333,2.950,1.067
 reason,typical eye + fumbles,2,0,1.5,0.02,112,Pipe Clamp,Workshop,16,26,7,4.61,4.61,0,4.61,4.61,no,0.4833,2.400,1.583
 reason,typical eye + fumbles,2,0,1.5,0.02,113,Hacksaw,Workshop,18,32,7,4.69,4.69,0,4.69,4.69,no,0.2833,2.800,1.350
 reason,typical eye + fumbles,2,0,1.5,0.02,114,Caliper,Workshop,18,29,8,6.40,4.44,0,4.44,4.44,no,0.3500,2.933,2.000
 reason,typical eye + fumbles,2,0,1.5,0.02,115,Grinder,Workshop,18,30,8,4.90,4.90,0,4.90,4.90,no,0.2000,3.700,2.233
 reason,typical eye + fumbles,2,0,1.5,0.02,116,Lathe,Workshop,17,31,8,4.57,4.57,0,4.57,4.57,no,0.2500,2.733,1.917
 reason,typical eye + fumbles,2,0,1.5,0.02,117,Bandsaw,Workshop,18,30,8,5.62,5.62,0,5.62,5.62,no,0.5333,1.600,0.983
-reason,typical eye + fumbles,2,0,1.5,0.02,118,Hand Plane,Workshop,18,27,8,7.60,4.62,0,4.62,4.62,no,0.3000,2.817,1.800
-reason,typical eye + fumbles,2,0,1.5,0.02,119,Belt Sander,Workshop,20,32,8,4.51,4.51,0,4.51,4.51,no,0.2500,3.117,2.100
-reason,typical eye + fumbles,2,0,1.5,0.02,120,Workbench,Workshop,21,32,8,4.51,4.51,1,4.51,4.51,no,0.2500,3.683,2.217
-reason,typical eye + fumbles,2,0,1.5,0.02,121,Metronome,Orchestra,17,27,7,6.33,5.63,0,5.63,5.63,no,0.2833,2.183,0.833
+reason,typical eye + fumbles,2,0,1.5,0.02,118,Hand Plane,Workshop,18,27,8,7.60,4.62,0,4.62,4.62,no,0.3000,2.833,1.800
+reason,typical eye + fumbles,2,0,1.5,0.02,119,Belt Sander,Workshop,20,32,8,4.51,4.51,0,4.51,4.51,no,0.2667,3.083,2.100
+reason,typical eye + fumbles,2,0,1.5,0.02,120,Workbench,Workshop,21,32,8,4.51,4.51,1,4.51,4.51,no,0.2833,3.700,2.250
+reason,typical eye + fumbles,2,0,1.5,0.02,121,Metronome,Orchestra,17,27,7,6.33,5.63,0,5.63,5.63,no,0.2833,2.217,0.850
 reason,typical eye + fumbles,2,0,1.5,0.02,122,Music Stand,Orchestra,17,32,7,5.20,5.20,0,5.20,5.20,no,0.3333,3.050,1.533
 reason,typical eye + fumbles,2,0,1.5,0.02,123,Music Note,Orchestra,16,24,7,4.00,4.24,0,4.00,4.00,no,0.3333,2.667,1.400
 reason,typical eye + fumbles,2,0,1.5,0.02,124,Cymbal,Orchestra,16,35,7,4.21,4.21,0,4.21,4.21,no,0.3667,2.100,1.333
 reason,typical eye + fumbles,2,0,1.5,0.02,125,Flute,Orchestra,17,27,7,4.40,4.40,0,4.40,4.40,no,0.3667,2.483,1.783
 reason,typical eye + fumbles,2,0,1.5,0.02,126,Trumpet,Orchestra,17,29,7,7.59,4.40,0,4.40,4.40,no,0.3167,2.483,1.650
 reason,typical eye + fumbles,2,0,1.5,0.02,127,Harp,Orchestra,22,35,7,4.84,4.84,0,4.91,4.91,no,0.3000,3.350,1.850
-reason,typical eye + fumbles,2,0,1.5,0.02,128,Microphone,Orchestra,18,28,8,5.41,5.41,0,5.41,5.41,no,0.1833,3.350,1.883
+reason,typical eye + fumbles,2,0,1.5,0.02,128,Microphone,Orchestra,18,28,8,5.41,5.41,0,5.41,5.41,no,0.2000,3.200,1.750
 reason,typical eye + fumbles,2,0,1.5,0.02,129,Xylophone,Orchestra,21,30,8,5.25,5.25,0,5.25,5.25,no,0.2667,2.917,2.117
 reason,typical eye + fumbles,2,0,1.5,0.02,130,Accordion,Orchestra,16,32,8,4.74,4.74,0,4.74,4.74,no,0.2167,3.067,2.167
 reason,typical eye + fumbles,2,0,1.5,0.02,131,Amplifier,Orchestra,24,33,8,5.55,5.54,0,5.54,5.54,no,0.3833,4.067,1.883
-reason,typical eye + fumbles,2,0,1.5,0.02,132,Guitar,Orchestra,19,30,8,5.55,5.55,0,5.55,5.55,no,0.2000,3.783,2.133
+reason,typical eye + fumbles,2,0,1.5,0.02,132,Guitar,Orchestra,19,30,8,5.55,5.55,0,5.55,5.55,no,0.2000,3.600,2.200
 reason,typical eye + fumbles,2,0,1.5,0.02,133,Cello,Orchestra,18,33,8,5.40,5.40,0,5.40,5.40,no,0.1667,3.533,1.733
 reason,typical eye + fumbles,2,0,1.5,0.02,134,Banjo,Orchestra,20,35,8,4.94,4.94,0,4.94,4.94,no,0.3667,3.083,1.850
 reason,typical eye + fumbles,2,0,1.5,0.02,135,Trombone,Orchestra,20,34,8,4.91,4.91,0,4.91,4.91,no,0.3167,3.233,2.283
 reason,typical eye + fumbles,2,0,1.5,0.02,136,Violin Case,Orchestra,21,32,9,5.38,5.38,0,5.38,5.38,no,0.1667,4.217,2.600
-reason,typical eye + fumbles,2,0,1.5,0.02,137,Saxophone,Orchestra,18,33,9,4.50,4.35,0,4.35,4.35,no,0.2667,3.600,1.550
+reason,typical eye + fumbles,2,0,1.5,0.02,137,Saxophone,Orchestra,19,33,9,4.50,4.35,1,4.35,4.35,no,0.2500,3.750,2.300
 reason,typical eye + fumbles,2,0,1.5,0.02,138,Bagpipes,Orchestra,21,34,9,4.82,4.82,0,4.82,4.82,no,0.2167,3.333,2.617
 reason,typical eye + fumbles,2,0,1.5,0.02,139,Tuba,Orchestra,19,36,9,4.48,4.48,0,4.48,4.48,no,0.2333,3.900,2.733
 reason,typical eye + fumbles,2,0,1.5,0.02,140,Piano,Orchestra,20,34,9,5.80,4.35,0,4.35,4.35,no,0.3000,3.250,1.250
 reason,typical eye + fumbles,2,0,1.5,0.02,141,Antenna,Circuitry,16,29,7,4.62,4.62,0,4.62,4.62,no,0.2833,2.750,1.583
 reason,typical eye + fumbles,2,0,1.5,0.02,142,Fuse,Circuitry,16,27,7,5.09,5.08,0,5.08,5.08,no,0.3833,2.683,1.867
-reason,typical eye + fumbles,2,0,1.5,0.02,143,Switch,Circuitry,17,29,7,6.15,4.04,0,4.04,4.04,no,0.3500,2.367,1.700
+reason,typical eye + fumbles,2,0,1.5,0.02,143,Switch,Circuitry,17,29,7,6.15,4.04,0,4.04,4.04,no,0.3667,2.367,1.700
 reason,typical eye + fumbles,2,0,1.5,0.02,144,Battery,Circuitry,18,32,7,4.82,4.82,0,4.82,4.82,no,0.3167,3.183,2.033
 reason,typical eye + fumbles,2,0,1.5,0.02,145,Resistor,Circuitry,18,29,8,4.51,4.51,0,4.51,4.51,no,0.3000,2.800,1.833
 reason,typical eye + fumbles,2,0,1.5,0.02,146,Capacitor,Circuitry,18,34,8,4.64,4.04,0,4.04,4.04,no,0.2667,2.817,2.433
-reason,typical eye + fumbles,2,0,1.5,0.02,147,Plug,Circuitry,19,30,8,4.71,4.71,0,4.71,4.71,no,0.1167,4.400,2.183
-reason,typical eye + fumbles,2,0,1.5,0.02,148,Relay,Circuitry,26,37,8,4.76,4.76,0,4.76,4.76,no,0.3000,4.550,2.050
+reason,typical eye + fumbles,2,0,1.5,0.02,147,Plug,Circuitry,19,30,8,4.71,4.71,0,4.71,4.71,no,0.1333,3.900,2.333
+reason,typical eye + fumbles,2,0,1.5,0.02,148,Relay,Circuitry,26,37,8,4.76,4.76,0,4.76,4.76,no,0.3000,4.567,2.033
 reason,typical eye + fumbles,2,0,1.5,0.02,149,Speaker,Circuitry,24,37,8,6.55,4.62,0,4.62,4.62,no,0.3000,3.817,2.567
 reason,typical eye + fumbles,2,0,1.5,0.02,150,Transformer,Circuitry,20,39,9,4.32,4.32,0,4.32,4.32,no,0.1500,3.150,2.333
-reason,typical eye + fumbles,2,0,1.5,0.02,151,Heatsink,Circuitry,27,36,9,5.11,4.61,0,4.61,4.61,no,0.1333,4.917,1.917
+reason,typical eye + fumbles,2,0,1.5,0.02,151,Heatsink,Circuitry,27,36,9,5.11,4.61,0,4.61,4.61,no,0.1500,4.883,1.917
 reason,typical eye + fumbles,2,0,1.5,0.02,152,Satellite,Circuitry,16,33,9,4.47,4.47,0,4.47,4.47,no,0.2333,3.017,2.583
 reason,typical eye + fumbles,2,0,1.5,0.02,153,Radar Dish,Circuitry,20,35,9,4.38,4.38,0,4.38,4.38,no,0.2167,3.667,2.717
 reason,typical eye + fumbles,2,0,1.5,0.02,154,Junction Box,Circuitry,21,34,9,4.32,4.32,0,4.32,4.32,no,0.1167,3.900,2.500
 reason,typical eye + fumbles,2,0,1.5,0.02,155,Patch Bay,Circuitry,22,36,9,4.72,4.72,0,4.72,4.72,no,0.2333,3.650,2.867
 reason,typical eye + fumbles,2,0,1.5,0.02,156,Server Rack,Circuitry,24,40,9,4.65,4.54,0,4.54,4.54,no,0.1500,3.933,2.833
-reason,typical eye + fumbles,2,0,1.5,0.02,157,Microchip,Circuitry,21,32,10,6.24,4.58,0,4.58,4.58,no,0.2833,3.450,1.717
-reason,typical eye + fumbles,2,0,1.5,0.02,158,Power Strip,Circuitry,21,36,10,4.36,4.36,0,4.36,4.36,no,0.2667,3.983,2.800
-reason,typical eye + fumbles,2,0,1.5,0.02,159,Oscilloscope,Circuitry,26,40,10,4.58,4.58,0,4.58,4.58,no,0.1333,4.750,3.567
-reason,typical eye + fumbles,2,0,1.5,0.02,160,Motherboard,Circuitry,22,37,10,4.51,4.51,0,4.51,4.51,no,0.1000,4.900,3.500
-reason,typical eye + fumbles,2,0,1.5,0.02,161,Staircase,Interiors,20,30,8,4.51,4.51,0,4.51,4.51,no,0.1833,3.567,2.317
+reason,typical eye + fumbles,2,0,1.5,0.02,157,Microchip,Circuitry,21,32,10,6.24,4.58,0,4.58,4.58,no,0.2833,3.683,1.700
+reason,typical eye + fumbles,2,0,1.5,0.02,158,Power Strip,Circuitry,22,36,10,4.36,4.36,0,4.36,4.36,no,0.2167,4.417,3.167
+reason,typical eye + fumbles,2,0,1.5,0.02,159,Oscilloscope,Circuitry,26,40,10,4.58,4.58,0,4.58,4.58,no,0.1333,4.667,3.567
+reason,typical eye + fumbles,2,0,1.5,0.02,160,Motherboard,Circuitry,22,37,10,4.51,4.51,0,4.51,4.51,no,0.1000,4.817,3.433
+reason,typical eye + fumbles,2,0,1.5,0.02,161,Staircase,Interiors,20,30,8,4.51,4.51,0,4.51,4.51,no,0.1833,3.583,2.317
 reason,typical eye + fumbles,2,0,1.5,0.02,162,Bookshelf,Interiors,22,41,8,4.34,4.34,0,4.34,4.34,no,0.2500,3.300,1.733
 reason,typical eye + fumbles,2,0,1.5,0.02,163,Colonnade,Interiors,22,41,8,7.09,4.94,0,4.94,4.94,no,0.3333,2.733,1.750
 reason,typical eye + fumbles,2,0,1.5,0.02,164,Balcony,Interiors,18,37,8,4.62,4.62,0,4.62,4.62,no,0.2500,3.683,2.750
@@ -1169,14 +1169,14 @@ reason,typical eye + fumbles,2,0,1.5,0.02,167,Arcade,Interiors,22,42,9,7.07,4.91
 reason,typical eye + fumbles,2,0,1.5,0.02,168,Chandelier,Interiors,20,39,9,4.34,4.34,0,4.34,4.34,no,0.1333,4.067,2.100
 reason,typical eye + fumbles,2,0,1.5,0.02,169,Alcove,Interiors,20,40,9,4.60,4.60,0,4.60,4.60,no,0.2000,3.450,2.683
 reason,typical eye + fumbles,2,0,1.5,0.02,170,Wardrobe,Interiors,22,41,9,4.51,4.51,0,4.51,4.51,no,0.2000,4.017,2.633
-reason,typical eye + fumbles,2,0,1.5,0.02,171,Skylight,Interiors,19,30,9,4.21,4.21,0,4.21,4.21,no,0.1333,3.667,2.533
+reason,typical eye + fumbles,2,0,1.5,0.02,171,Skylight,Interiors,19,30,9,4.21,4.21,0,4.21,4.21,no,0.1500,3.633,2.533
 reason,typical eye + fumbles,2,0,1.5,0.02,172,Mezzanine,Interiors,22,41,9,4.37,4.37,0,4.37,4.37,no,0.2333,3.933,2.450
-reason,typical eye + fumbles,2,0,1.5,0.02,173,Atrium,Interiors,26,41,9,4.34,4.34,0,4.34,4.34,no,0.2500,4.250,2.783
+reason,typical eye + fumbles,2,0,1.5,0.02,173,Atrium,Interiors,26,41,9,4.34,4.34,0,4.34,4.34,no,0.2500,4.300,2.767
 reason,typical eye + fumbles,2,0,1.5,0.02,174,Rafters,Interiors,22,41,9,4.36,4.36,0,4.36,4.36,no,0.1333,4.167,3.200
 reason,typical eye + fumbles,2,0,1.5,0.02,175,Curtain,Interiors,22,42,10,4.61,4.61,0,4.61,4.61,no,0.1167,4.450,3.117
 reason,typical eye + fumbles,2,0,1.5,0.02,176,Elevator,Interiors,23,42,10,4.51,4.51,0,4.51,4.51,no,0.1500,4.267,3.100
-reason,typical eye + fumbles,2,0,1.5,0.02,177,Banister,Interiors,23,38,10,4.08,4.40,1,4.40,4.40,no,0.0500,5.367,2.200
-reason,typical eye + fumbles,2,0,1.5,0.02,178,Landing,Interiors,18,34,10,4.58,4.21,0,4.21,4.21,no,0.1667,4.183,2.583
+reason,typical eye + fumbles,2,0,1.5,0.02,177,Banister,Interiors,24,38,10,4.08,4.40,1,4.40,4.40,no,0.1167,5.533,2.550
+reason,typical eye + fumbles,2,0,1.5,0.02,178,Landing,Interiors,18,34,10,4.58,4.21,0,4.21,4.21,no,0.1667,4.167,2.583
 reason,typical eye + fumbles,2,0,1.5,0.02,179,Stove,Interiors,19,39,10,4.08,4.08,0,4.08,4.08,no,0.0833,4.433,3.600
 reason,typical eye + fumbles,2,0,1.5,0.02,180,Dome,Interiors,22,41,10,4.04,4.04,0,4.04,4.04,no,0.0833,5.850,4.083
 reason,typical eye + fumbles,2,0,1.5,0.02,181,Refinery,Grand Works,18,44,9,4.34,4.34,0,4.34,4.34,no,0.1667,3.617,2.183
