@@ -17,10 +17,22 @@
 //               given cell on the run, or a cell shared with a run already
 //               placed, which inherits one.
 //
-//  Orientation is the one that can go missing, so it is what this file gates.
-//  Deduction is a bonus channel on top (two known cells on a run fix its whole
-//  ramp, and a shared cell carries that into a crossing run, like a crossword),
-//  and its coverage is reported here for tuning rather than enforced.
+//  Orientation is the one that can go missing, so it is the first thing this
+//  file gates. Deduction is a bonus channel on top (two known cells on a run
+//  fix its whole ramp, and a shared cell carries that into a crossing run,
+//  like a crossword), and where it cannot reach, the eye is left holding the
+//  call — so what it is asked to resolve there is gated too.
+//
+//  Three more things are checked here, all of them things the campaign was
+//  getting wrong while every test in the suite stayed green:
+//
+//    * no board may carry a second arrangement a player cannot tell from the
+//      authored one. `isUniquelySolvable` compares exact colours and so
+//      cannot see these; five shipped.
+//    * every level must sit on the difficulty curve the resource says it was
+//      built to, and no chapter may peak lower than the one before it.
+//    * the ambiguity check itself must still be able to fail, which a kept
+//      copy of one of those five boards proves on every run.
 //
 //  An earlier version of this file gated on colour margin instead, demanding a
 //  wide gap wherever deduction could not reach. That was wrong: a wide gap does
@@ -267,104 +279,104 @@ final class CampaignFairnessTests: XCTestCase {
     /// The three constructions, or nil if none of them produces a board a
     /// player could not tell from the authored one.
     private func indistinguishableAlternative(_ puzzle: Puzzle) -> String? {
-            var truth: [CellIndex: OKLCh] = [:]
-            var locked: Set<CellIndex> = []
-            var runs: [[CellIndex]] = []
-            for grad in puzzle.gradients {
-                var path: [CellIndex] = []
-                for spec in grad.cells {
-                    let cell = CellIndex(r: spec.r, c: spec.c)
-                    truth[cell] = spec.color
-                    if spec.locked { locked.insert(cell) }
-                    path.append(cell)
+        var truth: [CellIndex: OKLCh] = [:]
+        var locked: Set<CellIndex> = []
+        var runs: [[CellIndex]] = []
+        for grad in puzzle.gradients {
+            var path: [CellIndex] = []
+            for spec in grad.cells {
+                let cell = CellIndex(r: spec.r, c: spec.c)
+                truth[cell] = spec.color
+                if spec.locked { locked.insert(cell) }
+                path.append(cell)
+            }
+            runs.append(path)
+        }
+        let free = truth.keys.filter { !locked.contains($0) }.sorted {
+            ($0.r, $0.c) < ($1.r, $1.c)
+        }
+        // A player's other expectation, beyond each run being even: the
+        // runs on one board step at similar rates, because every board
+        // they have seen does. An alternative that keeps every run even
+        // but gives one of them a step nothing like the rest reads as
+        // wrong, so it is not a board anybody is fooled by.
+        let ceiling = stepOddity(runs, truth) * 1.25 + 0.5
+
+        func admits(_ trial: [CellIndex: OKLCh], oddityMatters: Bool = true) -> Bool {
+            guard trial.contains(where: { !OK.equal($0.value, truth[$0.key]!) })
+            else { return false }          // not a different board at all
+            guard locked.allSatisfy({ OK.equal(trial[$0]!, truth[$0]!) })
+            else { return false }          // a given cell moved
+            if oddityMatters, stepOddity(runs, trial) > ceiling { return false }
+            return isEvenWalk(runs, trial)
+        }
+
+        // Two swatches trading places. Undetectable whenever both cells
+        // sit only on runs that stay even afterwards, which is automatic
+        // for a two-cell run, since any two colours are an even walk.
+        var found: String? = nil
+        outer: for i in 0..<free.count {
+            for j in (i + 1)..<free.count {
+                guard !OK.equal(truth[free[i]]!, truth[free[j]]!) else { continue }
+                var trial = truth
+                trial[free[i]] = truth[free[j]]
+                trial[free[j]] = truth[free[i]]
+                if admits(trial) {
+                    found = "swap \(free[i]) with \(free[j])"
+                    break outer
                 }
-                runs.append(path)
             }
-            let free = truth.keys.filter { !locked.contains($0) }.sorted {
-                ($0.r, $0.c) < ($1.r, $1.c)
-            }
-            // A player's other expectation, beyond each run being even: the
-            // runs on one board step at similar rates, because every board
-            // they have seen does. An alternative that keeps every run even
-            // but gives one of them a step nothing like the rest reads as
-            // wrong, so it is not a board anybody is fooled by.
-            let ceiling = stepOddity(runs, truth) * 1.25 + 0.5
+        }
 
-            func admits(_ trial: [CellIndex: OKLCh], oddityMatters: Bool = true) -> Bool {
-                guard trial.contains(where: { !OK.equal($0.value, truth[$0.key]!) })
-                else { return false }          // not a different board at all
-                guard locked.allSatisfy({ OK.equal(trial[$0]!, truth[$0]!) })
-                else { return false }          // a given cell moved
-                if oddityMatters, stepOddity(runs, trial) > ceiling { return false }
-                return isEvenWalk(runs, trial)
-            }
-
-            // Two swatches trading places. Undetectable whenever both cells
-            // sit only on runs that stay even afterwards, which is automatic
-            // for a two-cell run, since any two colours are an even walk.
-            var found: String? = nil
-            outer: for i in 0..<free.count {
-                for j in (i + 1)..<free.count {
-                    guard !OK.equal(truth[free[i]]!, truth[free[j]]!) else { continue }
-                    var trial = truth
-                    trial[free[i]] = truth[free[j]]
-                    trial[free[j]] = truth[free[i]]
-                    if admits(trial) {
-                        found = "swap \(free[i]) with \(free[j])"
-                        break outer
-                    }
-                }
-            }
-
-            // Two runs of the same length trading their whole families, which
-            // no swap can express and no reversal can reach. Only the free
-            // cells move, so a given cell is never disturbed — and where the
-            // two runs hang off a shared given cell, that cell keeps its
-            // colour and says nothing about which family belongs where.
-            if found == nil {
-                outer2: for a in 0..<runs.count {
-                    for b in (a + 1)..<runs.count {
-                        let fa = runs[a].filter { !locked.contains($0) && !runs[b].contains($0) }
-                        let fb = runs[b].filter { !locked.contains($0) && !runs[a].contains($0) }
-                        guard !fa.isEmpty, fa.count == fb.count else { continue }
-                        for source in [fb, fb.reversed()] {
-                            var trial = truth
-                            for (ca, cb) in zip(fa, source) {
-                                trial[ca] = truth[cb]
-                                trial[cb] = truth[ca]
-                            }
-                            if admits(trial) {
-                                found = "runs \(a) and \(b) trade families"
-                                break outer2
-                            }
+        // Two runs of the same length trading their whole families, which
+        // no swap can express and no reversal can reach. Only the free
+        // cells move, so a given cell is never disturbed — and where the
+        // two runs hang off a shared given cell, that cell keeps its
+        // colour and says nothing about which family belongs where.
+        if found == nil {
+            outer2: for a in 0..<runs.count {
+                for b in (a + 1)..<runs.count {
+                    let fa = runs[a].filter { !locked.contains($0) && !runs[b].contains($0) }
+                    let fb = runs[b].filter { !locked.contains($0) && !runs[a].contains($0) }
+                    guard !fa.isEmpty, fa.count == fb.count else { continue }
+                    for source in [fb, fb.reversed()] {
+                        var trial = truth
+                        for (ca, cb) in zip(fa, source) {
+                            trial[ca] = truth[cb]
+                            trial[cb] = truth[ca]
+                        }
+                        if admits(trial) {
+                            found = "runs \(a) and \(b) trade families"
+                            break outer2
                         }
                     }
                 }
             }
+        }
 
-            // A run laid down backwards. Reversing an even walk leaves it even,
-            // so the only things that can rule it out are a given cell moving
-            // or a crossing run being dragged off its own line — which is what
-            // `admits` tests. The step-oddity ceiling is deliberately *not*
-            // applied here, to match `_alternative_arrangement` in
-            // tools/campaign/playtest.py: that is the rule the boards were
-            // authored against, and a backstop that forgave more than the
-            // author's own rule would let a board through that the build had
-            // already refused.
-            if found == nil {
-                for (a, path) in runs.enumerated() {
-                    var trial = truth
-                    for (pos, cell) in path.enumerated() {
-                        trial[cell] = truth[path[path.count - 1 - pos]]
-                    }
-                    if admits(trial, oddityMatters: false) {
-                        found = "run \(a) reversed"
-                        break
-                    }
+        // A run laid down backwards. Reversing an even walk leaves it even,
+        // so the only things that can rule it out are a given cell moving
+        // or a crossing run being dragged off its own line — which is what
+        // `admits` tests. The step-oddity ceiling is deliberately *not*
+        // applied here, to match `_alternative_arrangement` in
+        // tools/campaign/playtest.py: that is the rule the boards were
+        // authored against, and a backstop that forgave more than the
+        // author's own rule would let a board through that the build had
+        // already refused.
+        if found == nil {
+            for (a, path) in runs.enumerated() {
+                var trial = truth
+                for (pos, cell) in path.enumerated() {
+                    trial[cell] = truth[path[path.count - 1 - pos]]
+                }
+                if admits(trial, oddityMatters: false) {
+                    found = "run \(a) reversed"
+                    break
                 }
             }
+        }
 
-            return found
+        return found
     }
 
     /// Is every run in this arrangement an even walk, as a player judges it:
