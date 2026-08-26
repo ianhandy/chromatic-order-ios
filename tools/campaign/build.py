@@ -77,6 +77,15 @@ C_LO, C_HI = 0.055, 0.26
 # Hue ramps need enough chroma for a hue step to read as a colour change.
 C_HUE_MIN = 0.11
 
+# First level that ships red herrings — swatches in the bank that belong
+# in no cell. Everything before this point keeps the original contract
+# ("every swatch you are given is used"), because that contract is one of
+# the three things a player can actually check, and taking it away is a
+# mechanic in its own right rather than a difficulty tweak. It gets its
+# own chapter instead of being retrofitted into levels that were balanced
+# without it.
+DECOY_FIRST_LEVEL = 201
+
 
 def lerp(a: float, b: float, t: float) -> float:
     return a + (b - a) * t
@@ -915,6 +924,34 @@ def every_gradient_free(shape, locked) -> bool:
     return all(any((cell not in locked) for cell in g.cells) for g in shape.gradients)
 
 
+def sparsity_locks(shape) -> set[tuple[int, int]]:
+    """Cells that must be given, not guessed: any cell edge-adjacent to a
+    DIFFERENT gradient it doesn't share a crossing with. Two such cells
+    read as one continuous run to a player — adjacency on the board always
+    means "same gradient" — so an unresolved one is a genuinely broken
+    board, not a hard-but-fair one.
+
+    Mirrors CreatorState.swift's `autoLockedCells` sparsity rule exactly,
+    so a shape that would confuse a player in the in-app Creator is held
+    to the same standard here. Pure geometry — no colours involved, so
+    this doesn't change between palette search attempts for one shape.
+    """
+    owners: dict[tuple[int, int], set[str]] = {}
+    for g in shape.gradients:
+        for cell in g.cells:
+            owners.setdefault(cell, set()).add(g.letter)
+
+    out: set[tuple[int, int]] = set()
+    for cell, own in owners.items():
+        r, c = cell
+        for nb in ((r - 1, c), (r + 1, c), (r, c - 1), (r, c + 1)):
+            nb_owners = owners.get(nb)
+            if nb_owners is not None and nb_owners.isdisjoint(own):
+                out.add(cell)
+                break
+    return out
+
+
 def deduction_closure(shape, known) -> set[tuple[int, int]]:
     """Cells a player can work out instead of recognising.
 
@@ -1134,7 +1171,16 @@ def choose_locks(shape, colors, cfg, rng) -> set[tuple[int, int]] | None:
     """Reveal starter cells: endpoints first, then spread inward until the
     bank is near target, then whatever deduction and uniqueness demand."""
     all_cells = sorted(shape.all_cells)
-    locked: set[tuple[int, int]] = set()
+
+    # Sparsity is non-negotiable and comes before anything else: a cell
+    # that touches a foreign gradient has to be given, full stop. If that
+    # alone already strands a gradient with nothing free, this shape
+    # cannot produce a fair board at all — no palette search fixes a
+    # geometry problem, so fail now rather than burn the retry budget.
+    locked: set[tuple[int, int]] = sparsity_locks(shape)
+    if not every_gradient_free(shape, locked):
+        _fail("sparsity_strands_gradient")
+        return None
 
     # Endpoints anchor a gradient's direction, which is the single most
     # useful thing to hand a new player.
@@ -1258,6 +1304,167 @@ def choose_locks(shape, colors, cfg, rng) -> set[tuple[int, int]] | None:
     return None
 
 
+# ─── Red herrings ──────────────────────────────────────────────────
+
+def _reads_evenly(values, tol: float = 2.0) -> bool:
+    """Would a player read this sequence as one even walk?
+
+    Same test `player_ambiguities` applies, pulled out so the decoy
+    search can ask it directly. Steps are compared in Lab, because that
+    is the space the player's eye is working in — a run whose steps are
+    numerically different but perceptually identical still reads as even,
+    and that is exactly the case a decoy has to avoid landing in.
+    """
+    if len(values) < 3:
+        return True
+    labs = [to_lab(v) for v in values]
+    first = tuple(labs[1][k] - labs[0][k] for k in range(3))
+    for i in range(1, len(values) - 1):
+        step = tuple(labs[i + 1][k] - labs[i][k] for k in range(3))
+        gap = math.sqrt(sum(((step[k] - first[k]) * 100) ** 2 for k in range(3)))
+        if gap >= tol:
+            return False
+    return True
+
+
+def decoy_is_fair(shape, colors, locked, decoy, cfg) -> bool:
+    """Can a person prove this swatch belongs nowhere, by eye alone?
+
+    A red herring is only a puzzle if rejecting it is possible. Two ways
+    it can fail to be:
+
+    * **It reads as a real cell.** If the decoy sits within the board's
+      own perceptual floor of some real colour, the player cannot tell
+      the two apart, and putting the decoy in that cell's place is
+      indistinguishable from solving it. That is not a hard decision, it
+      is a coin flip with no tell.
+    * **It completes a run.** If dropping the decoy into some free cell
+      leaves that gradient still reading as an even walk, the player has
+      no way to know they are wrong — the board looks finished. Worse
+      than a coin flip: it looks like a win.
+
+    So a fair decoy is far enough from every real colour to be seen as
+    different, and wrong enough in every free cell to be seen as wrong.
+    Both tests run in OKLab ΔE, not in raw channel deltas, because "far
+    enough" has to mean far enough *to a person*.
+    """
+    board = {}
+    for gi, grad in enumerate(shape.gradients):
+        for pos, cell in enumerate(grad.cells):
+            board.setdefault(cell, colors[gi][pos])
+
+    # 1. Visibly not a duplicate of anything already on the board.
+    #
+    #    The bar is the board's OWN tightest real pair, not the chapter's
+    #    nominal floor. A palette usually lands well above its floor, and
+    #    measuring the decoy against the floor instead of against the
+    #    board lets it become the finest discrimination on screen — which
+    #    is exactly backwards, because it is also the only call the player
+    #    cannot reason their way to. Whatever the closest two real colours
+    #    are, the decoy has to be at least that far from everything.
+    cols = list(board.values())
+    tightest_real = min(
+        (dist(cols[i], cols[j])
+         for i in range(len(cols)) for j in range(i + 1, len(cols))),
+        default=cfg["de_floor"])
+    own_floor = max(cfg["de_floor"], tightest_real)
+    if any(dist(decoy, col) < own_floor for col in board.values()):
+        return False
+
+    # 2. Wrong everywhere it could be dropped. Only free cells matter —
+    #    a locked cell cannot receive a swatch.
+    for gi, grad in enumerate(shape.gradients):
+        for pos, cell in enumerate(grad.cells):
+            if cell in locked:
+                continue
+            trial = list(colors[gi])
+            trial[pos] = decoy
+            if _reads_evenly(trial):
+                return False
+    return True
+
+
+def make_decoys(shape, colors, locked, cfg, rng, count: int):
+    """Build `count` fair red herrings for this board, or None.
+
+    Candidates are perturbations of real board colours rather than fresh
+    random ones: a swatch from an unrelated part of the space is dismissed
+    at a glance and costs the player nothing. A herring earns its place by
+    sitting in the same family as the run it is tempting you toward, and
+    being wrong about the step.
+    """
+    if count <= 0:
+        return []
+    board = {}
+    for gi, grad in enumerate(shape.gradients):
+        for pos, cell in enumerate(grad.cells):
+            board.setdefault(cell, colors[gi][pos])
+    reals = list(board.values())
+    if not reals:
+        return None
+
+    # How far off the decoy sits from the colour it is imitating. Small
+    # is tempting and hard; large is obvious and cheap. Scaled off the
+    # level's own step so the tension matches the board's resolution
+    # rather than a fixed number that means different things on a coarse
+    # board and a fine one.
+    cols_all = list(board.values())
+    tightest_real = min(
+        (dist(cols_all[i], cols_all[j])
+         for i in range(len(cols_all)) for j in range(i + 1, len(cols_all))),
+        default=cfg["de_floor"])
+    floor = max(cfg["de_floor"], tightest_real)
+    lo = floor * 1.05
+    hi = floor * 2.4
+
+    out = []
+    for _ in range(4000):
+        if len(out) >= count:
+            break
+        base = rng.choice(reals)
+        # Move along one channel at a time. A decoy that is off in every
+        # channel at once reads as a different colour entirely; being
+        # wrong in exactly one dimension is what makes it a near-miss.
+        channel = rng.choice(("L", "c", "h"))
+        span = rng.uniform(lo, hi)
+        sign = rng.choice((-1.0, 1.0))
+        if channel == "L":
+            cand = OKLCh(base.L + sign * span / 100.0, base.c, base.h)
+        elif channel == "c":
+            cand = OKLCh(base.L, max(0.0, base.c + sign * span / 220.0), base.h)
+        else:
+            cand = OKLCh(base.L, base.c, norm_h(base.h + sign * span * 1.6))
+
+        if not (in_usable_band(cand) and in_gamut(cand)):
+            continue
+        if not (L_LO - 0.02 <= cand.L <= L_HI + 0.02):
+            continue
+        if not (C_LO - 0.01 <= cand.c <= C_HI + 0.01):
+            continue
+        # Decoys must also be distinct from each other, for the same
+        # reason they must be distinct from real cells.
+        if any(dist(cand, d) < cfg["de_floor"] for d in out):
+            continue
+        if not decoy_is_fair(shape, colors, locked, cand, cfg):
+            continue
+        out.append(cand)
+
+    return out if len(out) == count else None
+
+
+def decoy_count_for(level: int, cell_count: int) -> int:
+    """How many red herrings this level gets.
+
+    None before the mechanic is introduced. After that it scales with the
+    board rather than the level number, because a spare swatch on a
+    six-cell board is a much bigger share of the decision than the same
+    swatch on a thirty-cell one.
+    """
+    if level < DECOY_FIRST_LEVEL:
+        return 0
+    return max(1, min(3, round(cell_count / 14)))
+
+
 # ─── Tip claims ────────────────────────────────────────────────────
 
 def circular_mean(hues) -> float:
@@ -1362,6 +1569,14 @@ CHAPTER_DIFFICULTY = {
     "Circuitry":   (2.0, 3.2),
     "Interiors":   (2.4, 3.6),
     "Grand Works": (2.8, 4.0),
+    # Red herrings sit BELOW Grand Works on the wrong-cell scale, which
+    # looks like a step down and is not. The simulated player's score
+    # counts cells placed wrongly, and a decoy's cost does not show up
+    # there: it shows up as hesitation over a swatch that has no home.
+    # Building these boards to Grand Works' cell-level difficulty as well
+    # would stack two hard things and make the chapter a wall, so the
+    # boards ease off and the new mechanic carries the load.
+    "Red Herrings": (2.2, 3.4),
 }
 
 # How far the search may move a level's bank size off its chapter's, how many
@@ -1503,10 +1718,45 @@ def build_level(level: int, name: str, artwork: str, tip: str | None,
     # neighbouring bank sizes and no third one will do better.
     base = cfg["bank_target"]
     cells = len(shape.all_cells)
+    # The chapter bank curves are absolute counts tuned against Grand
+    # Works' 40-50 cell boards. The red-herring boards are deliberately
+    # smaller — the demand there is on the bank, not the geometry — so an
+    # inherited target of 22-30 asks for more free cells than some of
+    # these boards contain, and hands the player a board with almost
+    # nothing given. Cap it as a share of the board instead, which is what
+    # the count was always standing in for.
+    if level >= DECOY_FIRST_LEVEL:
+        base = min(base, max(1, round(cells * 0.45)))
     low, high = max(1, base - BANK_WINDOW), min(cells - 1, base + BANK_WINDOW)
     bank = min(max(base, low), high)
     best: tuple[float, dict, float] | None = None   # (miss, entry, wrong)
     seen: set[int] = set()
+
+    # The curve's bank size is a starting guess, not a promise — a shape a
+    # cell or two off its neighbours can land its whole reachable window
+    # somewhere else entirely. If the guess itself is legal-but-unlanded,
+    # don't take that as "this shape has no fair board": step outward, one
+    # size at a time in both directions, until landing anywhere inside the
+    # window. Only genuine exhaustion (nothing in the whole window lands)
+    # falls through to the caller's no-palette failure.
+    if weigh(bank) is None:
+        seen.add(bank)
+        found = None
+        for step in range(1, BANK_WINDOW + 1):
+            for candidate in (bank - step, bank + step):
+                if not (low <= candidate <= high) or candidate in seen:
+                    continue
+                seen.add(candidate)
+                if weigh(candidate) is not None:
+                    found = candidate
+                    break
+            if found is not None:
+                break
+        if found is None:
+            raise _no_palette(level, name)
+        bank = found
+        seen.discard(bank)  # let the walk below re-weigh it as its first step
+
     while bank not in seen:
         seen.add(bank)
         local = weigh(bank)
@@ -1612,6 +1862,20 @@ def valid_entries(level: int, shape, name: str, tip: str | None, cfg: dict,
                 for gi, g in enumerate(shape.gradients)
             ],
         }
+        # Red herrings. Built after the palette and the locks are settled,
+        # because fairness is judged against the finished board: a decoy
+        # is only rejectable relative to the exact colours and the exact
+        # free cells the player will be looking at.
+        want_decoys = decoy_count_for(level, len(board))
+        if want_decoys:
+            decoys = make_decoys(shape, colors, locked, scaled, rng, want_decoys)
+            if decoys is None:
+                _fail("decoys")
+                continue
+            doc["decoys"] = [
+                {"L": round(d.L, 5), "C": round(d.c, 5), "h": round(norm_h(d.h), 3)}
+                for d in decoys
+            ]
         chapter = shapes.chapter_of(level)
         entry = {
             "index": level,

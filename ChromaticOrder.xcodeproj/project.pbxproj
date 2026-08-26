@@ -14,6 +14,7 @@
 		04420F2382203AFA1B1C6D96 /* Proximity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 41500A18A21C00DF321D45C7 /* Proximity.swift */; };
 		0474E00251D2487498A7D39A /* FluidWarp.metal in Sources */ = {isa = PBXBuildFile; fileRef = 05E19AD6B398060DF1E285B6 /* FluidWarp.metal */; };
 		08CE52F5A21B0F9A1E7201AF /* PuzzlePreviewRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC9416A751C05997A4BCC969 /* PuzzlePreviewRenderer.swift */; };
+		0989766D0F2FF6D3FEA507A5 /* DecoyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACD83B9959D89B66225BF1D9 /* DecoyTests.swift */; };
 		0C16E8ED132AF726BF559765 /* LikeFeedbackWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 71D717FAB5FB32C4C42C341B /* LikeFeedbackWidget.swift */; };
 		16BE10635925E518192256C2 /* SolvedPuzzleHistory.swift in Sources */ = {isa = PBXBuildFile; fileRef = CCC34D0B81466FC230ECE9E0 /* SolvedPuzzleHistory.swift */; };
 		17E5C1E8C4BD4BF997EEC552 /* Util.swift in Sources */ = {isa = PBXBuildFile; fileRef = 243168329AAF6072275CFCA1 /* Util.swift */; };
@@ -213,6 +214,7 @@
 		A94584BA3E06A4F9638A8D59 /* BankView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BankView.swift; sourceTree = "<group>"; };
 		A97AFD2370CD11B1C9136FA2 /* CampaignFairnessTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CampaignFairnessTests.swift; sourceTree = "<group>"; };
 		AC6078D359BD9914E161E080 /* ChromaticOrder.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = ChromaticOrder.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		ACD83B9959D89B66225BF1D9 /* DecoyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DecoyTests.swift; sourceTree = "<group>"; };
 		B18887E34C60FB288ADA62D5 /* SeededRNG.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SeededRNG.swift; sourceTree = "<group>"; };
 		B30EAB2E2DF99E5356F3B225 /* ChromaticOrder.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = ChromaticOrder.entitlements; sourceTree = "<group>"; };
 		B7E954FB420404E8294EEF53 /* DailyFallbackTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DailyFallbackTests.swift; sourceTree = "<group>"; };
@@ -247,6 +249,7 @@
 		0D459245950798FE73BA232C /* KromaLogicTests */ = {
 			isa = PBXGroup;
 			children = (
+				ACD83B9959D89B66225BF1D9 /* DecoyTests.swift */,
 				91287C13AE1090C0E0AEBA84 /* GeneratorDeterminismTests.swift */,
 				522593ECDC1A96E5DA891B6B /* GeneratorIntegrityTests.swift */,
 				C963ED5DC07C58ACF92CFC8F /* SolvabilityAuditTests.swift */,
@@ -547,6 +550,7 @@
 				CE46B1DD55057FC0ED6FAA12 /* CBMode.swift in Sources */,
 				70AB44C290D6893634D7ED86 /* CBTransform.swift in Sources */,
 				858804A89E3990CDD8C4AFE5 /* CreatorCodable.swift in Sources */,
+				0989766D0F2FF6D3FEA507A5 /* DecoyTests.swift in Sources */,
 				F030766CCEB5EFF5BBBD9617 /* Generate.swift in Sources */,
 				A2FFB97B9AB8EE38469D1FA1 /* GeneratorDeterminismTests.swift in Sources */,
 				3ACE40430AEE7EF0F7DCF58F /* GeneratorIntegrityTests.swift in Sources */,

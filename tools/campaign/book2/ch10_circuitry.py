@@ -5,19 +5,19 @@ SHAPES = [
 ...m.....
 ..b+bbb..
 ...m.....
-...+cc...
+...+c+...
 .e.m.f...
 .e.m.f...
 .+g+g+g..
 """, "Every crossing belongs to two runs at once. Solve one and you have solved a cell in both."),
 
     ("Fuse", """
-gg+..+hhhh
-.ba..d.f..
-.++kk+k+..
-.ba..d.f..
-.b.....f..
-.b.....f..
+g+g+..+h+hh
+.b.a..d.f..
+.+k+kk+k+..
+.b.a..d.f..
+.b......f..
+.b......f..
 """, None),
 
     ("Switch", """
@@ -34,7 +34,7 @@ uu+..+ttt.
     ("Battery", """
 a........h
 a.b...d..h
-a.b.c.d.eh
+a.b.c.d..h
 +w+w+w+w++
 ..b.c.d.e.
 ..b.c.d.e.
@@ -45,7 +45,7 @@ a.b.c.d.eh
 ..+c+ccc+..
 aa+.f...+bb
 ..d.f.h.e..
-..d.f.h.e..
+..d...h.e..
 ..+ggg+g+..
 """, "When one placement forces a neighbor, follow that chain as far as it goes before starting somewhere new."),
 
@@ -72,8 +72,10 @@ c+cc+.+d+d
 """, None),
 
     ("Relay", """
-..+eeee+e.
+..+eeee...
+..d....f..
 aa+aaa.f..
+..d....f..
 bb+bbb.f..
 ..d....+gg
 cc+ccc.f..
@@ -92,37 +94,39 @@ a....g.b
 """, None),
 
     ("Transformer", """
-..+f++ff+..
-hh+.cd..b..
-..a.++e.b..
-..a.cd..b..
-..a.cd..+ii
-..a.cd..b..
-..+g+ggg+..
+..+f+f+ff+..
+hh+.c.d..b..
+..a.+e+e.b..
+..a.c.d..b..
+..a.c.d..+ii
+..a.c....b..
+..+g+gggg+..
 """, None),
 
     ("Heatsink", """
 ..a.b.c.d..
 ..+e+e+e+e.
-.ga.b.c.d..
-.ga.b.c.d..
-.++++f+f++f
+g.a.b.c.d..
+g.a.b.c.d..
++f+++f+f++f
 ...h.....i.
 ...h.....i.
 """, None),
 
     ("Satellite", """
-.....i.....
-....+++g...
-....eif....
-aaaa+i+cccc
-bbbb+.+dddd
-...h+h+....
+....+gg.+j...
+....e...f....
+aaaa+.i.+cccc
+....e.i.f....
+bbbb+...+dddd
+....e...f....
+..kk+...+hh..
 """, None),
 
     ("Radar Dish", """
 b...d...c
-beee+eee+
++eee+eee+
+b...d...c
 +aaa++aa+
 .....f...
 .....f...
@@ -133,68 +137,74 @@ beee+eee+
 
     ("Junction Box", """
 ....e......
-..+a+aaa+..
+..+a+a+a+..
 ..c...h.d..
-ff+.ii+id..
+ff+.ii+i+..
 ..c...h.+gg
 ..c...h.d..
 ..+bbb+b+..
 """, None),
 
     ("Patch Bay", """
-h......i
-++a+a+a+
-hc.d.e.i
-hc.d.e.i
-++b+b+b+
-.+f+fe..
-.....+gg
+h.......i
++a+a+a+a+
+h.c.d.e.i
+h.c.d.e.i
++b+b+b+b+
+..c.d.e..
+..+f+f+..
+......+gg
 """, None),
 
     ("Server Rack", """
-+a+aaaa+
-d.f....e
-+b+b+bb+
-d.f.g..e
-d...ghje
-d....hje
-+cccc+++
++a+aaaaaaa+
+d.f.......e
++b+b+bbbbb+
+d.f.g.....e
+d...g.h.j.e
+d.....h.j.e
++ccccc+c+c+
 """, None),
 
     ("Microchip", """
 ..+e+eee+..
 aa+.i...h..
+..g.i...h..
 bb+.i.j.+cc
+..g...j.h..
 ..g...j.+dd
 ..+fff+f+..
 """, "Leave the short runs for last, once the long ones have pinned their neighbors."),
 
     ("Power Strip", """
-...f.......
-..+++a+a+a+
-..cfg.h.i.d
-ee+fg.h.i.d
-..+bb+bbbb+
-.....j....d
-.....j.....
+.....f........
+...+a+a+......
+...c.f.g.h.i.d
+ee.c.f.g.h.i.d
+.........h.i.d
+...bbbbb++b+b+
+........j.....
+........j.....
 """, None),
 
     ("Oscilloscope", """
-++aaa+..
-cg..f+hh
-++ee+d..
-cg..fd..
-c...f+ii
-+bbb++..
-+jjjj+j.
++a+aa+a+..
+c.g..f.+hh
++e+ee+.d..
+c.g..f.d..
+c....f.+ii
++bbbb+b+..
+c......d..
++jjjjjj+j.
 """, None),
 
     ("Motherboard", """
-......j+jj.
-.......+e+e
-.a.b.c.gih.
-.a.b.c.+++f
-.a.b.c..ih.
-d+d+d+dd+dd
+ee......jjjj.
+.............
+.............
+.a.b.c.g.i.h.
+.a.b.c.+f+f+f
+.a.b.c...i.h.
+d+d+d+ddd+d+d
 """, None),
 ]

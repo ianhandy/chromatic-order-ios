@@ -237,7 +237,8 @@ struct MenuView: View {
             FullVersionView(focus: fullVersionFocus)
         }
         .sheet(isPresented: $feedbackOpen) {
-            FeedbackSheet(game: game)
+            // Root menu: no current level to ask "which one?" about.
+            FeedbackSheet(game: game, showsKindPicker: false)
         }
         // A suspended run is the only thing that makes "challenge"
         // ambiguous, so it's the only time we ask. This replaced an

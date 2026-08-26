@@ -62,6 +62,7 @@ CHAPTERS = [
     ("Circuitry", 141, 160, "Dense networks where each crossing carries information."),
     ("Interiors", 161, 180, "Rooms and structures assembled one section at a time."),
     ("Grand Works", 181, 200, "Large machines and landmarks at the campaign's limit."),
+    ("Red Herrings", 201, 220, "Some swatches belong nowhere. Prove it before you place."),
 ]
 
 # What the app actually shows. The CHAPTERS keys above are the authoring
@@ -85,6 +86,7 @@ DISPLAY_CHAPTERS = {
     "Circuitry":       ("Networks",     "Dense networks where every crossing carries information."),
     "Interiors":       ("Sections",     "Large boards settled one section at a time."),
     "Grand Works":     ("The Limit",    "The widest boards and the longest ramps in the campaign."),
+    "Red Herrings":    ("Spare Parts",  "The bank holds more than the board needs."),
 }
 
 
@@ -153,10 +155,10 @@ a.b
 """, None),
 
     ("Corner", """
-a...
-a...
-a...
-abbb
+a....
+a....
+a....
+a.bbb
 """, "Two strokes, one bend. Each stroke ramps on its own."),
 
     ("Tee", """
@@ -179,13 +181,14 @@ a....
 a....
 a....
 a....
-abbbb
++bbbb
 """, None),
 
     ("Track", """
 aaaaa
+.....
 bbbbb
-""", "Neighbors. Check which row a swatch belongs to before dropping it."),
+""", "Two separate gradients, not touching. Solve them independently."),
 
     ("Hurdle", """
 ..b..
@@ -217,7 +220,7 @@ bbb+bbb
 """, None),
 
     ("Hook", """
-bbbbb
+bbbb+
 ....a
 ....a
 ....a
@@ -267,6 +270,7 @@ b...c
 
     ("Hammer", """
 aa+aa
+..b..
 cc+cc
 ..b..
 ..b..
@@ -320,10 +324,11 @@ a.b
 """, None),
 
     ("Flag", """
-abbbb
-acccc
+a....
++bbbb
 a....
 a....
++cccc
 a....
 a....
 """, None),
@@ -357,8 +362,10 @@ b...d...c
 """, None),
 
     ("Tree", """
-.aaaaa.
-bbbbbbb
+.aa+aa.
+...d...
+bbb+bbb
+...d...
 .cc+cc.
 ...d...
 ...d...
@@ -370,6 +377,7 @@ bbbbbbb
 ..a..
 ..a..
 cc+cc
+..a..
 .d+d.
 """, None),
 
@@ -383,15 +391,18 @@ cc+ccc+cc
 
     ("Train", """
 .aaa...
+.......
 bbbbbbb
-ccccccc
+.......
+c+ccc+c
 .d...e.
 .d...e.
-""", "The two long rows are the same length. Read left to right, not up and down."),
+""", None),
 
     ("Truck", """
 aaaaa..
-bbbbbbb
+.......
+b+bbb+b
 .c...d.
 .c...d.
 """, None),
@@ -405,32 +416,35 @@ b...c
 """, None),
 
     ("Bell", """
-.aaa.
-.bbb.
+.a+a.
+..d..
+.b+b.
+..d..
 cc+cc
 ..d..
 ..d..
 """, None),
 
     ("Cup", """
-aaaaaaa
+a+aaa+a
 .b...c.
 .b...c.
 .+ddd+.
 """, None),
 
     ("Bottle", """
-..ab..
-..ab..
-..ab..
-+c++c+
-d....e
-d....e
-+ffff+
+..a.b..
+..a.b..
+..a.b..
++c+c+c+
+d.....e
+d.....e
++fffff+
 """, None),
 
     ("Envelope", """
 +aaaaa+
+b.....c
 b.eee.c
 b.....c
 +ddddd+
@@ -445,7 +459,9 @@ b...e...c
 
     ("Pencil", """
 .aaaaaa
+.......
 bbbbbbb
+.......
 .cccccc
 """, None),
 
@@ -469,7 +485,7 @@ b.e.c
 """, None),
 
     ("Candle", """
-.bbb.
+.b+b.
 ..a..
 ..a..
 ..a..
@@ -477,7 +493,7 @@ cc+ccc
 """, None),
 
     ("Drum", """
-+aaaaa+
++a+a+a+
 b.e.f.c
 b.e.f.c
 +d+d+d+
@@ -485,6 +501,7 @@ b.e.f.c
 
     ("Camera", """
 ..aaa..
+.......
 +bbbbb+
 c.....d
 c.eee.d
@@ -494,6 +511,7 @@ c.....d
 
     ("Lantern", """
 ..aaa..
+.......
 +bbbbb+
 c.....d
 c.....d
@@ -507,17 +525,22 @@ c.....d
 
 CH5 = [
     ("Fish", """
-...aaaa
-f.bbbbb
-fccccccc
-f.ddddd
-...eeee
+...aaaa.
+........
+f.bbbbb.
+f.......
++ccccccc
+f.......
+f.ddddd.
+........
+...eeee.
 """, "Chroma ramps now too: same hue, draining color."),
 
     ("Crab", """
 a.....b
 +ccccc+
-ddddddd
+.......
+d+ddd+d
 .e...f.
 .e...f.
 """, None),
@@ -531,9 +554,12 @@ b...c.e
 
     ("Bird", """
 ..aa...
+.......
 .bbbb..
+.......
 ccccccc
-.dddd..
+.......
+.d+d+..
 ..e.f..
 ..e.f..
 """, None),
@@ -543,21 +569,26 @@ ccccccc
 b.....c
 b.d.e.c
 b.d.e.c
-+fffff+
++f+f+f+
 """, None),
 
     ("Cat", """
 a...b
 +ccc+
+a...b
 +ddd+
+.....
 .e.f.
 .e.f.
 """, None),
 
     ("Dog", """
 aaa....
+.......
 bbbbbbb
+.......
 ccccccc
+.......
 .d.e.f.
 .d.e.f.
 """, None),
@@ -566,8 +597,10 @@ ccccccc
 .a...b.
 .a...b.
 .+ccc+.
+.......
 ddddddd
-eeeeeee
+.......
+ee+e+ee
 ..f.g..
 ..f.g..
 """, None),
@@ -575,37 +608,46 @@ eeeeeee
     ("Frog", """
 a...b
 +ccc+
-ddddd
+.....
++ddd+
 e...f
 e...f
 """, None),
 
     ("Turtle", """
-..aaaaa..
-.bbbbbbb.
-..cccccff
-..d...e..
-..d...e..
+..aaaaa...
+..........
+.bbbbbbb..
+..........
+..+ccc+.ff
+..d...e...
+..d...e...
 """, None),
 
     ("Whale", """
-....aa..
-fbbbbbbb
-fccccccc
-.ddddddd
+.....aa..
+.........
+f.bbbbbbb
+f........
+f.ccccccc
+.........
+..ddddddd
 """, None),
 
     ("Bee", """
 aaa.bbb
+.......
 .ccccc.
+.......
 ddddddd
-.eeeee.
+.......
+.ee+ee.
 ...f...
 ...f...
 """, None),
 
     ("Ant", """
-aa.bbb.ccc
+a+.+bb.+cc
 .d.e...f..
 .d.e...f..
 """, None),
@@ -614,12 +656,15 @@ aa.bbb.ccc
 ..e.f..
 a.e.f.b
 +c+c+c+
-a.ddd.b
+a.....b
+..ddd..
 """, None),
 
     ("Butterfly", """
 f.e.g
+f.e.g
 +a+a+
+..e..
 bb+bbb
 ..e..
 """, None),
@@ -634,10 +679,13 @@ eeeee+
 
     ("Penguin", """
 .aaa.
+.....
 .bbb.
+.....
 +eee+
 c...d
 +fff+
+.....
 .ggg.
 """, None),
 
@@ -645,6 +693,7 @@ c...d
 a...b.
 a...b.
 +ccc+.
+......
 ddddd+
 .....e
 .....e
@@ -658,11 +707,13 @@ ddddd+
 CH6 = [
     ("Lighthouse", """
 ..aaa..
+.......
 .+bbb+.
 .c...d.
 .c...d.
 .c...d.
 .+eee+.
+.......
 fffffff
 """, None),
 
@@ -680,15 +731,19 @@ bb+bbb
     ("Sailboat", """
 ...a...
 .bb+...
+...a...
 .cc+...
+...a...
 .dd+...
 ...a...
+.......
 eeeeeee
 """, None),
 
     ("Castle", """
 a.b.c.d
 +e+e+e+
+.......
 fff+fff
 ...g...
 ...g...
@@ -715,8 +770,11 @@ a.b.c.d.e
 
     ("Pyramid", """
 ...aaa...
+.........
 ..bbbbb..
+.........
 .ccccccc.
+.........
 ddddddddd
 """, "Four parallel ramps, four families. Nothing crosses, nothing helps."),
 
@@ -730,6 +788,7 @@ e.......f
 
     ("Aqueduct", """
 aaaaaaaaa
+.........
 +b+b+b+b+
 c.d.e.f.g
 c.d.e.f.g
@@ -740,34 +799,40 @@ c.d.e.f.g
 .a...b.
 .a...b.
 c+ccc+c
+.......
 ddddddd
+.......
 eee+eee
 ...f...
 ...f...
 """, None),
 
     ("Ferris", """
-+a+a+
-b.e.c
-+h+h+
-b.e.c
-+d+d+
-.f.g.
-.f.g.
+.+a+a+.
+.b.e.c.
+.+h+h+.
+.b.e.c.
+d+++++d
+..f.g..
+..f.g..
 """, None),
 
     ("Temple", """
 ..aaaaa..
+.........
 .bbbbbbb.
-ccccccccc
+.........
+c+c+c+c+c
 .d.e.f.g.
 .d.e.f.g.
-hhhhhhhhh
+h+h+h+h+h
 """, None),
 
     ("Observatory", """
 ..aaa..
+.......
 .bbbbb.
+.......
 +ccccc+
 d.....e
 d.....e
@@ -778,7 +843,7 @@ d.....e
 a+a.b+b.c+c
 .d...e...f.
 .d...e...f.
-ggggggggggg
+g+ggg+ggg+g
 """, None),
 
     ("Harbor", """
@@ -787,7 +852,7 @@ bb+........
 ..a..dd+...
 ..a....c...
 ..a....c...
-eeeeeeeeeee
+ee+eeee+eee
 """, None),
 
     ("Waterfall", """
@@ -795,14 +860,16 @@ a.b.c.d.e
 a.b.c.d.e
 a.b.c.d.e
 +f+f+f+f+
+.........
 ggggggggg
 """, None),
 
     ("Trainyard", """
-ccccc.ddddd
+c+ccc.d+ddd
 .e.....f...
 .e.....f...
-aaaaaaaaaaa
+a+aaaaa+aaa
+...........
 bbbbbbbbbbb
 """, None),
 
@@ -874,7 +941,7 @@ b.......c
     ("Palace", """
 .a.....b.
 .a.....b.
-++ccccc++
+++cc+cc++
 d...g...e
 d...g...e
 +fff+fff+
@@ -887,6 +954,7 @@ d...g...e
 .b..c..d.
 .b..c..d.
 e+ee+ee+e
+.........
 fffffffff
 """, None),
 
@@ -897,6 +965,7 @@ a.c.d.e..
 a.c.d.e.f
 a.c.d.e.f
 +g+g+g+g+
+.........
 hhhhhhhhh
 """, None),
 
@@ -912,23 +981,29 @@ e...g...f
 
     ("Colossus", """
 ..aaaaa..
+.........
 ..bbbbb..
+.........
 +ccccccc+
+d.......e
 d.fffff.e
-d.ggggg.e
-..h+h+h..
+.........
+..ggggg..
+.........
+..hhhhh..
+.........
 ...i.j...
 ...i.j...
 """, None),
 
     ("Vault", """
-+aaaaaaa+
++aaa+aaa+
 b...e...c
 b...e...c
 b.ff+ff.c
 b...e...c
 b...e...c
-+hhhhhhh+
++hhh+hhh+
 """, None),
 
     ("Mandala", """
@@ -949,8 +1024,10 @@ from book2.ch09_orchestra import SHAPES as CH9
 from book2.ch10_circuitry import SHAPES as CH10
 from book2.ch11_interiors import SHAPES as CH11
 from book2.ch12_grand_works import SHAPES as CH12
+from book2.ch13_red_herrings import SHAPES as CH13
 
-ALL = CH1 + CH2 + CH3 + CH4 + CH5 + CH6 + CH7 + CH8 + CH9 + CH10 + CH11 + CH12
+ALL = (CH1 + CH2 + CH3 + CH4 + CH5 + CH6 + CH7 + CH8 + CH9 + CH10 + CH11
+       + CH12 + CH13)
 
 
 def chapter_of(level: int) -> tuple[str, int, int, str]:

@@ -2,20 +2,24 @@
 SHAPES = [
     ("Refinery", """
 ...+hh+h...
+...a..d....
 .+e+ee+....
 .c.a..d..b.
 .+i+i.d..b.
-.cf+ff+ff+.
+.c.a..d..b.
+.+f+ff+ff+.
 .c.a..d..b.
 .+g+gg+gg+g
 """, "The widest run reaches almost every vertical. Place it and the rest lose most of their freedom."),
 
     ("Dam", """
 a+a+a+a+aa
+.b.c.d.e..
 g+g+g+g+..
 .b.c.d.e..
 .b.c.d.e..
 h+++h+++hh
+..i...j...
 ..+kkk+k..
 ..i...j...
 """, None),
@@ -24,19 +28,19 @@ h+++h+++hh
 aa+a...b+bb
 ..c.....d..
 .g+g+g+g+..
-..c.+j+jd..
-..ci+i+.d..
+..c.e.f.d..
+..c.+i+.d..
 ..c.e.f.d..
 ..+h+h+h+h.
 """, None),
 
     ("Water Tower", """
 .a+aaaaa+..
-..+kkk..d..
+..c.....d..
 ..+bb+bb+b.
 ..c..e..d.j
-..cgg+gg+.j
-..c.h+hh+h+
+..c.g+gg+.j
+..c..e..d.j
 ii+ii+ii+..
 """, None),
 
@@ -45,102 +49,113 @@ ii+ii+ii+..
 .c+cc.d+dd
 ..a....b..
 ..a....b.i
-+ee+eeeee+
++e++eee+e+
 f..g.....i
 +kk+k....i
+f..g.....i
 +jj+jjjjj+
 """, None),
 
     ("Gantry", """
 ...b+bb+b+
+....c..d.j
 aa+a+aa+a+
 ..e.c..d.j
-..ef+ff+.j
+..+f+ff+.j
+..e.c..d..
 .i+i+..d..
 ..e.+gg+g.
 ....c..d..
+..........
 ..hhhhhhhh
 """, None),
 
     ("Lock Gate", """
-a+a+aaa++a
-f+f+...di.
-.he+eee+i.
-.hj+jj.di.
-.h.c.gg++g
-b+b+bbb++b
+a+a+a+a+a
+.h.c.d.i.
+.+e+.+g+.
+.h.c.d.i.
+.h.+f+.i.
+.h.c.d.i.
+.+j+.d.i.
+.h.c.d.i.
+b+b+b+b+b
 """, None),
 
     ("Silos", """
 ..g+g+gg+
+...c.d..e
 a+a+a+aa+
 .b.c.d..e
-.b.ch+hh+
+.b.c.d..e
 .b.+k+kk+
-j+j+.d..e
+.b.c.d..e
 i+i+i+ii+
 """, None),
 
     ("Shipyard", """
-..+aaaa....
+..+aa......
 ..c..bbb+..
 ..c.....d..
-..cj.k.ld..
+...j.k.l...
 eee+e+e+e..
+...j.k.l...
 .mm+m+m+m..
+...j.k.l...
 ..n+n+n+...
-...oo+ooooo
+.......+ooo
 """, None),
 
     ("Spire", """
-.....a....
-....b+bb..
-.....a....
-...+c+c+c.
-...d...e..
-..f+f+f+ff
-.k.d.g.e.l
-.+hhhhhhhl
+....a....
+...b+bb..
+....a....
+..+c+c+c.
+..d...e..
+.f+f+f+f+
+k.d.g.e.l
++h+h+h+h+
 """, None),
 
     ("Terminal", """
-..aaa+aa...
-.+bb++b+b+.
-.cn.dm.e.f.
-.++g+g.e.f.
-.cn.dhh+h+.
-.cn.d..e.f.
-.++i+ii+i+.
+..aaaaaa..
+..........
++b+b+bb+b+
+c.n.d..e.f
++g+g+..e.f
+c.n.+hh+h+
+c.n.d..e.f
++i+i+ii+i+
 """, None),
 
     ("Telescope", """
-.a+a+aa+a+.
-..b.djj+j+.
-.f+f++f+f+.
-..bi++i+ic.
-....dh.e...
-....d.k+kkk
-....+gg+ggg
+a+a+aa+a+.
+.b.d..e.c.
+f+f+ff+f+.
+.b.d..e.c.
+...d..e...
+...d..e...
+...+gg+ggg
 """, None),
 
     ("Smelter", """
-.a.........
-b+bb.......
-.a..k....h.
-.+cc++c+c+.
-.a..ke.f.h.
-.a..++i+i+.
-d+dd.+j+jh.
-g+ggg+g+g+.
+.a........
+b+bb......
+.a..k....h
+.+cc++c+c+
+.a...e.f.h
+.a..i+i+i+
+.a...e.f.h
+g+ggg+g+g+
 """, None),
 
     ("Derrick", """
-...+a++..
-...b.ck..
-..d+d+k..
+...+a+a..
+...b.c...
+..d+d+...
 .f.b.c.g.
-.+e+e+e+e
-.f.bic.g.
+.+e+++e+e
+.f..i..g.
 h+hh+hh+.
 .f..i..g.
 .+jj+jj+j
@@ -150,62 +165,63 @@ h+hh+hh+.
 ..a.b......
 .l+l+..c...
 ..a.b..c...
-+d+d+d++dd+
++d+++d++dd+
 e..h..i...f
 +kk+kk+kkk+
-+jj+jj+jjj+
+e..h..i...f
 """, None),
 
     ("Engine Shed", """
-..a+aa+..
-+dd+dd+d+
-e.hb.icjf
-+g+gg+.jf
-e.h..i.jf
-e.h..+m++
-+l+ll+l++
+..aaaaa...
+..........
++d+dd+d+d+
+e.h..i.j.f
++g+gg+.j.f
+e.h..i.j.f
+e.h..i.j.f
++l+ll+l+l+
 """, "Where two runs meet, the shared cell has to satisfy both, so let it steer the pair."),
 
     ("Kiln", """
-...+a+a.
-..dc.f..
-.i++i++.
-..dc.fg.
-..+mmm+m
-.ed.l.gh
-j++j+j++
-.e..l.gh
-k+kk+kk+
+...aaaa.
+..d.....
+.i+iii+.
+..d...g.
+..+m+m+m
+..d.l.g.
+jj+j+j+j
+....l.g.
+kkkk+k+k
 """, None),
 
     ("Breakwater", """
-.......kk+k
 ...e.ll+l+l
+...e...g.h.
 a+a+a+a+a+.
-.dm+m+.g.h.
+.d.e.f.g.h.
 b+b+b+b+b+.
-.+jjjf.....
+.d...f.....
 ....n+nnn..
 """, None),
 
     ("Scaffold", """
-.e.lf..g
-.+a++aa+
-.ei++..g
-.+b++bb+
-.e..++j+
-.+cc++c+
-k+kkfm.g
-.+dd++d+
+.e..f..g
+.+aa+aa+
+.e..f..g
+.+bb+bb+
+.e..f..g
+.+cc+cc+
+.e..f..g
+.+dd+dd+
 """, None),
 
     ("Ironworks", """
 .a.........
 .a....mm+m.
-.+ccf...b..
-++ee+eee+e+
-hlll+..jb.g
+.a..f...b..
+++ee+ee++e+
+h...f..j..g
 +iii+ii+i.g
-+kkk+kk+...
+h...f..j...
 """, "Two hundred boards. Take this one slowly, and finish it the way you like."),
 ]

@@ -361,6 +361,13 @@ final class GameState {
     /// Coaching line for the current campaign level, shown once. Cleared
     /// when the player dismisses it or the board changes.
     var campaignTip: String? = nil
+    /// True while the one-shot "here is the answer, now put it back" demo
+    /// is running. A level that teaches something shows its solved board
+    /// for a beat and then walks every free colour back into the bank, so
+    /// the player SEES what a finished board reads like instead of being
+    /// told about it in a sentence. Blocks input for its ~2s so a stray
+    /// tap can't fight the animation.
+    var demoRunning: Bool = false
     /// Monotonically changes whenever real gameplay begins. ContentView
     /// observes it to release its non-decision tutorial bubble; state owns
     /// the campaign tip so both kinds of guidance leave through one path.
@@ -1252,6 +1259,7 @@ final class GameState {
         dropTarget = nil
         activeColor = nil
         campaignTip = nil
+        demoRunning = false
         campaignComplete = false
         runComplete = false
         generating = false
@@ -1415,6 +1423,7 @@ final class GameState {
         // Generator puzzles are never campaign levels.
         campaignIndex = nil
         campaignTip = nil
+        demoRunning = false
         campaignComplete = false
         // Clear the once-claim perfect-heart token so the next
         // perfect solve can award a fresh +1. Both handleNext and
@@ -1686,6 +1695,14 @@ final class GameState {
                 }
             }
         }
+        // Red herrings live in the bank but in no cell, so the loop above
+        // — which rebuilds from the board's solution cells — cannot find
+        // them. Put them back explicitly, or Reset would quietly launder
+        // the level into an easier one than it shipped as.
+        for color in p.decoys {
+            freshBank.append(BankItem(id: uid, color: color))
+            uid += 1
+        }
         freshBank.shuffle()
         // Pad to initialBankCount with nil slots if the math differs
         // (shouldn't in practice — belt + suspenders).
@@ -1704,6 +1721,85 @@ final class GameState {
         hintGradientID = nil
         usedHintThisLevel = false
         persistInProgressSession()
+    }
+
+    // ─── teaching demo ──────────────────────────────────────────────
+
+    /// Show this level solved, then walk every free colour back into the
+    /// bank one at a time, leaving the board in its normal start state.
+    ///
+    /// This replaces the coaching sentence on the levels that introduce
+    /// something. A tip has to describe a gradient in words the player
+    /// has no picture for yet; the demo just shows them a finished board
+    /// and then takes it apart, which is the same information in the
+    /// medium the game is actually played in.
+    ///
+    /// Deliberately NOT persisted mid-flight: the board it paints is the
+    /// solution, and a crash or backgrounding partway through must not
+    /// leave that on disk as the player's progress. `persistInProgressSession`
+    /// is called once at the end, on the normal start state.
+    func playTeachingDemo() {
+        guard var p = puzzle, !demoRunning, !solved else { return }
+
+        // Freeze whatever the board is in its solved state and empty the
+        // bank. Every unlocked cell shows its answer.
+        var free: [CellIndex] = []
+        for r in 0..<p.gridH {
+            for c in 0..<p.gridW where p.board[r][c].kind == .cell && !p.board[r][c].locked {
+                if let sol = p.board[r][c].solution {
+                    p.board[r][c].placed = sol
+                    free.append(CellIndex(r: r, c: c))
+                }
+            }
+        }
+        guard !free.isEmpty else { return }
+        let slotCount = p.bank.count
+        p.bank = Array(repeating: nil, count: slotCount)
+
+        demoRunning = true
+        selection = nil
+        activeColor = nil
+        withAnimation(.easeOut(duration: 0.35)) { puzzle = p }
+
+        // Retraction order is the player's reading order, not the shuffled
+        // bank order: the point is to show the board coming apart, and a
+        // random order reads as flicker rather than as undoing.
+        let order = free.sorted { ($0.r, $0.c) < ($1.r, $1.c) }
+        // Where each colour lands in the bank IS shuffled — otherwise the
+        // demo would hand the player a pre-sorted bank and the first real
+        // level after each demo would be trivially easier than its peers.
+        var slots = Array(0..<slotCount)
+        slots.shuffle()
+
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            // Beat to let the finished board register before it unwinds.
+            try? await Task.sleep(nanoseconds: 1_100_000_000)
+            // Faster per-cell stagger on big boards so a 25-cell level
+            // doesn't spend six seconds emptying itself.
+            let stepMs = order.count > 14 ? 45 : 70
+            for (i, idx) in order.enumerated() {
+                guard self.demoRunning, var q = self.puzzle else { return }
+                guard let color = q.board[idx.r][idx.c].placed else { continue }
+                q.board[idx.r][idx.c].placed = nil
+                if i < slots.count { q.bank[slots[i]] = BankItem(id: self.newBankUid(), color: color) }
+                withAnimation(.easeInOut(duration: 0.22)) { self.puzzle = q }
+                try? await Task.sleep(nanoseconds: UInt64(stepMs) * 1_000_000)
+            }
+            self.finishTeachingDemo()
+        }
+    }
+
+    /// End the demo and guarantee the board is in its true start state,
+    /// whether it ran to completion or was cut short by a level change.
+    func finishTeachingDemo() {
+        guard demoRunning else { return }
+        demoRunning = false
+        // handleReset is the canonical "board at its start" builder, so
+        // reuse it rather than trusting the animation to have landed every
+        // cell — an interrupted demo would otherwise strand solution
+        // colours on the board.
+        handleReset()
     }
 
     /// Player-facing unlock — clears every pre-filled lock on the
@@ -2208,6 +2304,9 @@ final class GameState {
         // the session right after calling through here.
         campaignIndex = nil
         campaignTip = nil
+        // Drop any in-flight demo without resetting: the board it was
+        // animating is being replaced wholesale on the next line anyway.
+        demoRunning = false
         currentFavoriteURL = favoriteURL
         currentPuzzleAllowsFavorite = allowsFavorite
         // Signal the hamburger-menu Home row to read 'Gallery' and
@@ -2263,11 +2362,20 @@ final class GameState {
         campaignIndex = index
         campaignComplete = false
         CampaignStore.recordPlayed(index)
-        // Tips are one-shot per level: they teach a mechanic, and a player
-        // replaying an old level doesn't need to be told again.
-        if let tip = entry.tip, !CampaignStore.hasSeenTip(index) {
-            campaignTip = tip
+        // A level carrying a tip is, by construction, a level that
+        // introduces something — the authoring pipeline only writes one
+        // there. So that same flag is the trigger for the teaching demo,
+        // and it stays one-shot: show it the first time this level is
+        // reached and never again, including on replays.
+        //
+        // The demo replaces the sentence rather than accompanying it.
+        // Reading a description of a gradient and watching a finished one
+        // come apart are the same information, and showing it while also
+        // saying it is what made the coaching feel like an interruption.
+        if entry.tip != nil, !CampaignStore.hasSeenTip(index) {
+            campaignTip = nil
             CampaignStore.markTipSeen(index)
+            playTeachingDemo()
         } else {
             campaignTip = nil
         }
@@ -2621,6 +2729,7 @@ final class GameState {
     }
 
     func tapSlot(_ slot: Int) {
+        guard !demoRunning else { return }
         dismissGameplayGuidance()
         guard !solved, let p = puzzle, slot < p.bank.count else { return }
 
@@ -2647,6 +2756,7 @@ final class GameState {
     }
 
     func tapCell(at r: Int, _ c: Int) {
+        guard !demoRunning else { return }
         dismissGameplayGuidance()
         guard !solved, let p = puzzle else { return }
         let cell = p.board[r][c]
@@ -2680,6 +2790,7 @@ final class GameState {
     // ─── drag plumbing ──────────────────────────────────────────────
 
     func beginDrag(_ source: DragSource, at loc: CGPoint) {
+        guard !demoRunning else { return }
         dismissGameplayGuidance()
         bankReturnSlot = nil
         dragSource = source

@@ -93,6 +93,15 @@ struct Puzzle {
     // The bank's size at puzzle start — matches bank.count but kept
     // as an explicit field for clarity at call sites.
     var initialBankCount: Int
+    /// Red herrings — bank colours that belong in no cell.
+    ///
+    /// Held on the puzzle rather than only mixed into `bank`, because
+    /// Reset rebuilds the starting bank from the board's solution cells.
+    /// Without a record here the spares would quietly disappear the first
+    /// time a player reset the board, and the level would get easier for
+    /// having been restarted. Empty for every puzzle built before the
+    /// mechanic existed, which is the old behaviour exactly.
+    var decoys: [OKLCh] = []
     var gradients: [PuzzleGradient]
     var channelCount: Int
     var activeChannels: [Channel]

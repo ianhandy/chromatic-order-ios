@@ -11,6 +11,10 @@ import UIKit
 
 struct FeedbackSheet: View {
     @Bindable var game: GameState
+    /// False from entry points with no current puzzle (the root menu).
+    /// Skips the picker entirely and goes straight to game feedback —
+    /// there's no level to ask "which one?" about.
+    var showsKindPicker: Bool = true
     @Environment(\.dismiss) private var dismiss
 
     @State private var difficultyRating: Double = 5
@@ -19,6 +23,9 @@ struct FeedbackSheet: View {
     /// Base size for each slider's numeric readout. `@ScaledMetric` so
     /// it grows with Dynamic Type instead of sitting fixed at 26pt.
     @ScaledMetric(relativeTo: .title) private var ratingValueSize: CGFloat = 26
+    /// Auto-attached diagnostics start collapsed; the player expands
+    /// them on demand instead of seeing a wall of numbers upfront.
+    @State private var diagnosticsExpanded = false
 
     // Player picks one upfront. Level = ratings + notes about the
     // current puzzle. Game = freeform feedback about the app overall;
@@ -27,7 +34,13 @@ struct FeedbackSheet: View {
         case level = "Level"
         case game = "Game"
     }
-    @State private var kind: FeedbackKind? = nil
+    @State private var kind: FeedbackKind?
+
+    init(game: GameState, showsKindPicker: Bool = true) {
+        self.game = game
+        self.showsKindPicker = showsKindPicker
+        _kind = State(initialValue: showsKindPicker ? nil : .game)
+    }
 
     // Submission state machine. idle → sending → sent | failed.
     // On .sent we auto-dismiss after a beat so the player doesn't
@@ -58,7 +71,7 @@ struct FeedbackSheet: View {
             }
             .kromaSheet("feedback") { dismiss() }
             .toolbar {
-                if kind != nil {
+                if showsKindPicker && kind != nil {
                     // Steps back to the kind picker inside the sheet,
                     // so it takes the leading slot where "back" lives
                     // rather than crowding the way out.
@@ -78,59 +91,37 @@ struct FeedbackSheet: View {
 
     @ViewBuilder
     private var kindPicker: some View {
-        VStack(alignment: .leading, spacing: 20) {
-            Text("What kind of feedback?")
+        VStack(spacing: 28) {
+            Text("Feedback about which?")
                 .font(Kroma.font(.title2, .bold))
-            Text("Level feedback is about the puzzle you're on. Game feedback is about anything else.")
-                .font(Kroma.font(.callout))
-                .foregroundStyle(.secondary)
 
-            VStack(spacing: Kroma.Space.m) {
-                kindButton(
-                    title: "Level Feedback",
-                    subtitle: "Rate this puzzle's difficulty and quality",
-                    systemImage: "square.grid.2x2.fill",
-                    action: { kind = .level })
-                kindButton(
-                    title: "Game Feedback",
-                    subtitle: "General thoughts about the app",
-                    systemImage: "text.bubble.fill",
-                    action: { kind = .game })
+            HStack(spacing: Kroma.Space.l) {
+                kindIconButton(title: "Level", systemImage: "square.grid.2x2.fill") { kind = .level }
+                kindIconButton(title: "Game", systemImage: "text.bubble.fill") { kind = .game }
             }
-            .padding(.top, Kroma.Space.s)
         }
+        .frame(maxWidth: .infinity)
+        .padding(.top, Kroma.Space.xl)
     }
 
     @ViewBuilder
-    private func kindButton(
+    private func kindIconButton(
         title: String,
-        subtitle: String,
         systemImage: String,
         action: @escaping () -> Void
     ) -> some View {
         Button(action: action) {
-            HStack(spacing: 14) {
+            VStack(spacing: Kroma.Space.s) {
                 Image(systemName: systemImage)
-                    .font(Kroma.font(.title2, .semibold))
-                    .frame(width: 32)
-                VStack(alignment: .leading, spacing: Kroma.Space.xs) {
-                    Text(title)
-                        .font(Kroma.font(.headline, .semibold))
-                    Text(subtitle)
-                        .font(Kroma.font(.subheadline))
-                        .foregroundStyle(.secondary)
-                        .multilineTextAlignment(.leading)
-                }
-                Spacer()
-                Image(systemName: "chevron.right")
-                    .font(Kroma.font(.footnote, .semibold))
-                    .foregroundStyle(.secondary)
+                    .font(Kroma.font(.largeTitle, .semibold))
+                    .frame(width: 84, height: 84)
+                    .background(
+                        Color(uiColor: .secondarySystemBackground),
+                        in: RoundedRectangle(cornerRadius: Kroma.Radius.control))
+                Text(title)
+                    .font(Kroma.font(.headline, .semibold))
             }
-            .padding(Kroma.Space.l)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(
-                Color(uiColor: .secondarySystemBackground),
-                in: RoundedRectangle(cornerRadius: Kroma.Radius.control))
+            .frame(maxWidth: .infinity)
         }
         .buttonStyle(.plain)
     }
@@ -167,19 +158,41 @@ struct FeedbackSheet: View {
             }
 
             VStack(alignment: .leading, spacing: Kroma.Space.s) {
-                Text("Auto-attached")
-                    .font(Kroma.font(.callout, .bold))
-                Text("Sent with your report so the dev can correlate your ratings with the puzzle's generator metrics. No personal data.")
-                    .font(Kroma.font(.subheadline))
-                    .foregroundStyle(.secondary)
-                Text(diagnosticPreview)
-                    .font(Kroma.monoFont(.caption))
-                    .foregroundStyle(.secondary)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(10)
-                    .background(
-                        Color(uiColor: .secondarySystemBackground),
-                        in: RoundedRectangle(cornerRadius: 8))
+                Button {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        diagnosticsExpanded.toggle()
+                    }
+                } label: {
+                    HStack(alignment: .top, spacing: Kroma.Space.s) {
+                        VStack(alignment: .leading, spacing: Kroma.Space.xs) {
+                            Text("Auto-attached")
+                                .font(Kroma.font(.callout, .bold))
+                            Text("Sent with your report so the dev can correlate your ratings with the puzzle's generator metrics. No personal data.")
+                                .font(Kroma.font(.subheadline))
+                                .foregroundStyle(.secondary)
+                                .multilineTextAlignment(.leading)
+                        }
+                        Spacer()
+                        Image(systemName: diagnosticsExpanded ? "chevron.up" : "chevron.down")
+                            .font(Kroma.font(.footnote, .semibold))
+                            .foregroundStyle(.secondary)
+                            .padding(.top, 3)
+                    }
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+
+                if diagnosticsExpanded {
+                    Text(diagnosticPreview)
+                        .font(Kroma.monoFont(.caption))
+                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(10)
+                        .background(
+                            Color(uiColor: .secondarySystemBackground),
+                            in: RoundedRectangle(cornerRadius: 8))
+                        .transition(.opacity.combined(with: .move(edge: .top)))
+                }
             }
 
             sendRow

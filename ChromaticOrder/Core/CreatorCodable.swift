@@ -25,6 +25,10 @@ struct CreatorPuzzleDoc: Codable {
     /// absent, the gallery falls back to a derived "Puzzle d/10 · …"
     /// summary. Edits in the gallery populate this.
     var name: String?
+    /// Red herrings: bank swatches that belong in no cell. Optional so
+    /// every doc written before the mechanic existed still decodes, and
+    /// absent means "none", which is the old behaviour exactly.
+    var decoys: [Decoy]?
 
     struct Grad: Codable {
         let dir: String       // "h" | "v"
@@ -42,6 +46,13 @@ struct CreatorPuzzleDoc: Codable {
         // to another player and want them to see the SAME layout, not
         // a re-derived auto-locked version.
         var locked: Bool?
+    }
+    /// A red herring carries only a colour. It has no board position —
+    /// that is the whole point of it.
+    struct Decoy: Codable {
+        let L: Double
+        let C: Double
+        let h: Double
     }
 
     static let currentVersion = 1
@@ -281,10 +292,22 @@ enum CreatorCodec {
                 }
             }
         }
+        // Red herrings join the bank as ordinary swatches. They are
+        // deliberately indistinguishable from real ones here — nothing
+        // marks them, because a marked decoy is not a decoy.
+        let decoyColors: [OKLCh] = (doc.decoys ?? []).map {
+            OKLCh(L: $0.L, c: $0.C, h: $0.h)
+        }
+        for color in decoyColors {
+            bank.append(BankItem(id: uid, color: color)); uid += 1
+        }
+
         // Route through Util so a seeded generation scope (daily fallback,
         // tutorial seed) also fixes the bank's order. `Util.shuffle` falls
         // back to the system RNG when no seed is installed, which is the
-        // behaviour every other caller wants.
+        // behaviour every other caller wants. Shuffling AFTER the decoys
+        // are appended is what keeps them from sitting in a tell-tale
+        // block at the end of the tray.
         bank = Util.shuffle(bank)
 
         // Gate: every gradient must have at least one free cell.
@@ -313,6 +336,7 @@ enum CreatorCodec {
             board: board,
             bank: bank.map { Optional($0) },
             initialBankCount: bank.count,
+            decoys: decoyColors,
             gradients: outGrads,
             channelCount: channels.count,
             activeChannels: channels,

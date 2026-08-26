@@ -1053,6 +1053,17 @@ private func finalize(cells: [String: GrowCell],
         }
     }
 
+    // Red herrings — bank swatches that belong in no cell. Built after
+    // the board is final, because whether a decoy is fair is a question
+    // about this exact palette and these exact free cells, not about the
+    // level number.
+    let decoys = makeDecoys(for: outGrads, level: level,
+                            minDeltaE: minCellDeltaE, mode: mode)
+    for color in decoys {
+        bank.append(BankItem(id: uid, color: color))
+        uid += 1
+    }
+
     // Proximity metrics + low-level gate.
     let lineProx = minInterGradientLineDist(outGrads.map { $0.colors }, mode: mode)
     let pairProx = cellPairProximityScore(outGrads, mode: mode)
@@ -1082,6 +1093,7 @@ private func finalize(cells: [String: GrowCell],
         board: board,
         bank: shuffled.map { Optional($0) },
         initialBankCount: shuffled.count,
+        decoys: decoys,
         gradients: outGrads,
         channelCount: cfg.channelCount,
         activeChannels: assign.active,
@@ -1093,6 +1105,131 @@ private func finalize(cells: [String: GrowCell],
         trajectoryLineMinDistance: trajectory.minLineDistance,
         trajectoryStepPointMinDistance: trajectory.minStepPointDistance,
         trajectoryIntersectingPairs: trajectory.intersectingPairCount)
+}
+
+// ─── red herrings ───────────────────────────────────────────────────
+
+/// First generated level that can carry a red herring.
+///
+/// Late, and deliberately so. "Every swatch you were given is used" is
+/// one of only three things a player can check to know they are done,
+/// and a generated run has no chapter blurb to warn them the rule just
+/// changed. Introducing it before a player is fluent turns a fair board
+/// into a board they think is broken.
+let decoyFirstGeneratedLevel = 26
+
+/// How many red herrings a generated board of this size gets at this
+/// level. Scales with the board, not the level number: one spare swatch
+/// on a six-cell board is most of the decision, and almost none of it on
+/// a thirty-cell one.
+func decoyCount(level: Int, cellCount: Int) -> Int {
+    guard level >= decoyFirstGeneratedLevel else { return 0 }
+    // Ramp in: one spare for a long while, a second only once boards are
+    // big enough that a single one stops being felt.
+    let ceiling = level >= 60 ? 2 : 1
+    return max(1, min(ceiling, Int((Double(cellCount) / 14.0).rounded())))
+}
+
+/// Would this sequence read to a player as one even walk?
+///
+/// The player's whole test for "is this run right" is whether the steps
+/// look equal, so this is the function that decides whether a decoy is
+/// detectable. Compared in Lab because that is the space the eye works
+/// in — steps that differ numerically but not perceptually still read as
+/// even, and a decoy hiding in that gap would be undetectable.
+private func readsEvenly(_ values: [OKLCh], mode: CBMode) -> Bool {
+    guard values.count >= 3 else { return true }
+    let labs = values.map { OK.toLab(mode == .none ? $0 : CBTransform.simulate($0, mode: mode)) }
+    let first = (labs[1].L - labs[0].L, labs[1].a - labs[0].a, labs[1].b - labs[0].b)
+    for i in 1..<(values.count - 1) {
+        let step = (labs[i + 1].L - labs[i].L,
+                    labs[i + 1].a - labs[i].a,
+                    labs[i + 1].b - labs[i].b)
+        let dL = (step.0 - first.0) * 100
+        let da = (step.1 - first.1) * 100
+        let db = (step.2 - first.2) * 100
+        if (dL * dL + da * da + db * db).squareRoot() >= 2 { return false }
+    }
+    return true
+}
+
+/// Build the red herrings for a finished board.
+///
+/// A decoy earns its place by being a near miss: same family as some run,
+/// wrong about the step. Two things make it fair, and both are judged in
+/// perceptual ΔE rather than raw channel deltas, because "far enough" and
+/// "wrong enough" have to mean far and wrong *to a person*:
+///
+///   1. It is never closer to a real colour than the board's own closest
+///      two real colours are to each other. Otherwise the decoy is the
+///      finest discrimination on screen while also being the only one the
+///      player cannot reason their way to.
+///   2. Dropped into any free cell, it breaks that run's even walk. A
+///      decoy that completes a run lets the board look finished while
+///      being wrong, which is worse than a coin flip.
+///
+/// Returns fewer than asked (possibly none) rather than relaxing either
+/// rule — a board with one honest spare beats a board with two cheats.
+private func makeDecoys(for gradients: [PuzzleGradient],
+                        level: Int,
+                        minDeltaE: Double,
+                        mode: CBMode) -> [OKLCh] {
+    var board: [Int: OKLCh] = [:]
+    for g in gradients {
+        for spec in g.cells { board[spec.r * 32 + spec.c] = spec.color }
+    }
+    let reals = Array(board.values)
+    let want = decoyCount(level: level, cellCount: reals.count)
+    guard want > 0, reals.count > 1 else { return [] }
+
+    // The bar is the board's own tightest real pair, never the config
+    // floor: a palette usually lands well above its floor, and measuring
+    // against the floor would let the decoy be finer than anything real.
+    var tightestReal = Double.infinity
+    for i in 0..<reals.count {
+        for j in (i + 1)..<reals.count {
+            tightestReal = min(tightestReal, OK.dist(reals[i], reals[j], mode: mode))
+        }
+    }
+    let floor = max(minDeltaE, tightestReal.isFinite ? tightestReal : minDeltaE)
+
+    var out: [OKLCh] = []
+    var attempts = 0
+    while out.count < want && attempts < 3000 {
+        attempts += 1
+        let cand: OKLCh = GenRNG.with { rng -> OKLCh in
+            let base = reals[Int.random(in: 0..<reals.count, using: &rng)]
+            // One channel at a time. Off in every channel at once reads as
+            // an unrelated colour and gets dismissed at a glance; being
+            // wrong in exactly one dimension is what makes it tempting.
+            let span = Double.random(in: (floor * 1.05)...(floor * 2.4), using: &rng)
+            let sign: Double = Bool.random(using: &rng) ? 1 : -1
+            switch Int.random(in: 0..<3, using: &rng) {
+            case 0: return OKLCh(L: base.L + sign * span / 100.0, c: base.c, h: base.h)
+            case 1: return OKLCh(L: base.L, c: max(0, base.c + sign * span / 220.0), h: base.h)
+            default: return OKLCh(L: base.L, c: base.c, h: OK.normH(base.h + sign * span * 1.6))
+            }
+        }
+
+        guard OK.inUsableBand(cand), OK.inGamut(cand) else { continue }
+        if reals.contains(where: { OK.dist(cand, $0, mode: mode) < floor }) { continue }
+        if out.contains(where: { OK.dist(cand, $0, mode: mode) < floor }) { continue }
+
+        // Wrong in every cell it could actually be dropped into.
+        var fits = false
+        for g in gradients {
+            for (pos, spec) in g.cells.enumerated() where !spec.locked {
+                var trial = g.colors
+                guard pos < trial.count else { continue }
+                trial[pos] = cand
+                if readsEvenly(trial, mode: mode) { fits = true; break }
+            }
+            if fits { break }
+        }
+        if fits { continue }
+        out.append(cand)
+    }
+    return out
 }
 
 // ─── public entry ───────────────────────────────────────────────────
