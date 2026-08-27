@@ -30,6 +30,17 @@ API_BASE = "https://api.appstoreconnect.apple.com"
 DEFAULT_BUNDLE_ID = "com.ianhandy.kroma"
 STREAK_LEADERBOARD_ID = "com.ianhandy.kroma.daily_streak"
 FULL_VERSION_PRODUCT_ID = "com.ianhandy.kroma.full_version"
+FULL_VERSION_NAME = "Kromatika Full Version"
+FULL_VERSION_REVIEW_NOTE = (
+    "One-time non-consumable unlock. Free without it: Today's "
+    "Puzzle, campaign chapters 1-4, the Gallery, and any puzzle "
+    "opened from a shared link or file. The unlock adds campaign "
+    "chapters 5-12, infinite Zen, Challenge runs, and the puzzle "
+    "Creator. Zen, Challenge, and Creator each allow one free "
+    "trial session before the paywall appears, so the first tap "
+    "into those modes plays normally by design. Restore Purchase "
+    "is on the paywall screen."
+)
 
 
 class AppStoreConnectError(RuntimeError):
@@ -274,25 +285,26 @@ def command_in_app_purchases(client: ASCClient, args: argparse.Namespace) -> Non
     )
 
 
-def full_version_iap_body(app_id: str) -> dict[str, Any]:
+def full_version_iap_body(
+    app_id: str,
+    product_id: str,
+    name: str,
+    review_note: str,
+) -> dict[str, Any]:
     return {
         "data": {
             "type": "inAppPurchases",
             "attributes": {
-                "name": "Kromatika Full Version",
-                "productId": FULL_VERSION_PRODUCT_ID,
+                "name": name,
+                "productId": product_id,
                 "inAppPurchaseType": "NON_CONSUMABLE",
-                "reviewNote": (
-                    "One-time non-consumable unlock. Free without it: Today's "
-                    "Puzzle, campaign chapters 1-4, the Gallery, and any puzzle "
-                    "opened from a shared link or file. The unlock adds campaign "
-                    "chapters 5-12, infinite Zen, Challenge runs, and the puzzle "
-                    "Creator. Zen, Challenge, and Creator each allow one free "
-                    "trial session before the paywall appears, so the first tap "
-                    "into those modes plays normally by design. Restore Purchase "
-                    "is on the paywall screen."
-                ),
-                "availableInAllTerritories": True,
+                "reviewNote": review_note,
+                # `availableInAllTerritories` used to live here. Apple removed it
+                # from the inAppPurchases resource — sending it now fails the
+                # whole POST with a 409 ENTITY_ERROR.ATTRIBUTE.UNKNOWN.
+                # Territory availability is its own resource
+                # (inAppPurchaseAvailabilities) and is set in App Store Connect
+                # alongside price.
             },
             "relationships": {"app": relation("apps", app_id)},
         }
@@ -300,14 +312,14 @@ def full_version_iap_body(app_id: str) -> dict[str, Any]:
 
 
 def command_ensure_full_version(client: ASCClient, args: argparse.Namespace) -> None:
+    product_id = args.product_id
     app = resolve_app(client, args.bundle_id)
     existing = _in_app_purchases(client, app["id"])
     match = next(
         (
             item
             for item in existing
-            if item.get("attributes", {}).get("productId")
-            == FULL_VERSION_PRODUCT_ID
+            if item.get("attributes", {}).get("productId") == product_id
         ),
         None,
     )
@@ -315,7 +327,7 @@ def command_ensure_full_version(client: ASCClient, args: argparse.Namespace) -> 
         purchase_type = match.get("attributes", {}).get("inAppPurchaseType")
         if purchase_type != "NON_CONSUMABLE":
             raise AppStoreConnectError(
-                f"{FULL_VERSION_PRODUCT_ID} exists as {purchase_type}, not NON_CONSUMABLE"
+                f"{product_id} exists as {purchase_type}, not NON_CONSUMABLE"
             )
         # NOTE: this path does not reconcile the review note, price,
         # localization, or review screenshot against the existing
@@ -325,7 +337,7 @@ def command_ensure_full_version(client: ASCClient, args: argparse.Namespace) -> 
         # has to be edited there by hand.
         print(
             f"Full-version purchase already exists: {match['id']} "
-            f"({FULL_VERSION_PRODUCT_ID})"
+            f"({product_id})"
         )
         print(
             "Review note, price, localization, and review screenshot are NOT "
@@ -334,7 +346,9 @@ def command_ensure_full_version(client: ASCClient, args: argparse.Namespace) -> 
         return
 
     path = "/v2/inAppPurchases"
-    body = full_version_iap_body(app["id"])
+    body = full_version_iap_body(
+        app["id"], product_id, args.name, args.review_note
+    )
     if not args.apply:
         print_json({"dryRun": True, "method": "POST", "path": path, "body": body})
         return
@@ -575,9 +589,14 @@ def parser() -> argparse.ArgumentParser:
 
     full_version = commands.add_parser(
         "ensure-full-version-iap",
-        help="Create Kromatika's non-consumable full-version product if absent",
+        help="Create a non-consumable full-version product if absent",
     )
     full_version.add_argument("--apply", action="store_true")
+    # Defaults are Kromatika's, so its existing invocation is unchanged. Pass
+    # these together with --bundle-id to use the helper for another app.
+    full_version.add_argument("--product-id", default=FULL_VERSION_PRODUCT_ID)
+    full_version.add_argument("--name", default=FULL_VERSION_NAME)
+    full_version.add_argument("--review-note", default=FULL_VERSION_REVIEW_NOTE)
     full_version.set_defaults(handler=command_ensure_full_version)
 
     streak = commands.add_parser(
