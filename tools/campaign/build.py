@@ -41,7 +41,7 @@ ROOT = Path(__file__).resolve().parents[2]
 OUT_JSON = ROOT / "ChromaticOrder" / "Resources" / "campaign.json"
 OUT_SHEET = Path(__file__).resolve().parent / "campaign-sheet.png"
 
-TOTAL_LEVELS = 200
+TOTAL_LEVELS = 220
 
 # The colour curve finishes at level 100, and the second hundred inherits its
 # end state rather than continuing to tighten.
@@ -84,7 +84,54 @@ C_HUE_MIN = 0.11
 # mechanic in its own right rather than a difficulty tweak. It gets its
 # own chapter instead of being retrofitted into levels that were balanced
 # without it.
-DECOY_FIRST_LEVEL = 201
+DECOY_FIRST_LEVEL = 161
+DECOY_TEACHING_LAST_LEVEL = shapes.chapter_of(DECOY_FIRST_LEVEL)[2]
+
+# After the teaching chapter, a decoy is a hazard that recurs rather than
+# one the player is done with. Not on every board, though: Interiors and
+# Grand Works were balanced to their own cell-level targets, and a spare
+# swatch on all forty of them would stack two hard things on every level
+# instead of asking the player to keep checking. Every third board keeps
+# the question live — you cannot assume the bank is exact — without the
+# chapters becoming about it.
+DECOY_RECURRENCE = 3
+# Keep each later chapter's opening board focused on its new geometry. The
+# recurring reminder starts on the second eligible board, then repeats every
+# third eligible board from there.
+DECOY_RECURRENCE_PHASE = 1
+# Later chapters already carry the campaign's densest geometry. Keep the
+# recurring spare off their very largest boards so the mechanic remains a
+# question the player remembers, not a second difficulty wall layered onto
+# an already maximal puzzle.
+DECOY_RECURRENCE_MAX_CELLS = 45
+# These shapes clear the size limit but could not produce a fair decoy within
+# the generator's long search budget during preflight. Eligibility means both
+# "small enough" and "can actually carry the mechanic without weakening its
+# fairness rules". Keep the exceptions explicit so a future shape edit can
+# deliberately retest and remove them.
+DECOY_RECURRENCE_EXCLUDED_LEVELS = frozenset({198, 210, 213})
+
+
+def _recurring_decoy_levels() -> frozenset[int]:
+    """Later boards that receive the recurring one-spare reminder.
+
+    Eligibility is structural, so derive it from the authored drawings before
+    the per-level palette workers fan out. Oversized boards do not consume a
+    cadence slot: "every third eligible board" stays true even when several
+    dense boards appear together.
+    """
+    eligible = []
+    for level, (name, drawing, _tip) in enumerate(shapes.ALL, start=1):
+        if level <= DECOY_TEACHING_LAST_LEVEL:
+            continue
+        shape = art.parse(drawing, name)
+        if (len(shape.all_cells) <= DECOY_RECURRENCE_MAX_CELLS
+                and level not in DECOY_RECURRENCE_EXCLUDED_LEVELS):
+            eligible.append(level)
+    return frozenset(eligible[DECOY_RECURRENCE_PHASE::DECOY_RECURRENCE])
+
+
+RECURRING_DECOY_LEVELS = _recurring_decoy_levels()
 
 
 def lerp(a: float, b: float, t: float) -> float:
@@ -172,8 +219,7 @@ def curve(level: int) -> dict:
         # Sawtoothed on purpose: each chapter opens easier than the last one
         # closed, then ramps to its own finale.
         _title, first, last, _blurb = shapes.chapter_of(level)
-        stage = [c[0] for c in shapes.CHAPTERS
-                 if c[1] > COLOUR_CURVE_END].index(ch)
+        stage = BOOK2_BANK_STAGE[ch]
         u = (level - first) / max(1, last - first)
         bank_target = round(lerp(14 + stage, 20 + 2 * stage, u))
     # The gap a cell must have from every other colour on the board when
@@ -1455,13 +1501,19 @@ def make_decoys(shape, colors, locked, cfg, rng, count: int):
 def decoy_count_for(level: int, cell_count: int) -> int:
     """How many red herrings this level gets.
 
-    None before the mechanic is introduced. After that it scales with the
-    board rather than the level number, because a spare swatch on a
-    six-cell board is a much bigger share of the decision than the same
-    swatch on a thirty-cell one.
+    None before the mechanic is introduced. The teaching chapter scales with
+    board size. Later chapters carry one spare on every third eligible board.
     """
     if level < DECOY_FIRST_LEVEL:
         return 0
+    title = shapes.chapter_of(level)[0]
+    if title != "Red Herrings":
+        # A curveball in a chapter that is not about them: one spare on a
+        # scattered subset, except on the densest boards. Keep the cell-count
+        # guard here as well as in the precomputed set so direct callers cannot
+        # accidentally give an oversized board a decoy.
+        recurring = level in RECURRING_DECOY_LEVELS
+        return 1 if recurring and cell_count <= DECOY_RECURRENCE_MAX_CELLS else 0
     return max(1, min(3, round(cell_count / 14)))
 
 
@@ -1569,19 +1621,42 @@ CHAPTER_DIFFICULTY = {
     "Circuitry":   (2.0, 3.2),
     "Interiors":   (2.4, 3.6),
     "Grand Works": (2.8, 4.0),
-    # Red herrings sit BELOW Grand Works on the wrong-cell scale, which
-    # looks like a step down and is not. The simulated player's score
-    # counts cells placed wrongly, and a decoy's cost does not show up
-    # there: it shows up as hesitation over a swatch that has no home.
-    # Building these boards to Grand Works' cell-level difficulty as well
-    # would stack two hard things and make the chapter a wall, so the
-    # boards ease off and the new mechanic carries the load.
-    "Red Herrings": (2.2, 3.4),
+    # The score counts cells placed wrongly, so it cannot measure the cost of
+    # rejecting a decoy. Keep the cell-level ramp deliberately lower here and
+    # let the surplus swatches carry the chapter's new difficulty. Sections
+    # resumes at this chapter's peak, then The Limit carries both demands.
+    "Red Herrings": (0.4, 2.4),
 }
 
 # How far the search may move a level's bank size off its chapter's, how many
 # palettes to weigh at each of those sizes, the band inside which a board is
 # near enough to stop looking, and the trials each measurement runs.
+# Which rung of the bank ramp each book-two chapter sits on. Named rather
+# than taken from the chapter's position in the list, because those are not
+# the same thing: red herrings were inserted mid-book, and reading position
+# as rung pushed Interiors and Grand Works each one step up a ramp they were
+# balanced against — Grand Works landing on the 30-swatch bank that the book
+# two playability pass removed for leaving a typical eye fourteen cells
+# wrong. Red herrings share Interiors' rung: the chapter's difficulty is the
+# spare swatch, not the size of the bank, and its boards are clamped to a
+# share of the board anyway.
+BOOK2_BANK_STAGE = {
+    "Workshop":     0,
+    "Orchestra":    1,
+    "Circuitry":    2,
+    "Red Herrings": 3,
+    "Interiors":    3,
+    "Grand Works":  4,
+}
+
+# Painting attempts a single bank size gets before the search gives up on
+# it, and the budget a level falls back on when nothing in its whole window
+# landed. The long one is only ever spent on levels that would otherwise
+# fail to build at all, so it costs time on a handful of shapes rather than
+# on every one.
+SEARCH_BUDGET = 4000
+LONG_SEARCH_BUDGET = 40000
+
 BANK_WINDOW = 8
 TUNE_PALETTES = 3
 TUNE_TOLERANCE = 0.35
@@ -1684,12 +1759,12 @@ def build_level(level: int, name: str, artwork: str, tip: str | None,
     # of the distribution rather than exploiting its ends, which is the honest
     # way to use a simulated player whose ordering is trustworthy but whose
     # absolute numbers are asserted.
-    def weigh(bank: int) -> tuple[float, dict, float] | None:
+    def weigh(bank: int, budget: int = SEARCH_BUDGET) -> tuple[float, dict, float] | None:
         """Nearest-to-target board at this bank size, over a few palettes."""
         local = None
         weighed = examined = 0
         for entry in valid_entries(level, shape, name, tip,
-                                   dict(cfg, bank_target=bank)):
+                                   dict(cfg, bank_target=bank), budget=budget):
             examined += 1
             if examined > TUNE_PALETTES * 4:
                 break        # this size keeps failing the gate; move on
@@ -1725,9 +1800,16 @@ def build_level(level: int, name: str, artwork: str, tip: str | None,
     # these boards contain, and hands the player a board with almost
     # nothing given. Cap it as a share of the board instead, which is what
     # the count was always standing in for.
-    if level >= DECOY_FIRST_LEVEL:
+    chapter_title = shapes.chapter_of(level)[0]
+    if chapter_title == "Red Herrings":
         base = min(base, max(1, round(cells * 0.45)))
-    low, high = max(1, base - BANK_WINDOW), min(cells - 1, base + BANK_WINDOW)
+    low = max(1, base - BANK_WINDOW)
+    high = min(cells - 1, base + BANK_WINDOW)
+    if chapter_title == "Red Herrings":
+        # This is a real cap, not just a lower starting point for the tuner.
+        # Without it the wrong-cell search walks right back up to an almost
+        # empty board while chasing a score that cannot see the decoy at all.
+        high = min(high, max(base, round(cells * 0.70)))
     bank = min(max(base, low), high)
     best: tuple[float, dict, float] | None = None   # (miss, entry, wrong)
     seen: set[int] = set()
@@ -1753,6 +1835,16 @@ def build_level(level: int, name: str, artwork: str, tip: str | None,
             if found is not None:
                 break
         if found is None:
+            # Nothing in the window landed inside the ordinary budget. That
+            # is usually a shape that genuinely cannot be painted, and
+            # occasionally one whose survivors are just rare: Hacksaw's
+            # first legal board is the 28,635th attempt, so at 4,000 it
+            # read as impossible. Spend the long budget once on the
+            # chapter's own bank size before saying so — a level that takes
+            # a minute to find is still a level, and refusing to build it
+            # stops the whole campaign from regenerating.
+            found = bank if weigh(bank, budget=LONG_SEARCH_BUDGET) else None
+        if found is None:
             raise _no_palette(level, name)
         bank = found
         seen.discard(bank)  # let the walk below re-weigh it as its first step
@@ -1772,6 +1864,8 @@ def build_level(level: int, name: str, artwork: str, tip: str | None,
         bank += step
 
     if best is None:
+        best = weigh(bank, budget=LONG_SEARCH_BUDGET)
+    if best is None:
         raise _no_palette(level, name)
     entry = best[1]
     if verbose:
@@ -1790,7 +1884,7 @@ def _no_palette(level: int, name: str) -> RuntimeError:
 
 
 def valid_entries(level: int, shape, name: str, tip: str | None, cfg: dict,
-                  budget: int = 4000):
+                  budget: int = SEARCH_BUDGET):
     """Yield every board for this level that clears every rule, in seed order.
 
     Split out of `build_level` so the same search can be run more than once
@@ -1882,6 +1976,7 @@ def valid_entries(level: int, shape, name: str, tip: str | None, cfg: dict,
             "name": name,
             "chapter": shapes.display_title(chapter[0]),
             "tip": tip,
+            "teachingDemo": name in shapes.TEACHING_DEMO_NAMES,
             "gradientCount": len(shape.gradients),
             "cellCount": len(board),
             "bankCount": len(board) - len(locked),

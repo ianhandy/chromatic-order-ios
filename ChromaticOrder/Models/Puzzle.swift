@@ -128,4 +128,21 @@ struct Puzzle {
     /// O(n² × solver); only compute for analysis, not every generated
     /// puzzle). nil when never computed.
     var minimumLockCount: Int? = nil
+
+    /// Is there a colour in every cell the player is allowed to fill?
+    ///
+    /// This — not "the bank is empty" — is what "the board is full"
+    /// means. Once red herrings exist the two stopped being the same
+    /// question: a decoy belongs in no cell, and placement conserves
+    /// swatches, so a filled board still leaves a spare sitting in the
+    /// bank. Asking the bank instead of the board made every level
+    /// carrying a decoy impossible to submit.
+    var everyFreeCellIsFilled: Bool {
+        for row in board {
+            for cell in row where cell.kind == .cell && !cell.locked {
+                if cell.placed == nil { return false }
+            }
+        }
+        return true
+    }
 }

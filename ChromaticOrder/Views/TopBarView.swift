@@ -1,5 +1,5 @@
-//  Top bar: level + tier on the left, mode label or hearts in the center,
-//  hamburger button on the right.
+//  Top bar: level + streak on the left, mode label or Challenge hearts in
+//  the center, hamburger button on the right.
 
 import SwiftUI
 
@@ -77,12 +77,8 @@ struct TopBarView: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
 
-            // Progress readout, under the chip it belongs to. It used
-            // to be a three-column row with two permanently empty
-            // columns holding the layout open, printed at the same
-            // 20pt weight as the mode wordmark — so a move counter
-            // competed with the name of the mode. It's status; it now
-            // reads as status.
+            // Optional timer, under the chip it belongs to. It is status,
+            // not a second headline, so it stays visually quiet.
             progressReadout
         }
         .padding(.top, Kroma.Space.s)
@@ -158,10 +154,11 @@ struct TopBarView: View {
                     }
                 }
             } else {
-                chipText("Lv \(game.level)")
-                    .foregroundStyle(hexColor(t.colorHex))
+                challengeLevelChip(tint: hexColor(t.colorHex))
                     .kromaSurface(.control)
-                    .accessibilityLabel("level \(game.level), \(t.label)")
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel("level \(game.displayLevel), \(t.label)")
+                    .accessibilityValue("\(game.consecutiveNoHeartSolves) solve streak")
             }
         } else {
             // Daily: a fixed marker in the slot the level chip would
@@ -195,6 +192,31 @@ struct TopBarView: View {
             .padding(.horizontal, Kroma.Space.m)
             .padding(.vertical, Kroma.Space.s)
             .frame(minHeight: Kroma.Metrics.chromeControl)
+    }
+
+    /// Challenge owns a run streak, so it lives beside the level it affects
+    /// instead of in a detached status row. The flame and number remain
+    /// visible at zero, making the reset after a lost heart immediately clear.
+    private func challengeLevelChip(tint: Color) -> some View {
+        HStack(spacing: Kroma.Space.s) {
+            Text("Lv \(game.displayLevel)")
+                .foregroundStyle(tint)
+            HStack(spacing: 3) {
+                Image(systemName: "flame.fill")
+                Text("\(game.consecutiveNoHeartSolves)")
+                    .monospacedDigit()
+                    .contentTransition(.numericText(
+                        value: Double(game.consecutiveNoHeartSolves)
+                    ))
+            }
+            .foregroundStyle(Self.secondaryText)
+        }
+        .font(Kroma.font(.subheadline, .heavy))
+        .lineLimit(1)
+        .minimumScaleFactor(0.7)
+        .padding(.horizontal, Kroma.Space.m)
+        .padding(.vertical, Kroma.Space.s)
+        .frame(minHeight: Kroma.Metrics.chromeControl)
     }
 
     @ViewBuilder
@@ -256,101 +278,27 @@ struct TopBarView: View {
         CampaignCatalog.chapter(containing: index)?.title.lowercased() ?? "campaign"
     }
 
-    /// Individual items rendered by the hearts-row ForEach. A flat
-    /// array of these (instead of a ForEach + trailing conditional
-    /// `+N` Text) was the simplest fix for a SwiftUI diffing quirk
-    /// where the trailing branch sometimes failed to render once the
-    /// heart count climbed past 5.
-    private enum HeartItem: Hashable, Identifiable {
-        case zero
-        case heart(Int)      // individual heart at index (0..<threshold)
-        case counter(Int)    // single heart merged with the total count
-        var id: String {
-            switch self {
-            case .zero: return "zero"
-            case .heart(let i): return "h\(i)"
-            // Constant id (count excluded) so the counter view keeps its
-            // identity as the number changes — that's what lets the
-            // digit roll gently via `.contentTransition(.numericText)`
-            // instead of being torn down and popped back in.
-            case .counter: return "counter"
-            }
-        }
-    }
-
-    /// Above this many hearts the row stops drawing individual icons and
-    /// switches to a single heart fused with a count that rolls up/down.
-    private static let heartIconCap = 5
-
-    private var heartRowItems: [HeartItem] {
-        let checks = max(0, game.checks)
-        if checks == 0 { return [.zero] }
-        if checks <= Self.heartIconCap {
-            return (0..<checks).map { HeartItem.heart($0) }
-        }
-        return [.counter(checks)]
-    }
-
     @ViewBuilder
     private var heartsRow: some View {
         let heartRed = Color(red: 1.0, green: 0.4, blue: 0.4)
-        HStack(spacing: Kroma.Space.xs) {
-            ForEach(heartRowItems) { item in
-                switch item {
-                case .zero:
-                    Text("0 \u{2665}")
-                        .font(Kroma.font(.subheadline, .bold))
-                        .foregroundStyle(Self.secondaryText)
-                        .transition(.opacity)
-                case .heart(let idx):
-                    Image(systemName: "heart.fill")
-                        .font(Kroma.font(.body, .regular))
-                        .foregroundStyle(heartRed)
-                        .phaseAnimator([1.0, 1.35, 1.0],
-                                       trigger: heartWaveTick) { content, s in
-                            content.scaleEffect(s)
-                        } animation: { _ in
-                            .spring(response: 0.30,
-                                    dampingFraction: 0.55)
-                                .delay(Double(idx) * 0.07)
-                        }
-                        .transition(.asymmetric(
-                            insertion: .scale(scale: 0.4).combined(with: .opacity),
-                            removal: .scale(scale: 0.4).combined(with: .opacity)
-                        ))
-                case .counter(let n):
-                    // One heart fused directly with the count. The
-                    // number rolls gently to its next value via the
-                    // numeric content transition rather than popping.
-                    HStack(spacing: 3) {
-                        Image(systemName: "heart.fill")
-                            .font(Kroma.font(.body, .regular))
-                            .foregroundStyle(heartRed)
-                            .phaseAnimator([1.0, 1.35, 1.0],
-                                           trigger: heartWaveTick) { content, s in
-                                content.scaleEffect(s)
-                            } animation: { _ in
-                                .spring(response: 0.30, dampingFraction: 0.55)
-                            }
-                        Text("\(n)")
-                            .font(Kroma.font(.body, .heavy))
-                            .foregroundStyle(heartRed)
-                            .monospacedDigit()
-                            .contentTransition(.numericText(value: Double(n)))
-                            .fixedSize()
-                    }
-                    .accessibilityElement()
-                    .accessibilityLabel("\(n) hearts")
-                    .transition(.asymmetric(
-                        insertion: .scale(scale: 0.4).combined(with: .opacity),
-                        removal: .opacity
-                    ))
+        HStack(spacing: 3) {
+            Image(systemName: "heart.fill")
+                .font(Kroma.font(.body, .regular))
+                .foregroundStyle(heartRed)
+                .phaseAnimator([1.0, 1.35, 1.0],
+                               trigger: heartWaveTick) { content, scale in
+                    content.scaleEffect(scale)
+                } animation: { _ in
+                    .spring(response: 0.30, dampingFraction: 0.55)
                 }
-            }
+            Text("\(max(0, game.checks))")
+                .font(Kroma.font(.body, .heavy))
+                .foregroundStyle(heartRed)
+                .monospacedDigit()
+                .contentTransition(.numericText(value: Double(max(0, game.checks))))
+                .fixedSize()
             // Flying-in heart from the "perfect" banner. Sits at the
-            // end of the row during `.flying`; on `.landed` the
-            // ContentView promotes it to a real heart in
-            // `game.checks` so the row keeps showing it.
+            // end of the compact counter only during the reward animation.
             if perfectHeartStage == .flying {
                 Image(systemName: "heart.fill")
                     .font(.body)
@@ -362,8 +310,8 @@ struct TopBarView: View {
                     )
             }
         }
-        .animation(.spring(response: 0.42, dampingFraction: 0.72),
-                   value: heartRowItems)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(max(0, game.checks)) hearts")
     }
 
     @ViewBuilder
@@ -415,32 +363,30 @@ struct TopBarView: View {
 
     // MARK: – Progress readout
 
-    /// Elapsed time and moves, under the chip they describe. The timer
-    /// hides when the player has turned it off — the internal clock
-    /// keeps running for leaderboard submissions either way.
+    /// Elapsed time and board placements under the chip. Each readout has its
+    /// own Settings toggle; both metrics keep recording while hidden.
     @ViewBuilder
     private var progressReadout: some View {
         HStack(spacing: Kroma.Space.s) {
             if game.timerVisible {
-                // `timeSpentSec` is derived from a start date, so it
-                // needs a clock to redraw. `moveCount` is observed
-                // state and doesn't — it used to sit inside a second
-                // one-second timeline redrawing for nothing.
+                // `timeSpentSec` is derived from a start date, so it needs a
+                // clock to redraw even though the view carries no other live
+                // counters.
                 TimelineView(.periodic(from: .now, by: 1.0)) { _ in
-                    // The separator rides on the timer rather than sitting
-                    // between the two as its own view, so VoiceOver never
-                    // has a stray "dot" element to step through. Two
-                    // monospaced numbers with only a space between them
-                    // ran together at large text sizes — "0:50" and
-                    // "0 moves" read as "0:500 moves".
-                    Text("\(formatElapsed(game.timeSpentSec)) ·")
+                    Text(formatElapsed(game.timeSpentSec))
                         .accessibilityLabel("time \(formatElapsed(game.timeSpentSec))")
                 }
             }
-            // Singular on the first placement of every puzzle, so this
-            // read "1 moves" constantly before the pluralization.
-            Text("\(game.moveCount) move\(game.moveCount == 1 ? "" : "s")")
-                .accessibilityLabel("\(game.moveCount) move\(game.moveCount == 1 ? "" : "s")")
+            if game.timerVisible && game.movesVisible {
+                Text("·")
+                    .accessibilityHidden(true)
+            }
+            if game.movesVisible {
+                Text("\(game.moveCount) \(game.moveCount == 1 ? "move" : "moves")")
+                    .monospacedDigit()
+                    .contentTransition(.numericText(value: Double(game.moveCount)))
+                    .accessibilityLabel("\(game.moveCount) \(game.moveCount == 1 ? "move" : "moves")")
+            }
         }
         .font(Kroma.monoFont(.footnote, .semibold))
         .foregroundStyle(Self.secondaryText)

@@ -283,7 +283,12 @@ enum PuzzleSolver {
         let n = freeCells.count
 
         let bankColors: [OKLCh] = puzzle.bank.compactMap { $0?.color }
-        guard bankColors.count == n else { return [] }
+        // The bank holds one swatch per free cell, plus any red herrings.
+        // A decoy is built to fit no cell, so it never enters `adj` below
+        // and simply goes unused — but the count has to allow for it, or
+        // every board carrying one reads as having zero placements and so
+        // as ambiguous.
+        guard bankColors.count == n + puzzle.decoys.count else { return [] }
 
         // Locked-cell internal-consistency check.
         var lockMap: [Int: OKLCh] = [:]
@@ -298,10 +303,13 @@ enum PuzzleSolver {
             }
         }
 
-        // Adjacency.
+        // Adjacency. Ranges over the whole bank, not the first `n`
+        // entries: the bank is shuffled, so a decoy can sit anywhere in
+        // it and a real swatch can sit past index n.
         var adj: [[Int]] = Array(repeating: [], count: n)
         for j in 0..<n {
-            for i in 0..<n where OK.equal(bankColors[i], freeCells[j].solution, mode: mode) {
+            for i in bankColors.indices
+            where OK.equal(bankColors[i], freeCells[j].solution, mode: mode) {
                 adj[j].append(i)
             }
         }
@@ -311,7 +319,9 @@ enum PuzzleSolver {
 
         // Backtrack. Visit cells with the fewest options first.
         let order = (0..<n).sorted { adj[$0].count < adj[$1].count }
-        var used = Array(repeating: false, count: n)
+        // Indexed by bank slot, which outnumbers the cells when the
+        // board carries a decoy.
+        var used = Array(repeating: false, count: bankColors.count)
         var assignment: [Int] = Array(repeating: -1, count: n)
         var distinctByVector: [[Int]: [Int]] = [:]  // class-vector → first assignment seen
         var done = false

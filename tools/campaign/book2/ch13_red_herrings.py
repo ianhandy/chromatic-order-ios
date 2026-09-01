@@ -1,4 +1,4 @@
-# Chapter 13: Red Herrings (levels 201-220)
+# Red Herrings, shipped as Spare Parts (levels 161-180)
 #
 # The bank stops being a promise. Up to here every swatch handed to the
 # player belonged in some cell, so "I have used everything" was a way of
@@ -157,5 +157,5 @@ a+aaa+aaa+a
 .b...c...d.
 .+eee+eee+.
 .b...c...d.
-""", "Everything you have learned, and a bank that lies. Nothing else new."),
+""", "One last bank that lies before the campaign combines it with larger boards."),
 ]

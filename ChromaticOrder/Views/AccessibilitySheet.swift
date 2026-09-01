@@ -1,13 +1,5 @@
-//  Accessibility settings. All adjustments here reshape the generator's
-//  color palette for the player's specific needs:
-//
-//  • Contrast — multiplier on per-step shift ranges (rangeScale in
-//    GenConfig). Higher = bigger jumps between adjacent cells.
-//  • Luminance clamp — narrows the allowed L window. Useful when
-//    bright-on-dark or dark-on-dark is hard to read.
-//  • Saturation clamp — narrows the allowed chroma window.
-//  • Color blindness — picks the simulation mode the generator builds
-//    under. Distances are measured in the player's perceptual space
+//  Accessibility settings. Color blindness picks the simulation mode
+//  the generator builds under. Distances are measured in the player's perceptual space
 //    so the puzzle stays solvable.
 //  • Reduce motion — turns off continuous sway + burst animations.
 //
@@ -16,9 +8,9 @@
 //  board's colors and loosens the same-color test used when judging
 //  answers. See TestingFilter.swift.
 //
-//  All changes defer regeneration until the sheet closes (same pattern
-//  as the menu's CB cycle) so mid-adjustment sliders don't thrash the
-//  canvas.
+//  A color-blindness change applies to the next generated puzzle. The
+//  current board stays playable instead of disappearing into a potentially
+//  long regeneration while the player is in the middle of a run.
 
 import SwiftUI
 
@@ -35,35 +27,11 @@ struct AccessibilitySheet: View {
         NavigationStack {
             Form {
                 Section {
-                    contrastSlider
-                } header: {
-                    Text("Contrast")
-                } footer: {
-                    Text("Multiplier on the generator's per-step shift. Higher makes adjacent cells easier to distinguish.")
-                }
-
-                Section {
-                    luminanceSliders
-                } header: {
-                    Text("Luminance clamp")
-                } footer: {
-                    Text("Tighten to avoid very dark or very bright cells.")
-                }
-
-                Section {
-                    saturationSliders
-                } header: {
-                    Text("Saturation clamp")
-                } footer: {
-                    Text("Tighten if highly saturated colors are hard to read.")
-                }
-
-                Section {
                     cbPicker
                 } header: {
                     Text("Color blindness")
                 } footer: {
-                    Text("Puzzles rebuild using a perceptual model tuned for the selected vision, so steps stay distinguishable.")
+                    Text("New puzzles use a perceptual model tuned for the selected vision, so steps stay distinguishable.")
                 }
 
                 Section {
@@ -105,8 +73,9 @@ struct AccessibilitySheet: View {
                         .pickerStyle(.menu)
                     }
                     Toggle("Show timer", isOn: $game.timerVisible)
+                    Toggle("Show moves", isOn: $game.movesVisible)
                 } header: {
-                    Text("Visual effects")
+                    Text("Display")
                 } footer: {
                     // Only the two facts a player can't discover by
                     // flipping the switch and looking. The old copy also
@@ -252,66 +221,6 @@ struct AccessibilitySheet: View {
 
     // MARK: - Sub-views
 
-    private var contrastSlider: some View {
-        labeledSlider(
-            label: "Step magnitude",
-            value: $game.contrastScale,
-            range: 0.5...1.5,
-            step: 0.05,
-            format: { String(format: "%.2fx", $0) }
-        )
-    }
-
-    private var luminanceSliders: some View {
-        VStack(spacing: 10) {
-            labeledSlider(
-                label: "Minimum",
-                value: Binding(
-                    get: { game.lClampMin },
-                    set: { game.lClampMin = min($0, game.lClampMax - 0.05) }
-                ),
-                range: OK.lMin...OK.lMax,
-                step: 0.01,
-                format: { String(format: "%.2f", $0) }
-            )
-            labeledSlider(
-                label: "Maximum",
-                value: Binding(
-                    get: { game.lClampMax },
-                    set: { game.lClampMax = max($0, game.lClampMin + 0.05) }
-                ),
-                range: OK.lMin...OK.lMax,
-                step: 0.01,
-                format: { String(format: "%.2f", $0) }
-            )
-        }
-    }
-
-    private var saturationSliders: some View {
-        VStack(spacing: 10) {
-            labeledSlider(
-                label: "Minimum",
-                value: Binding(
-                    get: { game.cClampMin },
-                    set: { game.cClampMin = min($0, game.cClampMax - 0.02) }
-                ),
-                range: OK.cMin...OK.cMax,
-                step: 0.005,
-                format: { String(format: "%.2f", $0) }
-            )
-            labeledSlider(
-                label: "Maximum",
-                value: Binding(
-                    get: { game.cClampMax },
-                    set: { game.cClampMax = max($0, game.cClampMin + 0.02) }
-                ),
-                range: OK.cMin...OK.cMax,
-                step: 0.005,
-                format: { String(format: "%.2f", $0) }
-            )
-        }
-    }
-
     private var cbPicker: some View {
         Picker(selection: $game.cbMode) {
             ForEach(CBMode.allCases, id: \.self) { mode in
@@ -355,4 +264,3 @@ struct AccessibilitySheet: View {
         }
     }
 }
-

@@ -12,7 +12,9 @@ struct EnjoymentPromptView: View {
         case positive
         case negative
         case acknowledging
-        case garbled
+        /// Nothing on screen. The joke is the silence, not a visual
+        /// effect over the top of it.
+        case blank
         case kidding
     }
 
@@ -30,8 +32,15 @@ struct EnjoymentPromptView: View {
                     .font(Kroma.font(.largeTitle, .heavy))
                     .foregroundStyle(.white)
                     .transition(.opacity)
-            case .question, .garbled, .kidding:
-                questionContent(garbled: stage == .garbled)
+            case .blank:
+                // Deliberately empty: the black backdrop below is the
+                // whole screen. Garbling the prompt instead read as the
+                // app breaking rather than as it shutting up.
+                Color.clear
+                    .accessibilityElement()
+                    .accessibilityLabel("ok. controls return in two seconds.")
+            case .question, .kidding:
+                questionContent()
                     .overlay {
                         if stage == .kidding {
                             Text(Strings.EnjoymentPrompt.justKidding)
@@ -55,24 +64,24 @@ struct EnjoymentPromptView: View {
         }
     }
 
-    private func questionContent(garbled: Bool) -> some View {
+    private func questionContent() -> some View {
         VStack(spacing: Kroma.Space.xxl) {
             Spacer()
 
-            Text(display(Strings.EnjoymentPrompt.question, garbled: garbled))
+            Text(Strings.EnjoymentPrompt.question)
                 .font(Kroma.font(.largeTitle, .heavy))
                 .foregroundStyle(.white)
                 .multilineTextAlignment(.center)
                 .fixedSize(horizontal: false, vertical: true)
 
             VStack(spacing: Kroma.Space.m) {
-                promptButton(display(Strings.EnjoymentPrompt.yes, garbled: garbled)) {
+                promptButton(Strings.EnjoymentPrompt.yes) {
                     respond(.yes)
                 }
-                promptButton(display(Strings.EnjoymentPrompt.no, garbled: garbled)) {
+                promptButton(Strings.EnjoymentPrompt.no) {
                     respond(.no)
                 }
-                promptButton(display(Strings.EnjoymentPrompt.stopTalking, garbled: garbled)) {
+                promptButton(Strings.EnjoymentPrompt.stopTalking) {
                     respond(.stopTalking)
                 }
             }
@@ -82,12 +91,8 @@ struct EnjoymentPromptView: View {
         }
         .padding(.horizontal, Kroma.Space.xxl)
         .padding(.vertical, Kroma.Space.xxl)
-        // Under VoiceOver the garble is noise, so the whole block collapses
-        // to one element that says what is happening and when it ends.
-        .accessibilityElement(children: garbled ? .ignore : .contain)
-        .accessibilityLabel(garbled
-                            ? "ok. controls return in three seconds."
-                            : Strings.EnjoymentPrompt.question)
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel(Strings.EnjoymentPrompt.question)
     }
 
     private func promptButton(_ label: String, action: @escaping () -> Void) -> some View {
@@ -139,8 +144,8 @@ struct EnjoymentPromptView: View {
             responseTask = Task { @MainActor in
                 try? await Task.sleep(for: .milliseconds(400))
                 guard !Task.isCancelled else { return }
-                stage = .garbled
-                try? await Task.sleep(for: .seconds(3))
+                stage = .blank
+                try? await Task.sleep(for: .seconds(2))
                 guard !Task.isCancelled else { return }
                 stage = .kidding
                 try? await Task.sleep(for: .seconds(1.25))
@@ -150,15 +155,6 @@ struct EnjoymentPromptView: View {
         }
     }
 
-    private func display(_ source: String, garbled: Bool) -> String {
-        guard garbled else { return source }
-        let glyphs = Array("▓▒░⌁⌗⋈⧖⟟⤫")
-        return String(source.enumerated().map { offset, character in
-            if character.isWhitespace { return character }
-            if character.isPunctuation { return character }
-            return glyphs[(offset * 7 + Int(character.asciiValue ?? 0)) % glyphs.count]
-        })
-    }
 }
 
 private struct PerfectResponseHeart: View {

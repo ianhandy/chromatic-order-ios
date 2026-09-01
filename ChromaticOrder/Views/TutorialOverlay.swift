@@ -261,17 +261,18 @@ struct TutorialBalloon: View {
         let d = Self.balloonSize.width      // bubble diameter
         let r = d / 2
         ZStack {
-            // Bubble body — mostly transparent with the tint pooling at
-            // the rim, so the puzzle backdrop shows through the middle
-            // the way light passes through a real bubble film.
+            // Bubble body — barely there. The film is a hint of colour
+            // at the rim and almost nothing across the middle, so the
+            // board reads straight through it. It labels the day; it is
+            // not supposed to be an object sitting on the puzzle.
             Circle()
                 .fill(
                     RadialGradient(
                         colors: [
-                            tint.opacity(0.30),
-                            tint.opacity(0.16),
                             tint.opacity(0.10),
-                            tint.opacity(0.26),
+                            tint.opacity(0.05),
+                            tint.opacity(0.03),
+                            tint.opacity(0.09),
                         ],
                         center: UnitPoint(x: 0.36, y: 0.30),
                         startRadius: 2,
@@ -284,11 +285,11 @@ struct TutorialBalloon: View {
                     Circle().strokeBorder(
                         AngularGradient(
                             colors: [
-                                Color.white.opacity(0.85),
-                                Color.white.opacity(0.25),
-                                tint.opacity(0.45),
-                                Color.white.opacity(0.55),
-                                Color.white.opacity(0.85),
+                                Color.white.opacity(0.42),
+                                Color.white.opacity(0.12),
+                                tint.opacity(0.20),
+                                Color.white.opacity(0.26),
+                                Color.white.opacity(0.42),
                             ],
                             center: .center
                         ),
@@ -296,10 +297,10 @@ struct TutorialBalloon: View {
                     )
                 )
                 .frame(width: d, height: d)
-                .shadow(color: tint.opacity(0.30), radius: 14, y: 4)
+                .shadow(color: tint.opacity(0.12), radius: 14, y: 4)
             // Primary specular glint — soft streak in the upper-left.
             Ellipse()
-                .fill(Color.white.opacity(0.55))
+                .fill(Color.white.opacity(0.28))
                 .frame(width: d * 0.20, height: d * 0.12)
                 .rotationEffect(.degrees(-38))
                 .offset(x: -d * 0.22, y: -d * 0.24)
@@ -307,7 +308,7 @@ struct TutorialBalloon: View {
                 .allowsHitTesting(false)
             // Secondary tiny glint for that wet-bubble read.
             Circle()
-                .fill(Color.white.opacity(0.45))
+                .fill(Color.white.opacity(0.22))
                 .frame(width: d * 0.06, height: d * 0.06)
                 .offset(x: -d * 0.30, y: -d * 0.08)
                 .allowsHitTesting(false)

@@ -223,5 +223,5 @@ b+b+b+b+b+.
 h...f..j..g
 +iii+ii+i.g
 h...f..j...
-""", "Two hundred boards. Take this one slowly, and finish it the way you like."),
+""", "The final board. Take it slowly, and finish it the way you like."),
 ]

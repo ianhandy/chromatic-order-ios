@@ -1,4 +1,4 @@
-//  The campaign: 200 hand-authored levels shipped in the bundle as
+//  The campaign: 220 hand-authored levels shipped in the bundle as
 //  `campaign.json`. Each level is a named shape drawn out of gradients —
 //  "Tee", "Anchor", "Mandala" — that teaches one more thing about reading
 //  a ramp than the level before it.
@@ -25,12 +25,17 @@ struct CampaignChapter: Codable, Identifiable, Hashable {
 struct CampaignLevel: Codable, Identifiable {
     /// 1-based position in the campaign.
     let index: Int
-    /// One or two words: what the shape is.
+    /// Short authoring name for the shape. The game presents chapter and
+    /// position instead, so this does not become an accidental picture label.
     let name: String
     let chapter: String
-    /// Coaching line shown the first time this level is opened. Only the
-    /// levels that introduce something have one.
+    /// Authoring note used to verify that the generated board actually
+    /// supports the lesson it was designed around. It is not shown directly.
     let tip: String?
+    /// Explicitly opts a genuine mechanic introduction into the one-shot
+    /// solved-board demonstration. Kept separate from `tip` so strategy notes
+    /// and finales never reveal their answer merely because they carry prose.
+    let teachingDemo: Bool?
     let gradientCount: Int
     let cellCount: Int
     /// Swatches the player has to place.
@@ -44,6 +49,7 @@ struct CampaignLevel: Codable, Identifiable {
     let doc: CreatorPuzzleDoc
 
     var id: Int { index }
+    var shouldPlayTeachingDemo: Bool { teachingDemo == true }
 
     /// Identity is the position in the campaign — the doc it carries isn't
     /// hashable and doesn't need to be.

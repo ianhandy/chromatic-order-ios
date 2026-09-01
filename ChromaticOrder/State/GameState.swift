@@ -153,10 +153,10 @@ final class GameState {
     /// tapping "challenge" should start fresh or prompt the player
     /// to resume. Kept in sync with disk by save/discard helpers.
     var hasSavedChallengeRun: Bool = false
-    /// Running count of consecutive challenge solves where the
-    /// player did not lose a heart. Reset on any heart loss and on
-    /// fresh challenge entry. Every 3rd consecutive no-heart solve
-    /// grants one bonus level skip and resets the counter.
+    /// Running count of consecutive challenge solves where the player did
+    /// not lose a heart. Reset on any heart loss and on fresh Challenge
+    /// entry. Every third clean solve grants one bonus level skip, while the
+    /// visible streak keeps counting instead of snapping back to zero.
     ///
     /// This is the only streak ladder in challenge. A second ladder
     /// counted "perfect" solves separately, but perfect now means
@@ -168,11 +168,6 @@ final class GameState {
     /// challenge progression. Permanent for the duration of the
     /// current challenge run; reset on `enterMode(.challenge)` fresh.
     var challengeBonusLevels: Int = 0
-    /// Upper bound on banked hearts. Challenge awards a heart for every
-    /// perfect solve, and perfect now means "did not fail the Check" —
-    /// a bar a competent player clears most levels. Without a ceiling
-    /// the bank ratchets up forever and the run stops being able to end.
-    static let maxChecks = 5
     /// Set true whenever a heart is lost on the current level (via a
     /// failed check). Reset at `startLevel` so each level has its own
     /// flag. Drives the consecutive-no-heart streak counter.
@@ -233,9 +228,9 @@ final class GameState {
     /// alongside reduce-motion so Reset Progress doesn't stomp it —
     /// it's an accessibility setting, not game state.
     var cbMode: CBMode
-    /// Accessibility bundle — contrast (multiplier on step ranges) and
-    /// L / c clamps (tighter than OK's default usable band). Persisted
-    /// under its own key; Reset Progress leaves these alone.
+    /// Internal generator bounds. These used to be player-facing sliders;
+    /// retired builds always load the safe defaults so an old preference
+    /// cannot strand someone on a hidden, overly constrained palette.
     var contrastScale: Double
     var lClampMin: Double
     var lClampMax: Double
@@ -292,6 +287,9 @@ final class GameState {
     /// the running timer pressurizing; turn off to play without it.
     /// Internal timer still runs for leaderboard submissions.
     var timerVisible: Bool
+    /// Show the number of board placements beside the timer. Moves are
+    /// recorded in every mode whether or not this readout is visible.
+    var movesVisible: Bool
     /// Frame rate cap for the main-menu palette animation. 30 / 60
     /// / 120 — 120 only pays off on ProMotion displays and can feel
     /// laggy on older devices. 30 is the default; pick higher for
@@ -368,6 +366,9 @@ final class GameState {
     /// told about it in a sentence. Blocks input for its ~2s so a stray
     /// tap can't fight the animation.
     var demoRunning: Bool = false
+    /// Identifies the currently active delayed demo completion. Loading a new
+    /// board invalidates the token so an older task cannot reset a newer demo.
+    private var teachingDemoRunID = UUID()
     /// Monotonically changes whenever real gameplay begins. ContentView
     /// observes it to release its non-decision tutorial bubble; state owns
     /// the campaign tip so both kinds of guidance leave through one path.
@@ -640,11 +641,11 @@ final class GameState {
         self.reduceMotion = rm
         self.cbMode = Self.loadCBMode()
         let a11y = Self.loadAccessibility()
-        self.contrastScale = a11y.contrastScale
-        self.lClampMin = a11y.lClampMin
-        self.lClampMax = a11y.lClampMax
-        self.cClampMin = a11y.cClampMin
-        self.cClampMax = a11y.cClampMax
+        self.contrastScale = 1.0
+        self.lClampMin = OK.lMin
+        self.lClampMax = OK.lMax
+        self.cClampMin = OK.cMin
+        self.cClampMax = OK.cMax
         self.doubleTapInterval = a11y.doubleTapInterval
         self.magnetismEnabled = a11y.magnetismEnabled
         self.edgeVignetteEnabled = a11y.edgeVignetteEnabled
@@ -655,6 +656,7 @@ final class GameState {
         self.sfxEnabled = a11y.sfxEnabled
         self.hapticsEnabled = a11y.hapticsEnabled
         self.timerVisible = a11y.timerVisible
+        self.movesVisible = a11y.movesVisible
         self.menuFps = a11y.menuFps
         let testing = Self.loadTestingFilter()
         self.testingEnabled = testing.enabled
@@ -689,11 +691,6 @@ final class GameState {
     // ─── Accessibility ──────────────────────────────────────────────
 
     private struct AccessibilityBundle {
-        var contrastScale: Double
-        var lClampMin: Double
-        var lClampMax: Double
-        var cClampMin: Double
-        var cClampMax: Double
         var doubleTapInterval: Double
         var magnetismEnabled: Bool
         var edgeVignetteEnabled: Bool
@@ -704,12 +701,10 @@ final class GameState {
         var sfxEnabled: Bool
         var hapticsEnabled: Bool
         var timerVisible: Bool
+        var movesVisible: Bool
         var menuFps: Int
 
         static let defaults = AccessibilityBundle(
-            contrastScale: 1.0,
-            lClampMin: OK.lMin, lClampMax: OK.lMax,
-            cClampMin: OK.cMin, cClampMax: OK.cMax,
             doubleTapInterval: 0.28,
             magnetismEnabled: true,
             edgeVignetteEnabled: true,
@@ -720,6 +715,7 @@ final class GameState {
             sfxEnabled: true,
             hapticsEnabled: true,
             timerVisible: true,
+            movesVisible: true,
             menuFps: 30
         )
     }
@@ -728,37 +724,7 @@ final class GameState {
         guard let data = UserDefaults.standard.data(forKey: a11yKey),
               let dict = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
         else { return .defaults }
-        // The sliders enforce these invariants live (a minimum span
-        // between each clamp pair, a bounded contrast scale), but this
-        // dict is not the slider — it's whatever was on disk, possibly
-        // written by an older build or restored from a backup. Nothing
-        // downstream re-checks it, and the generator divides by these
-        // spans: an lMin == lMax pair reaches `Util.randDouble(in:
-        // 0..<0)`, and `Double.random(in:)` traps on an empty range.
-        // A negative contrastScale inverts a Range and traps on
-        // construction. Clamp on the way in so a bad payload degrades
-        // to a sane board instead of a crash at level load.
-        let span = { (lo: Double, hi: Double, floor: Double,
-                      limit: ClosedRange<Double>) -> (Double, Double) in
-            let a = min(max(lo, limit.lowerBound), limit.upperBound)
-            let b = min(max(hi, limit.lowerBound), limit.upperBound)
-            let low = min(a, b)
-            // Guarantee a non-empty span even if both landed equal.
-            return (low, max(b, low + floor))
-        }
-        let (lLo, lHi) = span((dict["lClampMin"] as? Double) ?? OK.lMin,
-                              (dict["lClampMax"] as? Double) ?? OK.lMax,
-                              0.05, OK.lMin...OK.lMax)
-        let (cLo, cHi) = span((dict["cClampMin"] as? Double) ?? OK.cMin,
-                              (dict["cClampMax"] as? Double) ?? OK.cMax,
-                              0.02, OK.cMin...OK.cMax)
         let b = AccessibilityBundle(
-            contrastScale: min(max((dict["contrastScale"] as? Double) ?? 1.0,
-                                   0.5), 1.5),
-            lClampMin: lLo,
-            lClampMax: lHi,
-            cClampMin: cLo,
-            cClampMax: cHi,
             doubleTapInterval: min(max((dict["doubleTapInterval"] as? Double) ?? 0.28,
                                        0.15), 0.60),
             magnetismEnabled: (dict["magnetismEnabled"] as? Bool) ?? true,
@@ -771,6 +737,7 @@ final class GameState {
             sfxEnabled: (dict["sfxEnabled"] as? Bool) ?? true,
             hapticsEnabled: (dict["hapticsEnabled"] as? Bool) ?? true,
             timerVisible: (dict["timerVisible"] as? Bool) ?? true,
+            movesVisible: (dict["movesVisible"] as? Bool) ?? true,
             menuFps: (dict["menuFps"] as? Int) ?? 30
         )
         return b
@@ -778,11 +745,6 @@ final class GameState {
 
     private func saveAccessibility() {
         let dict: [String: Any] = [
-            "contrastScale": contrastScale,
-            "lClampMin": lClampMin,
-            "lClampMax": lClampMax,
-            "cClampMin": cClampMin,
-            "cClampMax": cClampMax,
             "doubleTapInterval": doubleTapInterval,
             "magnetismEnabled": magnetismEnabled,
             "edgeVignetteEnabled": edgeVignetteEnabled,
@@ -793,6 +755,7 @@ final class GameState {
             "sfxEnabled": sfxEnabled,
             "hapticsEnabled": hapticsEnabled,
             "timerVisible": timerVisible,
+            "movesVisible": movesVisible,
             "menuFps": menuFps,
         ]
         if let data = try? JSONSerialization.data(withJSONObject: dict) {
@@ -800,52 +763,32 @@ final class GameState {
         }
     }
 
-    /// Snapshot of the accessibility values at the current puzzle's
-    /// generation time — used to tell whether the sheet's slider
-    /// changes actually altered anything worth regenerating for.
-    private var contrastAtGeneration: Double = 1.0
-    private var lClampMinAtGeneration: Double = OK.lMin
-    private var lClampMaxAtGeneration: Double = OK.lMax
-    private var cClampMinAtGeneration: Double = OK.cMin
-    private var cClampMaxAtGeneration: Double = OK.cMax
-
-    /// Called when the Accessibility sheet closes. If any of the
-    /// generator-affecting values moved since the current puzzle was
-    /// built, regenerate — otherwise no-op so rapid re-opens of the
-    /// sheet don't thrash the board.
+    /// Called when the Settings sheet closes. Persist the controls, but keep
+    /// the current board intact. A color-blindness change is picked up by the
+    /// next `startLevel`, avoiding the long regeneration that previously made
+    /// Challenge appear to stop accepting placements.
     func applyAccessibilityIfChanged() {
         saveAccessibility()
         // The testing knobs ride the same sheet, so they persist on the
-        // same close. None of them affect generation (compression is
-        // display-only, the threshold only affects judging), so they
-        // deliberately stay out of the `changed` test below: moving
-        // them must not reroll the board the tester is measuring.
+        // same close. Neither affects generation: compression is
+        // display-only and the threshold only affects judging.
         saveTestingFilter()
         // cbMode lives in its own UserDefaults key; the picker binds
         // straight to $game.cbMode so we never hit cycleCBMode() from
         // the sheet path. Persist it here too or the player's choice
         // reverts on next launch.
         saveCBMode()
-        let changed = contrastScale != contrastAtGeneration
-            || lClampMin != lClampMinAtGeneration
-            || lClampMax != lClampMaxAtGeneration
-            || cClampMin != cClampMinAtGeneration
-            || cClampMax != cClampMaxAtGeneration
-            || cbMode != cbModeAtGeneration
-        if changed {
-            startLevel(level)
-        }
     }
 
     /// Restore every accessibility setting to its default. Convenience
     /// for the sheet's "Reset" button.
     func resetAccessibility() {
         let d = AccessibilityBundle.defaults
-        contrastScale = d.contrastScale
-        lClampMin = d.lClampMin
-        lClampMax = d.lClampMax
-        cClampMin = d.cClampMin
-        cClampMax = d.cClampMax
+        contrastScale = 1.0
+        lClampMin = OK.lMin
+        lClampMax = OK.lMax
+        cClampMin = OK.cMin
+        cClampMax = OK.cMax
         doubleTapInterval = d.doubleTapInterval
         magnetismEnabled = d.magnetismEnabled
         edgeVignetteEnabled = d.edgeVignetteEnabled
@@ -856,6 +799,7 @@ final class GameState {
         sfxEnabled = d.sfxEnabled
         hapticsEnabled = d.hapticsEnabled
         timerVisible = d.timerVisible
+        movesVisible = d.movesVisible
         menuFps = d.menuFps
         cbMode = .none
         // The testing filter is not an accessibility setting, but a
@@ -980,25 +924,16 @@ final class GameState {
         UserDefaults.standard.set(cbMode.rawValue, forKey: cbModeKey)
     }
 
-    /// CB mode the current puzzle was generated under. Used to detect
-    /// whether a regeneration is needed when the settings menu closes.
-    /// Set in startLevel's detached task.
-    var cbModeAtGeneration: CBMode = .none
-
-    /// Advance to the next CB mode (wraps). Saves the new mode so
-    /// it persists, but does NOT regenerate the current puzzle yet —
-    /// the player may be cycling through several options to find the
-    /// right one, and regenerating on every tap would be jarring.
-    /// applyDeferredCBModeChange() is what actually kicks off the
-    /// regeneration, and the menu calls it when it closes.
+    /// Advance to the next CB mode (wraps). It persists immediately and
+    /// applies when the next puzzle is generated; the live board is never
+    /// interrupted or replaced underneath the player.
     func cycleCBMode() {
         cbMode = cbMode.next()
         saveCBMode()
     }
 
-    /// Called when the settings menu closes. Kept for backward compat —
-    /// `applyAccessibilityIfChanged` covers CB + clamps + contrast in
-    /// one pass. Routes to it so the menu's onChange hook still works.
+    /// Called when the in-game menu closes. The current puzzle remains in
+    /// place; the selected color-blindness model applies to the next board.
     func applyDeferredCBModeChange() {
         applyAccessibilityIfChanged()
     }
@@ -1105,6 +1040,7 @@ final class GameState {
     /// player's exact choices without making every game model Codable.
     func persistInProgressSession(autoResume: Bool? = nil) {
         guard !restoringInProgressSession,
+              !demoRunning,
               let p = puzzle, !generating,
               let puzzleJSON = try? CreatorCodec.encodePuzzle(p) else { return }
 
@@ -1259,7 +1195,7 @@ final class GameState {
         dropTarget = nil
         activeColor = nil
         campaignTip = nil
-        demoRunning = false
+        cancelTeachingDemoWithoutReset()
         campaignComplete = false
         runComplete = false
         generating = false
@@ -1283,15 +1219,19 @@ final class GameState {
         var level: Int
         var checks: Int
         var solveCount: Int
+        var bonusLevels: Int
+        var streak: Int
     }
 
     private func saveChallengeRun() {
         guard mode == .challenge, !runComplete else { return }
         let payload: [String: Any] = [
-            "version": 1,
+            "version": 2,
             "level": level,
             "checks": checks,
             "challengeSolveCount": challengeSolveCount,
+            "challengeBonusLevels": challengeBonusLevels,
+            "consecutiveNoHeartSolves": consecutiveNoHeartSolves,
         ]
         guard let data = try? JSONSerialization.data(withJSONObject: payload) else { return }
         UserDefaults.standard.set(data, forKey: challengeRunKey)
@@ -1310,7 +1250,9 @@ final class GameState {
         return SavedChallengeRun(
             level: max(1, (dict["level"] as? Int) ?? 1),
             checks: max(0, (dict["checks"] as? Int) ?? 3),
-            solveCount: max(0, (dict["challengeSolveCount"] as? Int) ?? 0)
+            solveCount: max(0, (dict["challengeSolveCount"] as? Int) ?? 0),
+            bonusLevels: max(0, (dict["challengeBonusLevels"] as? Int) ?? 0),
+            streak: max(0, (dict["consecutiveNoHeartSolves"] as? Int) ?? 0)
         )
     }
 
@@ -1335,6 +1277,8 @@ final class GameState {
         level = run.level
         checks = run.checks
         challengeSolveCount = run.solveCount
+        challengeBonusLevels = run.bonusLevels
+        consecutiveNoHeartSolves = run.streak
         showIncorrect = false
         showedIncorrect = false
         runComplete = false
@@ -1423,7 +1367,7 @@ final class GameState {
         // Generator puzzles are never campaign levels.
         campaignIndex = nil
         campaignTip = nil
-        demoRunning = false
+        cancelTeachingDemoWithoutReset()
         campaignComplete = false
         // Clear the once-claim perfect-heart token so the next
         // perfect solve can award a fresh +1. Both handleNext and
@@ -1466,12 +1410,6 @@ final class GameState {
         let activeContrast = contrastScale
         let activeL = (min: lClampMin, max: lClampMax)
         let activeC = (min: cClampMin, max: cClampMax)
-        cbModeAtGeneration = activeCBMode
-        contrastAtGeneration = activeContrast
-        lClampMinAtGeneration = activeL.min
-        lClampMaxAtGeneration = activeL.max
-        cClampMinAtGeneration = activeC.min
-        cClampMaxAtGeneration = activeC.max
         // Capture daily seed (if any) so the detached task can install
         // the TaskLocal RNG override — TaskLocal values do NOT propagate
         // across detached task boundaries, so we set it inside.
@@ -1725,8 +1663,7 @@ final class GameState {
 
     // ─── teaching demo ──────────────────────────────────────────────
 
-    /// Show this level solved, then walk every free colour back into the
-    /// bank one at a time, leaving the board in its normal start state.
+    /// Show this level solved for a beat, then restore its normal start state.
     ///
     /// This replaces the coaching sentence on the levels that introduce
     /// something. A tip has to describe a gradient in words the player
@@ -1734,72 +1671,75 @@ final class GameState {
     /// and then takes it apart, which is the same information in the
     /// medium the game is actually played in.
     ///
-    /// Deliberately NOT persisted mid-flight: the board it paints is the
-    /// solution, and a crash or backgrounding partway through must not
-    /// leave that on disk as the player's progress. `persistInProgressSession`
-    /// is called once at the end, on the normal start state.
-    func playTeachingDemo() {
-        guard var p = puzzle, !demoRunning, !solved else { return }
+    /// Deliberately not persisted mid-flight: the board it paints is the
+    /// solution. A clean start-state checkpoint is written before this begins,
+    /// and another is written after it resets.
+    private func cancelTeachingDemoWithoutReset() {
+        teachingDemoRunID = UUID()
+        demoRunning = false
+    }
 
-        // Freeze whatever the board is in its solved state and empty the
-        // bank. Every unlocked cell shows its answer.
-        var free: [CellIndex] = []
+    @discardableResult
+    func playTeachingDemo() -> Bool {
+        guard var p = puzzle, !demoRunning, !solved else { return false }
+
+        // Paint the whole board solved. Ordinary lessons empty the tray; the
+        // red-herring lesson deliberately leaves its spare visible, because
+        // "the board is complete and the bank is not empty" is the mechanic.
+        var anyFree = false
         for r in 0..<p.gridH {
             for c in 0..<p.gridW where p.board[r][c].kind == .cell && !p.board[r][c].locked {
                 if let sol = p.board[r][c].solution {
                     p.board[r][c].placed = sol
-                    free.append(CellIndex(r: r, c: c))
+                    anyFree = true
                 }
             }
         }
-        guard !free.isEmpty else { return }
-        let slotCount = p.bank.count
-        p.bank = Array(repeating: nil, count: slotCount)
+        guard anyFree else { return false }
+        let decoyColors = Set(p.decoys)
+        p.bank = p.bank.map { item in
+            guard let item, decoyColors.contains(item.color) else { return nil }
+            return item
+        }
 
+        let runID = UUID()
+        teachingDemoRunID = runID
         demoRunning = true
         selection = nil
         activeColor = nil
-        withAnimation(.easeOut(duration: 0.35)) { puzzle = p }
+        withAnimation(.easeOut(duration: 0.3)) { puzzle = p }
 
-        // Retraction order is the player's reading order, not the shuffled
-        // bank order: the point is to show the board coming apart, and a
-        // random order reads as flicker rather than as undoing.
-        let order = free.sorted { ($0.r, $0.c) < ($1.r, $1.c) }
-        // Where each colour lands in the bank IS shuffled — otherwise the
-        // demo would hand the player a pre-sorted bank and the first real
-        // level after each demo would be trivially easier than its peers.
-        var slots = Array(0..<slotCount)
-        slots.shuffle()
-
+        // Then put it all back in one move.
+        //
+        // This used to retract cell by cell on a stagger, which looked
+        // like the board glitching rather than like it being taken apart:
+        // every step reassigned the whole puzzle, so SwiftUI re-diffed the
+        // entire grid mid-flight and the cells that were NOT changing
+        // flickered along with the one that was. One transition, one
+        // diff, no flicker — and `handleReset` is already the canonical
+        // "board at its start" builder, so the end state is exactly the
+        // one the player would have got without the demo.
         Task { @MainActor [weak self] in
             guard let self else { return }
-            // Beat to let the finished board register before it unwinds.
-            try? await Task.sleep(nanoseconds: 1_100_000_000)
-            // Faster per-cell stagger on big boards so a 25-cell level
-            // doesn't spend six seconds emptying itself.
-            let stepMs = order.count > 14 ? 45 : 70
-            for (i, idx) in order.enumerated() {
-                guard self.demoRunning, var q = self.puzzle else { return }
-                guard let color = q.board[idx.r][idx.c].placed else { continue }
-                q.board[idx.r][idx.c].placed = nil
-                if i < slots.count { q.bank[slots[i]] = BankItem(id: self.newBankUid(), color: color) }
-                withAnimation(.easeInOut(duration: 0.22)) { self.puzzle = q }
-                try? await Task.sleep(nanoseconds: UInt64(stepMs) * 1_000_000)
-            }
+            try? await Task.sleep(nanoseconds: 1_400_000_000)
+            guard self.demoRunning, self.teachingDemoRunID == runID else { return }
             self.finishTeachingDemo()
         }
+        return true
     }
 
     /// End the demo and guarantee the board is in its true start state,
     /// whether it ran to completion or was cut short by a level change.
     func finishTeachingDemo() {
         guard demoRunning else { return }
-        demoRunning = false
+        cancelTeachingDemoWithoutReset()
         // handleReset is the canonical "board at its start" builder, so
         // reuse it rather than trusting the animation to have landed every
         // cell — an interrupted demo would otherwise strand solution
-        // colours on the board.
-        handleReset()
+        // colours on the board. Animated so the colours are seen travelling
+        // back to the tray rather than blinking out of the grid and into
+        // it; that motion is the entire lesson.
+        withAnimation(.easeInOut(duration: 0.55)) { handleReset() }
     }
 
     /// Player-facing unlock — clears every pre-filled lock on the
@@ -1876,6 +1816,9 @@ final class GameState {
                     moves: moveCount
                 )
             }
+            // Same moment, coarser signal: the enjoyment prompt waits on
+            // rounds actually finished, not on days the app was opened.
+            PlayerEngagementStore.noteSolvedPuzzle()
             StatsStore.recordSolve(
                 mode: "daily", clean: cleanSolve,
                 solveSeconds: timeSpentSec,
@@ -1931,13 +1874,18 @@ final class GameState {
                 consecutiveNoHeartSolves = 0
             } else {
                 consecutiveNoHeartSolves += 1
-                if consecutiveNoHeartSolves >= 3 {
+                if consecutiveNoHeartSolves
+                    % LevelGeneratorRules.ChallengeProgression.noHeartStreakForSkip == 0 {
                     challengeBonusLevels += 1
-                    consecutiveNoHeartSolves = 0
                 }
             }
-            nextLv = 1 + challengeSolveCount / challengeSolvesPerLevel
+            let progressionLevel = 1 + challengeSolveCount / challengeSolvesPerLevel
                 + challengeBonusLevels
+            // If the generated board measured harder than the requested
+            // progression level, do not label it lower and then fall backward
+            // on the next solve. Challenge can advance to meet the board it
+            // actually served, but never moves down.
+            nextLv = max(displayLevel, progressionLevel)
         } else {
             nextLv = level + 1
         }
@@ -1957,11 +1905,14 @@ final class GameState {
             // flag is cleared at the top of `startLevel` so the next
             // perfect solve can claim again.
             if isPerfectSolve && !perfectHeartAlreadyAwarded {
-                checks = min(Self.maxChecks, checks + 1)
+                checks += 1
                 perfectHeartAlreadyAwarded = true
             }
             _ = justCompleted
         }
+        // Same moment, coarser signal: the enjoyment prompt waits on
+        // rounds actually finished, not on days the app was opened.
+        PlayerEngagementStore.noteSolvedPuzzle()
         StatsStore.recordSolve(
             mode: mode.rawValue, clean: cleanSolve,
             solveSeconds: timeSpentSec,
@@ -2235,7 +2186,7 @@ final class GameState {
             showIncorrect = false
             showedIncorrect = false
             level = 1
-            checks = 3
+            checks = LevelGeneratorRules.ChallengeProgression.startingHearts
             challengeSolveCount = 0
             challengeBonusLevels = 0
             consecutiveNoHeartSolves = 0
@@ -2306,7 +2257,7 @@ final class GameState {
         campaignTip = nil
         // Drop any in-flight demo without resetting: the board it was
         // animating is being replaced wholesale on the next line anyway.
-        demoRunning = false
+        cancelTeachingDemoWithoutReset()
         currentFavoriteURL = favoriteURL
         currentPuzzleAllowsFavorite = allowsFavorite
         // Signal the hamburger-menu Home row to read 'Gallery' and
@@ -2362,24 +2313,23 @@ final class GameState {
         campaignIndex = index
         campaignComplete = false
         CampaignStore.recordPlayed(index)
-        // A level carrying a tip is, by construction, a level that
-        // introduces something — the authoring pipeline only writes one
-        // there. So that same flag is the trigger for the teaching demo,
-        // and it stays one-shot: show it the first time this level is
-        // reached and never again, including on replays.
-        //
-        // The demo replaces the sentence rather than accompanying it.
-        // Reading a description of a gradient and watching a finished one
-        // come apart are the same information, and showing it while also
-        // saying it is what made the coaching feel like an interruption.
-        if entry.tip != nil, !CampaignStore.hasSeenTip(index) {
+        // Persist the real starting board before the visual demonstration
+        // replaces it with the solution. All lifecycle saves are suppressed
+        // while the demo is active, so a termination can only restore this
+        // clean checkpoint.
+        persistInProgressSession()
+        // Teaching is explicit rather than inferred from the presence of an
+        // authoring note. Some notes describe strategy or celebrate a finale;
+        // treating all of them as lessons revealed answers the player should
+        // earn. Genuine introductions opt into this one-shot demonstration.
+        if entry.shouldPlayTeachingDemo, !CampaignStore.hasSeenTip(index) {
             campaignTip = nil
-            CampaignStore.markTipSeen(index)
-            playTeachingDemo()
+            if playTeachingDemo() {
+                CampaignStore.markTipSeen(index)
+            }
         } else {
             campaignTip = nil
         }
-        persistInProgressSession()
         return true
     }
 
@@ -2388,6 +2338,9 @@ final class GameState {
     @discardableResult
     private func advanceCampaign(from index: Int) -> Bool {
         CampaignStore.markCleared(index)
+        // Same moment, coarser signal: the enjoyment prompt waits on
+        // rounds actually finished, not on days the app was opened.
+        PlayerEngagementStore.noteSolvedPuzzle()
         StatsStore.recordSolve(
             mode: "campaign",
             clean: mistakeCount == 0 && !showedIncorrect && !usedHintThisLevel,
@@ -2440,6 +2393,11 @@ final class GameState {
         if let index = campaignIndex {
             CampaignStore.toggleBookmark(index)
             campaignBookmarkRevision &+= 1
+            if CampaignStore.isBookmarked(index) {
+                GameCenter.shared.reportAchievement(
+                    GameCenter.Achievement.favoritedLevel
+                )
+            }
         } else {
             toggleFavorite()
         }
@@ -2859,21 +2817,21 @@ final class GameState {
         return false
     }
 
-    /// Tier chip shown in the top bar. Derives from the LEVEL the
-    /// puzzle was generated at, not its computed `difficulty` score.
-    /// Two reasons: (a) the score is a noisy 1–10 proxy and landed
-    /// puzzles an entire tier off what the player asked for
-    /// (generating at an Easy level could show a Medium chip when
-    /// step geometry happened to score high), and (b) with
-    /// `levelMaxDifficulty` gating generator output, the level is
-    /// already the authoritative tier signal. Custom / share-link /
-    /// community puzzles all carry a `level` field, so this path
-    /// works for them too.
-    var tier: LevelTierInfo {
-        if let p = puzzle {
-            return levelTier(p.level)
+    /// Challenge must never understate a generated board. Its score is a
+    /// direct measurement of the landed topology, color spacing, and visual
+    /// confusion, so a board requested at level 2 but measured at difficulty
+    /// 4 is shown as level 4. `max` keeps the long 20-level progression intact
+    /// after the score's 1...10 range tops out. Other modes keep their selected
+    /// or authored level exactly.
+    var displayLevel: Int {
+        guard mode == .challenge, campaignIndex == nil, let puzzle else {
+            return level
         }
-        return levelTier(level)
+        return max(level, puzzle.difficulty)
+    }
+
+    var tier: LevelTierInfo {
+        levelTier(displayLevel)
     }
 
     /// Seconds elapsed since the current puzzle was generated. Used by

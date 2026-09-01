@@ -57,23 +57,72 @@ enum FullVersionTrial: String, CaseIterable {
         case .daily: return nil
         }
     }
+
+    var repeatsOnCooldown: Bool {
+        self == .zen || self == .challenge
+    }
 }
 
 enum FullVersionTrialStore {
-    private static let keyPrefix = "kromaFullVersionTrialCompleted_"
+    private static let completedKeyPrefix = "kromaFullVersionTrialCompleted_"
+    private static let lastStartedKeyPrefix = "kromaFullVersionTrialLastStarted_v1_"
+    static let cooldown: TimeInterval = 12 * 60 * 60
 
-    static func hasCompleted(_ trial: FullVersionTrial) -> Bool {
-        UserDefaults.standard.bool(forKey: keyPrefix + trial.rawValue)
+    static func hasCompleted(
+        _ trial: FullVersionTrial,
+        defaults: UserDefaults = .standard
+    ) -> Bool {
+        defaults.bool(forKey: completedKeyPrefix + trial.rawValue)
     }
 
-    static func complete(_ trial: FullVersionTrial) {
-        UserDefaults.standard.set(true, forKey: keyPrefix + trial.rawValue)
+    static func complete(
+        _ trial: FullVersionTrial,
+        defaults: UserDefaults = .standard
+    ) {
+        defaults.set(true, forKey: completedKeyPrefix + trial.rawValue)
+    }
+
+    static func lastStarted(
+        _ trial: FullVersionTrial,
+        defaults: UserDefaults = .standard
+    ) -> Date? {
+        defaults.object(forKey: lastStartedKeyPrefix + trial.rawValue) as? Date
+    }
+
+    static func begin(
+        _ trial: FullVersionTrial,
+        at date: Date,
+        defaults: UserDefaults = .standard
+    ) {
+        guard trial.repeatsOnCooldown else { return }
+        defaults.set(date, forKey: lastStartedKeyPrefix + trial.rawValue)
+    }
+
+    static func nextAvailability(
+        _ trial: FullVersionTrial,
+        calendar: Calendar,
+        defaults: UserDefaults = .standard
+    ) -> Date? {
+        guard trial.repeatsOnCooldown,
+              let lastStarted = lastStarted(trial, defaults: defaults) else {
+            return nil
+        }
+
+        let cooldownEnd = lastStarted.addingTimeInterval(cooldown)
+        let startOfDay = calendar.startOfDay(for: lastStarted)
+        guard let noon = calendar.date(byAdding: .hour, value: 12, to: startOfDay),
+              let nextMidnight = calendar.date(byAdding: .day, value: 1, to: startOfDay) else {
+            return cooldownEnd
+        }
+        let rollingBoundary = lastStarted < noon ? noon : nextMidnight
+        return min(cooldownEnd, rollingBoundary)
     }
 
     #if DEBUG
-    static func reset() {
+    static func reset(defaults: UserDefaults = .standard) {
         for trial in FullVersionTrial.allCases {
-            UserDefaults.standard.removeObject(forKey: keyPrefix + trial.rawValue)
+            defaults.removeObject(forKey: completedKeyPrefix + trial.rawValue)
+            defaults.removeObject(forKey: lastStartedKeyPrefix + trial.rawValue)
         }
     }
     #endif
@@ -96,20 +145,61 @@ final class FullVersionStore {
 
     @ObservationIgnored private var didStart = false
     @ObservationIgnored private var updatesTask: Task<Void, Never>?
+    @ObservationIgnored private let defaults: UserDefaults
+    @ObservationIgnored private let calendar: Calendar
 
-    func canTry(_ trial: FullVersionTrial) -> Bool {
+    init(
+        defaults: UserDefaults = .standard,
+        calendar: Calendar = .autoupdatingCurrent
+    ) {
+        self.defaults = defaults
+        self.calendar = calendar
+    }
+
+    func canTry(_ trial: FullVersionTrial, now: Date = Date()) -> Bool {
         _ = trialRevision
-        return !FullVersionTrialStore.hasCompleted(trial)
+        if trial.repeatsOnCooldown {
+            guard let next = FullVersionTrialStore.nextAvailability(
+                trial,
+                calendar: calendar,
+                defaults: defaults
+            ) else { return true }
+            return now >= next
+        }
+        return !FullVersionTrialStore.hasCompleted(trial, defaults: defaults)
     }
 
     func hasTried(_ trial: FullVersionTrial) -> Bool {
         _ = trialRevision
-        return FullVersionTrialStore.hasCompleted(trial)
+        if trial.repeatsOnCooldown {
+            return FullVersionTrialStore.lastStarted(trial, defaults: defaults) != nil
+        }
+        return FullVersionTrialStore.hasCompleted(trial, defaults: defaults)
+    }
+
+    @discardableResult
+    func beginTrial(_ trial: FullVersionTrial, now: Date = Date()) -> Bool {
+        guard trial.repeatsOnCooldown, canTry(trial, now: now) else { return false }
+        FullVersionTrialStore.begin(trial, at: now, defaults: defaults)
+        trialRevision &+= 1
+        return true
+    }
+
+    func nextTrialAvailability(_ trial: FullVersionTrial) -> Date? {
+        _ = trialRevision
+        return FullVersionTrialStore.nextAvailability(
+            trial,
+            calendar: calendar,
+            defaults: defaults
+        )
     }
 
     func completeTrial(_ trial: FullVersionTrial) {
-        guard !FullVersionTrialStore.hasCompleted(trial) else { return }
-        FullVersionTrialStore.complete(trial)
+        // Zen and Challenge are spent when a new run begins. Creator keeps
+        // its one-time completion rule because it is not a play session.
+        guard !trial.repeatsOnCooldown,
+              !FullVersionTrialStore.hasCompleted(trial, defaults: defaults) else { return }
+        FullVersionTrialStore.complete(trial, defaults: defaults)
         trialRevision &+= 1
     }
 

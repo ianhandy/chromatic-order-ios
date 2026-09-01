@@ -1,4 +1,4 @@
-"""The campaign: 200 hand-drawn shapes in twelve chapters.
+"""The campaign: 220 hand-drawn shapes in thirteen chapters.
 
 Every shape is drawn with horizontal and vertical strokes only, because a
 gradient in kromatika is always a straight run of cells. `+` marks a cell
@@ -60,9 +60,15 @@ CHAPTERS = [
     ("Workshop", 101, 120, "Tools built from connected runs and shared joints."),
     ("Orchestra", 121, 140, "Instruments with more parts to sort and align."),
     ("Circuitry", 141, 160, "Dense networks where each crossing carries information."),
-    ("Interiors", 161, 180, "Rooms and structures assembled one section at a time."),
-    ("Grand Works", 181, 200, "Large machines and landmarks at the campaign's limit."),
-    ("Red Herrings", 201, 220, "Some swatches belong nowhere. Prove it before you place."),
+    # Red herrings land here rather than last. On the wrong-cell scale
+    # the chapter measures easier than Interiors and Grand Works, because
+    # a decoy's cost is hesitation over a swatch with no home and not a
+    # cell placed wrongly — so ending on it made the campaign read as
+    # getting easier. Teaching the mechanic here instead lets the two
+    # chapters after it carry decoys as an ordinary hazard.
+    ("Red Herrings", 161, 180, "Some swatches belong nowhere. Prove it before you place."),
+    ("Interiors", 181, 200, "Rooms and structures assembled one section at a time."),
+    ("Grand Works", 201, 220, "Large machines and landmarks at the campaign's limit."),
 ]
 
 # What the app actually shows. The CHAPTERS keys above are the authoring
@@ -84,9 +90,23 @@ DISPLAY_CHAPTERS = {
     "Workshop":        ("Shared Ends",  "Connected runs that hand each other their ends."),
     "Orchestra":       ("Many Runs",    "More runs to sort and align at once."),
     "Circuitry":       ("Networks",     "Dense networks where every crossing carries information."),
+    "Red Herrings":    ("Spare Parts",  "The bank holds more than the board needs."),
     "Interiors":       ("Sections",     "Large boards settled one section at a time."),
     "Grand Works":     ("The Limit",    "The widest boards and the longest ramps in the campaign."),
-    "Red Herrings":    ("Spare Parts",  "The bank holds more than the board needs."),
+}
+
+# A tip is authoring metadata: it documents the board's teaching intent and
+# lets build.py reject palettes that make the claim false. Only these genuine
+# mechanic introductions should show the solved-board teaching demo. Keeping
+# that decision separate prevents strategy notes and finales from revealing
+# their answers merely because they carry a tip.
+TEACHING_DEMO_NAMES = {
+    "Bar",          # placing the first swatch
+    "Post",         # vertical gradients
+    "Domino",       # more than one independent run
+    "Tee",          # a cell shared by two runs
+    "Fish",         # chroma joins the ramp
+    "Spare Rail",   # the bank can contain a swatch with no home
 }
 
 
@@ -1026,8 +1046,10 @@ from book2.ch11_interiors import SHAPES as CH11
 from book2.ch12_grand_works import SHAPES as CH12
 from book2.ch13_red_herrings import SHAPES as CH13
 
-ALL = (CH1 + CH2 + CH3 + CH4 + CH5 + CH6 + CH7 + CH8 + CH9 + CH10 + CH11
-       + CH12 + CH13)
+# Order here IS level order, and has to agree with CHAPTERS above: the
+# red-herring chapter (CH13) sits between Circuitry and Interiors.
+ALL = (CH1 + CH2 + CH3 + CH4 + CH5 + CH6 + CH7 + CH8 + CH9 + CH10 + CH13
+       + CH11 + CH12)
 
 
 def chapter_of(level: int) -> tuple[str, int, int, str]:

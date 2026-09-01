@@ -279,13 +279,7 @@ struct ContentView: View {
                                 transitioner.fade { started = false }
                             }
                         } label: {
-                            Text(game.isTrialSession && currentTrial != nil
-                                 ? "keep playing"
-                                 : game.mode == .daily
-                                 ? "back to menu"
-                                 : (game.campaignIndex == CampaignCatalog.count
-                                    ? "finish campaign"
-                                    : "next level"))
+                            Text(advanceButtonTitle)
                                 .font(Kroma.font(.headline, .bold))
                                 .lineLimit(1)
                                 .minimumScaleFactor(0.7)
@@ -427,7 +421,10 @@ struct ContentView: View {
             }
             if solvedNow && game.isPerfectSolve {
                 perfectBannerVisible = true
-                perfectHeartStage = .onBanner
+                // Hearts are Challenge's life currency. Other modes still
+                // celebrate a perfect solve, but never imply that they earned
+                // or spent a Challenge resource.
+                perfectHeartStage = game.mode == .challenge ? .onBanner : .idle
                 // Cancel any still-running flight from a previous
                 // solve before starting a new one — avoids the task
                 // waking on the next level and stomping state.
@@ -452,8 +449,7 @@ struct ContentView: View {
                         // no-op. Clearing happens in startLevel so
                         // the next perfect solve can claim again.
                         if !game.perfectHeartAlreadyAwarded {
-                            game.checks = min(GameState.maxChecks,
-                                              game.checks + 1)
+                            game.checks += 1
                             game.perfectHeartAlreadyAwarded = true
                         }
                         perfectHeartStage = .landed
@@ -484,7 +480,7 @@ struct ContentView: View {
             // off — dismisses through the same graceful float-away as
             // every other exit path, instead of hard-cutting the
             // balloon mid-frame.
-            releaseTutorial()
+            releaseTutorial(earnsAchievement: true)
         }
         .animation(.easeInOut(duration: 0.35), value: game.runComplete)
         .onChange(of: game.runComplete) { _, completed in
@@ -517,7 +513,7 @@ struct ContentView: View {
             // performed, so the tip has served its purpose.
             if newCount > 0,
                tutorialFlag == .firstLaunch || tutorialFlag == .dailyIntro {
-                releaseTutorial()
+                releaseTutorial(earnsAchievement: true)
             }
 
         }
@@ -536,12 +532,9 @@ struct ContentView: View {
             if isOpen {
                 releaseTutorial()
             }
-            // Deferred CB regeneration: cycling the CB mode inside
-            // the menu updates game.cbMode but doesn't rebuild the
-            // puzzle — that'd thrash the board mid-cycle. When the
-            // menu closes, check whether the chosen mode differs
-            // from what the current puzzle was generated under and
-            // rebuild only if so.
+            // Persist any menu-side setting changes on close. A new
+            // color-blindness model begins with the next puzzle so the
+            // current Challenge board stays interactive.
             if !isOpen { game.applyDeferredCBModeChange() }
         }
         .fullScreenCover(isPresented: $creatorOpen) {
@@ -577,11 +570,9 @@ struct ContentView: View {
             Text("Today's puzzle won't be submitted to the leaderboard.")
         }
         .sheet(isPresented: $accessibilityOpen, onDismiss: {
-            // Deferred regeneration: contrast + clamp sliders move
-            // during the sheet but the board doesn't rebuild until
-            // the player closes the sheet — applyAccessibilityIfChanged
-            // compares current values to those-at-last-generation and
-            // triggers startLevel only when needed.
+            // Settings persist on close. Color-blindness changes apply to
+            // the next puzzle so the current Challenge board never becomes
+            // an unresponsive loading state underneath the sheet.
             game.applyAccessibilityIfChanged()
         }) {
             AccessibilitySheet(game: game)
@@ -703,6 +694,13 @@ struct ContentView: View {
 
     private var currentTrial: FullVersionTrial? {
         FullVersionTrial(mode: game.mode)
+    }
+
+    private var advanceButtonTitle: String {
+        if game.mode == .daily { return "back to menu" }
+        if game.campaignIndex == CampaignCatalog.count { return "finish campaign" }
+        if game.mode == .challenge { return "next" }
+        return "next level"
     }
 
     private func finishTrialRunIfNeeded() {
@@ -845,13 +843,31 @@ struct ContentView: View {
         .padding(.vertical, Kroma.Space.xs)
     }
 
-    /// Map a tutorial flag → tooltip body text.
+    /// What the balloon says. Only daily has one now, and it says the
+    /// date — the balloon is a label for which day's puzzle this is,
+    /// not an instruction.
     private func tooltipText(for flag: TutorialFlag) -> String {
-        switch flag {
-        case .firstLaunch: return Strings.TutorialTooltips.challenge
-        case .zenIntro:    return Strings.TutorialTooltips.zen
-        case .dailyIntro:  return Strings.TutorialTooltips.daily
-        }
+        dailyBalloonDate
+    }
+
+    /// Today's daily, written the way a person would say it.
+    ///
+    /// Formatted from the puzzle's own UTC date key rather than from the
+    /// device clock, so a player a few hours either side of the rollover
+    /// sees the date of the puzzle they are actually holding instead of
+    /// the date where they are standing.
+    private var dailyBalloonDate: String {
+        let key = game.dailyDateKey ?? Daily.dateKey()
+        let parse = DateFormatter()
+        parse.calendar = Calendar(identifier: .gregorian)
+        parse.timeZone = TimeZone(identifier: "UTC")
+        parse.dateFormat = "yyyy-MM-dd"
+        guard let date = parse.date(from: key) else { return key }
+        let out = DateFormatter()
+        out.calendar = Calendar(identifier: .gregorian)
+        out.timeZone = TimeZone(identifier: "UTC")
+        out.dateFormat = "MMMM d"
+        return out.string(from: date).lowercased()
     }
 
     /// Key into `tutorialTargetFrames` for the real control each
@@ -892,29 +908,22 @@ struct ContentView: View {
     /// across the screen.
     private static let tutorialTargetGap: CGFloat = 10
 
-    /// Dark scrim with a hole punched around the active tutorial's real
-    /// target, plus the tooltip/balloon itself positioned directly from
-    /// that same target's stored frame — its edge sits `tutorialTargetGap`
-    /// points from the target's edge, on whichever side the target is
-    /// (above for the bank, below for a top-bar chip), so it's genuinely
-    /// adjacent regardless of Dynamic Type, device size, or which target
-    /// it's pointing at.
+    /// The daily date balloon, positioned from its target's stored frame
+    /// so it sits `tutorialTargetGap` points from that control's edge.
     ///
-    /// Reduce-motion players see the flat `TutorialTooltip`; everyone
-    /// else gets the balloon with passive sway + float-away motion via
-    /// `TutorialBalloon`. Both the system preference and the in-app
-    /// toggle count, matching MenuView.
+    /// No spotlight scrim any more. The scrim existed to say "look at
+    /// THIS control" while a tooltip explained it; a date is not an
+    /// instruction and has nothing to point at, so dimming the board and
+    /// swallowing taps to announce it would be worse than saying nothing.
+    ///
+    /// Reduce-motion players get the flat `TutorialTooltip`; everyone
+    /// else gets the balloon with its passive sway and float-away exit.
+    /// Both the system preference and the in-app toggle count, matching
+    /// MenuView.
     @ViewBuilder
     private var tutorialSpotlightAndContentLayer: some View {
         if let flag = tutorialFlag, let target = tutorialTargetFrames[tutorialTargetKey(for: flag)] {
             let belowTarget = tutorialTargetIsBelow(flag)
-            let padded = target.insetBy(dx: -8, dy: -8)
-            TutorialSpotlightOverlay(
-                holeRect: padded,
-                cornerRadius: spotlightCornerRadius(for: flag, holeRect: padded),
-                exit: tutorialExit,
-                onDismissTap: releaseTutorial
-            )
             GeometryReader { geo in
                 VStack(spacing: 0) {
                     if belowTarget {
@@ -974,66 +983,41 @@ struct ContentView: View {
                 finishTutorialUnmount(for: flag, presentationID: presentationID)
             },
             knotAnchorKey: "balloonKnot",
-            // The glyph points up-left, which only reads correctly
-            // when the real target sits above the balloon.
-            cornerArrow: !tutorialTargetIsBelow(flag)
+            // No arrow: the balloon is a label for the day, not a
+            // pointer at a control.
+            cornerArrow: false
         )
     }
 
-    /// Connector line from the balloon's knot to the real target.
-    /// Drawn last (highest zIndex) so it sits visibly on top of both
-    /// the spotlight and the balloon it starts from. The knot frame
-    /// only exists once the balloon has actually rendered and
-    /// published it, which — since both are read from the same
-    /// `tutorialTargetFrames` state, updated asynchronously via
-    /// `.onPreferenceChange` — is naturally available a render or two
-    /// after `tutorialSpotlightAndContentLayer` first mounts the
-    /// balloon; the guard below just no-ops the string until then.
+    /// No connector line any more.
+    ///
+    /// The string tethered a tutorial balloon to the control it was
+    /// telling you about. A date is not about a control, so a line from
+    /// it to the mode chip was drawing a relationship that does not
+    /// exist. Kept as an empty layer so the call site and its zIndex
+    /// ordering stay put.
     @ViewBuilder
-    private var tutorialStringLayer: some View {
-        if let flag = tutorialFlag, !systemReduceMotion, !game.reduceMotion,
-           let target = tutorialTargetFrames[tutorialTargetKey(for: flag)],
-           let knot = tutorialTargetFrames["balloonKnot"] {
-            BalloonStringToTargetShape(
-                knot: CGPoint(x: knot.midX, y: knot.midY),
-                target: tutorialTargetIsBelow(flag)
-                    ? CGPoint(x: target.midX, y: target.minY - 6)
-                    : CGPoint(x: target.maxX + 6, y: target.midY)
-            )
-            .stroke(Color.white.opacity(0.85),
-                    style: StrokeStyle(lineWidth: 2,
-                                       lineCap: .round,
-                                       lineJoin: .round))
-            .opacity(tutorialExit == .alive ? 1 : 0.0)
-            .animation(.easeOut(duration: 0.25), value: tutorialExit)
-            .allowsHitTesting(false)
-            .ignoresSafeArea()
-        }
-    }
+    private var tutorialStringLayer: some View { EmptyView() }
 
-    /// Show the appropriate first-time tutorial for the current
-    /// mode, if any. Flag mapping:
-    ///   challenge → firstLaunch (very first app open lands here)
-    ///   zen       → zenIntro
-    ///   daily     → dailyIntro
+    /// Show the balloon for the current mode, if the mode has one.
+    ///
+    /// Balloons are not a teaching device any more. They used to carry
+    /// the first-run tooltips — "drag a color up to a matching cell",
+    /// "tap here to change levels" — with a dark spotlight scrim punched
+    /// around whatever control they pointed at. Teaching now happens by
+    /// showing the player a solved board and taking it apart (see
+    /// `GameState.playTeachingDemo`), which does the same job inside the
+    /// game rather than on top of it.
+    ///
+    /// What remains is daily's, and it is a label rather than a lesson:
+    /// it says which day's puzzle this is. No spotlight, nothing to
+    /// dismiss, no state to mark as seen.
     private func maybeShowTutorialForCurrentMode() {
-        // Campaign levels teach with their own one-line tips, and the zen
-        // balloon ("tap here to change levels") points at a control the
-        // campaign doesn't even use. Leave the flag unseen so it still
-        // fires the first time the player opens zen proper.
         guard game.campaignIndex == nil else { return }
-        let flag: TutorialFlag? = {
-            switch game.mode {
-            case .challenge: return .firstLaunch
-            case .zen:       return .zenIntro
-            case .daily:     return .dailyIntro
-            }
-        }()
-        guard let flag else { return }
-        if !TutorialStore.hasSeen(flag), tutorialFlag != flag {
+        guard game.mode == .daily else { return }
+        if tutorialFlag != .dailyIntro {
             tutorialPresentationID += 1
-            tutorialFlag = flag
-            zenTutorialBaselineLevel = (flag == .zenIntro) ? game.level : nil
+            tutorialFlag = .dailyIntro
         }
     }
 
@@ -1042,10 +1026,15 @@ struct ContentView: View {
     /// floats up and away. The balloon calls back into
     /// `finishTutorialUnmount(for:)` when its exit animation completes so
     /// the flag actually clears. No-op if nothing is active.
-    private func releaseTutorial() {
+    private func releaseTutorial(earnsAchievement: Bool = false) {
         guard tutorialFlag != nil else { return }
         if tutorialExit == .alive {
             if let f = tutorialFlag { TutorialStore.markSeen(f) }
+            if earnsAchievement {
+                GameCenter.shared.reportAchievement(
+                    GameCenter.Achievement.poppedBalloon
+                )
+            }
             tutorialExit = .released
         }
     }

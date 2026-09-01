@@ -2,6 +2,25 @@ import XCTest
 @testable import ChromaticOrder
 
 final class PlayerSupportFeatureTests: XCTestCase {
+    func testCheckAccessibilityExplainsTheActualDisabledReason() {
+        XCTAssertEqual(
+            BankView.checkAccessibilityHint(allPlaced: false, hasChecks: true),
+            "fill every empty cell first"
+        )
+        XCTAssertEqual(
+            BankView.checkAccessibilityHint(allPlaced: true, hasChecks: false),
+            "no checks remaining"
+        )
+        XCTAssertEqual(
+            BankView.checkAccessibilityHint(allPlaced: false, hasChecks: false),
+            "no checks remaining"
+        )
+        XCTAssertEqual(
+            BankView.checkAccessibilityHint(allPlaced: true, hasChecks: true),
+            "check your gradients"
+        )
+    }
+
     func testLockedFeatureMessagesExplainWhatUnlocks() {
         XCTAssertEqual(FullVersionFeature.campaign.title, "the full campaign")
         XCTAssertTrue(FullVersionFeature.campaign.detail.contains("200"))
@@ -10,12 +29,10 @@ final class PlayerSupportFeatureTests: XCTestCase {
         XCTAssertTrue(FullVersionFeature.zen.detail.contains("difficulty"))
         XCTAssertTrue(FullVersionFeature.challenge.detail.contains("three hearts"))
         XCTAssertTrue(FullVersionFeature.creator.detail.contains("build and share"))
-        // The offer is explained once, at the moment it is spent — the
-        // main menu carries no standing paragraph about it.
-        XCTAssertTrue(Strings.Menu.trialTitleZen.contains("full version"))
-        XCTAssertTrue(Strings.Menu.trialTitleChallenge.contains("full version"))
-        XCTAssertTrue(Strings.Menu.trialOfferBody.contains("as many levels as you like"))
-        XCTAssertTrue(Strings.Menu.trialOfferBody.contains("leave for the menu"))
+        XCTAssertEqual(
+            FullVersionView.cooldownPurchaseTitle(remaining: "4h 12m"),
+            "wait 4h 12m or purchase the full version"
+        )
     }
 
     func testFullVersionLeavesFourCampaignChaptersAndDailyFree() throws {
@@ -49,20 +66,54 @@ final class PlayerSupportFeatureTests: XCTestCase {
     }
 
     @MainActor
-    func testTrialsRemainAvailableUntilExplicitlyCompleted() {
-        FullVersionTrialStore.reset()
-        defer { FullVersionTrialStore.reset() }
+    func testRecurringTrialsUseEarlierOfTwelveHoursOrNextRollingBoundary() throws {
+        let defaults = isolatedDefaults()
+        let calendar = utcCalendar()
+        let store = FullVersionStore(defaults: defaults, calendar: calendar)
+        let formatter = ISO8601DateFormatter()
+        let oneAM = try XCTUnwrap(formatter.date(from: "2026-09-01T01:00:00Z"))
+        let noon = try XCTUnwrap(formatter.date(from: "2026-09-01T12:00:00Z"))
 
-        let store = FullVersionStore()
+        XCTAssertTrue(store.canTry(.zen, now: oneAM))
+        XCTAssertTrue(store.canTry(.challenge, now: oneAM))
+        XCTAssertTrue(store.beginTrial(.zen, now: oneAM))
+        XCTAssertFalse(store.canTry(.zen, now: oneAM.addingTimeInterval(10 * 60 * 60)))
+        XCTAssertEqual(store.nextTrialAvailability(.zen), noon)
+        XCTAssertTrue(store.canTry(.zen, now: noon))
+        XCTAssertTrue(store.canTry(.challenge, now: noon))
+
+        let onePM = try XCTUnwrap(formatter.date(from: "2026-09-01T13:00:00Z"))
+        let midnight = try XCTUnwrap(formatter.date(from: "2026-09-02T00:00:00Z"))
+        XCTAssertTrue(store.beginTrial(.challenge, now: onePM))
+        XCTAssertEqual(store.nextTrialAvailability(.challenge), midnight)
+        XCTAssertFalse(store.canTry(.challenge, now: onePM.addingTimeInterval(10 * 60 * 60)))
+        XCTAssertTrue(store.canTry(.challenge, now: midnight))
+    }
+
+    @MainActor
+    func testCreatorTrialRemainsOneTimeAndIndependent() {
+        let defaults = isolatedDefaults()
+        let store = FullVersionStore(defaults: defaults, calendar: utcCalendar())
+
+        XCTAssertTrue(store.canTry(.creator))
+        store.completeTrial(.creator)
+        XCTAssertFalse(store.canTry(.creator))
+        XCTAssertTrue(store.hasTried(.creator))
         XCTAssertTrue(store.canTry(.zen))
         XCTAssertTrue(store.canTry(.challenge))
-        XCTAssertTrue(store.canTry(.creator))
+    }
 
-        store.completeTrial(.zen)
-        XCTAssertFalse(store.canTry(.zen))
-        XCTAssertTrue(store.hasTried(.zen))
-        XCTAssertTrue(store.canTry(.challenge))
-        XCTAssertTrue(store.canTry(.creator))
+    func testTrialCountdownStaysCompactAndReadable() {
+        let now = Date(timeIntervalSince1970: 0)
+        XCTAssertEqual(
+            FullVersionView.countdown(from: now, until: now.addingTimeInterval(39_660)),
+            "11h 1m"
+        )
+        XCTAssertEqual(
+            FullVersionView.countdown(from: now, until: now.addingTimeInterval(125)),
+            "2m 5s"
+        )
+        XCTAssertEqual(FullVersionView.countdown(from: now, until: now), "0s")
     }
 
     @MainActor
@@ -175,6 +226,14 @@ final class PlayerSupportFeatureTests: XCTestCase {
         XCTAssertFalse(store.isEligible(now: dates[1]))
 
         store.appDidBecomeActive(now: dates[2])
+        // Days on their own are not enough — the prompt also waits on
+        // rounds actually finished, so somebody who opened the app three
+        // times and never played is never asked.
+        store.menuDidAppear(now: dates[2])
+        XCTAssertFalse(store.isPromptPresented,
+                       "three open days but nothing played")
+
+        solve(PlayerEngagementStore.solvedThreshold, into: defaults)
         store.menuDidAppear(now: dates[2])
 
         XCTAssertEqual(store.openedDayCount, 3)
@@ -190,6 +249,7 @@ final class PlayerSupportFeatureTests: XCTestCase {
         store.appDidBecomeActive(now: start)
         store.gameplayDidStart(now: start)
         store.gameplayDidEnd(now: start.addingTimeInterval(3_600))
+        solve(PlayerEngagementStore.solvedThreshold, into: defaults)
         store.menuDidAppear(now: start.addingTimeInterval(3_600))
 
         XCTAssertEqual(store.cumulativeGameplaySeconds, 3_600, accuracy: 0.01)
@@ -340,14 +400,91 @@ final class PlayerSupportFeatureTests: XCTestCase {
         XCTAssertEqual(expired.longest, 4)
     }
 
-    func testReminderFallsTwoHoursBeforeUTCReset() {
-        let noon = ISO8601DateFormatter().date(from: "2026-08-17T12:00:00Z")!
-        let late = ISO8601DateFormatter().date(from: "2026-08-17T23:00:00Z")!
-        let expectedToday = ISO8601DateFormatter().date(from: "2026-08-17T22:00:00Z")!
-        let expectedTomorrow = ISO8601DateFormatter().date(from: "2026-08-18T22:00:00Z")!
+    func testReminderUsesTheChosenQuarterHour() {
+        let before = ISO8601DateFormatter().date(from: "2026-08-17T12:07:00Z")!
+        let after = ISO8601DateFormatter().date(from: "2026-08-17T13:16:00Z")!
+        let expectedToday = ISO8601DateFormatter().date(from: "2026-08-17T13:15:00Z")!
+        let expectedTomorrow = ISO8601DateFormatter().date(from: "2026-08-18T13:15:00Z")!
+        let chosen = 13 * 60 + 15
 
-        XCTAssertEqual(StreakReminderStore.nextReminderDate(now: noon), expectedToday)
-        XCTAssertEqual(StreakReminderStore.nextReminderDate(now: late), expectedTomorrow)
+        XCTAssertEqual(
+            StreakReminderStore.nextReminderDate(
+                now: before,
+                minuteOfDay: chosen,
+                calendar: utcCalendar()
+            ),
+            expectedToday
+        )
+        XCTAssertEqual(
+            StreakReminderStore.nextReminderDate(
+                now: after,
+                minuteOfDay: chosen,
+                calendar: utcCalendar()
+            ),
+            expectedTomorrow
+        )
+    }
+
+    @MainActor
+    func testColorBlindnessChangeKeepsChallengePlayableUntilNextPuzzle() throws {
+        InProgressSessionStore.clear()
+        defer { InProgressSessionStore.clear() }
+
+        let game = GameState()
+        XCTAssertTrue(game.loadCampaignLevel(5))
+        game.mode = .challenge
+        game.campaignIndex = nil
+        let boardBefore = game.puzzle?.board
+        let bankBefore = game.puzzle?.bank
+
+        game.cbMode = .deuteranopia
+        game.applyAccessibilityIfChanged()
+
+        XCTAssertFalse(game.generating)
+        XCTAssertEqual(game.puzzle?.board, boardBefore)
+        XCTAssertEqual(game.puzzle?.bank, bankBefore)
+
+        let puzzle = try XCTUnwrap(game.puzzle)
+        let slot = try XCTUnwrap(puzzle.bank.firstIndex(where: { $0 != nil }))
+        let target = try XCTUnwrap(firstFreeCell(in: puzzle))
+        game.tapSlot(slot)
+        game.tapCell(at: target.r, target.c)
+        XCTAssertNotNil(game.puzzle?.board[target.r][target.c].placed)
+    }
+
+    @MainActor
+    func testMoveReadoutPreferencePersistsBesideTimerPreference() {
+        let key = "chromaticOrderAccessibility"
+        let previous = UserDefaults.standard.object(forKey: key)
+        defer {
+            if let previous { UserDefaults.standard.set(previous, forKey: key) }
+            else { UserDefaults.standard.removeObject(forKey: key) }
+        }
+
+        let game = GameState()
+        game.timerVisible = false
+        game.movesVisible = true
+        game.applyAccessibilityIfChanged()
+
+        let restored = GameState()
+        XCTAssertFalse(restored.timerVisible)
+        XCTAssertTrue(restored.movesVisible)
+    }
+
+    @MainActor
+    func testAchievementIdentifiersAreCompleteAndUnique() {
+        XCTAssertEqual(GameCenter.Achievement.all.count, 6)
+        XCTAssertEqual(
+            GameCenter.Achievement.all,
+            [
+                GameCenter.Achievement.poppedBalloon,
+                GameCenter.Achievement.chillMaxed,
+                GameCenter.Achievement.createdLevel,
+                GameCenter.Achievement.savedImage,
+                GameCenter.Achievement.openedStats,
+                GameCenter.Achievement.favoritedLevel,
+            ]
+        )
     }
 
     @MainActor
@@ -384,7 +521,7 @@ final class PlayerSupportFeatureTests: XCTestCase {
     }
 
     @MainActor
-    func testPerfectSolveHeartStopsAtTheBankCeiling() {
+    func testPerfectSolveHeartCanGrowPastTheOldDisplayCeiling() {
         InProgressSessionStore.clear()
         defer { InProgressSessionStore.clear() }
 
@@ -394,12 +531,12 @@ final class PlayerSupportFeatureTests: XCTestCase {
         game.campaignIndex = nil
         game.solved = true
         game.heartLostThisLevel = false
-        game.checks = GameState.maxChecks
+        game.checks = 5
 
         game.handleNext()
 
-        XCTAssertEqual(game.checks, GameState.maxChecks,
-                       "perfect now means 'did not fail the check', so the bank must not ratchet forever")
+        XCTAssertEqual(game.checks, 6,
+                       "the compact heart counter must include every earned heart")
     }
 
     @MainActor
@@ -424,6 +561,27 @@ final class PlayerSupportFeatureTests: XCTestCase {
         }
 
         XCTAssertEqual(game.challengeBonusLevels, 1)
+        XCTAssertEqual(game.consecutiveNoHeartSolves, 3,
+                       "the visible streak should not reset when a bonus is awarded")
+    }
+
+    @MainActor
+    func testChallengeDisplayLevelNeverUnderstatesMeasuredDifficulty() {
+        InProgressSessionStore.clear()
+        defer { InProgressSessionStore.clear() }
+
+        let game = GameState()
+        XCTAssertTrue(game.loadCampaignLevel(5))
+        game.mode = .challenge
+        game.campaignIndex = nil
+        game.level = 2
+        game.puzzle?.difficulty = 4
+
+        XCTAssertEqual(game.displayLevel, 4)
+
+        game.puzzle?.difficulty = 1
+        XCTAssertEqual(game.displayLevel, 2,
+                       "a noisy low score must not move Challenge backward")
     }
 
     @MainActor
@@ -487,6 +645,15 @@ final class PlayerSupportFeatureTests: XCTestCase {
             }
         }
         return nil
+    }
+
+    /// Finish `count` puzzles. The prompt gates on rounds played as
+    /// well as on time and days, so a test about the other two still has
+    /// to clear this one.
+    private func solve(_ count: Int, into defaults: UserDefaults) {
+        for _ in 0..<count {
+            PlayerEngagementStore.noteSolvedPuzzle(defaults: defaults)
+        }
     }
 
     private func isolatedDefaults() -> UserDefaults {

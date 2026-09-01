@@ -36,14 +36,13 @@ enum Strings {
         static let feedback = "feedback"
         static let rateUs = "rate us"
         static let rateUsPlease = "rate us, please?"
-        static let oneRun = "one run"
-        // Shown once, at the moment the player spends a free run — not
-        // parked on the menu. The body has to answer the two questions a
-        // player actually has: how much do i get, and when does it stop.
-        static let trialTitleZen = "zen is part of the full version"
-        static let trialTitleChallenge = "challenge is part of the full version"
-        static let trialOfferBody = "this run is on me — play as many levels as you like. it ends when you leave for the menu."
-        static let trialAccept = "start my free run"
+    }
+
+    // MARK: – Full version
+
+    enum FullVersion {
+        static let waitTitle = "you can come back and play later"
+        static let waitBody = "zen and challenge each get another free run in 12 hours, or at the next noon or midnight, whichever comes first."
     }
 
     // MARK: – Top bar

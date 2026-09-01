@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 struct DailyHistoryView: View {
     @Environment(\.dismiss) private var dismiss
@@ -6,6 +7,7 @@ struct DailyHistoryView: View {
     @State private var firstTrackedKey: String?
     @State private var streak = DailyHistoryStore.streakSummary()
     @State private var reminderEnabled = StreakReminderStore.isEnabled
+    @State private var reminderTime = StreakReminderStore.reminderTime
     @State private var sharingEnabled = StreakLeaderboardStore.isSharing
     @State private var changingReminder = false
     @State private var changingSharing = false
@@ -44,22 +46,22 @@ struct DailyHistoryView: View {
                     )) {
                         settingLabel(
                             "streak reminder",
-                            detail: "\(StreakReminderStore.nextReminderDescription()) · 2h before reset"
+                            detail: "at \(reminderTime.formatted(date: .omitted, time: .shortened))"
                         )
                     }
                     .disabled(changingReminder)
                     .padding(Kroma.Space.l)
 
-                    Divider().padding(.leading, Kroma.Space.l)
-
-                    NavigationLink {
-                        StreakLeaderboardView()
-                    } label: {
-                        Label("longest streaks", systemImage: "list.number")
-                            .font(Kroma.font(.body, .medium))
-                            .frame(minHeight: Kroma.Metrics.minTarget)
+                    if reminderEnabled {
+                        Divider().padding(.leading, Kroma.Space.l)
+                        FifteenMinuteTimePicker(selection: $reminderTime)
+                            .frame(height: 150)
+                            .disabled(changingReminder)
+                            .padding(.horizontal, Kroma.Space.s)
+                            .onChange(of: reminderTime) { _, newTime in
+                                Task { await StreakReminderStore.setReminderTime(newTime) }
+                            }
                     }
-                    .padding(.horizontal, Kroma.Space.l)
 
                     Divider().padding(.leading, Kroma.Space.l)
 
@@ -67,10 +69,8 @@ struct DailyHistoryView: View {
                         get: { sharingEnabled },
                         set: { updateSharing($0) }
                     )) {
-                        settingLabel(
-                            "share my best",
-                            detail: "anonymous · remove anytime"
-                        )
+                        Text("share my best")
+                            .font(Kroma.font(.body, .medium))
                     }
                     .disabled(changingSharing)
                     .padding(Kroma.Space.l)
@@ -95,6 +95,7 @@ struct DailyHistoryView: View {
             firstTrackedKey = DailyHistoryStore.firstTrackedKey
             streak = DailyHistoryStore.streakSummary()
             reminderEnabled = StreakReminderStore.isEnabled
+            reminderTime = StreakReminderStore.reminderTime
             sharingEnabled = StreakLeaderboardStore.isSharing
         }
         .alert("setting unavailable", isPresented: Binding(
@@ -254,4 +255,44 @@ struct DailyHistoryView: View {
         formatter.dateStyle = .long
         return formatter
     }()
+}
+
+/// Native wheel-style time picker with quarter-hour stops. `DatePicker`
+/// does not expose `UIDatePicker.minuteInterval`, so this small bridge keeps
+/// the familiar iOS scrubber while enforcing the requested 15-minute grid.
+private struct FifteenMinuteTimePicker: UIViewRepresentable {
+    @Binding var selection: Date
+
+    func makeCoordinator() -> Coordinator { Coordinator(selection: $selection) }
+
+    func makeUIView(context: Context) -> UIDatePicker {
+        let picker = UIDatePicker()
+        picker.datePickerMode = .time
+        picker.preferredDatePickerStyle = .wheels
+        picker.minuteInterval = 15
+        picker.addTarget(
+            context.coordinator,
+            action: #selector(Coordinator.changed(_:)),
+            for: .valueChanged
+        )
+        picker.accessibilityLabel = "reminder time"
+        return picker
+    }
+
+    func updateUIView(_ picker: UIDatePicker, context: Context) {
+        guard abs(picker.date.timeIntervalSince(selection)) > 1 else { return }
+        picker.setDate(selection, animated: false)
+    }
+
+    final class Coordinator: NSObject {
+        @Binding private var selection: Date
+
+        init(selection: Binding<Date>) {
+            _selection = selection
+        }
+
+        @objc func changed(_ sender: UIDatePicker) {
+            selection = sender.date
+        }
+    }
 }

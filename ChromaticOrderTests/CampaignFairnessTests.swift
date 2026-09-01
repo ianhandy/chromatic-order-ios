@@ -208,14 +208,22 @@ final class CampaignFairnessTests: XCTestCase {
                       "levels that are not on the curve they were built to:\n"
                       + drifted.joined(separator: "\n"))
 
-        // Each chapter may peak higher than the last one did. It may not peak
-        // lower: that is the wall.
+        // Each chapter normally peaks higher than the last one did. Spare
+        // Parts is the explicit exception: its wrong-cell curve resets while
+        // the unmeasured cost of rejecting surplus swatches carries the new
+        // difficulty. Sections then resumes at that peak and the climb
+        // continues through The Limit.
         for (earlier, later) in zip(ceilingByChapter, ceilingByChapter.dropFirst()) {
-            XCTAssertLessThanOrEqual(
-                earlier.target, later.target,
-                "\(earlier.chapter) peaks at \(earlier.target) wrong cells but "
-                + "\(later.chapter), which comes after it, peaks at "
-                + "\(later.target) — the campaign gets easier as it goes")
+            if later.chapter == "Spare Parts" {
+                XCTAssertLessThan(later.target, earlier.target,
+                                  "Spare Parts should reset cell-level difficulty")
+            } else {
+                XCTAssertLessThanOrEqual(
+                    earlier.target, later.target,
+                    "\(earlier.chapter) peaks at \(earlier.target) wrong cells but "
+                    + "\(later.chapter), which comes after it, peaks at "
+                    + "\(later.target) — the campaign gets easier as it goes")
+            }
         }
     }
 

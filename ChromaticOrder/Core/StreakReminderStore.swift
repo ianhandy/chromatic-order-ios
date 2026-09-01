@@ -3,12 +3,29 @@ import UserNotifications
 
 enum StreakReminderStore {
     private static let enabledKey = "kromaDailyStreakReminder_v1"
+    private static let timeKey = "kromaDailyStreakReminderMinuteOfDay_v2"
     private static let identifierPrefix = "kroma.dailyStreakReminder."
     private static let daysScheduled = 14
-    private static let leadTime: TimeInterval = 2 * 60 * 60
+    private static let defaultMinuteOfDay = 20 * 60
 
     static var isEnabled: Bool {
         UserDefaults.standard.bool(forKey: enabledKey)
+    }
+
+    static var reminderTime: Date {
+        date(
+            on: localCalendar.startOfDay(for: Date()),
+            minuteOfDay: reminderMinuteOfDay,
+            calendar: localCalendar
+        )
+    }
+
+    static func setReminderTime(_ date: Date) async {
+        let components = localCalendar.dateComponents([.hour, .minute], from: date)
+        let raw = (components.hour ?? 20) * 60 + (components.minute ?? 0)
+        let snapped = max(0, min(23 * 60 + 45, (raw / 15) * 15))
+        UserDefaults.standard.set(snapped, forKey: timeKey)
+        if isEnabled { await refresh() }
     }
 
     static func setEnabled(_ enabled: Bool) async -> Bool {
@@ -58,16 +75,17 @@ enum StreakReminderStore {
 
         await removePendingReminders()
         let completed = Set(DailyHistoryStore.entries().filter(\.completed).map(\.dateKey))
-        let calendar = utcCalendar
-        let todayStart = calendar.startOfDay(for: now)
+        let calendar = localCalendar
+        let firstReminder = nextReminderDate(now: now)
 
         for offset in 0..<daysScheduled {
-            guard let day = calendar.date(byAdding: .day, value: offset, to: todayStart),
-                  let reset = calendar.date(byAdding: .day, value: 1, to: day)
-            else { continue }
-            let key = Daily.dateKey(now: day)
-            let fireDate = reset.addingTimeInterval(-leadTime)
-            guard fireDate > now, !completed.contains(key) else { continue }
+            guard let fireDate = calendar.date(
+                byAdding: .day,
+                value: offset,
+                to: firstReminder
+            ) else { continue }
+            let key = Daily.dateKey(now: fireDate)
+            guard !completed.contains(key) else { continue }
 
             let content = UNMutableNotificationContent()
             content.title = "keep your streak"
@@ -99,10 +117,23 @@ enum StreakReminderStore {
     }
 
     static func nextReminderDate(now: Date = Date()) -> Date {
-        let start = utcCalendar.startOfDay(for: now)
-        var reminder = start.addingTimeInterval(24 * 60 * 60 - leadTime)
-        if reminder <= now { reminder.addTimeInterval(24 * 60 * 60) }
-        return reminder
+        nextReminderDate(
+            now: now,
+            minuteOfDay: reminderMinuteOfDay,
+            calendar: localCalendar
+        )
+    }
+
+    static func nextReminderDate(
+        now: Date,
+        minuteOfDay: Int,
+        calendar: Calendar
+    ) -> Date {
+        let today = calendar.startOfDay(for: now)
+        let candidate = date(on: today, minuteOfDay: minuteOfDay, calendar: calendar)
+        if candidate > now { return candidate }
+        let tomorrow = calendar.date(byAdding: .day, value: 1, to: today) ?? today
+        return date(on: tomorrow, minuteOfDay: minuteOfDay, calendar: calendar)
     }
 
     private static func removePendingReminders() async {
@@ -114,9 +145,30 @@ enum StreakReminderStore {
         }
     }
 
-    private static var utcCalendar: Calendar = {
-        var value = Calendar(identifier: .gregorian)
-        value.timeZone = TimeZone(secondsFromGMT: 0)!
-        return value
-    }()
+    private static var reminderMinuteOfDay: Int {
+        guard UserDefaults.standard.object(forKey: timeKey) != nil else {
+            return defaultMinuteOfDay
+        }
+        let value = UserDefaults.standard.integer(forKey: timeKey)
+        return max(0, min(23 * 60 + 45, value))
+    }
+
+    private static var localCalendar: Calendar { .autoupdatingCurrent }
+
+    private static func date(
+        on day: Date,
+        minuteOfDay: Int,
+        calendar: Calendar
+    ) -> Date {
+        let safe = max(0, min(23 * 60 + 45, minuteOfDay))
+        return calendar.date(
+            bySettingHour: safe / 60,
+            minute: safe % 60,
+            second: 0,
+            of: day,
+            matchingPolicy: .nextTime,
+            repeatedTimePolicy: .first,
+            direction: .forward
+        ) ?? day
+    }
 }

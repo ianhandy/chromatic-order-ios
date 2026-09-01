@@ -16,6 +16,7 @@
 		08CE52F5A21B0F9A1E7201AF /* PuzzlePreviewRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC9416A751C05997A4BCC969 /* PuzzlePreviewRenderer.swift */; };
 		0989766D0F2FF6D3FEA507A5 /* DecoyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACD83B9959D89B66225BF1D9 /* DecoyTests.swift */; };
 		0C16E8ED132AF726BF559765 /* LikeFeedbackWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 71D717FAB5FB32C4C42C341B /* LikeFeedbackWidget.swift */; };
+		0C9CD30A6117282CCD0CAC8C /* DecoyPlayabilityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1491F66B8CCFCEC3DD661D41 /* DecoyPlayabilityTests.swift */; };
 		16BE10635925E518192256C2 /* SolvedPuzzleHistory.swift in Sources */ = {isa = PBXBuildFile; fileRef = CCC34D0B81466FC230ECE9E0 /* SolvedPuzzleHistory.swift */; };
 		17E5C1E8C4BD4BF997EEC552 /* Util.swift in Sources */ = {isa = PBXBuildFile; fileRef = 243168329AAF6072275CFCA1 /* Util.swift */; };
 		199F58EBDFB09D1065A9C0BC /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 124F10DD9B27AA7EE33EDD94 /* Assets.xcassets */; };
@@ -146,6 +147,7 @@
 		0F9C8BFFB495AE36E277498C /* Strings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Strings.swift; sourceTree = "<group>"; };
 		124F10DD9B27AA7EE33EDD94 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		140EB82F3EDDD7BB1B72CBA9 /* CampaignView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CampaignView.swift; sourceTree = "<group>"; };
+		1491F66B8CCFCEC3DD661D41 /* DecoyPlayabilityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DecoyPlayabilityTests.swift; sourceTree = "<group>"; };
 		160AAC1FB0A9B5644583DAF4 /* CloudSync.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudSync.swift; sourceTree = "<group>"; };
 		16B2A28DD1B02DC86849A896 /* GameState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameState.swift; sourceTree = "<group>"; };
 		177A912D85B75FE40838C71C /* CampaignCatalog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CampaignCatalog.swift; sourceTree = "<group>"; };
@@ -419,6 +421,7 @@
 				E3FEC55F1F885C33BFA0EBF8 /* CampaignAuditTests.swift */,
 				A97AFD2370CD11B1C9136FA2 /* CampaignFairnessTests.swift */,
 				B7E954FB420404E8294EEF53 /* DailyFallbackTests.swift */,
+				1491F66B8CCFCEC3DD661D41 /* DecoyPlayabilityTests.swift */,
 				62AA3C30A87367588BC07E29 /* LadderExportTests.swift */,
 				E689CABBFCE031788317CC9C /* MalformedPuzzleImportTests.swift */,
 				98E6B3AF92CEFE68761DB383 /* ModerationStoreTests.swift */,
@@ -579,6 +582,7 @@
 				462B056D012544F7D89CA841 /* CampaignAuditTests.swift in Sources */,
 				C3FA7C6062C54FFA522D725F /* CampaignFairnessTests.swift in Sources */,
 				4E52DFE83D0BBF657690E395 /* DailyFallbackTests.swift in Sources */,
+				0C9CD30A6117282CCD0CAC8C /* DecoyPlayabilityTests.swift in Sources */,
 				840614A44BE0DB8C0F345A5F /* LadderExportTests.swift in Sources */,
 				27BF737AA63B9B11B325E952 /* MalformedPuzzleImportTests.swift in Sources */,
 				E9E8CF9F43DC9426376632BE /* ModerationStoreTests.swift in Sources */,
@@ -816,7 +820,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = ChromaticOrder/ChromaticOrder.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
-				CURRENT_PROJECT_VERSION = 33;
+				CURRENT_PROJECT_VERSION = 36;
 				INFOPLIST_FILE = ChromaticOrder/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -840,7 +844,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = ChromaticOrder/ChromaticOrder.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
-				CURRENT_PROJECT_VERSION = 33;
+				CURRENT_PROJECT_VERSION = 36;
 				INFOPLIST_FILE = ChromaticOrder/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",

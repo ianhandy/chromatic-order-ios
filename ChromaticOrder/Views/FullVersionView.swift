@@ -41,6 +41,7 @@ enum FullVersionFeature {
 struct FullVersionView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(FullVersionStore.self) private var store
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     let focus: FullVersionFeature?
 
     init(focus: FullVersionFeature? = nil) {
@@ -61,6 +62,10 @@ struct FullVersionView: View {
                     }
                     .accessibilityElement(children: .contain)
 
+                    if !store.isUnlocked {
+                        trialAvailability
+                    }
+
                     purchaseControls
                 }
                 .frame(maxWidth: 520, alignment: .leading)
@@ -72,27 +77,34 @@ struct FullVersionView: View {
     }
 
     private var statusMark: some View {
-        VStack(alignment: .leading, spacing: Kroma.Space.s) {
-            Image(systemName: store.isUnlocked ? "checkmark.seal.fill" : "circle.hexagongrid.fill")
-                .font(.system(size: 52, weight: .semibold))
-                .foregroundStyle(store.isUnlocked ? Color.green : Color.accentColor)
-                .accessibilityHidden(true)
+        TimelineView(.periodic(from: .now, by: 1)) { context in
+            VStack(alignment: .leading, spacing: Kroma.Space.s) {
+                Image(systemName: store.isUnlocked ? "checkmark.seal.fill" : "circle.hexagongrid.fill")
+                    .font(.system(size: 52, weight: .semibold))
+                    .foregroundStyle(store.isUnlocked ? Color.green : Color.accentColor)
+                    .accessibilityHidden(true)
 
-            Text(statusTitle)
-                .font(Kroma.font(.title2, .bold))
-                .fixedSize(horizontal: false, vertical: true)
+                Text(statusTitle(at: context.date))
+                    .font(Kroma.font(.title2, .bold))
+                    .fixedSize(horizontal: false, vertical: true)
 
-            Text(statusDetail)
-                .font(Kroma.font(.body, .regular))
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
+                Text(statusDetail)
+                    .font(Kroma.font(.body, .regular))
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
         }
     }
 
-    private var statusTitle: String {
+    private func statusTitle(at now: Date) -> String {
         if store.isUnlocked { return "everything is unlocked" }
-        if let focus, let trial = trial(for: focus), store.hasTried(trial) {
-            return "thanks for trying it out!"
+        if let focus,
+           let trial = trial(for: focus),
+           !store.canTry(trial, now: now),
+           let availableAt = store.nextTrialAvailability(trial),
+           availableAt > now {
+            let remaining = Self.countdown(from: now, until: availableAt)
+            return Self.cooldownPurchaseTitle(remaining: remaining)
         }
         return focus?.title ?? "one purchase. the whole game."
     }
@@ -130,6 +142,122 @@ struct FullVersionView: View {
             }
         }
         .accessibilityElement(children: .combine)
+    }
+
+    private var trialAvailability: some View {
+        TimelineView(.periodic(from: .now, by: 1)) { context in
+            let zenAvailableAt = coolingAvailability(.zen, at: context.date)
+            let challengeAvailableAt = coolingAvailability(.challenge, at: context.date)
+
+            if zenAvailableAt != nil || challengeAvailableAt != nil {
+                VStack(alignment: .leading, spacing: Kroma.Space.m) {
+                    VStack(alignment: .leading, spacing: Kroma.Space.xs) {
+                        Text(Strings.FullVersion.waitTitle)
+                            .font(Kroma.font(.headline, .semibold))
+                            .fixedSize(horizontal: false, vertical: true)
+                        Text(Strings.FullVersion.waitBody)
+                            .font(Kroma.font(.subheadline, .regular))
+                            .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+
+                    VStack(spacing: Kroma.Space.s) {
+                        if let zenAvailableAt {
+                            trialAvailabilityRow(
+                                .zen,
+                                at: context.date,
+                                availableAt: zenAvailableAt
+                            )
+                        }
+                        if let challengeAvailableAt {
+                            trialAvailabilityRow(
+                                .challenge,
+                                at: context.date,
+                                availableAt: challengeAvailableAt
+                            )
+                        }
+                    }
+                }
+                .padding(Kroma.Space.l)
+                .background(
+                    .thinMaterial,
+                    in: RoundedRectangle(cornerRadius: 18, style: .continuous)
+                )
+            }
+        }
+    }
+
+    private func coolingAvailability(
+        _ trial: FullVersionTrial,
+        at now: Date
+    ) -> Date? {
+        guard !store.canTry(trial, now: now),
+              let availableAt = store.nextTrialAvailability(trial),
+              availableAt > now else { return nil }
+        return availableAt
+    }
+
+    private func trialAvailabilityRow(
+        _ trial: FullVersionTrial,
+        at now: Date,
+        availableAt: Date
+    ) -> some View {
+        let name = trial == .zen ? Strings.Menu.zen : Strings.Menu.challenge
+        let status = "in \(Self.countdown(from: now, until: availableAt))"
+
+        return Group {
+            if dynamicTypeSize.isAccessibilitySize {
+                VStack(alignment: .leading, spacing: Kroma.Space.xs) {
+                    trialName(name)
+                    trialStatus(status)
+                        .padding(.leading, 22 + Kroma.Space.m)
+                }
+            } else {
+                HStack(alignment: .center, spacing: Kroma.Space.m) {
+                    trialName(name)
+                    Spacer(minLength: Kroma.Space.m)
+                    trialStatus(status)
+                        .multilineTextAlignment(.trailing)
+                }
+            }
+        }
+        .frame(minHeight: Kroma.Metrics.minTarget)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(name)
+        .accessibilityValue("available \(status)")
+    }
+
+    private func trialName(_ name: String) -> some View {
+        HStack(alignment: .center, spacing: Kroma.Space.m) {
+            Image(systemName: "timer")
+                .font(Kroma.font(.subheadline, .semibold))
+                .foregroundStyle(Color.secondary)
+                .frame(width: 22)
+                .accessibilityHidden(true)
+
+            Text(name)
+                .font(Kroma.font(.body, .semibold))
+        }
+    }
+
+    private func trialStatus(_ status: String) -> some View {
+        Text(status)
+            .font(Kroma.font(.subheadline, .semibold))
+            .foregroundStyle(Color.secondary)
+    }
+
+    static func countdown(from now: Date, until date: Date) -> String {
+        let seconds = max(0, Int(ceil(date.timeIntervalSince(now))))
+        let hours = seconds / 3_600
+        let minutes = (seconds % 3_600) / 60
+        let remainingSeconds = seconds % 60
+        if hours > 0 { return "\(hours)h \(minutes)m" }
+        if minutes > 0 { return "\(minutes)m \(remainingSeconds)s" }
+        return "\(remainingSeconds)s"
+    }
+
+    static func cooldownPurchaseTitle(remaining: String) -> String {
+        "wait \(remaining) or purchase the full version"
     }
 
     @ViewBuilder

@@ -100,7 +100,11 @@ def main(argv: list[str]) -> int:
         got = by_chapter[chapter]
         mean = statistics.fmean(got)
         print(f"  {chapter:14} {len(got):6d} {mean:6.2f} {max(got):6.2f}")
-        if previous is not None and mean < previous:
+        # Spare Parts deliberately resets to smaller boards while introducing
+        # decoys. The wrong-cell score measures placement error, not the new
+        # cognitive cost of rejecting an extra swatch, so its chapter mean is
+        # expected to drop before Sections resumes the climb.
+        if previous is not None and mean < previous and chapter != "Spare Parts":
             problems.append(
                 f"chapter {chapter} averages {mean:.2f} wrong, easier than the "
                 f"chapter before it at {previous:.2f}")

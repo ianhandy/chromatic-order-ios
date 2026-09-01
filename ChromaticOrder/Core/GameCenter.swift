@@ -43,7 +43,7 @@ final class GameCenter {
     // titles. Description / pre-earn copy is suppressed in ASC so
     // players only see the achievement surface as a surprise pop.
     enum Achievement {
-        /// Player popped a tutorial balloon with a tap.
+        /// Player dismissed a tutorial bubble by engaging with the puzzle.
         static let poppedBalloon = "com.ianhandy.kroma.ach.how_could_you"
         /// Player let the main-menu "chill ramp" reach full — the
         /// background text fades out completely.
@@ -56,6 +56,15 @@ final class GameCenter {
         static let openedStats = "com.ianhandy.kroma.ach.narcissism"
         /// Player favorited a puzzle via the top-bar star button.
         static let favoritedLevel = "com.ianhandy.kroma.ach.favoritism"
+
+        static let all: Set<String> = [
+            poppedBalloon,
+            chillMaxed,
+            createdLevel,
+            savedImage,
+            openedStats,
+            favoritedLevel,
+        ]
     }
 
     /// True once `authenticateHandler` has reported a signed-in
@@ -67,6 +76,10 @@ final class GameCenter {
     /// Center already dedupes server-side, but short-circuiting here
     /// saves needless round trips.
     private var reportedThisSession: Set<String> = []
+    /// Earns can happen before Game Center finishes authenticating. Keep them
+    /// in a tiny durable outbox and flush after sign-in so launch timing never
+    /// makes an achievement permanently missable.
+    private let pendingAchievementsKey = "kromaPendingGameCenterAchievements_v1"
 
     private init() {}
 
@@ -82,6 +95,7 @@ final class GameCenter {
                     self.present(vc)
                 } else if GKLocalPlayer.local.isAuthenticated {
                     self.isAuthenticated = true
+                    self.flushPendingAchievements()
                 } else {
                     self.isAuthenticated = false
                 }
@@ -127,18 +141,53 @@ final class GameCenter {
         ) { _ in }
     }
 
-    /// Report a one-shot (100%-complete) achievement. Silent no-op
+    /// Report a one-shot (100%-complete) achievement. Earns are queued
     /// until Game Center authenticates. `showsCompletionBanner = true`
     /// lets the system draw the built-in banner so the player sees a
     /// notification the first time they earn each achievement.
     func reportAchievement(_ identifier: String) {
+        guard Achievement.all.contains(identifier) else { return }
+        var pending = pendingAchievementIDs
+        pending.insert(identifier)
+        savePendingAchievementIDs(pending)
+        flushPendingAchievements()
+    }
+
+    private var pendingAchievementIDs: Set<String> {
+        let stored = UserDefaults.standard.stringArray(forKey: pendingAchievementsKey) ?? []
+        return Set(stored).intersection(Achievement.all)
+    }
+
+    private func savePendingAchievementIDs(_ identifiers: Set<String>) {
+        UserDefaults.standard.set(identifiers.sorted(), forKey: pendingAchievementsKey)
+    }
+
+    private func flushPendingAchievements() {
         guard isAuthenticated else { return }
-        if reportedThisSession.contains(identifier) { return }
-        reportedThisSession.insert(identifier)
-        let ach = GKAchievement(identifier: identifier)
-        ach.percentComplete = 100.0
-        ach.showsCompletionBanner = true
-        GKAchievement.report([ach]) { _ in }
+        let identifiers = pendingAchievementIDs.subtracting(reportedThisSession)
+        guard !identifiers.isEmpty else { return }
+        reportedThisSession.formUnion(identifiers)
+
+        let achievements = identifiers.map { identifier in
+            let achievement = GKAchievement(identifier: identifier)
+            achievement.percentComplete = 100.0
+            achievement.showsCompletionBanner = true
+            return achievement
+        }
+        GKAchievement.report(achievements) { [weak self] error in
+            Task { @MainActor in
+                guard let self else { return }
+                if error == nil {
+                    var pending = self.pendingAchievementIDs
+                    pending.subtract(identifiers)
+                    self.savePendingAchievementIDs(pending)
+                } else {
+                    // Leave the durable outbox intact and permit the next
+                    // earn/authentication event to retry this batch.
+                    self.reportedThisSession.subtract(identifiers)
+                }
+            }
+        }
     }
 
     private func present(_ vc: UIViewController) {

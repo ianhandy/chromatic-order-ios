@@ -29,11 +29,6 @@ struct MenuView: View {
     @State private var fullVersionOpen = false
     @State private var fullVersionFocus: FullVersionFeature?
     @State private var feedbackOpen = false
-    /// The free run being offered right now, if the player just tapped a
-    /// mode they have not spent their run on yet. Drives the one-time
-    /// explanation that replaced the permanent menu blurb.
-    @State private var trialOnOffer: FullVersionTrial?
-    @State private var trialOfferOpen = false
     /// True when the player has tapped "challenge" with a saved run
     /// on disk and the inline "resume?" prompt is showing. Collapses
     /// back to false when the player picks yes, no, or taps elsewhere.
@@ -136,31 +131,36 @@ struct MenuView: View {
                         primaryRow(Strings.Menu.gallery) {
                             galleryOpen = true
                         }
-                        primaryRow(Strings.Menu.zen,
-                                   detail: zenTrialAvailable ? Strings.Menu.oneRun : nil,
-                                   locked: zenLocked) {
-                            requireFullVersion(if: zenLocked, focus: .zen) {
-                                if zenTrialAvailable {
-                                    offerTrial(.zen)
-                                } else {
-                                    pick(mode: .zen)
+                        // Keep these affordances live if the menu stays open
+                        // across a noon, midnight, or cooldown boundary.
+                        TimelineView(.periodic(from: .now, by: 1)) { context in
+                            let zenCooldown = trialCooldown(.zen, at: context.date)
+                            primaryRow(Strings.Menu.zen,
+                                       detail: zenCooldown,
+                                       locked: zenCooldown != nil,
+                                       accessibilityValue: zenCooldown.map { "available in \($0)" }) {
+                                requireFullVersion(if: zenCooldown != nil, focus: .zen) {
+                                    pick(mode: .zen, asTrial: !fullVersion.isUnlocked)
                                 }
                             }
-                        }
-                        primaryRow(Strings.Menu.challenge,
-                                   detail: challengeTrialAvailable ? Strings.Menu.oneRun : nil,
-                                   locked: challengeLocked) {
-                            requireFullVersion(if: challengeLocked, focus: .challenge) {
-                                // A saved run is the only thing that makes this
-                                // ambiguous, so that's the only time we ask. It
-                                // outranks the trial offer: the player already
-                                // accepted the terms when the run started.
-                                if game.hasSavedChallengeRun {
-                                    challengeResumeOpen = true
-                                } else if challengeTrialAvailable {
-                                    offerTrial(.challenge)
-                                } else {
-                                    pick(mode: .challenge)
+
+                            let challengeCooldown = hasActiveChallengeTrial
+                                ? nil
+                                : trialCooldown(.challenge, at: context.date)
+                            primaryRow(Strings.Menu.challenge,
+                                       detail: challengeCooldown,
+                                       locked: challengeCooldown != nil,
+                                       accessibilityValue: challengeCooldown.map { "available in \($0)" }) {
+                                requireFullVersion(if: challengeCooldown != nil, focus: .challenge) {
+                                    // A saved run is the only thing that makes this
+                                    // ambiguous, so that's the only time we ask. It
+                                    // outranks starting a fresh free run.
+                                    if game.hasSavedChallengeRun {
+                                        challengeResumeOpen = true
+                                    } else {
+                                        pick(mode: .challenge,
+                                             asTrial: !fullVersion.isUnlocked)
+                                    }
                                 }
                             }
                         }
@@ -250,35 +250,18 @@ struct MenuView: View {
                             titleVisibility: .visible) {
             Button("resume run") {
                 transitioner.fade {
-                    game.resumeChallengeRun(asTrial: challengeTrialAvailable)
+                    if challengeTrialAvailable {
+                        fullVersion.beginTrial(.challenge)
+                    }
+                    game.resumeChallengeRun(asTrial: challengeTrialAvailable || hasActiveChallengeTrial)
                     started = true
                 }
             }
             Button("start over", role: .destructive) {
-                pick(mode: .challenge, asTrial: challengeTrialAvailable)
+                pick(mode: .challenge,
+                     asTrial: challengeTrialAvailable || hasActiveChallengeTrial)
             }
             Button("cancel", role: .cancel) {}
-        }
-        // Progressive disclosure for the free run. The menu used to carry a
-        // permanent paragraph explaining the offer, which read as clutter on
-        // a screen whose whole point is a short list of destinations. The
-        // explanation belongs at the moment the player spends the run — and
-        // spending it on a mistaken tap is the thing worth preventing, so
-        // this also gives them a way out.
-        .confirmationDialog(trialOfferTitle,
-                            isPresented: $trialOfferOpen,
-                            titleVisibility: .visible) {
-            Button(Strings.Menu.trialAccept) {
-                guard let trial = trialOnOffer else { return }
-                pick(mode: trial == .zen ? .zen : .challenge, asTrial: true)
-            }
-            // Deliberately not `role: .cancel` — this dialog style drops the
-            // cancel button and leaves only tap-outside, which is invisible
-            // to VoiceOver and unguessable for everyone else. Backing out is
-            // the reason this dialog exists, so it gets a real target.
-            Button("not yet") {}
-        } message: {
-            Text(Strings.Menu.trialOfferBody)
         }
         .onAppear {
             engagement.menuDidAppear()
@@ -474,35 +457,31 @@ struct MenuView: View {
             || fullVersionOpen
     }
 
-    private var zenTrialAvailable: Bool {
-        !fullVersion.isUnlocked && fullVersion.canTry(.zen)
-    }
-
     private var challengeTrialAvailable: Bool {
         !fullVersion.isUnlocked && fullVersion.canTry(.challenge)
     }
 
-    private var zenLocked: Bool { !fullVersion.isUnlocked && !zenTrialAvailable }
-    private var challengeLocked: Bool { !fullVersion.isUnlocked && !challengeTrialAvailable }
-
-    /// Title for the free-run confirmation, named after the mode so the
-    /// dialog says what is being spent rather than "are you sure?".
-    private var trialOfferTitle: String {
-        switch trialOnOffer {
-        case .challenge: return Strings.Menu.trialTitleChallenge
-        default: return Strings.Menu.trialTitleZen
-        }
+    private var hasActiveChallengeTrial: Bool {
+        game.hasSavedChallengeRun && game.mode == .challenge && game.isTrialSession
     }
 
-    private func offerTrial(_ trial: FullVersionTrial) {
-        trialOnOffer = trial
-        trialOfferOpen = true
+    /// A raw countdown is enough beside the lock: the row itself names the
+    /// mode, and tapping it opens the sheet that explains the two choices.
+    private func trialCooldown(_ trial: FullVersionTrial, at now: Date) -> String? {
+        guard !fullVersion.isUnlocked,
+              !fullVersion.canTry(trial, now: now),
+              let availableAt = fullVersion.nextTrialAvailability(trial),
+              availableAt > now else { return nil }
+        return FullVersionView.countdown(from: now, until: availableAt)
     }
 
     private func pick(mode: GameMode, asTrial: Bool = false) {
         lastChillTick = nil
         withAnimation(shouldReduceMotion ? nil : .easeOut(duration: 0.9)) { chill = 0 }
         transitioner.fade {
+            if asTrial, let trial = FullVersionTrial(mode: mode), fullVersion.canTry(trial) {
+                fullVersion.beginTrial(trial)
+            }
             // `enterMode` always refreshes state — challenge always
             // starts at level 1 regardless of whether the player was
             // previously in it; zen restores the persisted level.
@@ -618,24 +597,30 @@ struct MenuView: View {
             // "resume" a column three characters wide and iOS broke it as
             // "re-" / "sume". Past that threshold the detail moves onto
             // its own line above and the label gets the full width.
-            let stackDetailAboveLabel = dynamicTypeSize.isAccessibilitySize
+            let stackDetailAboveLabel = dynamicTypeSize.isAccessibilitySize && !locked
             VStack(alignment: .trailing, spacing: Kroma.Space.xs) {
                 if let detail, stackDetailAboveLabel {
                     detailText(detail)
                 }
-                HStack(alignment: .firstTextBaseline, spacing: Kroma.Space.m) {
-                    if let detail, !stackDetailAboveLabel {
-                        detailText(detail)
-                    }
-                    Text(label)
-                        .font(font)
-                        .foregroundStyle(Color.white.opacity(opacity))
+                HStack(alignment: .center, spacing: Kroma.Space.m) {
                     if locked {
                         Image(systemName: "lock.fill")
                             .font(Kroma.font(.caption, .bold))
                             .foregroundStyle(Color.white.opacity(0.42))
                             .accessibilityHidden(true)
                     }
+                    if let detail, !stackDetailAboveLabel {
+                        if locked {
+                            detailText(detail)
+                                .lineLimit(1)
+                                .fixedSize()
+                        } else {
+                            detailText(detail)
+                        }
+                    }
+                    Text(label)
+                        .font(font)
+                        .foregroundStyle(Color.white.opacity(opacity))
                 }
             }
             .multilineTextAlignment(.trailing)

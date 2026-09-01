@@ -22,13 +22,22 @@ enum MenuNudge: String {
 final class PlayerEngagementStore {
     static let gameplayThreshold: TimeInterval = 60 * 60
     static let openedDayThreshold = 3
+    /// Puzzles the player has finished before we are willing to interrupt
+    /// them. This is a floor on top of the time and day signals, not an
+    /// alternative to them: those two can both be satisfied by a player
+    /// who has opened the app on three days and left it sitting on the
+    /// menu, and asking someone whether they are enjoying a game they
+    /// have not actually played yet is the version of this prompt that
+    /// deserves to be dismissed.
+    static let solvedThreshold = 4
 
-    private enum Key {
+    fileprivate enum Key {
         static let gameplaySeconds = "kromaEngagementGameplaySeconds_v1"
         static let openedDayCount = "kromaEngagementOpenedDayCount_v1"
         static let lastOpenedDay = "kromaEngagementLastOpenedDay_v1"
         static let response = "kromaEngagementResponse_v1"
         static let pendingNudge = "kromaEngagementPendingNudge_v1"
+        static let solvedCount = "kromaEngagementSolvedCount_v1"
     }
 
     private let defaults: UserDefaults
@@ -55,6 +64,23 @@ final class PlayerEngagementStore {
 
     var openedDayCount: Int {
         defaults.integer(forKey: Key.openedDayCount)
+    }
+
+    /// Puzzles finished, all modes, for the life of the install.
+    var solvedCount: Int {
+        defaults.integer(forKey: Key.solvedCount)
+    }
+
+    /// Called on every solve. A coarse "has this person actually played"
+    /// signal, not a stat — StatsStore already owns the real numbers.
+    ///
+    /// Static because the only thing it touches is UserDefaults, and the
+    /// solve sites live in GameState, which has no route to the
+    /// environment-held instance. Threading one through purely to bump a
+    /// counter would be a lot of wiring for an integer.
+    nonisolated static func noteSolvedPuzzle(defaults: UserDefaults = .standard) {
+        defaults.set(defaults.integer(forKey: Key.solvedCount) + 1,
+                     forKey: Key.solvedCount)
     }
 
     var rateUsLabel: String {
@@ -125,6 +151,10 @@ final class PlayerEngagementStore {
 
     func isEligible(now: Date = Date()) -> Bool {
         guard response == nil else { return false }
+        // Rounds played is a hard gate, not one of the alternatives. The
+        // time and day signals answer "has this person been around a
+        // while"; only this one answers "have they played the game".
+        guard solvedCount >= Self.solvedThreshold else { return false }
         let liveSeconds = gameplayStartedAt.map { max(0, now.timeIntervalSince($0)) } ?? 0
         return cumulativeGameplaySeconds + liveSeconds >= Self.gameplayThreshold
             || openedDayCount >= Self.openedDayThreshold
@@ -133,6 +163,7 @@ final class PlayerEngagementStore {
     #if DEBUG
     func debugMakeEligible() {
         defaults.set(Self.gameplayThreshold, forKey: Key.gameplaySeconds)
+        defaults.set(Self.solvedThreshold, forKey: Key.solvedCount)
         if menuIsVisible { presentIfEligibleAtMenu() }
     }
     #endif

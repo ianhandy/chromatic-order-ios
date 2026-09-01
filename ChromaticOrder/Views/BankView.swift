@@ -29,16 +29,27 @@ struct BankView: View {
     /// highlight keyframed off a single trigger.
     @State private var readyFlash: Int = 0
 
+    static func checkAccessibilityHint(allPlaced: Bool, hasChecks: Bool) -> String {
+        if !hasChecks { return "no checks remaining" }
+        if !allPlaced { return "fill every empty cell first" }
+        return "check your gradients"
+    }
+
     var body: some View {
         VStack(spacing: Kroma.Space.s) {
             if (game.mode == .challenge || game.mode == .daily), !game.solved {
-                // Check only makes sense once every swatch is on the
-                // board — a half-filled grid can never pass, and
+                // Check only makes sense once every cell has a swatch
+                // in it — a half-filled grid can never pass, and
                 // tapping it anyway would burn a heart for nothing.
                 // Daily has no heart budget, so the hearts gate is
                 // skipped for that mode — Check is always allowed as
                 // long as every cell has a swatch.
-                let allPlaced = game.puzzle?.bank.allSatisfy { $0 == nil } ?? false
+                //
+                // Read from the board, not the bank. On a level with a
+                // red herring the bank never empties, so gating on it
+                // left Check permanently disabled and the level
+                // unwinnable.
+                let allPlaced = game.puzzle?.everyFreeCellIsFilled ?? false
                 let hasHearts = game.mode == .daily ? true : game.checks > 0
                 let canCheck = hasHearts && allPlaced
                 let green = Color(red: 42 / 255, green: 157 / 255, blue: 78 / 255)
@@ -76,9 +87,10 @@ struct BankView: View {
                 .accessibilityLabel("check")
                 // The green-to-gray fill is the visible "not yet" cue;
                 // this is the same fact for anyone who can't use it.
-                .accessibilityHint(canCheck
-                                   ? "check your gradients"
-                                   : "place every swatch first")
+                .accessibilityHint(Self.checkAccessibilityHint(
+                    allPlaced: allPlaced,
+                    hasChecks: hasHearts
+                ))
                 .onChange(of: canCheck) { oldVal, newVal in
                     if !oldVal && newVal { readyFlash &+= 1 }
                 }
