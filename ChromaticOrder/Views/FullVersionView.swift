@@ -18,7 +18,7 @@ enum FullVersionFeature {
     var detail: String {
         switch self {
         case .campaign:
-            return "continue through all 200 handcrafted campaign puzzles."
+            return "continue through all 220 handcrafted campaign puzzles."
         case .zen:
             return "truly infinite, procedurally generated puzzles at a difficulty you choose."
         case .challenge:

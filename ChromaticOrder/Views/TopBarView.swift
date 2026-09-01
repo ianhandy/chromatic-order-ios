@@ -184,7 +184,7 @@ struct TopBarView: View {
     private func chipText(_ text: String) -> some View {
         Text(text)
             .font(Kroma.font(.subheadline, .heavy))
-            // "1/200" is one token. Left to wrap, an accessibility text
+            // "1/220" is one token. Left to wrap, an accessibility text
             // size broke it across two lines as "1/2" over "00", which
             // reads as a different number entirely.
             .lineLimit(1)
@@ -229,7 +229,7 @@ struct TopBarView: View {
         if let index = game.campaignIndex {
             // Campaign: the slot the other modes use for their wordmark
             // carries where the player is in the ladder. The chip beside it
-            // already says "37/200"; this says which chapter that lands in,
+            // already says "37/220"; this says which chapter that lands in,
             // which is the thing that changes what the board asks of you.
             Text(campaignChapterTitle(index))
                 .font(Kroma.font(.title3, .heavy))
@@ -240,7 +240,7 @@ struct TopBarView: View {
                 .frame(maxWidth: usesStackedChrome ? .infinity : 200,
                        alignment: usesStackedChrome ? .leading : .center)
                 // The chip next to it already announces "campaign level 37
-                // of 200", so this only has to name the chapter.
+                // of 220", so this only has to name the chapter.
                 .accessibilityLabel("chapter, \(campaignChapterTitle(index))")
                 .accessibilityAddTraits(.isHeader)
         } else if let title = game.customTitle, !title.isEmpty {

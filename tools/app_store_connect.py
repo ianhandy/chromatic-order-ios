@@ -35,11 +35,13 @@ FULL_VERSION_REVIEW_NOTE = (
     "One-time non-consumable unlock. Free without it: Today's "
     "Puzzle, campaign chapters 1-4, the Gallery, and any puzzle "
     "opened from a shared link or file. The unlock adds campaign "
-    "chapters 5-12, infinite Zen, Challenge runs, and the puzzle "
-    "Creator. Zen, Challenge, and Creator each allow one free "
-    "trial session before the paywall appears, so the first tap "
-    "into those modes plays normally by design. Restore Purchase "
-    "is on the paywall screen."
+    "chapters 5-13, all 220 campaign puzzles, infinite Zen, Challenge "
+    "runs, and the puzzle Creator. Zen and Challenge each receive "
+    "another free run after 12 hours or at the next noon or midnight, "
+    "whichever comes first. Creator allows one free trial session. "
+    "Available free runs launch normally from the menu; during cooldown, "
+    "the paywall shows the time remaining. Restore Purchase is on the "
+    "paywall screen."
 )
 
 

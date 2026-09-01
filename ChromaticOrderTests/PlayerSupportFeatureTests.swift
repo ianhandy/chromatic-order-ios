@@ -23,7 +23,7 @@ final class PlayerSupportFeatureTests: XCTestCase {
 
     func testLockedFeatureMessagesExplainWhatUnlocks() {
         XCTAssertEqual(FullVersionFeature.campaign.title, "the full campaign")
-        XCTAssertTrue(FullVersionFeature.campaign.detail.contains("200"))
+        XCTAssertTrue(FullVersionFeature.campaign.detail.contains("220"))
         XCTAssertTrue(FullVersionFeature.zen.detail.contains("infinite"))
         XCTAssertTrue(FullVersionFeature.zen.detail.contains("procedurally generated"))
         XCTAssertTrue(FullVersionFeature.zen.detail.contains("difficulty"))
