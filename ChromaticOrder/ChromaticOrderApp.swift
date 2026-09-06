@@ -27,20 +27,15 @@ struct ChromaticOrderApp: App {
                         MenuView(game: game, started: $started)
                     }
                 }
-                // Force dark color scheme app-wide. The game's menus
-                // and game view paint explicit black backgrounds,
-                // but sheet-based views (CreatorView, AccessibilitySheet,
-                // ColorPickerSheet, GalleryView) rely on system chrome
-                // which in Light Mode renders as a white background —
-                // a tester on a light-mode device reported the creator
-                // screen coming up all-white. Pinning dark mode keeps
-                // the visuals consistent across devices.
-                .preferredColorScheme(.dark)
-                // Black curtain — hoisted above every screen in the
+                // Follow the player's explicit appearance choice. System
+                // leaves the decision to iOS; Light and Dark apply across
+                // both the custom game canvas and system-backed sheets.
+                .preferredColorScheme(game.appearanceMode.preferredColorScheme)
+                // Transition curtain — hoisted above every screen in the
                 // ZStack so the fade reads on top of both menu and
                 // game. Ignores hit testing while clear so it never
                 // eats taps outside of a transition.
-                Color.black
+                Kroma.Canvas.background
                     .opacity(transitioner.overlayOpacity)
                     .ignoresSafeArea()
                     .allowsHitTesting(transitioner.overlayOpacity > 0.01)

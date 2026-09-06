@@ -25,11 +25,11 @@ struct BankSlotView: View {
             // the slot accepts drops.
             if item == nil {
                 RoundedRectangle(cornerRadius: radius, style: .continuous)
-                    .fill(Color.white.opacity(isDropTarget ? 0.10 : 0.06))
+                    .fill(Color.primary.opacity(isDropTarget ? 0.10 : 0.06))
                     .overlay(
                         RoundedRectangle(cornerRadius: radius, style: .continuous)
                             .strokeBorder(
-                                Color.white.opacity(isDropTarget ? 0.35 : 0.18),
+                                Color.primary.opacity(isDropTarget ? 0.35 : 0.18),
                                 style: StrokeStyle(lineWidth: 1.5, dash: [3, 3])
                             )
                     )
@@ -61,7 +61,7 @@ struct BankSlotView: View {
 
             if game.hintedBankSlot == slot {
                 RoundedRectangle(cornerRadius: radius, style: .continuous)
-                    .strokeBorder(Color.white.opacity(0.95), lineWidth: 3)
+                    .strokeBorder(Color.primary.opacity(0.95), lineWidth: 3)
                     .frame(width: size, height: size)
                     .allowsHitTesting(false)
             }

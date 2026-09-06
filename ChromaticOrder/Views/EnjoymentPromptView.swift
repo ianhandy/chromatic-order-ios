@@ -20,7 +20,7 @@ struct EnjoymentPromptView: View {
 
     var body: some View {
         ZStack {
-            Color.black.ignoresSafeArea()
+            Kroma.Canvas.background.ignoresSafeArea()
 
             switch stage {
             case .positive:
@@ -30,7 +30,7 @@ struct EnjoymentPromptView: View {
             case .acknowledging:
                 Text(Strings.EnjoymentPrompt.okay)
                     .font(Kroma.font(.largeTitle, .heavy))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(Kroma.Canvas.primaryText)
                     .transition(.opacity)
             case .blank:
                 // Deliberately empty: the black backdrop below is the
@@ -45,12 +45,12 @@ struct EnjoymentPromptView: View {
                         if stage == .kidding {
                             Text(Strings.EnjoymentPrompt.justKidding)
                                 .font(Kroma.font(.title2, .bold))
-                                .foregroundStyle(.white)
+                                .foregroundStyle(Kroma.Canvas.primaryText)
                                 .padding(.horizontal, Kroma.Space.xl)
                                 .padding(.vertical, Kroma.Space.l)
-                                .background(.black, in: Capsule())
-                                .overlay(Capsule().stroke(.white.opacity(0.30), lineWidth: 1))
-                                .shadow(color: .white.opacity(0.18), radius: 18)
+                                .background(Kroma.Canvas.background, in: Capsule())
+                                .overlay(Capsule().stroke(Color.primary.opacity(0.30), lineWidth: 1))
+                                .shadow(color: Color.primary.opacity(0.18), radius: 18)
                                 .transition(.opacity.combined(with: .scale(scale: 0.96)))
                         }
                     }
@@ -70,7 +70,7 @@ struct EnjoymentPromptView: View {
 
             Text(Strings.EnjoymentPrompt.question)
                 .font(Kroma.font(.largeTitle, .heavy))
-                .foregroundStyle(.white)
+                .foregroundStyle(Kroma.Canvas.primaryText)
                 .multilineTextAlignment(.center)
                 .fixedSize(horizontal: false, vertical: true)
 
@@ -99,11 +99,11 @@ struct EnjoymentPromptView: View {
         Button(action: action) {
             Text(label)
                 .font(Kroma.font(.headline, .bold))
-                .foregroundStyle(.white)
+                .foregroundStyle(Kroma.Canvas.primaryText)
                 .frame(maxWidth: .infinity, minHeight: Kroma.Metrics.minTarget)
                 .padding(.horizontal, Kroma.Space.l)
-                .background(Color.white.opacity(0.08), in: Capsule())
-                .overlay(Capsule().stroke(Color.white.opacity(0.24), lineWidth: 1))
+                .background(Color.primary.opacity(0.08), in: Capsule())
+                .overlay(Capsule().stroke(Color.primary.opacity(0.24), lineWidth: 1))
                 .contentShape(Capsule())
         }
         .buttonStyle(.kromaControl)
@@ -114,7 +114,7 @@ struct EnjoymentPromptView: View {
         HStack(spacing: Kroma.Space.l) {
             Text(text)
                 .font(Kroma.font(.largeTitle, .heavy))
-                .foregroundStyle(.white)
+                .foregroundStyle(Kroma.Canvas.primaryText)
             PerfectResponseHeart(broken: brokenHeart)
         }
         .accessibilityElement(children: .combine)

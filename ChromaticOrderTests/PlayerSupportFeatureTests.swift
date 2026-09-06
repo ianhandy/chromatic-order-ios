@@ -453,7 +453,7 @@ final class PlayerSupportFeatureTests: XCTestCase {
     }
 
     @MainActor
-    func testMoveReadoutPreferencePersistsBesideTimerPreference() {
+    func testDisplayPreferencesPersistTogether() {
         let key = "chromaticOrderAccessibility"
         let previous = UserDefaults.standard.object(forKey: key)
         defer {
@@ -464,11 +464,16 @@ final class PlayerSupportFeatureTests: XCTestCase {
         let game = GameState()
         game.timerVisible = false
         game.movesVisible = true
+        game.appearanceMode = .light
+        game.doubleTapZoomEnabled = false
         game.applyAccessibilityIfChanged()
 
         let restored = GameState()
         XCTAssertFalse(restored.timerVisible)
         XCTAssertTrue(restored.movesVisible)
+        XCTAssertEqual(restored.appearanceMode, .light)
+        XCTAssertFalse(restored.doubleTapZoomEnabled)
+        XCTAssertEqual(restored.appearanceMode.preferredColorScheme, .light)
     }
 
     @MainActor

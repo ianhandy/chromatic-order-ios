@@ -1,4 +1,4 @@
-# Red Herrings, shipped as Spare Parts (levels 161-180)
+# Red Herrings, shipped as Spare Parts (levels 101-120)
 #
 # The bank stops being a promise. Up to here every swatch handed to the
 # player belonged in some cell, so "I have used everything" was a way of

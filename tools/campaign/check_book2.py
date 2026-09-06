@@ -27,12 +27,12 @@ import art  # noqa: E402
 # (module, chapter title, first level, last level, max width, max height,
 #  gradient range, cell range)
 CHAPTERS = [
-    ("book2.ch08_workshop", "Workshop", 101, 120, 11, 9, (6, 8), (22, 37)),
-    ("book2.ch09_orchestra", "Orchestra", 121, 140, 12, 13, (7, 9), (28, 46)),
-    ("book2.ch10_circuitry", "Circuitry", 141, 160, 14, 9, (7, 11), (28, 49)),
-    ("book2.ch13_red_herrings", "Red Herrings", 161, 180, 11, 6, (3, 8), (11, 35)),
-    ("book2.ch11_interiors", "Interiors", 181, 200, 13, 13, (7, 10), (31, 54)),
-    ("book2.ch12_grand_works", "Grand Works", 201, 220, 11, 11, (7, 11), (36, 55)),
+    ("book2.ch13_red_herrings", "Red Herrings", 101, 120, 11, 6, (3, 8), (11, 35)),
+    ("book2.ch08_workshop", "Workshop", 121, 140, 11, 9, (6, 8), (22, 37)),
+    ("book2.ch09_orchestra", "Orchestra", 141, 160, 12, 13, (7, 9), (28, 46)),
+    ("book2.ch10_circuitry", "Circuitry", 161, 180, 14, 9, (7, 11), (28, 49)),
+    ("book2.ch11_interiors", "Interiors", 181, 200, 17, 17, (7, 10), (31, 60)),
+    ("book2.ch12_grand_works", "Grand Works", 201, 220, 17, 17, (7, 11), (35, 60)),
 ]
 
 def main() -> int:

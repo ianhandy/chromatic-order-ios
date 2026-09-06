@@ -57,16 +57,13 @@ CHAPTERS = [
     ("Creatures", 53, 70, "Chroma joins in. Neighbors start to look alike."),
     ("Landmarks", 71, 88, "Wide scenes with long ramps to keep straight."),
     ("Mastery", 89, 100, "Everything at once, with barely any given cells."),
-    ("Workshop", 101, 120, "Tools built from connected runs and shared joints."),
-    ("Orchestra", 121, 140, "Instruments with more parts to sort and align."),
-    ("Circuitry", 141, 160, "Dense networks where each crossing carries information."),
-    # Red herrings land here rather than last. On the wrong-cell scale
-    # the chapter measures easier than Interiors and Grand Works, because
-    # a decoy's cost is hesitation over a swatch with no home and not a
-    # cell placed wrongly — so ending on it made the campaign read as
-    # getting easier. Teaching the mechanic here instead lets the two
-    # chapters after it carry decoys as an ordinary hazard.
-    ("Red Herrings", 161, 180, "Some swatches belong nowhere. Prove it before you place."),
+    # Spare Parts opens book two. Its smaller, clearer boards introduce the
+    # bank's new rule before the campaign asks the player to combine decoys
+    # with the large connected constructions that follow.
+    ("Red Herrings", 101, 120, "Some swatches belong nowhere. Prove it before you place."),
+    ("Workshop", 121, 140, "Tools built from connected runs and shared joints."),
+    ("Orchestra", 141, 160, "Instruments with more parts to sort and align."),
+    ("Circuitry", 161, 180, "Dense networks where each crossing carries information."),
     ("Interiors", 181, 200, "Rooms and structures assembled one section at a time."),
     ("Grand Works", 201, 220, "Large machines and landmarks at the campaign's limit."),
 ]
@@ -1046,9 +1043,9 @@ from book2.ch11_interiors import SHAPES as CH11
 from book2.ch12_grand_works import SHAPES as CH12
 from book2.ch13_red_herrings import SHAPES as CH13
 
-# Order here IS level order, and has to agree with CHAPTERS above: the
-# red-herring chapter (CH13) sits between Circuitry and Interiors.
-ALL = (CH1 + CH2 + CH3 + CH4 + CH5 + CH6 + CH7 + CH8 + CH9 + CH10 + CH13
+# Order here IS level order, and has to agree with CHAPTERS above. Spare Parts
+# opens book two so the decoy rule arrives before its denser constructions.
+ALL = (CH1 + CH2 + CH3 + CH4 + CH5 + CH6 + CH7 + CH13 + CH8 + CH9 + CH10
        + CH11 + CH12)
 
 

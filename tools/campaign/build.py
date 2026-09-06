@@ -84,12 +84,12 @@ C_HUE_MIN = 0.11
 # mechanic in its own right rather than a difficulty tweak. It gets its
 # own chapter instead of being retrofitted into levels that were balanced
 # without it.
-DECOY_FIRST_LEVEL = 161
+DECOY_FIRST_LEVEL = 101
 DECOY_TEACHING_LAST_LEVEL = shapes.chapter_of(DECOY_FIRST_LEVEL)[2]
 
 # After the teaching chapter, a decoy is a hazard that recurs rather than
-# one the player is done with. Not on every board, though: Interiors and
-# Grand Works were balanced to their own cell-level targets, and a spare
+# one the player is done with. Not on every board, though: later chapters
+# are balanced to their own cell-level targets, and a spare
 # swatch on all forty of them would stack two hard things on every level
 # instead of asking the player to keep checking. Every third board keeps
 # the question live — you cannot assume the bank is exact — without the
@@ -109,7 +109,7 @@ DECOY_RECURRENCE_MAX_CELLS = 45
 # "small enough" and "can actually carry the mechanic without weakening its
 # fairness rules". Keep the exceptions explicit so a future shape edit can
 # deliberately retest and remove them.
-DECOY_RECURRENCE_EXCLUDED_LEVELS = frozenset({198, 210, 213})
+DECOY_RECURRENCE_EXCLUDED_LEVELS = frozenset({122, 174, 178, 198, 210, 213})
 
 
 def _recurring_decoy_levels() -> frozenset[int]:
@@ -125,10 +125,10 @@ def _recurring_decoy_levels() -> frozenset[int]:
         if level <= DECOY_TEACHING_LAST_LEVEL:
             continue
         shape = art.parse(drawing, name)
-        if (len(shape.all_cells) <= DECOY_RECURRENCE_MAX_CELLS
-                and level not in DECOY_RECURRENCE_EXCLUDED_LEVELS):
+        if len(shape.all_cells) <= DECOY_RECURRENCE_MAX_CELLS:
             eligible.append(level)
-    return frozenset(eligible[DECOY_RECURRENCE_PHASE::DECOY_RECURRENCE])
+    cadence = frozenset(eligible[DECOY_RECURRENCE_PHASE::DECOY_RECURRENCE])
+    return cadence - DECOY_RECURRENCE_EXCLUDED_LEVELS
 
 
 RECURRING_DECOY_LEVELS = _recurring_decoy_levels()
@@ -1641,10 +1641,10 @@ CHAPTER_DIFFICULTY = {
 # spare swatch, not the size of the bank, and its boards are clamped to a
 # share of the board anyway.
 BOOK2_BANK_STAGE = {
+    "Red Herrings": 0,
     "Workshop":     0,
     "Orchestra":    1,
     "Circuitry":    2,
-    "Red Herrings": 3,
     "Interiors":    3,
     "Grand Works":  4,
 }
@@ -2124,8 +2124,10 @@ def render_sheet(campaign: dict, path: Path, cols: int = 10, cell: int = 14):
     from PIL import Image, ImageDraw
 
     pad, label_h = 10, 16
-    tile_w = 11 * cell + pad * 2
-    tile_h = 9 * cell + pad + label_h
+    max_w = max(level["doc"]["gridW"] for level in campaign["levels"])
+    max_h = max(level["doc"]["gridH"] for level in campaign["levels"])
+    tile_w = max_w * cell + pad * 2
+    tile_h = max_h * cell + pad + label_h
     rows = (len(campaign["levels"]) + cols - 1) // cols
     img = Image.new("RGB", (cols * tile_w, rows * tile_h), (18, 18, 20))
     draw = ImageDraw.Draw(img)
@@ -2138,8 +2140,8 @@ def render_sheet(campaign: dict, path: Path, cols: int = 10, cell: int = 14):
             for c in g["cells"]:
                 board[(c["r"], c["c"])] = c
         gw, gh = doc["gridW"], doc["gridH"]
-        x0 = ox + pad + (11 - gw) * cell // 2
-        y0 = oy + label_h + (9 - gh) * cell // 2
+        x0 = ox + pad + (max_w - gw) * cell // 2
+        y0 = oy + label_h + (max_h - gh) * cell // 2
         for (r, c), spec in board.items():
             rgb = to_srgb8(OKLCh(spec["L"], spec["C"], spec["h"]))
             x, y = x0 + c * cell, y0 + r * cell

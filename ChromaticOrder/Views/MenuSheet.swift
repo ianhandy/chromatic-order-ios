@@ -218,7 +218,7 @@ private struct MenuPanelRow: View {
                     .imageScale(.medium)
                     .frame(width: 22)
             }
-            .foregroundStyle(.white)
+            .foregroundStyle(Kroma.Canvas.primaryText)
             .padding(.horizontal, Kroma.Space.l)
             .padding(.vertical, Kroma.Space.m)
             .frame(minHeight: Kroma.Metrics.minTarget)
@@ -239,7 +239,7 @@ private struct MenuPanelRow: View {
 private struct MenuPanelDivider: View {
     var body: some View {
         Divider()
-            .overlay(Color.white.opacity(0.12))
+            .overlay(Color.primary.opacity(0.12))
             .padding(.horizontal, Kroma.Space.m)
     }
 }
@@ -326,7 +326,7 @@ private struct MenuShareRow: View {
             }
             .frame(width: 22)
         }
-        .foregroundStyle(.white.opacity(waiting ? 0.5 : 1))
+        .foregroundStyle(Color.primary.opacity(waiting ? 0.5 : 1))
         .padding(.horizontal, Kroma.Space.l)
         .padding(.vertical, Kroma.Space.m)
         .frame(minHeight: Kroma.Metrics.minTarget)

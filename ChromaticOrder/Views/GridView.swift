@@ -132,13 +132,10 @@ struct GridView: View {
                             event.location.x - lastTapLoc.x,
                             event.location.y - lastTapLoc.y
                         )
-                        // Both time and distance must match. The time
-                        // window is player-configurable (Accessibility
-                        // sheet) so slow-fingered players can loosen
-                        // it without needing code changes. Distance
-                        // stays tight (24pt) regardless — that's about
-                        // filtering spurious re-taps, not ergonomics.
-                        if dt < game.doubleTapInterval, dist < 24 {
+                        // Both time and distance must match. Keep the timing
+                        // predictable, and let Settings disable this shortcut
+                        // without removing pinch zoom.
+                        if game.doubleTapZoomEnabled, dt < 0.28, dist < 24 {
                             withAnimation(.spring(response: 0.28, dampingFraction: 0.82)) {
                                 game.toggleZoom(max: doubleTapZoom)
                             }

@@ -1,4 +1,4 @@
-# Chapter 10: Circuitry (levels 141-160)
+# Circuitry (levels 161-180)
 SHAPES = [
     ("Antenna", """
 .aa+aaaa.

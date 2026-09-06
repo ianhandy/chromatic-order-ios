@@ -38,10 +38,10 @@ struct TopBarView: View {
     /// Past the accessibility sizes the top bar stops being one row.
     private var usesStackedChrome: Bool { dynamicTypeSize.isAccessibilitySize }
 
-    // Palette for the dark-mode top bar. Primary text is near-white
-    // (full white glares), secondary is a softer gray.
-    private static let primaryText = Color.white.opacity(0.92)
-    private static let secondaryText = Color.white.opacity(0.6)
+    // Semantic canvas text flips with the selected appearance while the
+    // puzzle palette itself stays untouched.
+    private static let primaryText = Kroma.Canvas.primaryText
+    private static let secondaryText = Kroma.Canvas.secondaryText
 
     var body: some View {
         VStack(alignment: .leading, spacing: Kroma.Space.xs) {

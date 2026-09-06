@@ -22,7 +22,7 @@ struct LevelPickerSheet: View {
                 }
                 .padding(18)
             }
-            .background(Color.black)
+            .background(Kroma.Canvas.background)
             .kromaSheet("level") { dismiss() }
         }
         .presentationDetents([.medium, .large])
@@ -41,7 +41,7 @@ struct LevelPickerSheet: View {
             let label = VStack(spacing: Kroma.Space.xs) {
                 Text("\(lv)")
                     .font(Kroma.font(.headline, .heavy))
-                    .foregroundStyle(Color.white.opacity(isCurrent ? 1.0 : 0.85))
+                    .foregroundStyle(Color.primary.opacity(isCurrent ? 1.0 : 0.85))
                 Text(tierInfo.label)
                     .font(Kroma.font(.caption2, .bold))
                     .foregroundStyle(tierColor)

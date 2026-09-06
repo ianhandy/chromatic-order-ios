@@ -257,24 +257,24 @@ struct CreatorView: View {
     /// picks the color treatment without forcing three different
     /// button-style calls at each call-site.
     private func bottomBarForegroundColor(disabled: Bool, tone: BottomButtonTone) -> Color {
-        if disabled { return Color.white.opacity(0.3) }
+        if disabled { return Color.primary.opacity(0.3) }
         switch tone {
-        case .prominent: return Color.black
+        case .prominent: return Kroma.Canvas.background
         case .destructive: return Color(red: 0.92, green: 0.42, blue: 0.42)
-        case .neutral: return Color.white.opacity(0.9)
+        case .neutral: return Color.primary.opacity(0.9)
         }
     }
 
     private func bottomBarFillColor(disabled: Bool, tone: BottomButtonTone) -> Color {
-        if disabled { return Color.white.opacity(0.04) }
-        if tone == .prominent { return Color.white }
-        return Color.white.opacity(0.08)
+        if disabled { return Color.primary.opacity(0.04) }
+        if tone == .prominent { return Color.primary }
+        return Color.primary.opacity(0.08)
     }
 
     private func bottomBarStrokeColor(disabled: Bool, tone: BottomButtonTone) -> Color {
-        if disabled { return Color.white.opacity(0.08) }
+        if disabled { return Color.primary.opacity(0.08) }
         if tone == .prominent { return Color.clear }
-        return Color.white.opacity(0.2)
+        return Color.primary.opacity(0.2)
     }
 
     @ViewBuilder
@@ -349,14 +349,14 @@ struct CreatorView: View {
                         .font(Kroma.font(.caption, .semibold))
                 }
                 .frame(maxWidth: .infinity, minHeight: 52)
-                .foregroundStyle(Color.white.opacity(0.9))
+                .foregroundStyle(Color.primary.opacity(0.9))
                 .background(
                     RoundedRectangle(cornerRadius: Kroma.Radius.control, style: .continuous)
-                        .fill(Color.white.opacity(0.08))
+                        .fill(Color.primary.opacity(0.08))
                 )
                 .overlay(
                     RoundedRectangle(cornerRadius: Kroma.Radius.control, style: .continuous)
-                        .stroke(Color.white.opacity(0.2), lineWidth: 1)
+                        .stroke(Color.primary.opacity(0.2), lineWidth: 1)
                 )
             }
         } else {
@@ -504,14 +504,14 @@ struct CreatorView: View {
                 Label("\(b.validation.difficulty)/10", systemImage: "gauge")
                     .labelStyle(.titleAndIcon)
                     .font(Kroma.font(.footnote, .bold))
-                    .foregroundStyle(Color.white.opacity(0.85))
+                    .foregroundStyle(Color.primary.opacity(0.85))
                     .padding(.horizontal, 10)
                     .padding(.vertical, 5)
                     .background(
-                        Capsule().fill(Color.white.opacity(0.08))
+                        Capsule().fill(Color.primary.opacity(0.08))
                     )
                     .overlay(
-                        Capsule().stroke(Color.white.opacity(0.18), lineWidth: 1)
+                        Capsule().stroke(Color.primary.opacity(0.18), lineWidth: 1)
                     )
             }
         }
@@ -519,11 +519,11 @@ struct CreatorView: View {
         .padding(.vertical, Kroma.Space.m)
         .background(
             RoundedRectangle(cornerRadius: Kroma.Radius.control, style: .continuous)
-                .fill(Color.white.opacity(0.06))
+                .fill(Color.primary.opacity(0.06))
         )
         .overlay(
             RoundedRectangle(cornerRadius: Kroma.Radius.control, style: .continuous)
-                .stroke(Color.white.opacity(0.12), lineWidth: 1)
+                .stroke(Color.primary.opacity(0.12), lineWidth: 1)
         )
         .padding(.horizontal, 14)
     }
@@ -567,7 +567,7 @@ struct CreatorView: View {
 
             Image(systemName: "arrow.right")
                 .font(Kroma.font(.title2, .heavy))
-                .foregroundStyle(Color.white.opacity(0.65))
+                .foregroundStyle(Kroma.Canvas.secondaryText)
 
             if selected != nil {
                 ColorChip(color: state.selectedColor(at: .end) ?? state.startColor,
@@ -627,14 +627,14 @@ struct CreatorView: View {
             Image(systemName: system)
                 .font(Kroma.font(.title3, .semibold))
                 .frame(width: 44, height: 44)
-                .foregroundStyle(selected ? Color.black : Color.white.opacity(0.7))
+                .foregroundStyle(selected ? Kroma.Canvas.background : Color.primary.opacity(0.7))
                 .background(
                     RoundedRectangle(cornerRadius: Kroma.Radius.control, style: .continuous)
-                        .fill(selected ? Color.white : Color.white.opacity(0.07))
+                        .fill(selected ? Color.primary : Color.primary.opacity(0.07))
                 )
                 .overlay(
                     RoundedRectangle(cornerRadius: Kroma.Radius.control, style: .continuous)
-                        .stroke(selected ? Color.clear : Color.white.opacity(0.14), lineWidth: 1)
+                        .stroke(selected ? Color.clear : Color.primary.opacity(0.14), lineWidth: 1)
                 )
         }
         .buttonStyle(.plain)
@@ -658,7 +658,7 @@ struct CreatorView: View {
             Text(state.toolName)
                 .font(Kroma.font(.headline, .heavy))
                 .tracking(-0.5)
-                .foregroundStyle(Color.white.opacity(0.65))
+                .foregroundStyle(Kroma.Canvas.secondaryText)
                 .lineLimit(1)
             Spacer(minLength: 0)
         }
@@ -762,7 +762,7 @@ struct CreatorView: View {
             HStack(spacing: 10) {
                 Text("Submit this level to the community?")
                     .font(Kroma.font(.footnote, .semibold))
-                    .foregroundStyle(Color.white.opacity(0.85))
+                    .foregroundStyle(Color.primary.opacity(0.85))
                     .multilineTextAlignment(.leading)
                     .fixedSize(horizontal: false, vertical: true)
                 Spacer(minLength: 6)
@@ -780,7 +780,7 @@ struct CreatorView: View {
                 .controlSize(.small)
                 // Was 0.4 (~3.7:1) on an enabled, interactive control —
                 // WCAG exempts disabled controls, not live ones.
-                .tint(Color.white.opacity(0.55))
+                .tint(Color.primary.opacity(0.55))
             }
             .padding(.horizontal, 14)
             .transition(.opacity)
@@ -826,7 +826,7 @@ private struct ColorChip: View {
                 .frame(width: 50, height: 50)
                 .overlay(
                     RoundedRectangle(cornerRadius: Kroma.Radius.control, style: .continuous)
-                        .stroke(Color.white.opacity(0.2), lineWidth: 1)
+                        .stroke(Color.primary.opacity(0.2), lineWidth: 1)
                 )
         }
         .buttonStyle(.plain)
@@ -872,7 +872,7 @@ private struct ShiftChip: View {
             .clipShape(RoundedRectangle(cornerRadius: Kroma.Radius.control, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: Kroma.Radius.control, style: .continuous)
-                    .stroke(Color.white.opacity(0.2), lineWidth: 1)
+                    .stroke(Color.primary.opacity(0.2), lineWidth: 1)
             )
         }
         .buttonStyle(.plain)
@@ -934,11 +934,10 @@ private struct CanvasView: View {
                     // Outer-bounds outline around the whole canvas —
                     // the playfield edges get ambiguous otherwise
                     // because empty-cell tints are low-contrast on
-                    // black. White stroke for visibility against the
-                    // dark theme (the previous black-on-black stroke
-                    // was effectively invisible).
+                    // the surrounding canvas. Semantic contrast keeps
+                    // the bounds visible in either appearance.
                     RoundedRectangle(cornerRadius: Kroma.Radius.control, style: .continuous)
-                        .stroke(Color.white.opacity(0.28),
+                        .stroke(Color.primary.opacity(0.28),
                                 style: StrokeStyle(lineWidth: 1.5, dash: [5, 4]))
                         .padding(-4)
                 )
@@ -1059,7 +1058,7 @@ private struct CanvasView: View {
                 ).intersection(CGRect(x: 0, y: 0, width: totalW, height: totalH))
                 if !local.isEmpty {
                     RoundedRectangle(cornerRadius: 6, style: .continuous)
-                        .stroke(Color.white.opacity(0.85),
+                        .stroke(Color.primary.opacity(0.85),
                                 style: StrokeStyle(lineWidth: 1.5, dash: [5, 4]))
                         .frame(width: local.width, height: local.height)
                         .offset(x: local.minX, y: local.minY)
@@ -1074,7 +1073,7 @@ private struct CanvasView: View {
                 let bw = CGFloat(bbox.maxC - bbox.minC + 1) * pitch
                 let bh = CGFloat(bbox.maxR - bbox.minR + 1) * pitch
                 RoundedRectangle(cornerRadius: 6, style: .continuous)
-                    .stroke(Color.white.opacity(0.55),
+                    .stroke(Color.primary.opacity(0.55),
                             style: StrokeStyle(lineWidth: 1.5, dash: [4, 3]))
                     .frame(width: bw, height: bh)
                     .offset(x: baseX, y: baseY)
@@ -1084,7 +1083,7 @@ private struct CanvasView: View {
                     RoundedRectangle(cornerRadius: 6, style: .continuous)
                         .stroke(blocked
                                 ? Color(red: 0.9, green: 0.3, blue: 0.3)
-                                : Color.white,
+                                : Color.primary,
                                 style: StrokeStyle(lineWidth: 2.0, dash: [5, 3]))
                         .frame(width: bw, height: bh)
                         .offset(x: baseX + CGFloat(dc) * pitch,
@@ -1208,7 +1207,7 @@ private struct CreatorCell: View {
     var body: some View {
         ZStack {
             RoundedRectangle(cornerRadius: radius, style: .continuous)
-                .fill(Color.black.opacity(committed == nil && preview == nil ? 0.04 : 0))
+                .fill(Color.primary.opacity(committed == nil && preview == nil ? 0.05 : 0))
                 .frame(width: cellPx, height: cellPx)
 
             if let c = committed {

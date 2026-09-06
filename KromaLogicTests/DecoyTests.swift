@@ -68,11 +68,11 @@ final class DecoyTests: XCTestCase {
     func testCampaignShipsDecoys() throws {
         let withDecoys = try campaignDocsWithDecoys()
         XCTAssertFalse(withDecoys.isEmpty, "no campaign level ships a decoy")
-        // They belong to the chapter built for them, not scattered into
-        // levels that were balanced without them.
+        // They begin in the chapter built to teach them, then recur in
+        // later levels that were explicitly balanced for them.
         for (level, _) in withDecoys {
             XCTAssertGreaterThanOrEqual(
-                level, 201,
+                level, 101,
                 "level \(level) ships a decoy but predates the mechanic's chapter")
         }
     }

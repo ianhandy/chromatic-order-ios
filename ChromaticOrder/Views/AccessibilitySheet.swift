@@ -46,20 +46,18 @@ struct AccessibilitySheet: View {
                 }
 
                 Section {
-                    labeledSlider(
-                        label: "Max gap",
-                        value: $game.doubleTapInterval,
-                        range: 0.15...0.60,
-                        step: 0.01,
-                        format: { String(format: "%.2fs", $0) }
-                    )
-                } header: {
-                    Text("Double-tap zoom")
+                    Toggle("Double-tap zoom", isOn: $game.doubleTapZoomEnabled)
                 } footer: {
-                    Text("Max time between taps that still counts as a double-tap. Lower = tighter; raise it if taps feel missed.")
+                    Text("Pinch to zoom still works when this is off.")
                 }
 
                 Section {
+                    Picker("Appearance", selection: $game.appearanceMode) {
+                        ForEach(AppAppearance.allCases) { appearance in
+                            Text(appearance.label).tag(appearance)
+                        }
+                    }
+                    .pickerStyle(.segmented)
                     Toggle("Magnetism", isOn: $game.magnetismEnabled)
                     Toggle("Edge vignette", isOn: $game.edgeVignetteEnabled)
                     Toggle("Solved glow", isOn: $game.solvedGlowEnabled)

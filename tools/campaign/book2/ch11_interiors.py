@@ -1,4 +1,4 @@
-# Chapter 11: Interiors (levels 161-180)
+# Interiors (levels 181-200)
 SHAPES = [
     ("Staircase", """
 .......+gg
@@ -11,100 +11,108 @@ h+hh+hh+h+
 """, None),
 
     ("Bookshelf", """
-a....f.b
-a....f.b
-+cccc+c+
-a....f.b
-a.g.h..b
-a.g.h..b
-+d+d+dd+
-a......b
-+eeeeee+e
+aaaaaa+
+......b
+......b
+c+c+cc+ccc
+.h.d
+e+e+e+
+.h...f
+.h...+gggg
 """, None),
 
     ("Colonnade", """
-a+aa+a+a+a
-.c..d.e.f.
-.c..d.e.f.
-g+gg+.+h+h
-.c..d.e.f.
-b+bb+b+b+b
+a
+a
++bbbb+bb
+a....c
+a....c..eg
+a.ddd+dd+g
+a....chh++
+a....+ff++
 """, None),
 
     ("Balcony", """
-a.......b
-a.......b
-+c+c+c+c+
-a.e.f.g.b
-a.e.f.g.b
-+d+d+d+d+
-a.e.f.g.b
-+h+h+.g.b
+..+ccc+
+..b...d..h
+..b...d..h
+aa+aa++aa+
+..b..e..gh
+..b..e.i++
+..+ff+ff+
 """, None),
 
     ("Fireplace", """
-...c..g...
-...c..g...
-a+a++a++a.
-.b..h..d..
-.b..h..d..
-e+ee+ee+..
-.b..h..d..
-f+ff+ff+ff
+....+gg+
+c...a..h
+c...a..h
++bbb+bb+b
+c...a...f
++ddd+...f
+..ee+eee+
+....a...f
 """, None),
 
     ("Archway", """
-...+aaa+aa..
-...b...c....
-.f.b...c.g..
-d+d+...+e+e.
-.f.b...c.g..
-.f.......g..
-h+hhhhhhh+hh
+aaaaaaa+
+.......b
+...d...b
+...d...b
+.cc+ccc+++
+...d....hf
+.ee+eeee++
+......gg++
 """, None),
 
     ("Arcade", """
-.+aa+a+a+a
-.c..d.e.f.
-.c..d.e.f.
-g+gg+.+h+h
-.c..d.e.f.
-b+bb+b+b+b
-..........
-...ii.....
+..e.c..a
+hh+h+..a
+..e.c..a
+..+d+..a
+..e.c..a
++f+.c..a
+g...+bb+
+g...c
+g...c
+g...c
 """, None),
 
     ("Chandelier", """
-a+aa+a+aaa
-.d..b.e...
-.d..b.e...
-c++c+c++c.
-..g.b..h..
-.f+f+ff+..
-..g.b..h..
-..+i+ii...
+aaaaa+aa
+.....b
+..d..b
+..d..b
+..d..b
++c+cc+
+fhd..b
+fhd..b
++++e
+++gg
 """, None),
 
     ("Alcove", """
-a+aaaaa+aa
-.b.....c..
-.+d+d+d+d.
-.b.f.g.c..
-.+e+e+.c..
-.b.....c..
-h+hhhhh+hh
-.b.....c..
+...a
+...a
++bb+bb+
+f..a..c
+f..a..c
++ee+..c
+f..+dd+
+fi.a
+++ga
+.+h+hh
 """, None),
 
     ("Wardrobe", """
-a+aaa+aa
-.b...c..
-.b.d.c..
-.+g+g+..
-.b...c..
-.+fff+f.
-.b...c..
-h+hhh+hh
+..+c+cc
+..d.b
+.ed.b
+.ed.b
+a++a+aa+
+.e..b..g
+.e..b..g
+.e..+hh+
+f+ffb
 """, None),
 
     ("Skylight", """
@@ -119,13 +127,16 @@ g+g+....+hh
 """, None),
 
     ("Mezzanine", """
-h...........
-+b+b+bbb+...
-h.c.e...f...
-+a+a+aaa+a..
-h.c.e...f..j
-h...e...f..j
-+ggg+ggg+gg+
+.......a
+.e.c...a
+.e.c...a
+.+d+dd.a
+.e.c...a
+.e.c...a
+ge.c...a
+ge.+bbb+
+++h+
+++f+
 """, None),
 
     ("Atrium", """
@@ -140,39 +151,35 @@ h+hhhhh...
 """, None),
 
     ("Rafters", """
-....a+a+aa..
-.....b.c....
-...+d+d+d+d.
-...i.b.c.h..
-.g.+j+j+.h..
-.g.i.b...h..
-e+e+e+eee+ee
-...i.b...h..
+gggg+...h
+....f...h
+....+e+e+e
+......d.h
+ccc+cc+c+c
+...b
+...b
+...+aaaaaa
 """, None),
 
     ("Curtain", """
-a+aaa+aa+
-.b...c..e
-.+hhh+hh+
-.b...c..e
-.+g+g+g.e
-.b.j.c..e
-f+f+f+ff+
-.b.j.c..e
-.b.j.+ii+
-........e
+++ff+....a
+++hhc....a
+g+dd+ddd.a
+ge..c....a
+....c....a
+..bb+bbbb+
+.........a
+.........a
 """, None),
 
     ("Elevator", """
-a+a+aaa+.
-.b.d...c.
-.b.d...c.
-.b.d.g.c.
-e+e+e+e+.
-.b.d.g.c.
-.b.+j+j+.
-.b...g.c.
-.+fff+f+.
+.+ff+ff+
+++i.e..b
+hg..e..b
++aa++aa+aa
+h..d...b
+h..d...b
+...+ccc+
 """, None),
 
     ("Banister", """
@@ -218,14 +225,13 @@ f+ff+ff.
 """, None),
 
     ("Dome", """
-..a+a+aa..
-...d.e....
-.+b+b+b...
-.f.d.e.g..
-c+c+c+c+cc
-.f.....g..
-....+kk+..
-....j..g..
-..ii+ii+i.
+f...a
++eee+ee
+f...+ddd+
+f...a...c
+b+bb+bbb+
+.h..a...c
+.h..a...c
+.+gg+
 """, None),
 ]

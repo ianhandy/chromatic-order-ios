@@ -236,12 +236,9 @@ final class GameState {
     var lClampMax: Double
     var cClampMin: Double
     var cClampMax: Double
-    /// Max seconds between two taps that still register as a double-
-    /// tap zoom toggle. Lower = tighter (demands quicker successive
-    /// taps); higher = more forgiving for slower fingers. Lives in
-    /// the accessibility bundle so it roundtrips with the other
-    /// assist settings.
-    var doubleTapInterval: Double
+    /// Whether a double-tap on the board toggles the preset zoom.
+    /// Pinch zoom remains available independently.
+    var doubleTapZoomEnabled: Bool
     /// Snap-to-nearest-cell assist during drags. Off = direct-hit
     /// only (finger must land inside the cell rect). Some players
     /// prefer that for precision placement.
@@ -290,6 +287,9 @@ final class GameState {
     /// Show the number of board placements beside the timer. Moves are
     /// recorded in every mode whether or not this readout is visible.
     var movesVisible: Bool
+    /// Player-selected app appearance. System follows the device setting;
+    /// Light and Dark explicitly override it for the whole scene.
+    var appearanceMode: AppAppearance
     /// Frame rate cap for the main-menu palette animation. 30 / 60
     /// / 120 — 120 only pays off on ProMotion displays and can feel
     /// laggy on older devices. 30 is the default; pick higher for
@@ -646,7 +646,7 @@ final class GameState {
         self.lClampMax = OK.lMax
         self.cClampMin = OK.cMin
         self.cClampMax = OK.cMax
-        self.doubleTapInterval = a11y.doubleTapInterval
+        self.doubleTapZoomEnabled = a11y.doubleTapZoomEnabled
         self.magnetismEnabled = a11y.magnetismEnabled
         self.edgeVignetteEnabled = a11y.edgeVignetteEnabled
         self.menuBackdropEnabled = a11y.menuBackdropEnabled
@@ -657,6 +657,7 @@ final class GameState {
         self.hapticsEnabled = a11y.hapticsEnabled
         self.timerVisible = a11y.timerVisible
         self.movesVisible = a11y.movesVisible
+        self.appearanceMode = a11y.appearanceMode
         self.menuFps = a11y.menuFps
         let testing = Self.loadTestingFilter()
         self.testingEnabled = testing.enabled
@@ -691,7 +692,7 @@ final class GameState {
     // ─── Accessibility ──────────────────────────────────────────────
 
     private struct AccessibilityBundle {
-        var doubleTapInterval: Double
+        var doubleTapZoomEnabled: Bool
         var magnetismEnabled: Bool
         var edgeVignetteEnabled: Bool
         var menuBackdropEnabled: Bool
@@ -702,10 +703,11 @@ final class GameState {
         var hapticsEnabled: Bool
         var timerVisible: Bool
         var movesVisible: Bool
+        var appearanceMode: AppAppearance
         var menuFps: Int
 
         static let defaults = AccessibilityBundle(
-            doubleTapInterval: 0.28,
+            doubleTapZoomEnabled: true,
             magnetismEnabled: true,
             edgeVignetteEnabled: true,
             menuBackdropEnabled: true,
@@ -716,6 +718,7 @@ final class GameState {
             hapticsEnabled: true,
             timerVisible: true,
             movesVisible: true,
+            appearanceMode: .system,
             menuFps: 30
         )
     }
@@ -725,8 +728,7 @@ final class GameState {
               let dict = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
         else { return .defaults }
         let b = AccessibilityBundle(
-            doubleTapInterval: min(max((dict["doubleTapInterval"] as? Double) ?? 0.28,
-                                       0.15), 0.60),
+            doubleTapZoomEnabled: (dict["doubleTapZoomEnabled"] as? Bool) ?? true,
             magnetismEnabled: (dict["magnetismEnabled"] as? Bool) ?? true,
             edgeVignetteEnabled: (dict["edgeVignetteEnabled"] as? Bool) ?? true,
             menuBackdropEnabled: (dict["menuBackdropEnabled"] as? Bool) ?? true,
@@ -738,6 +740,8 @@ final class GameState {
             hapticsEnabled: (dict["hapticsEnabled"] as? Bool) ?? true,
             timerVisible: (dict["timerVisible"] as? Bool) ?? true,
             movesVisible: (dict["movesVisible"] as? Bool) ?? true,
+            appearanceMode: (dict["appearanceMode"] as? String)
+                .flatMap(AppAppearance.init(rawValue:)) ?? .system,
             menuFps: (dict["menuFps"] as? Int) ?? 30
         )
         return b
@@ -745,7 +749,7 @@ final class GameState {
 
     private func saveAccessibility() {
         let dict: [String: Any] = [
-            "doubleTapInterval": doubleTapInterval,
+            "doubleTapZoomEnabled": doubleTapZoomEnabled,
             "magnetismEnabled": magnetismEnabled,
             "edgeVignetteEnabled": edgeVignetteEnabled,
             "menuBackdropEnabled": menuBackdropEnabled,
@@ -756,6 +760,7 @@ final class GameState {
             "hapticsEnabled": hapticsEnabled,
             "timerVisible": timerVisible,
             "movesVisible": movesVisible,
+            "appearanceMode": appearanceMode.rawValue,
             "menuFps": menuFps,
         ]
         if let data = try? JSONSerialization.data(withJSONObject: dict) {
@@ -789,7 +794,7 @@ final class GameState {
         lClampMax = OK.lMax
         cClampMin = OK.cMin
         cClampMax = OK.cMax
-        doubleTapInterval = d.doubleTapInterval
+        doubleTapZoomEnabled = d.doubleTapZoomEnabled
         magnetismEnabled = d.magnetismEnabled
         edgeVignetteEnabled = d.edgeVignetteEnabled
         menuBackdropEnabled = d.menuBackdropEnabled
@@ -800,6 +805,7 @@ final class GameState {
         hapticsEnabled = d.hapticsEnabled
         timerVisible = d.timerVisible
         movesVisible = d.movesVisible
+        appearanceMode = d.appearanceMode
         menuFps = d.menuFps
         cbMode = .none
         // The testing filter is not an accessibility setting, but a

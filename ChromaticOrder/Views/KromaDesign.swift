@@ -16,7 +16,42 @@
 
 import SwiftUI
 
+enum AppAppearance: String, CaseIterable, Identifiable {
+    case system
+    case light
+    case dark
+
+    var id: String { rawValue }
+
+    var label: String {
+        switch self {
+        case .system: return "System"
+        case .light:  return "Light"
+        case .dark:   return "Dark"
+        }
+    }
+
+    var preferredColorScheme: ColorScheme? {
+        switch self {
+        case .system: return nil
+        case .light:  return .light
+        case .dark:   return .dark
+        }
+    }
+}
+
 enum Kroma {
+
+    /// Semantic colors for the full-screen game and main menu. Puzzle
+    /// colors stay untouched; only the canvas and its text invert.
+    enum Canvas {
+        static let background = Color(uiColor: .systemBackground)
+        static let primaryText = Color.primary.opacity(0.92)
+        static let secondaryText = Color.primary.opacity(0.60)
+        static let tertiaryText = Color.primary.opacity(0.42)
+        static let emptyFill = Color.primary.opacity(0.14)
+        static let emptyStroke = Color.primary.opacity(0.22)
+    }
 
     /// 8-point rhythm with 4-point optical steps. A team convention, not
     /// an Apple mandate — but applied consistently it is what makes
@@ -87,17 +122,17 @@ enum KromaSurface {
     fileprivate func fill(contrast: ColorSchemeContrast) -> Color {
         let high = contrast == .increased
         switch self {
-        case .control:       return .white.opacity(high ? 0.20 : 0.08)
-        case .controlActive: return .white.opacity(high ? 0.34 : 0.18)
-        case .panel:         return .black.opacity(high ? 0.95 : 0.82)
+        case .control:       return .primary.opacity(high ? 0.20 : 0.08)
+        case .controlActive: return .primary.opacity(high ? 0.34 : 0.18)
+        case .panel:         return Kroma.Canvas.background.opacity(high ? 0.98 : 0.90)
         }
     }
 
     fileprivate func stroke(contrast: ColorSchemeContrast) -> Color {
         let high = contrast == .increased
         switch self {
-        case .control, .controlActive: return .white.opacity(high ? 0.65 : 0.25)
-        case .panel:                   return .white.opacity(high ? 0.55 : 0.18)
+        case .control, .controlActive: return .primary.opacity(high ? 0.65 : 0.25)
+        case .panel:                   return .primary.opacity(high ? 0.55 : 0.18)
         }
     }
 }

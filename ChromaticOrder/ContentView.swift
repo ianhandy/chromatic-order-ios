@@ -95,7 +95,7 @@ struct ContentView: View {
 
     var body: some View {
         ZStack {
-            Color.black
+            Kroma.Canvas.background
                 .ignoresSafeArea()
 
             // Wrap the loading ⇄ playing swap in a single Group so
@@ -112,8 +112,8 @@ struct ContentView: View {
                     VStack {
                         ProgressView("building puzzle…")
                             .font(Kroma.font(.subheadline, .bold))
-                            .tint(.white)
-                            .foregroundStyle(.white.opacity(0.7))
+                            .tint(.primary)
+                            .foregroundStyle(Kroma.Canvas.secondaryText)
                     }
                     .transition(.opacity)
                 } else if game.puzzle == nil && game.mode == .daily && game.dailyUnavailable {
@@ -124,13 +124,13 @@ struct ContentView: View {
                     VStack(spacing: 14) {
                         Image(systemName: "calendar.badge.exclamationmark")
                             .font(Kroma.font(.largeTitle))
-                            .foregroundStyle(.white.opacity(0.55))
+                            .foregroundStyle(Kroma.Canvas.secondaryText)
                         Text("no daily yet")
                             .font(Kroma.font(.title2, .heavy))
-                            .foregroundStyle(.white.opacity(0.9))
+                            .foregroundStyle(Kroma.Canvas.primaryText)
                         Text("Check back later — today's puzzle hasn't been published yet.")
                             .font(Kroma.font(.subheadline, .medium))
-                            .foregroundStyle(.white.opacity(0.6))
+                            .foregroundStyle(Kroma.Canvas.secondaryText)
                             .multilineTextAlignment(.center)
                             .padding(.horizontal, Kroma.Space.xxl)
                         Button {
@@ -138,7 +138,7 @@ struct ContentView: View {
                         } label: {
                             Text("try again")
                                 .font(Kroma.font(.subheadline, .bold))
-                                .foregroundStyle(.white)
+                                .foregroundStyle(Kroma.Canvas.primaryText)
                                 .padding(.horizontal, Kroma.Space.xl)
                                 .padding(.vertical, Kroma.Space.m)
                                 .frame(minHeight: Kroma.Metrics.minTarget)
@@ -151,8 +151,8 @@ struct ContentView: View {
                     VStack {
                         ProgressView("building puzzle…")
                             .font(Kroma.font(.subheadline, .bold))
-                            .tint(.white)
-                            .foregroundStyle(.white.opacity(0.7))
+                            .tint(.primary)
+                            .foregroundStyle(Kroma.Canvas.secondaryText)
                     }
                     .transition(.opacity)
                 } else {
@@ -212,9 +212,9 @@ struct ContentView: View {
                                 Text("perfect")
                                     .font(.system(size: perfectBannerSize, weight: .heavy, design: .rounded))
                                     .accessibilityAddTraits(.isStaticText)
-                                    .foregroundStyle(Color.white)
+                                    .foregroundStyle(Kroma.Canvas.primaryText)
                                     .tracking(2)
-                                    .shadow(color: .white.opacity(0.35), radius: 18, y: 0)
+                                    .shadow(color: Color.primary.opacity(0.25), radius: 18, y: 0)
                                     .shadow(color: .black.opacity(0.6), radius: 6, y: 2)
                                     .transition(.opacity.combined(with: .scale(scale: 0.92)))
                             }
@@ -251,7 +251,7 @@ struct ContentView: View {
                         } label: {
                             Image(systemName: saveImageIconName)
                                 .font(Kroma.font(.headline, .semibold))
-                                .foregroundStyle(.white.opacity(0.75))
+                                .foregroundStyle(Kroma.Canvas.secondaryText)
                                 .frame(minWidth: solvedRowHeight,
                                        minHeight: solvedRowHeight)
                                 .contentShape(Rectangle())
@@ -795,14 +795,14 @@ struct ContentView: View {
             // black rather than poking out over the top bar or bank.
             VStack(spacing: 0) {
                 LinearGradient(
-                    colors: [.black, .clear],
+                    colors: [Kroma.Canvas.background, .clear],
                     startPoint: .top,
                     endPoint: .bottom
                 )
                 .frame(height: Self.topBarStripHeight)
                 Spacer(minLength: 0)
                 LinearGradient(
-                    colors: [.clear, .black],
+                    colors: [.clear, Kroma.Canvas.background],
                     startPoint: .top,
                     endPoint: .bottom
                 )
@@ -1078,23 +1078,23 @@ private struct RunCompleteOverlay: View {
 
     var body: some View {
         ZStack {
-            Color.black.opacity(0.82)
+            Kroma.Canvas.background.opacity(0.92)
                 .ignoresSafeArea()
                 .contentShape(Rectangle())
 
             VStack(spacing: Kroma.Space.xl) {
                 Text("run complete!")
                     .font(Kroma.font(.largeTitle, .heavy))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(Kroma.Canvas.primaryText)
                 VStack(spacing: Kroma.Space.xs) {
                     Text("levels complete")
                         .font(Kroma.font(.caption, .semibold))
-                        .foregroundStyle(.white.opacity(0.6))
+                        .foregroundStyle(Kroma.Canvas.secondaryText)
                     Text("\(levelsCompleted)")
                         .font(.system(size: countSize, weight: .black, design: .rounded))
                         .minimumScaleFactor(0.6)
                         .lineLimit(1)
-                        .foregroundStyle(.white)
+                        .foregroundStyle(Kroma.Canvas.primaryText)
                         .monospacedDigit()
                 }
                 Button(action: onExit) {

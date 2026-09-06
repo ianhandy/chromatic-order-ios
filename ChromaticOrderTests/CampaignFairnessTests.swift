@@ -173,7 +173,7 @@ final class CampaignFairnessTests: XCTestCase {
         let tolerance = 1.5
 
         var drifted: [String] = []
-        var ceilingByChapter: [(chapter: String, target: Double)] = []
+        var curveByChapter: [(chapter: String, floor: Double, ceiling: Double)] = []
 
         for entry in CampaignCatalog.levels {
             guard let target = entry.difficultyTarget else {
@@ -196,11 +196,11 @@ final class CampaignFairnessTests: XCTestCase {
                 drifted.append("\(entry.index) \(entry.name): records \(measured) "
                                + "wrong against a target of \(target)")
             }
-            if ceilingByChapter.last?.chapter != entry.chapter {
-                ceilingByChapter.append((entry.chapter, target))
+            if curveByChapter.last?.chapter != entry.chapter {
+                curveByChapter.append((entry.chapter, target, target))
             } else {
-                ceilingByChapter[ceilingByChapter.count - 1].target =
-                    max(ceilingByChapter[ceilingByChapter.count - 1].target, target)
+                curveByChapter[curveByChapter.count - 1].ceiling =
+                    max(curveByChapter[curveByChapter.count - 1].ceiling, target)
             }
         }
 
@@ -208,22 +208,18 @@ final class CampaignFairnessTests: XCTestCase {
                       "levels that are not on the curve they were built to:\n"
                       + drifted.joined(separator: "\n"))
 
-        // Each chapter normally peaks higher than the last one did. Spare
-        // Parts is the explicit exception: its wrong-cell curve resets while
-        // the unmeasured cost of rejecting surplus swatches carries the new
-        // difficulty. Sections then resumes at that peak and the climb
-        // continues through The Limit.
-        for (earlier, later) in zip(ceilingByChapter, ceilingByChapter.dropFirst()) {
-            if later.chapter == "Spare Parts" {
-                XCTAssertLessThan(later.target, earlier.target,
-                                  "Spare Parts should reset cell-level difficulty")
-            } else {
-                XCTAssertLessThanOrEqual(
-                    earlier.target, later.target,
-                    "\(earlier.chapter) peaks at \(earlier.target) wrong cells but "
-                    + "\(later.chapter), which comes after it, peaks at "
-                    + "\(later.target) — the campaign gets easier as it goes")
-            }
+        // Every chapter opens below the previous peak, then reaches at least
+        // that peak. Spare Parts follows the same sawtooth at book scale: its
+        // floor resets sharply while its decoy-loaded finale still advances.
+        for (earlier, later) in zip(curveByChapter, curveByChapter.dropFirst()) {
+            XCTAssertLessThan(
+                later.floor, earlier.ceiling,
+                "\(later.chapter) should open below \(earlier.chapter)'s peak")
+            XCTAssertGreaterThanOrEqual(
+                later.ceiling, earlier.ceiling,
+                "\(earlier.chapter) peaks at \(earlier.ceiling) wrong cells but "
+                + "\(later.chapter), which comes after it, peaks at "
+                + "\(later.ceiling); the campaign gets easier as it goes")
         }
     }
 

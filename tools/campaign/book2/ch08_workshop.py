@@ -1,4 +1,4 @@
-# Chapter 8: Workshop (levels 101-120)
+# Workshop (levels 121-140)
 SHAPES = [
     ("Screwdriver", "\n.......f.e\n.....+c+.e\naaaaa+.f.e\n.....b.f.e\n....d+d+.e\n", "Place the longest run first, then work outward from the cells it fixes."),
 

@@ -16,7 +16,7 @@ struct OnboardingOverlay: View {
                     .font(Kroma.font(.callout, .semibold))
                     .tracking(0.6)
                     .textCase(.lowercase)
-                    .foregroundStyle(.white)
+                    .foregroundStyle(Kroma.Canvas.primaryText)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, Kroma.Space.l)
                     .padding(.vertical, Kroma.Space.s)

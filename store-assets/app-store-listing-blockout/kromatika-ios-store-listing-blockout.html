@@ -1,0 +1,435 @@
+<div id="kromatika-store-blockout">
+  <style>
+    #kromatika-store-blockout {
+      color-scheme: light dark;
+      display: grid;
+      place-items: start center;
+      width: 100%;
+      padding: 12px 0;
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif;
+      color: light-dark(#111114, #f5f5f7);
+    }
+
+    #kromatika-store-blockout * {
+      box-sizing: border-box;
+    }
+
+    #kromatika-store-blockout .kromatika-ios-screen {
+      width: min(100%, 430px);
+      overflow: hidden;
+      border-radius: 46px;
+      background: light-dark(#f2f2f7, #000000);
+      box-shadow: 0 18px 54px light-dark(rgba(31, 31, 38, 0.18), rgba(0, 0, 0, 0.52));
+    }
+
+    #kromatika-store-blockout .kromatika-status-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 52px;
+      padding: 10px 24px 0;
+      font-weight: 500;
+    }
+
+    #kromatika-store-blockout .kromatika-status-icons {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+    }
+
+    #kromatika-store-blockout .kromatika-signal {
+      display: inline-flex;
+      align-items: end;
+      gap: 2px;
+      height: 13px;
+    }
+
+    #kromatika-store-blockout .kromatika-signal > span {
+      display: block;
+      width: 3px;
+      border-radius: 2px;
+      background: currentColor;
+    }
+
+    #kromatika-store-blockout .kromatika-signal > span:nth-child(1) {
+      height: 4px;
+    }
+
+    #kromatika-store-blockout .kromatika-signal > span:nth-child(2) {
+      height: 7px;
+    }
+
+    #kromatika-store-blockout .kromatika-signal > span:nth-child(3) {
+      height: 10px;
+    }
+
+    #kromatika-store-blockout .kromatika-wifi {
+      width: 14px;
+      height: 10px;
+      border: 3px solid currentColor;
+      border-right-color: transparent;
+      border-bottom-color: transparent;
+      border-radius: 10px 0 0;
+      transform: rotate(45deg);
+    }
+
+    #kromatika-store-blockout .kromatika-battery {
+      position: relative;
+      width: 20px;
+      height: 10px;
+      border: 2px solid currentColor;
+      border-radius: 3px;
+    }
+
+    #kromatika-store-blockout .kromatika-battery::before {
+      content: "";
+      position: absolute;
+      inset: 2px;
+      border-radius: 1px;
+      background: currentColor;
+    }
+
+    #kromatika-store-blockout .kromatika-battery::after {
+      content: "";
+      position: absolute;
+      top: 2px;
+      right: -4px;
+      width: 2px;
+      height: 4px;
+      border-radius: 0 2px 2px 0;
+      background: currentColor;
+    }
+
+    #kromatika-store-blockout .kromatika-store-nav {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      min-height: 48px;
+      padding: 0 10px;
+    }
+
+    #kromatika-store-blockout .kromatika-nav-action {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 44px;
+      min-height: 44px;
+      padding: 0 10px;
+      border: 0;
+      background: transparent;
+      color: #0a84ff;
+      font: inherit;
+      font-weight: 400;
+    }
+
+    #kromatika-store-blockout .kromatika-nav-title {
+      font-weight: 500;
+    }
+
+    #kromatika-store-blockout .kromatika-listing-content {
+      padding: 8px 20px 28px;
+    }
+
+    #kromatika-store-blockout .kromatika-app-header {
+      display: grid;
+      grid-template-columns: 112px minmax(0, 1fr);
+      gap: 16px;
+      align-items: center;
+      padding: 8px 0 22px;
+    }
+
+    #kromatika-store-blockout .kromatika-app-icon {
+      display: block;
+      width: 112px;
+      height: 112px;
+      border-radius: 25px;
+      object-fit: cover;
+      background: #f6f3f6;
+      box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.08);
+    }
+
+    #kromatika-store-blockout .kromatika-app-title {
+      margin: 0;
+      font-size: 24px;
+      line-height: 1.08;
+      font-weight: 500;
+      letter-spacing: -0.02em;
+    }
+
+    #kromatika-store-blockout .kromatika-app-subtitle {
+      margin: 5px 0 16px;
+      color: light-dark(#68686d, #98989f);
+      font-size: 15px;
+      line-height: 1.3;
+    }
+
+    #kromatika-store-blockout .kromatika-acquire-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    #kromatika-store-blockout .kromatika-get-button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 76px;
+      min-height: 44px;
+      padding: 0 18px;
+      border: 0;
+      border-radius: 22px;
+      background: #0a84ff;
+      color: #ffffff;
+      font: inherit;
+      font-weight: 500;
+    }
+
+    #kromatika-store-blockout .kromatika-purchase-note {
+      color: light-dark(#68686d, #98989f);
+      font-size: 12px;
+      line-height: 1.2;
+    }
+
+    #kromatika-store-blockout .kromatika-facts {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      margin: 0 -20px;
+      padding: 16px 20px;
+      border-top: 1px solid light-dark(#d7d7dc, #2c2c2e);
+      border-bottom: 1px solid light-dark(#d7d7dc, #2c2c2e);
+    }
+
+    #kromatika-store-blockout .kromatika-fact {
+      min-width: 0;
+      text-align: center;
+    }
+
+    #kromatika-store-blockout .kromatika-fact + .kromatika-fact {
+      border-left: 1px solid light-dark(#d7d7dc, #2c2c2e);
+    }
+
+    #kromatika-store-blockout .kromatika-fact-label {
+      color: light-dark(#7d7d84, #8e8e93);
+      font-size: 11px;
+      line-height: 1.2;
+      font-weight: 500;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+
+    #kromatika-store-blockout .kromatika-fact-value {
+      display: block;
+      margin-top: 5px;
+      font-size: 15px;
+      line-height: 1.25;
+      font-weight: 500;
+    }
+
+    #kromatika-store-blockout .kromatika-section-heading {
+      margin: 22px 0 12px;
+      font-size: 21px;
+      line-height: 1.2;
+      font-weight: 500;
+      letter-spacing: -0.015em;
+    }
+
+    #kromatika-store-blockout .kromatika-shot-strip {
+      display: flex;
+      gap: 12px;
+      margin: 0 -20px;
+      padding: 0 20px 8px;
+      overflow-x: auto;
+      scroll-snap-type: x mandatory;
+      scrollbar-width: none;
+    }
+
+    #kromatika-store-blockout .kromatika-shot-strip::-webkit-scrollbar {
+      display: none;
+    }
+
+    #kromatika-store-blockout .kromatika-shot {
+      position: relative;
+      flex: 0 0 252px;
+      aspect-ratio: 1320 / 2868;
+      overflow: hidden;
+      scroll-snap-align: start;
+      border-radius: 28px;
+      background-color: #000000;
+      background-position: center;
+      background-size: cover;
+      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.12);
+    }
+
+    #kromatika-store-blockout .kromatika-shot:nth-child(1) {
+      background-image: url("../kromatika-palette-panorama/kromatika-palette-v5-01.png");
+    }
+
+    #kromatika-store-blockout .kromatika-shot:nth-child(2) {
+      background-image: url("../kromatika-palette-panorama/kromatika-palette-v5-02.png");
+    }
+
+    #kromatika-store-blockout .kromatika-shot:nth-child(3) {
+      background-image: url("../kromatika-palette-panorama/kromatika-palette-v5-03.png");
+    }
+
+    #kromatika-store-blockout .kromatika-shot:nth-child(4) {
+      background-image: url("../kromatika-palette-panorama/kromatika-palette-v5-04.png");
+    }
+
+    #kromatika-store-blockout .kromatika-shot:nth-child(5) {
+      background-image: url("../kromatika-palette-panorama/kromatika-palette-v5-05.png");
+    }
+
+    #kromatika-store-blockout .kromatika-shot:nth-child(6) {
+      background-image: url("../kromatika-palette-panorama/kromatika-palette-v5-06.png");
+    }
+
+    #kromatika-store-blockout .kromatika-shot-copy {
+      position: absolute;
+      inset: 28px 22px auto;
+      margin: 0;
+      color: #ffffff;
+      font-size: 27px;
+      line-height: 1.04;
+      font-weight: 500;
+      letter-spacing: -0.03em;
+      text-wrap: balance;
+    }
+
+    #kromatika-store-blockout .kromatika-shot-mark {
+      position: absolute;
+      right: 20px;
+      bottom: 18px;
+      color: rgba(255, 255, 255, 0.72);
+      font-size: 12px;
+      line-height: 1;
+      font-weight: 500;
+      letter-spacing: 0.02em;
+    }
+
+    #kromatika-store-blockout .kromatika-description {
+      margin: 0;
+      color: light-dark(#2c2c31, #e5e5ea);
+      font-size: 16px;
+      line-height: 1.4;
+    }
+
+    #kromatika-store-blockout .kromatika-developer-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      min-height: 54px;
+      margin-top: 20px;
+      border-top: 1px solid light-dark(#d7d7dc, #2c2c2e);
+      color: #0a84ff;
+      font-size: 16px;
+    }
+
+    @media (max-width: 480px) {
+      #kromatika-store-blockout {
+        padding: 0;
+      }
+
+      #kromatika-store-blockout .kromatika-ios-screen {
+        border-radius: 0;
+        box-shadow: none;
+      }
+    }
+  </style>
+
+  <section class="kromatika-ios-screen" aria-label="Kromatika App Store product page blockout">
+    <div class="kromatika-status-bar" aria-hidden="true">
+      <span>9:41</span>
+      <span class="kromatika-status-icons">
+        <span class="kromatika-signal"><span></span><span></span><span></span></span>
+        <span class="kromatika-wifi"></span>
+        <span class="kromatika-battery"></span>
+      </span>
+    </div>
+
+    <nav class="kromatika-store-nav" aria-label="App Store navigation">
+      <button class="kromatika-nav-action" type="button" aria-label="Back to Games">&lsaquo; Games</button>
+      <span class="kromatika-nav-title">App Store</span>
+      <button class="kromatika-nav-action" type="button" aria-label="Share Kromatika">Share</button>
+    </nav>
+
+    <div class="kromatika-listing-content">
+      <header class="kromatika-app-header">
+        <img
+          class="kromatika-app-icon"
+          src="../../ChromaticOrder/Assets.xcassets/AppIcon.appiconset/icon-1024.png"
+          alt="Kromatika app icon"
+        >
+        <div>
+          <h1 class="kromatika-app-title">Kromatika</h1>
+          <p class="kromatika-app-subtitle">Color gradient puzzles</p>
+          <div class="kromatika-acquire-row">
+            <button class="kromatika-get-button" type="button">GET</button>
+            <span class="kromatika-purchase-note">In-App Purchases</span>
+          </div>
+        </div>
+      </header>
+
+      <div class="kromatika-facts" aria-label="App facts">
+        <div class="kromatika-fact">
+          <span class="kromatika-fact-label">Genre</span>
+          <span class="kromatika-fact-value">Puzzle</span>
+        </div>
+        <div class="kromatika-fact">
+          <span class="kromatika-fact-label">Campaign</span>
+          <span class="kromatika-fact-value">220 levels</span>
+        </div>
+        <div class="kromatika-fact">
+          <span class="kromatika-fact-label">Play</span>
+          <span class="kromatika-fact-value">Daily</span>
+        </div>
+      </div>
+
+      <h2 class="kromatika-section-heading">Preview</h2>
+      <div class="kromatika-shot-strip" aria-label="Kromatika screenshot concepts">
+        <article class="kromatika-shot" aria-label="A puzzle in every color">
+          <p class="kromatika-shot-copy">a puzzle in every color</p>
+          <span class="kromatika-shot-mark">kromatika</span>
+        </article>
+        <article class="kromatika-shot" aria-label="Restore the spectrum">
+          <p class="kromatika-shot-copy">restore the spectrum</p>
+          <span class="kromatika-shot-mark">kromatika</span>
+        </article>
+        <article class="kromatika-shot" aria-label="220 handcrafted puzzles">
+          <p class="kromatika-shot-copy">220 handcrafted puzzles</p>
+          <span class="kromatika-shot-mark">kromatika</span>
+        </article>
+        <article class="kromatika-shot" aria-label="A new puzzle every day">
+          <p class="kromatika-shot-copy">a new puzzle every day</p>
+          <span class="kromatika-shot-mark">kromatika</span>
+        </article>
+        <article class="kromatika-shot" aria-label="Make one of your own">
+          <p class="kromatika-shot-copy">make one of your own</p>
+          <span class="kromatika-shot-mark">kromatika</span>
+        </article>
+        <article class="kromatika-shot" aria-label="Made to be seen">
+          <p class="kromatika-shot-copy">made to be seen</p>
+          <span class="kromatika-shot-mark">kromatika</span>
+        </article>
+      </div>
+
+      <h2 class="kromatika-section-heading">About</h2>
+      <p class="kromatika-description">Restore color gradients, one tile at a time. Follow a handcrafted campaign, solve a fresh daily puzzle, settle into an endless run, or build one of your own.</p>
+
+      <div class="kromatika-developer-row">
+        <span>Ian Handy</span>
+        <span aria-hidden="true">&rsaquo;</span>
+      </div>
+    </div>
+  </section>
+
+  <script>
+    (() => {
+      const root = document.getElementById("kromatika-store-blockout");
+      const getButton = root.querySelector(".kromatika-get-button");
+      getButton.addEventListener("click", () => {
+        getButton.textContent = getButton.textContent === "GET" ? "OPEN" : "GET";
+      });
+    })();
+  </script>
+</div>

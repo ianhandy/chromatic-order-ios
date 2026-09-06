@@ -500,18 +500,18 @@ struct DailyShowAnswersPrompt: View {
 
     var body: some View {
         ZStack {
-            Color.black.opacity(0.88).ignoresSafeArea()
+            Kroma.Canvas.background.opacity(0.94).ignoresSafeArea()
             VStack(spacing: 18) {
                 Spacer()
                 Image(systemName: "eye.trianglebadge.exclamationmark")
                     .font(.system(size: iconSize, weight: .light))
-                    .foregroundStyle(.white.opacity(0.80))
+                    .foregroundStyle(Kroma.Canvas.secondaryText)
                 Text(Strings.DailyPrompt.title)
                     .font(Kroma.font(.title, .heavy))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(Kroma.Canvas.primaryText)
                 Text(Strings.DailyPrompt.body)
                     .font(Kroma.font(.subheadline, .regular))
-                    .foregroundStyle(.white.opacity(0.78))
+                    .foregroundStyle(Kroma.Canvas.secondaryText)
                     .multilineTextAlignment(.center)
                     .lineSpacing(4)
                     .padding(.horizontal, Kroma.Space.xl)
@@ -526,9 +526,9 @@ struct DailyShowAnswersPrompt: View {
                             .font(Kroma.font(.subheadline, .bold))
                             .padding(.horizontal, 22)
                             .frame(minHeight: 46)
-                            .background(Color.white.opacity(0.16), in: Capsule())
-                            .overlay(Capsule().stroke(Color.white.opacity(0.30), lineWidth: 1))
-                            .foregroundStyle(.white)
+                            .background(Color.primary.opacity(0.10), in: Capsule())
+                            .overlay(Capsule().stroke(Color.primary.opacity(0.30), lineWidth: 1))
+                            .foregroundStyle(Kroma.Canvas.primaryText)
                     }
                     .buttonStyle(.plain)
                     Button {

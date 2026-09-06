@@ -61,7 +61,7 @@ struct MenuView: View {
 
     var body: some View {
         ZStack {
-            Color.black.ignoresSafeArea()
+            Kroma.Canvas.background.ignoresSafeArea()
 
             if game.menuBackdropEnabled && !shouldReduceMotion && !isPresentingDestination {
                 // Backdrop starts at 50% opacity and ramps up with the
@@ -84,7 +84,7 @@ struct MenuView: View {
                 VStack(alignment: .trailing, spacing: Kroma.Space.xl) {
                     Text(Strings.Menu.title)
                         .font(.system(size: 72, weight: .heavy, design: .rounded))
-                        .foregroundStyle(Color.white.opacity(0.70))
+                        .foregroundStyle(Color.primary.opacity(0.70))
                         .tracking(-1)
                         .lineLimit(1)
                         // Scale the wordmark down on narrower devices
@@ -569,7 +569,7 @@ struct MenuView: View {
     private func detailText(_ detail: String) -> some View {
         Text(detail)
             .font(Kroma.font(.subheadline, .semibold))
-            .foregroundStyle(Color.white.opacity(0.50))
+            .foregroundStyle(Color.primary.opacity(0.55))
     }
 
     /// Shared row body. The optional detail leads the label so every
@@ -606,7 +606,7 @@ struct MenuView: View {
                     if locked {
                         Image(systemName: "lock.fill")
                             .font(Kroma.font(.caption, .bold))
-                            .foregroundStyle(Color.white.opacity(0.42))
+                            .foregroundStyle(Kroma.Canvas.tertiaryText)
                             .accessibilityHidden(true)
                     }
                     if let detail, !stackDetailAboveLabel {
@@ -620,7 +620,7 @@ struct MenuView: View {
                     }
                     Text(label)
                         .font(font)
-                        .foregroundStyle(Color.white.opacity(opacity))
+                        .foregroundStyle(Color.primary.opacity(opacity))
                 }
             }
             .multilineTextAlignment(.trailing)
@@ -635,7 +635,7 @@ struct MenuView: View {
                         .padding(.horizontal, -Kroma.Space.m)
                         .padding(.vertical, -Kroma.Space.xs)
                         .shadow(color: Color.accentColor.opacity(0.80), radius: 12)
-                        .shadow(color: .white.opacity(0.22), radius: 22)
+                        .shadow(color: Color.primary.opacity(0.22), radius: 22)
                         .allowsHitTesting(false)
                 }
             }

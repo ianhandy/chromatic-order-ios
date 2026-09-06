@@ -82,13 +82,14 @@ final class DecoyPlayabilityTests: XCTestCase {
     /// boards are omitted without consuming one of the three-board cadence
     /// slots, and the chapter opener remains a clean geometry introduction.
     func testRecurringCampaignDecoysUseEveryThirdEligibleBoard() {
-        let later = CampaignCatalog.levels.filter { $0.index > 180 }
-        let fairDecoyExclusions: Set<Int> = [198, 210, 213]
+        let later = CampaignCatalog.levels.filter { $0.index > 120 }
+        let fairDecoyExclusions: Set<Int> = [122, 174, 178, 198, 210, 213]
         let eligible = later.filter {
-            $0.cellCount <= 45 && !fairDecoyExclusions.contains($0.index)
+            $0.cellCount <= 45
         }
         let expected = Set(eligible.enumerated().compactMap { offset, entry in
-            offset % 3 == 1 ? entry.index : nil
+            offset % 3 == 1 && !fairDecoyExclusions.contains(entry.index)
+                ? entry.index : nil
         })
         let actual = Set(later.compactMap { entry in
             (entry.doc.decoys ?? []).isEmpty ? nil : entry.index
@@ -102,7 +103,7 @@ final class DecoyPlayabilityTests: XCTestCase {
             ($0.doc.decoys ?? []).isEmpty
         })
 
-        let teaching = CampaignCatalog.levels.filter { (161...180).contains($0.index) }
+        let teaching = CampaignCatalog.levels.filter { (101...120).contains($0.index) }
         XCTAssertTrue(teaching.allSatisfy {
             (1...3).contains(($0.doc.decoys ?? []).count)
         })

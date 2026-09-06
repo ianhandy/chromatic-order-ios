@@ -39,7 +39,7 @@ struct CellView: View {
                 // pulling focus from filled cells.
                 if !filled {
                     RoundedRectangle(cornerRadius: radius, style: .continuous)
-                        .fill(Color.white.opacity(0.14))
+                        .fill(Kroma.Canvas.emptyFill)
                         .frame(width: cellPx, height: cellPx)
                 }
                 // Solved-burst glow behind color (z-order wise).
@@ -139,7 +139,7 @@ struct CellView: View {
                 if isHinted {
                     RoundedRectangle(cornerRadius: radius, style: .continuous)
                         .inset(by: 1.5)
-                        .stroke(Color.white.opacity(0.92), lineWidth: max(2.5, cellPx * 0.07))
+                        .stroke(Color.primary.opacity(0.92), lineWidth: max(2.5, cellPx * 0.07))
                         .frame(width: cellPx, height: cellPx)
                         .allowsHitTesting(false)
                 }

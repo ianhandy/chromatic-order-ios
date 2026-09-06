@@ -1,0 +1,1687 @@
+{
+ "format": "blockout/2",
+ "name": "Kromatika iOS App Store Story",
+ "padding": 0,
+ "theme": {
+  "font": "rounded",
+  "bg": "#000000",
+  "surface": "#111114",
+  "ink": "#F5F5F7",
+  "muted": "#98989F",
+  "accent": "#0A84FF"
+ },
+ "states": {},
+ "screens": [
+  {
+   "id": "scr_store",
+   "name": "Product page",
+   "frame": {
+    "preset": "iphone",
+    "w": 393,
+    "h": 852
+   },
+   "note": "Kromatika product page in the iOS App Store. The screenshot story progresses from simple perception through accessibility, calm, challenge, and ordered chromatic complexity.",
+   "root": {
+    "id": "store_root",
+    "type": "stack",
+    "dir": "col",
+    "pad": 0,
+    "gap": 0,
+    "align": "stretch",
+    "w": "fill",
+    "h": "fill",
+    "children": [
+     {
+      "id": "status_bar",
+      "type": "row",
+      "name": "iOS status bar",
+      "dir": "row",
+      "pad": [
+       8,
+       18,
+       0,
+       18
+      ],
+      "gap": 8,
+      "align": "center",
+      "justify": "between",
+      "w": "fill",
+      "h": 40,
+      "children": [
+       {
+        "id": "status_time",
+        "type": "text",
+        "text": "9:41",
+        "role": "label",
+        "w": "hug",
+        "h": "hug",
+        "color": "ink"
+       },
+       {
+        "id": "status_indicators",
+        "type": "text",
+        "name": "signal, wifi, battery",
+        "text": "signal   wifi   battery",
+        "role": "caption",
+        "w": "hug",
+        "h": "hug",
+        "color": "ink"
+       }
+      ]
+     },
+     {
+      "id": "store_nav",
+      "type": "nav-bar",
+      "name": "App Store navigation",
+      "dir": "row",
+      "pad": [
+       4,
+       10,
+       4,
+       10
+      ],
+      "gap": 8,
+      "align": "center",
+      "justify": "between",
+      "w": "fill",
+      "h": 52,
+      "surface": "raised",
+      "children": [
+       {
+        "id": "back_games",
+        "type": "button",
+        "text": "< Games",
+        "variant": "ghost",
+        "w": 92,
+        "h": 44,
+        "radius": 12,
+        "role": "body"
+       },
+       {
+        "id": "store_nav_title",
+        "type": "text",
+        "text": "App Store",
+        "role": "heading",
+        "fontSize": 16,
+        "weight": 600,
+        "w": "hug",
+        "h": "hug",
+        "color": "ink"
+       },
+       {
+        "id": "share_listing",
+        "type": "button",
+        "text": "Share",
+        "variant": "ghost",
+        "w": 76,
+        "h": 44,
+        "radius": 12,
+        "role": "body"
+       }
+      ]
+     },
+     {
+      "id": "product_scroll",
+      "type": "scroll",
+      "name": "Product page content",
+      "dir": "col",
+      "pad": [
+       8,
+       20,
+       28,
+       20
+      ],
+      "gap": 18,
+      "align": "stretch",
+      "w": "fill",
+      "h": "fill",
+      "clip": true,
+      "children": [
+       {
+        "id": "app_header",
+        "type": "row",
+        "name": "App identity and acquisition",
+        "dir": "row",
+        "pad": 0,
+        "gap": 14,
+        "align": "center",
+        "w": "fill",
+        "h": 110,
+        "children": [
+         {
+          "id": "app_icon",
+          "type": "image",
+          "name": "Kromatika icon",
+          "text": "app icon",
+          "w": 96,
+          "h": 96,
+          "radius": 22,
+          "note": "Use the live Kromatika crossword-gradient icon."
+         },
+         {
+          "id": "app_identity",
+          "type": "stack",
+          "dir": "col",
+          "pad": 0,
+          "gap": 4,
+          "align": "stretch",
+          "w": "fill",
+          "h": "hug",
+          "children": [
+           {
+            "id": "app_name",
+            "type": "text",
+            "text": "Kromatika",
+            "role": "heading",
+            "fontSize": 26,
+            "weight": 700,
+            "w": "hug",
+            "h": "hug",
+            "color": "ink"
+           },
+           {
+            "id": "app_subtitle",
+            "type": "text",
+            "text": "Color gradient puzzles",
+            "role": "body",
+            "fontSize": 14,
+            "w": "hug",
+            "h": "hug",
+            "color": "muted"
+           },
+           {
+            "id": "acquire_row",
+            "type": "row",
+            "dir": "row",
+            "pad": 0,
+            "gap": 8,
+            "align": "center",
+            "w": "fill",
+            "h": 36,
+            "children": [
+             {
+              "id": "get_button",
+              "type": "button",
+              "text": "GET",
+              "variant": "primary",
+              "w": 68,
+              "h": 34,
+              "radius": 999,
+              "role": "label"
+             },
+             {
+              "id": "iap_note",
+              "type": "text",
+              "text": "In-App Purchases",
+              "role": "caption",
+              "fontSize": 10,
+              "w": "hug",
+              "h": "hug",
+              "color": "muted"
+             }
+            ]
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "id": "app_facts",
+        "type": "row",
+        "name": "Product facts",
+        "dir": "row",
+        "pad": 0,
+        "gap": 0,
+        "align": "stretch",
+        "w": "fill",
+        "h": 66,
+        "surface": "raised",
+        "children": [
+         {
+          "id": "fact_genre",
+          "type": "stack",
+          "dir": "col",
+          "pad": 0,
+          "gap": 4,
+          "align": "center",
+          "justify": "center",
+          "w": "fill",
+          "h": "fill",
+          "children": [
+           {
+            "id": "fact_genre_label",
+            "type": "text",
+            "text": "GENRE",
+            "role": "caption",
+            "fontSize": 10,
+            "weight": 600,
+            "w": "hug",
+            "h": "hug",
+            "color": "muted"
+           },
+           {
+            "id": "fact_genre_value",
+            "type": "text",
+            "text": "Puzzle",
+            "role": "body",
+            "fontSize": 14,
+            "weight": 600,
+            "w": "hug",
+            "h": "hug",
+            "color": "ink"
+           }
+          ]
+         },
+         {
+          "id": "fact_campaign",
+          "type": "stack",
+          "dir": "col",
+          "pad": 0,
+          "gap": 4,
+          "align": "center",
+          "justify": "center",
+          "w": "fill",
+          "h": "fill",
+          "children": [
+           {
+            "id": "fact_campaign_label",
+            "type": "text",
+            "text": "CAMPAIGN",
+            "role": "caption",
+            "fontSize": 10,
+            "weight": 600,
+            "w": "hug",
+            "h": "hug",
+            "color": "muted"
+           },
+           {
+            "id": "fact_campaign_value",
+            "type": "text",
+            "text": "220 levels",
+            "role": "body",
+            "fontSize": 14,
+            "weight": 600,
+            "w": "hug",
+            "h": "hug",
+            "color": "ink"
+           }
+          ]
+         },
+         {
+          "id": "fact_play",
+          "type": "stack",
+          "dir": "col",
+          "pad": 0,
+          "gap": 4,
+          "align": "center",
+          "justify": "center",
+          "w": "fill",
+          "h": "fill",
+          "children": [
+           {
+            "id": "fact_play_label",
+            "type": "text",
+            "text": "PLAY",
+            "role": "caption",
+            "fontSize": 10,
+            "weight": 600,
+            "w": "hug",
+            "h": "hug",
+            "color": "muted"
+           },
+           {
+            "id": "fact_play_value",
+            "type": "text",
+            "text": "Daily",
+            "role": "body",
+            "fontSize": 14,
+            "weight": 600,
+            "w": "hug",
+            "h": "hug",
+            "color": "ink"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "id": "facts_divider",
+        "type": "divider",
+        "w": "fill",
+        "h": 1
+       },
+       {
+        "id": "preview_heading",
+        "type": "text",
+        "text": "Preview",
+        "role": "heading",
+        "w": "hug",
+        "h": "hug",
+        "color": "ink"
+       },
+       {
+        "id": "screenshot_carousel",
+        "type": "row",
+        "name": "Horizontal screenshot carousel",
+        "note": "All five frames align edge to edge as one panorama, with a single uninterrupted 25-cell OKLCh gradient from the first frame's left edge to the fifth frame's right edge.",
+        "dir": "row",
+        "pad": 0,
+        "gap": 12,
+        "align": "stretch",
+        "w": "fill",
+        "h": 360,
+        "children": [
+         {
+          "id": "screenshot_primary",
+          "type": "card",
+          "name": "Screenshot 1",
+          "dir": "col",
+          "pad": 14,
+          "gap": 12,
+          "align": "stretch",
+          "w": 234,
+          "h": "fill",
+          "radius": 20,
+          "surface": "raised",
+          "children": [
+           {
+            "id": "screenshot_primary_copy",
+            "type": "text",
+            "text": "got an eye\nfor color?",
+            "role": "heading",
+            "fontSize": 24,
+            "weight": 700,
+            "w": "hug",
+            "h": "hug",
+            "color": "ink"
+           },
+           {
+            "id": "screenshot_primary_art",
+            "type": "free",
+            "name": "Validated first puzzle",
+            "note": "Thumbnail of the first legal five-cell Kromatika root run.",
+            "dir": "free",
+            "pad": 0,
+            "w": "fill",
+            "h": "fill",
+            "children": [
+             {
+              "id": "page_eye_0001",
+              "type": "rect",
+              "w": 24,
+              "h": 24,
+              "radius": 7,
+              "fill": "#F05B93",
+              "x": 7,
+              "y": 0
+             },
+             {
+              "id": "page_eye_0002",
+              "type": "rect",
+              "w": 24,
+              "h": 24,
+              "radius": 7,
+              "fill": "#F65B72",
+              "x": 35,
+              "y": 0
+             },
+             {
+              "id": "page_eye_0003",
+              "type": "rect",
+              "w": 24,
+              "h": 24,
+              "radius": 7,
+              "fill": "#F75F4C",
+              "x": 63,
+              "y": 0
+             },
+             {
+              "id": "page_eye_0004",
+              "type": "rect",
+              "w": 24,
+              "h": 24,
+              "radius": 7,
+              "fill": "#F3680F",
+              "x": 91,
+              "y": 0
+             },
+             {
+              "id": "page_eye_0005",
+              "type": "rect",
+              "w": 24,
+              "h": 24,
+              "radius": 7,
+              "fill": "#DD7C07",
+              "x": 119,
+              "y": 0
+             }
+            ]
+           },
+           {
+            "id": "screenshot_brand",
+            "type": "text",
+            "text": "kromatika",
+            "role": "caption",
+            "fontSize": 10,
+            "weight": 600,
+            "w": "hug",
+            "h": "hug",
+            "color": "muted"
+           }
+          ]
+         },
+         {
+          "id": "screenshot_teaser",
+          "type": "card",
+          "name": "Screenshot 2 teaser",
+          "dir": "col",
+          "pad": 12,
+          "gap": 10,
+          "align": "stretch",
+          "w": 105,
+          "h": "fill",
+          "radius": 20,
+          "surface": "raised",
+          "children": [
+           {
+            "id": "screenshot_teaser_copy",
+            "type": "text",
+            "text": "...or\nmaybe not?",
+            "role": "heading",
+            "fontSize": 17,
+            "weight": 700,
+            "w": "hug",
+            "h": "hug",
+            "color": "ink"
+           },
+           {
+            "id": "screenshot_teaser_image",
+            "type": "free",
+            "w": "fill",
+            "h": "fill",
+            "radius": 10,
+            "note": "Unlabeled color gradients from cells two, three, and four converge on the same neutral gray.",
+            "dir": "free",
+            "pad": 0,
+            "name": "Three gradients converging on one gray",
+            "children": [
+             {
+              "id": "page_access_gray_1_0006",
+              "type": "rect",
+              "w": 15,
+              "h": 15,
+              "radius": 7,
+              "fill": "#A47F49",
+              "x": 2,
+              "y": 9
+             },
+             {
+              "id": "page_access_gray_1_0007",
+              "type": "rect",
+              "w": 15,
+              "h": 15,
+              "radius": 7,
+              "fill": {
+               "L": 0.6,
+               "c": 0.05666666666666668,
+               "h": 75
+              },
+              "x": 20,
+              "y": 9
+             },
+             {
+              "id": "page_access_gray_1_0008",
+              "type": "rect",
+              "w": 15,
+              "h": 15,
+              "radius": 7,
+              "fill": {
+               "L": 0.5800000000000001,
+               "c": 0.02833333333333334,
+               "h": 75
+              },
+              "x": 38,
+              "y": 9
+             },
+             {
+              "id": "page_access_gray_1_0009",
+              "type": "rect",
+              "w": 15,
+              "h": 15,
+              "radius": 7,
+              "fill": {
+               "L": 0.56,
+               "c": 0,
+               "h": 75
+              },
+              "x": 56,
+              "y": 9
+             },
+             {
+              "id": "page_access_gray_2_0010",
+              "type": "rect",
+              "w": 15,
+              "h": 15,
+              "radius": 7,
+              "fill": "#81894C",
+              "x": 2,
+              "y": 30
+             },
+             {
+              "id": "page_access_gray_2_0011",
+              "type": "rect",
+              "w": 15,
+              "h": 15,
+              "radius": 7,
+              "fill": {
+               "L": 0.5933333333333334,
+               "c": 0.05666666666666668,
+               "h": 115
+              },
+              "x": 20,
+              "y": 30
+             },
+             {
+              "id": "page_access_gray_2_0012",
+              "type": "rect",
+              "w": 15,
+              "h": 15,
+              "radius": 7,
+              "fill": {
+               "L": 0.5766666666666667,
+               "c": 0.02833333333333334,
+               "h": 115
+              },
+              "x": 38,
+              "y": 30
+             },
+             {
+              "id": "page_access_gray_2_0013",
+              "type": "rect",
+              "w": 15,
+              "h": 15,
+              "radius": 7,
+              "fill": {
+               "L": 0.56,
+               "c": 0,
+               "h": 115
+              },
+              "x": 56,
+              "y": 30
+             },
+             {
+              "id": "page_access_gray_3_0014",
+              "type": "rect",
+              "w": 15,
+              "h": 15,
+              "radius": 7,
+              "fill": "#548F6A",
+              "x": 2,
+              "y": 51
+             },
+             {
+              "id": "page_access_gray_3_0015",
+              "type": "rect",
+              "w": 15,
+              "h": 15,
+              "radius": 7,
+              "fill": {
+               "L": 0.5866666666666667,
+               "c": 0.05666666666666668,
+               "h": 155
+              },
+              "x": 20,
+              "y": 51
+             },
+             {
+              "id": "page_access_gray_3_0016",
+              "type": "rect",
+              "w": 15,
+              "h": 15,
+              "radius": 7,
+              "fill": {
+               "L": 0.5733333333333334,
+               "c": 0.02833333333333334,
+               "h": 155
+              },
+              "x": 38,
+              "y": 51
+             },
+             {
+              "id": "page_access_gray_3_0017",
+              "type": "rect",
+              "w": 15,
+              "h": 15,
+              "radius": 7,
+              "fill": {
+               "L": 0.56,
+               "c": 0,
+               "h": 155
+              },
+              "x": 56,
+              "y": 51
+             }
+            ]
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "id": "about_heading",
+        "type": "text",
+        "text": "About",
+        "role": "heading",
+        "w": "hug",
+        "h": "hug",
+        "color": "ink"
+       },
+       {
+        "id": "about_copy",
+        "type": "text",
+        "text": "Restore color gradients, one tile at a time.\nFollow a handcrafted campaign, solve a fresh\ndaily puzzle, settle into an endless run, or\nbuild one of your own.",
+        "role": "body",
+        "fontSize": 15,
+        "w": "fill",
+        "h": "hug",
+        "color": "ink"
+       },
+       {
+        "id": "developer_row",
+        "type": "list-item",
+        "name": "Developer link",
+        "dir": "row",
+        "pad": [
+         12,
+         0,
+         12,
+         0
+        ],
+        "gap": 8,
+        "align": "center",
+        "justify": "between",
+        "w": "fill",
+        "h": 54,
+        "children": [
+         {
+          "id": "developer_name",
+          "type": "text",
+          "text": "Ian Handy",
+          "role": "body",
+          "w": "hug",
+          "h": "hug",
+          "color": "accent"
+         },
+         {
+          "id": "developer_chevron",
+          "type": "text",
+          "text": ">",
+          "role": "heading",
+          "w": "hug",
+          "h": "hug",
+          "color": "muted"
+         }
+        ]
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "id": "scr_eye_for_color",
+   "name": "01 Got an eye for color?",
+   "frame": {
+    "preset": "iphone",
+    "w": 393,
+    "h": 852
+   },
+   "note": "1 legal straight gradients, 5 unique cells, 0 shared intersections. Minimum DeltaE: none 5.90. Fixed OKLCh steps, sparse-crossword geometry, sRGB gamut, <=40% locks, and a unique orientation mask all pass.",
+   "root": {
+    "id": "scr_eye_for_color_root_0020",
+    "type": "free",
+    "dir": "free",
+    "pad": 0,
+    "w": "fill",
+    "h": "fill",
+    "children": [
+     {
+      "id": "scr_eye_for_color_tile_0021",
+      "type": "rect",
+      "w": 73,
+      "h": 73,
+      "radius": 19,
+      "fill": "#F05B93",
+      "x": 0,
+      "y": 340
+     },
+     {
+      "id": "scr_eye_for_color_tile_0022",
+      "type": "rect",
+      "w": 73,
+      "h": 73,
+      "radius": 19,
+      "fill": "#F65B72",
+      "x": 80,
+      "y": 340
+     },
+     {
+      "id": "scr_eye_for_color_tile_0023",
+      "type": "rect",
+      "w": 73,
+      "h": 73,
+      "radius": 19,
+      "fill": "#F75F4C",
+      "x": 160,
+      "y": 340
+     },
+     {
+      "id": "scr_eye_for_color_tile_0024",
+      "type": "rect",
+      "w": 73,
+      "h": 73,
+      "radius": 19,
+      "fill": "#F3680F",
+      "x": 240,
+      "y": 340
+     },
+     {
+      "id": "scr_eye_for_color_tile_0025",
+      "type": "rect",
+      "w": 73,
+      "h": 73,
+      "radius": 19,
+      "fill": "#DD7C07",
+      "x": 320,
+      "y": 340
+     },
+     {
+      "id": "eye_title_0018",
+      "type": "text",
+      "text": "got an eye for color?",
+      "role": "heading",
+      "fontSize": 34,
+      "weight": 700,
+      "w": "fill",
+      "h": "hug",
+      "color": "ink",
+      "x": -2,
+      "y": 291,
+      "align": "center"
+     }
+    ]
+   }
+  },
+  {
+   "id": "scr_accessibility",
+   "name": "02 ...or maybe not?",
+   "frame": {
+    "preset": "iphone",
+    "w": 393,
+    "h": 852
+   },
+   "note": "1 legal straight gradients, 5 unique cells, 0 shared intersections. Minimum DeltaE: none 5.90. Fixed OKLCh steps, sparse-crossword geometry, sRGB gamut, <=40% locks, and a unique orientation mask all pass. Cells two and four branch downward while cell three branches upward; all three regular gradients terminate at the exact same gray.",
+   "root": {
+    "id": "scr_accessibility_root_0037",
+    "type": "free",
+    "dir": "free",
+    "pad": 0,
+    "w": "fill",
+    "h": "fill",
+    "children": [
+     {
+      "id": "scr_accessibility_tile_0038",
+      "type": "rect",
+      "w": 73,
+      "h": 73,
+      "radius": 19,
+      "fill": "#CA8907",
+      "x": 0,
+      "y": 340
+     },
+     {
+      "id": "scr_accessibility_tile_0039",
+      "type": "rect",
+      "w": 73,
+      "h": 73,
+      "radius": 19,
+      "fill": "#B99305",
+      "x": 80,
+      "y": 340
+     },
+     {
+      "id": "scr_accessibility_tile_0040",
+      "type": "rect",
+      "w": 73,
+      "h": 73,
+      "radius": 19,
+      "fill": "#A69C01",
+      "x": 160,
+      "y": 340
+     },
+     {
+      "id": "scr_accessibility_tile_0041",
+      "type": "rect",
+      "w": 73,
+      "h": 73,
+      "radius": 19,
+      "fill": "#8CA507",
+      "x": 240,
+      "y": 340
+     },
+     {
+      "id": "scr_accessibility_tile_0042",
+      "type": "rect",
+      "w": 73,
+      "h": 73,
+      "radius": 19,
+      "fill": "#60B01A",
+      "x": 320,
+      "y": 340
+     },
+     {
+      "id": "access_title_0026",
+      "type": "text",
+      "text": "...or maybe\nnot?",
+      "role": "heading",
+      "fontSize": 29,
+      "weight": 700,
+      "w": 130,
+      "h": 108,
+      "color": "ink",
+      "x": 246,
+      "y": 224
+     },
+     {
+      "id": "access_cell_two_gray_0027",
+      "type": "rect",
+      "w": 73,
+      "h": 73,
+      "radius": 19,
+      "fill": "#947C5A",
+      "x": 80,
+      "y": 420,
+      "name": "Cell 2 gradient to shared gray"
+     },
+     {
+      "id": "access_cell_two_gray_0028",
+      "type": "rect",
+      "w": 73,
+      "h": 73,
+      "radius": 19,
+      "fill": "#847868",
+      "x": 80,
+      "y": 500,
+      "name": "Cell 2 gradient to shared gray"
+     },
+     {
+      "id": "access_cell_two_gray_0029",
+      "type": "rect",
+      "w": 73,
+      "h": 73,
+      "radius": 19,
+      "fill": "#747474",
+      "x": 80,
+      "y": 580,
+      "name": "Cell 2 gradient to shared gray"
+     },
+     {
+      "id": "access_cell_three_gray_0030",
+      "type": "rect",
+      "w": 73,
+      "h": 73,
+      "radius": 19,
+      "fill": "#7D835B",
+      "x": 160,
+      "y": 260,
+      "name": "Cell 3 gradient to shared gray"
+     },
+     {
+      "id": "access_cell_three_gray_0031",
+      "type": "rect",
+      "w": 73,
+      "h": 73,
+      "radius": 19,
+      "fill": "#787C69",
+      "x": 160,
+      "y": 180,
+      "name": "Cell 3 gradient to shared gray"
+     },
+     {
+      "id": "access_cell_three_gray_0032",
+      "type": "rect",
+      "w": 73,
+      "h": 73,
+      "radius": 19,
+      "fill": "#747474",
+      "x": 160,
+      "y": 100,
+      "name": "Cell 3 gradient to shared gray"
+     },
+     {
+      "id": "access_cell_four_gray_0033",
+      "type": "rect",
+      "w": 73,
+      "h": 73,
+      "radius": 19,
+      "fill": "#61876E",
+      "x": 240,
+      "y": 420,
+      "name": "Cell 4 gradient to shared gray"
+     },
+     {
+      "id": "access_cell_four_gray_0034",
+      "type": "rect",
+      "w": 73,
+      "h": 73,
+      "radius": 19,
+      "fill": "#6C7E71",
+      "x": 240,
+      "y": 500,
+      "name": "Cell 4 gradient to shared gray"
+     },
+     {
+      "id": "access_cell_four_gray_0035",
+      "type": "rect",
+      "w": 73,
+      "h": 73,
+      "radius": 19,
+      "fill": "#747474",
+      "x": 240,
+      "y": 580,
+      "name": "Cell 4 gradient to shared gray"
+     }
+    ]
+   }
+  },
+  {
+   "id": "scr_eyes_rest",
+   "name": "03 Give your eyes a rest",
+   "frame": {
+    "preset": "iphone",
+    "w": 393,
+    "h": 852
+   },
+   "note": "3 legal straight gradients, 13 unique cells, 2 shared intersections. Minimum DeltaE: none 5.90. Fixed OKLCh steps, sparse-crossword geometry, sRGB gamut, <=40% locks, and a unique orientation mask all pass.",
+   "root": {
+    "id": "scr_eyes_rest_root_0045",
+    "type": "free",
+    "dir": "free",
+    "pad": 0,
+    "w": "fill",
+    "h": "fill",
+    "children": [
+     {
+      "id": "scr_eyes_rest_tile_0046",
+      "type": "rect",
+      "w": 73,
+      "h": 73,
+      "radius": 19,
+      "fill": "#07B655",
+      "x": 0,
+      "y": 340
+     },
+     {
+      "id": "scr_eyes_rest_tile_0047",
+      "type": "rect",
+      "w": 73,
+      "h": 73,
+      "radius": 19,
+      "fill": "#07B382",
+      "x": 80,
+      "y": 340,
+      "name": "Shared intersection"
+     },
+     {
+      "id": "scr_eyes_rest_tile_0048",
+      "type": "rect",
+      "w": 73,
+      "h": 73,
+      "radius": 19,
+      "fill": "#0BB09B",
+      "x": 160,
+      "y": 340
+     },
+     {
+      "id": "scr_eyes_rest_tile_0049",
+      "type": "rect",
+      "w": 73,
+      "h": 73,
+      "radius": 19,
+      "fill": "#00AEAE",
+      "x": 240,
+      "y": 340,
+      "name": "Shared intersection"
+     },
+     {
+      "id": "scr_eyes_rest_tile_0050",
+      "type": "rect",
+      "w": 73,
+      "h": 73,
+      "radius": 19,
+      "fill": "#0DABC0",
+      "x": 320,
+      "y": 340
+     },
+     {
+      "id": "scr_eyes_rest_tile_0051",
+      "type": "rect",
+      "w": 73,
+      "h": 73,
+      "radius": 19,
+      "fill": "#424B7E",
+      "x": 80,
+      "y": 180
+     },
+     {
+      "id": "scr_eyes_rest_tile_0052",
+      "type": "rect",
+      "w": 73,
+      "h": 73,
+      "radius": 19,
+      "fill": "#555F94",
+      "x": 80,
+      "y": 260
+     },
+     {
+      "id": "scr_eyes_rest_tile_0053",
+      "type": "rect",
+      "w": 73,
+      "h": 73,
+      "radius": 19,
+      "fill": "#7D88C0",
+      "x": 80,
+      "y": 420
+     },
+     {
+      "id": "scr_eyes_rest_tile_0054",
+      "type": "rect",
+      "w": 73,
+      "h": 73,
+      "radius": 19,
+      "fill": "#929ED7",
+      "x": 80,
+      "y": 500
+     },
+     {
+      "id": "scr_eyes_rest_tile_0055",
+      "type": "rect",
+      "w": 73,
+      "h": 73,
+      "radius": 19,
+      "fill": "#C6859E",
+      "x": 240,
+      "y": 180
+     },
+     {
+      "id": "scr_eyes_rest_tile_0056",
+      "type": "rect",
+      "w": 73,
+      "h": 73,
+      "radius": 19,
+      "fill": "#AF7089",
+      "x": 240,
+      "y": 260
+     },
+     {
+      "id": "scr_eyes_rest_tile_0057",
+      "type": "rect",
+      "w": 73,
+      "h": 73,
+      "radius": 19,
+      "fill": "#834860",
+      "x": 240,
+      "y": 420
+     },
+     {
+      "id": "scr_eyes_rest_tile_0058",
+      "type": "rect",
+      "w": 73,
+      "h": 73,
+      "radius": 19,
+      "fill": "#6D354D",
+      "x": 240,
+      "y": 500
+     },
+     {
+      "id": "calm_title_0043",
+      "type": "text",
+      "text": "give your eyes\na rest",
+      "role": "heading",
+      "fontSize": 32,
+      "weight": 700,
+      "w": 264,
+      "h": 70,
+      "color": "ink",
+      "x": 60,
+      "y": 585,
+      "align": "center"
+     }
+    ]
+   }
+  },
+  {
+   "id": "scr_challenge",
+   "name": "04 Or a challenge?",
+   "frame": {
+    "preset": "iphone",
+    "w": 393,
+    "h": 852
+   },
+   "note": "7 legal straight gradients, 22 unique cells, 6 shared intersections. Minimum DeltaE: none 3.55. Fixed OKLCh steps, sparse-crossword geometry, sRGB gamut, <=40% locks, and a unique orientation mask all pass.",
+   "root": {
+    "id": "scr_challenge_root_0061",
+    "type": "free",
+    "dir": "free",
+    "pad": 0,
+    "w": "fill",
+    "h": "fill",
+    "children": [
+     {
+      "id": "scr_challenge_tile_0062",
+      "type": "rect",
+      "w": 73,
+      "h": 73,
+      "radius": 19,
+      "fill": "#06A8D3",
+      "x": 0,
+      "y": 340
+     },
+     {
+      "id": "scr_challenge_tile_0063",
+      "type": "rect",
+      "w": 73,
+      "h": 73,
+      "radius": 19,
+      "fill": "#0AA2ED",
+      "x": 80,
+      "y": 340,
+      "name": "Shared intersection"
+     },
+     {
+      "id": "scr_challenge_tile_0064",
+      "type": "rect",
+      "w": 73,
+      "h": 73,
+      "radius": 19,
+      "fill": "#4699FE",
+      "x": 160,
+      "y": 340
+     },
+     {
+      "id": "scr_challenge_tile_0065",
+      "type": "rect",
+      "w": 73,
+      "h": 73,
+      "radius": 19,
+      "fill": "#718FFF",
+      "x": 240,
+      "y": 340,
+      "name": "Shared intersection"
+     },
+     {
+      "id": "scr_challenge_tile_0066",
+      "type": "rect",
+      "w": 73,
+      "h": 73,
+      "radius": 19,
+      "fill": "#9084FF",
+      "x": 320,
+      "y": 340
+     },
+     {
+      "id": "scr_challenge_tile_0067",
+      "type": "rect",
+      "w": 73,
+      "h": 73,
+      "radius": 19,
+      "fill": "#BA97D4",
+      "x": 80,
+      "y": 100,
+      "name": "Shared intersection"
+     },
+     {
+      "id": "scr_challenge_tile_0068",
+      "type": "rect",
+      "w": 73,
+      "h": 73,
+      "radius": 19,
+      "fill": "#C27A8B",
+      "x": 80,
+      "y": 180
+     },
+     {
+      "id": "scr_challenge_tile_0069",
+      "type": "rect",
+      "w": 73,
+      "h": 73,
+      "radius": 19,
+      "fill": "#A47045",
+      "x": 80,
+      "y": 260
+     },
+     {
+      "id": "scr_challenge_tile_0070",
+      "type": "rect",
+      "w": 73,
+      "h": 73,
+      "radius": 19,
+      "fill": "#2A6046",
+      "x": 240,
+      "y": 420
+     },
+     {
+      "id": "scr_challenge_tile_0071",
+      "type": "rect",
+      "w": 73,
+      "h": 73,
+      "radius": 19,
+      "fill": "#3D4B25",
+      "x": 240,
+      "y": 500
+     },
+     {
+      "id": "scr_challenge_tile_0072",
+      "type": "rect",
+      "w": 73,
+      "h": 73,
+      "radius": 19,
+      "fill": "#403517",
+      "x": 240,
+      "y": 580
+     },
+     {
+      "id": "scr_challenge_tile_0073",
+      "type": "rect",
+      "w": 73,
+      "h": 73,
+      "radius": 19,
+      "fill": "#372417",
+      "x": 240,
+      "y": 660,
+      "name": "Shared intersection"
+     },
+     {
+      "id": "scr_challenge_tile_0074",
+      "type": "rect",
+      "w": 73,
+      "h": 73,
+      "radius": 19,
+      "fill": "#CAAAE9",
+      "x": 0,
+      "y": 100
+     },
+     {
+      "id": "scr_challenge_tile_0075",
+      "type": "rect",
+      "w": 73,
+      "h": 73,
+      "radius": 19,
+      "fill": "#AA85C0",
+      "x": 160,
+      "y": 100
+     },
+     {
+      "id": "scr_challenge_tile_0076",
+      "type": "rect",
+      "w": 73,
+      "h": 73,
+      "radius": 19,
+      "fill": "#9A73AC",
+      "x": 240,
+      "y": 100,
+      "name": "Shared intersection"
+     },
+     {
+      "id": "scr_challenge_tile_0077",
+      "type": "rect",
+      "w": 73,
+      "h": 73,
+      "radius": 19,
+      "fill": "#16382A",
+      "x": 80,
+      "y": 660,
+      "name": "Shared intersection"
+     },
+     {
+      "id": "scr_challenge_tile_0078",
+      "type": "rect",
+      "w": 73,
+      "h": 73,
+      "radius": 19,
+      "fill": "#2E2E14",
+      "x": 160,
+      "y": 660
+     },
+     {
+      "id": "scr_challenge_tile_0079",
+      "type": "rect",
+      "w": 73,
+      "h": 73,
+      "radius": 19,
+      "fill": "#321F25",
+      "x": 320,
+      "y": 660
+     },
+     {
+      "id": "scr_challenge_tile_0080",
+      "type": "rect",
+      "w": 73,
+      "h": 73,
+      "radius": 19,
+      "fill": "#AB598C",
+      "x": 240,
+      "y": 20
+     },
+     {
+      "id": "scr_challenge_tile_0081",
+      "type": "rect",
+      "w": 73,
+      "h": 73,
+      "radius": 19,
+      "fill": "#8C8AB6",
+      "x": 240,
+      "y": 180
+     },
+     {
+      "id": "scr_challenge_tile_0082",
+      "type": "rect",
+      "w": 73,
+      "h": 73,
+      "radius": 19,
+      "fill": "#2B463D",
+      "x": 80,
+      "y": 580
+     },
+     {
+      "id": "scr_challenge_tile_0083",
+      "type": "rect",
+      "w": 73,
+      "h": 73,
+      "radius": 19,
+      "fill": "#002A17",
+      "x": 80,
+      "y": 740
+     },
+     {
+      "id": "challenge_title_0059",
+      "type": "text",
+      "text": "or a\nchallenge?",
+      "role": "heading",
+      "fontSize": 32,
+      "weight": 700,
+      "w": 210,
+      "h": "hug",
+      "color": "ink",
+      "x": 22,
+      "y": 414,
+      "align": "end"
+     }
+    ]
+   }
+  },
+  {
+   "id": "scr_welcome",
+   "name": "05 Either way, we are glad you are here",
+   "frame": {
+    "preset": "iphone",
+    "w": 393,
+    "h": 852
+   },
+   "note": "7 legal straight gradients, 20 unique cells, 6 shared intersections. Minimum DeltaE: none 4.30. Fixed OKLCh steps, sparse-crossword geometry, sRGB gamut, <=40% locks, and a unique orientation mask all pass.",
+   "root": {
+    "id": "scr_welcome_root_0086",
+    "type": "free",
+    "dir": "free",
+    "pad": 0,
+    "w": "fill",
+    "h": "fill",
+    "children": [
+     {
+      "id": "scr_welcome_tile_0087",
+      "type": "rect",
+      "w": 73,
+      "h": 73,
+      "radius": 19,
+      "fill": "#AC77FA",
+      "x": 0,
+      "y": 340,
+      "name": "Shared intersection"
+     },
+     {
+      "id": "scr_welcome_tile_0088",
+      "type": "rect",
+      "w": 73,
+      "h": 73,
+      "radius": 19,
+      "fill": "#C36DE7",
+      "x": 80,
+      "y": 340
+     },
+     {
+      "id": "scr_welcome_tile_0089",
+      "type": "rect",
+      "w": 73,
+      "h": 73,
+      "radius": 19,
+      "fill": "#D665CF",
+      "x": 160,
+      "y": 340,
+      "name": "Shared intersection"
+     },
+     {
+      "id": "scr_welcome_tile_0090",
+      "type": "rect",
+      "w": 73,
+      "h": 73,
+      "radius": 19,
+      "fill": "#E65FB3",
+      "x": 240,
+      "y": 340
+     },
+     {
+      "id": "scr_welcome_tile_0091",
+      "type": "rect",
+      "w": 73,
+      "h": 73,
+      "radius": 19,
+      "fill": "#F05B93",
+      "x": 320,
+      "y": 340,
+      "name": "Shared intersection"
+     },
+     {
+      "id": "scr_welcome_tile_0092",
+      "type": "rect",
+      "w": 73,
+      "h": 73,
+      "radius": 19,
+      "fill": "#6D9664",
+      "x": 0,
+      "y": 100,
+      "name": "Shared intersection"
+     },
+     {
+      "id": "scr_welcome_tile_0093",
+      "type": "rect",
+      "w": 73,
+      "h": 73,
+      "radius": 19,
+      "fill": "#318B81",
+      "x": 0,
+      "y": 180
+     },
+     {
+      "id": "scr_welcome_tile_0094",
+      "type": "rect",
+      "w": 73,
+      "h": 73,
+      "radius": 19,
+      "fill": "#2D7593",
+      "x": 0,
+      "y": 260
+     },
+     {
+      "id": "scr_welcome_tile_0095",
+      "type": "rect",
+      "w": 73,
+      "h": 73,
+      "radius": 19,
+      "fill": "#68373B",
+      "x": 160,
+      "y": 420
+     },
+     {
+      "id": "scr_welcome_tile_0096",
+      "type": "rect",
+      "w": 73,
+      "h": 73,
+      "radius": 19,
+      "fill": "#502D24",
+      "x": 160,
+      "y": 500
+     },
+     {
+      "id": "scr_welcome_tile_0097",
+      "type": "rect",
+      "w": 73,
+      "h": 73,
+      "radius": 19,
+      "fill": "#382315",
+      "x": 160,
+      "y": 580,
+      "name": "Shared intersection"
+     },
+     {
+      "id": "scr_welcome_tile_0098",
+      "type": "rect",
+      "w": 73,
+      "h": 73,
+      "radius": 19,
+      "fill": "#182A0D",
+      "x": 320,
+      "y": 100
+     },
+     {
+      "id": "scr_welcome_tile_0099",
+      "type": "rect",
+      "w": 73,
+      "h": 73,
+      "radius": 19,
+      "fill": "#323608",
+      "x": 320,
+      "y": 180
+     },
+     {
+      "id": "scr_welcome_tile_0100",
+      "type": "rect",
+      "w": 73,
+      "h": 73,
+      "radius": 19,
+      "fill": "#4F4105",
+      "x": 320,
+      "y": 260
+     },
+     {
+      "id": "scr_welcome_tile_0101",
+      "type": "rect",
+      "w": 73,
+      "h": 73,
+      "radius": 19,
+      "fill": "#A2AE80",
+      "x": 80,
+      "y": 100
+     },
+     {
+      "id": "scr_welcome_tile_0102",
+      "type": "rect",
+      "w": 73,
+      "h": 73,
+      "radius": 19,
+      "fill": "#CEC9A7",
+      "x": 160,
+      "y": 100,
+      "name": "Shared intersection"
+     },
+     {
+      "id": "scr_welcome_tile_0103",
+      "type": "rect",
+      "w": 73,
+      "h": 73,
+      "radius": 19,
+      "fill": "#4F2E41",
+      "x": 240,
+      "y": 580
+     },
+     {
+      "id": "scr_welcome_tile_0104",
+      "type": "rect",
+      "w": 73,
+      "h": 73,
+      "radius": 19,
+      "fill": "#424A73",
+      "x": 320,
+      "y": 580
+     },
+     {
+      "id": "scr_welcome_tile_0105",
+      "type": "rect",
+      "w": 73,
+      "h": 73,
+      "radius": 19,
+      "fill": "#C0D6C4",
+      "x": 160,
+      "y": 20
+     },
+     {
+      "id": "scr_welcome_tile_0106",
+      "type": "rect",
+      "w": 73,
+      "h": 73,
+      "radius": 19,
+      "fill": "#DEB6A0",
+      "x": 160,
+      "y": 180
+     },
+     {
+      "id": "welcome_title_0084",
+      "type": "text",
+      "text": "we're glad you're here",
+      "role": "heading",
+      "fontSize": 27,
+      "weight": 700,
+      "w": 208,
+      "h": 66,
+      "color": "ink",
+      "x": 178,
+      "y": 661,
+      "align": "end"
+     },
+     {
+      "id": "text_ysufcu",
+      "type": "text",
+      "text": "either way",
+      "role": "heading",
+      "fontSize": 27,
+      "weight": 700,
+      "w": 142,
+      "h": 36,
+      "color": "ink",
+      "x": 9,
+      "y": 413
+     }
+    ]
+   }
+  }
+ ],
+ "legend": [
+  "Story: easy perception, universal visibility, calm play, hard play, chromatic order.",
+  "The five-cell root gradients on all five screenshot screens align at the same height and form one uninterrupted 25-cell OKLCh gradient from the first screen's left edge to the last screen's right edge.",
+  "Every gradient is straight, contiguous, and generated from one fixed OKLCh step. New gradients cross exactly one earlier gradient at one matching-color cell and obey sparse-crossword adjacency.",
+  "The second screen has no color-vision labels. Cells two and four branch down and cell three branches up, with each color fading through a regular gradient to the same neutral gray.",
+  "Theoretical locks remain at or below 40%, leave every gradient playable, and produce exactly one valid orientation mask.",
+  "Decorative background grids are intentionally omitted so every selectable rectangle represents visible screenshot content.",
+  "Headlines sit in the negative-space corners made by the root gradients and their junctions.",
+  "Final App Store screenshot exports remain 1320 by 2868 pixels. This Blockout scene works at logical iPhone points."
+ ]
+}
