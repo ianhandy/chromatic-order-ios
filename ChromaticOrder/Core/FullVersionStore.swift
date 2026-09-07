@@ -1,6 +1,7 @@
 import Foundation
 import Observation
 import StoreKit
+import UserNotifications
 
 enum FullVersionAccess {
     static let freeCampaignChapterCount = 4
@@ -37,7 +38,7 @@ enum FullVersionAccess {
     }
 }
 
-enum FullVersionTrial: String, CaseIterable {
+enum FullVersionTrial: String, CaseIterable, Hashable {
     case zen
     case challenge
     case creator
@@ -66,7 +67,7 @@ enum FullVersionTrial: String, CaseIterable {
 enum FullVersionTrialStore {
     private static let completedKeyPrefix = "kromaFullVersionTrialCompleted_"
     private static let lastStartedKeyPrefix = "kromaFullVersionTrialLastStarted_v1_"
-    static let cooldown: TimeInterval = 12 * 60 * 60
+    static let cooldown: TimeInterval = 3 * 60 * 60
 
     static func hasCompleted(
         _ trial: FullVersionTrial,
@@ -128,6 +129,79 @@ enum FullVersionTrialStore {
     #endif
 }
 
+enum TrialReminderStore {
+    private static let identifierPrefix = "kroma.trialReady."
+
+    static func identifier(for trial: FullVersionTrial) -> String {
+        identifierPrefix + trial.rawValue
+    }
+
+    static func notificationCopy(for trial: FullVersionTrial) -> (title: String, body: String) {
+        let mode = trial == .zen ? "zen" : "challenge"
+        return ("wanna play?", "\(mode) is ready again")
+    }
+
+    static func schedule(
+        _ trial: FullVersionTrial,
+        at availableAt: Date,
+        now: Date = Date()
+    ) async -> Bool {
+        guard trial.repeatsOnCooldown, availableAt > now else { return false }
+        if ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil {
+            return true
+        }
+
+        do {
+            let center = UNUserNotificationCenter.current()
+            let settings = await center.notificationSettings()
+            let granted: Bool
+            switch settings.authorizationStatus {
+            case .authorized, .provisional, .ephemeral:
+                granted = true
+            case .notDetermined:
+                granted = try await center.requestAuthorization(options: [.alert, .sound])
+            case .denied:
+                granted = false
+            @unknown default:
+                granted = false
+            }
+            guard granted else { return false }
+
+            let identifier = identifier(for: trial)
+            center.removePendingNotificationRequests(withIdentifiers: [identifier])
+            let copy = notificationCopy(for: trial)
+            let content = UNMutableNotificationContent()
+            content.title = copy.title
+            content.body = copy.body
+            content.sound = .default
+            let trigger = UNTimeIntervalNotificationTrigger(
+                timeInterval: max(1, availableAt.timeIntervalSince(now)),
+                repeats: false
+            )
+            try await center.add(UNNotificationRequest(
+                identifier: identifier,
+                content: content,
+                trigger: trigger
+            ))
+            return true
+        } catch {
+            return false
+        }
+    }
+
+    static func remove(_ trial: FullVersionTrial) {
+        UNUserNotificationCenter.current().removePendingNotificationRequests(
+            withIdentifiers: [identifier(for: trial)]
+        )
+    }
+
+    static func removeAll() {
+        UNUserNotificationCenter.current().removePendingNotificationRequests(
+            withIdentifiers: FullVersionTrial.allCases.map { identifier(for: $0) }
+        )
+    }
+}
+
 /// StoreKit 2 owner for Kromatika's single, permanent full-game unlock.
 /// Entitlement state always comes from a verified App Store transaction;
 /// there is no local boolean that can drift from refunds or account changes.
@@ -180,9 +254,24 @@ final class FullVersionStore {
     @discardableResult
     func beginTrial(_ trial: FullVersionTrial, now: Date = Date()) -> Bool {
         guard trial.repeatsOnCooldown, canTry(trial, now: now) else { return false }
+        TrialReminderStore.remove(trial)
         FullVersionTrialStore.begin(trial, at: now, defaults: defaults)
         trialRevision &+= 1
         return true
+    }
+
+    func canOfferReminder(_ trial: FullVersionTrial, now: Date = Date()) -> Bool {
+        guard !isUnlocked,
+              hasTried(trial),
+              !canTry(trial, now: now),
+              let availableAt = nextTrialAvailability(trial) else { return false }
+        return availableAt > now
+    }
+
+    func scheduleReminder(_ trial: FullVersionTrial, now: Date = Date()) async -> Bool {
+        guard canOfferReminder(trial, now: now),
+              let availableAt = nextTrialAvailability(trial) else { return false }
+        return await TrialReminderStore.schedule(trial, at: availableAt, now: now)
     }
 
     func nextTrialAvailability(_ trial: FullVersionTrial) -> Date? {
@@ -298,6 +387,7 @@ final class FullVersionStore {
             return
         }
         isUnlocked = true
+        TrialReminderStore.removeAll()
     }
 
     private func consume(_ result: VerificationResult<Transaction>) async {

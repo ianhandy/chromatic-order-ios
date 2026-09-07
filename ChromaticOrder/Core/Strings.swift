@@ -42,7 +42,7 @@ enum Strings {
 
     enum FullVersion {
         static let waitTitle = "you can come back and play later"
-        static let waitBody = "zen and challenge each get another free run in 12 hours, or at the next noon or midnight, whichever comes first."
+        static let waitBody = "zen and challenge each get another free run in 3 hours, or at the next noon or midnight, whichever comes first."
     }
 
     // MARK: – Top bar

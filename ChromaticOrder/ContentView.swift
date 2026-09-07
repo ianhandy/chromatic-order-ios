@@ -480,7 +480,7 @@ struct ContentView: View {
             // off — dismisses through the same graceful float-away as
             // every other exit path, instead of hard-cutting the
             // balloon mid-frame.
-            releaseTutorial(earnsAchievement: true)
+            releaseTutorial()
         }
         .animation(.easeInOut(duration: 0.35), value: game.runComplete)
         .onChange(of: game.runComplete) { _, completed in
@@ -513,7 +513,7 @@ struct ContentView: View {
             // performed, so the tip has served its purpose.
             if newCount > 0,
                tutorialFlag == .firstLaunch || tutorialFlag == .dailyIntro {
-                releaseTutorial(earnsAchievement: true)
+                releaseTutorial()
             }
 
         }
@@ -955,8 +955,15 @@ struct ContentView: View {
     private func flatTutorialContent(for flag: TutorialFlag,
                                      presentationID: Int) -> some View {
         let released = tutorialExit != .alive
-        TutorialTooltip(text: tooltipText(for: flag))
-            .frame(maxWidth: 340)
+        Button(action: popTutorial) {
+            TutorialTooltip(text: tooltipText(for: flag))
+                .frame(maxWidth: 340)
+        }
+            .buttonStyle(.plain)
+            .contentShape(Rectangle())
+            .allowsHitTesting(!released)
+            .accessibilityLabel("\(tooltipText(for: flag)) balloon")
+            .accessibilityHint("pop")
             .opacity(released ? 0 : 1)
             .animation(.easeOut(duration: 0.25), value: released)
             .onChange(of: tutorialExit) { _, newVal in
@@ -979,6 +986,7 @@ struct ContentView: View {
             text: tooltipText(for: flag),
             tint: tint,
             exit: tutorialExit,
+            onPop: popTutorial,
             onFinished: {
                 finishTutorialUnmount(for: flag, presentationID: presentationID)
             },
@@ -1026,17 +1034,23 @@ struct ContentView: View {
     /// floats up and away. The balloon calls back into
     /// `finishTutorialUnmount(for:)` when its exit animation completes so
     /// the flag actually clears. No-op if nothing is active.
-    private func releaseTutorial(earnsAchievement: Bool = false) {
+    private func releaseTutorial() {
         guard tutorialFlag != nil else { return }
         if tutorialExit == .alive {
             if let f = tutorialFlag { TutorialStore.markSeen(f) }
-            if earnsAchievement {
-                GameCenter.shared.reportAchievement(
-                    GameCenter.Achievement.poppedBalloon
-                )
-            }
             tutorialExit = .released
         }
+    }
+
+    /// Only a deliberate press on the daily bubble earns this hidden
+    /// achievement. Ordinary gameplay dismissal simply releases it.
+    private func popTutorial() {
+        guard tutorialFlag == .dailyIntro, tutorialExit == .alive else { return }
+        TutorialStore.markSeen(.dailyIntro)
+        GlassyAudio.shared.playPop()
+        Haptics.pop()
+        GameCenter.shared.reportAchievement(GameCenter.Achievement.poppedBalloon)
+        tutorialExit = .popped
     }
 
     /// Called by the tutorial view (balloon or flat) once its exit

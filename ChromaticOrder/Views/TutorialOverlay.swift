@@ -22,7 +22,6 @@ struct TutorialTooltip: View {
             .padding(.horizontal, 22)
             .padding(.vertical, Kroma.Space.l)
             .transition(.opacity.combined(with: .scale(scale: 0.96)))
-            .allowsHitTesting(false)
             .background(alignment: .bottom) {
                 // Same knot-frame contract as TutorialBalloon, so
                 // Reduce Motion players still get a pointer line from
@@ -154,9 +153,11 @@ struct TutorialArrowShape: Shape {
 /// Exit choreography the balloon plays before unmounting.
 ///   alive         — idle sway
 ///   released      — floats up and off-screen (auto-dismiss), then calls `onFinished`
+///   popped        — gently swells, collapses, and fades after a direct press
 enum TutorialBalloonExit: Equatable {
     case alive
     case released
+    case popped
 }
 
 /// Cartoon-balloon-shaped tutorial bubble. Replaces the flat
@@ -169,6 +170,8 @@ struct TutorialBalloon: View {
     /// `.alive` while the tutorial is live; flips to `.released` on
     /// normal dismissal (menu open, first-placement, level change).
     let exit: TutorialBalloonExit
+    /// Called only when the player presses the visible bubble itself.
+    let onPop: () -> Void
     /// Called when the balloon's exit animation completes so the
     /// parent can unmount it + clear the flag.
     let onFinished: () -> Void
@@ -194,15 +197,18 @@ struct TutorialBalloon: View {
         // 30 Hz is plenty: the fastest term in `computePose` completes a
         // cycle in ~3.5 s, so the extra 30 frames a second bought nothing
         // but a busier display link behind a live puzzle.
-        TimelineView(.animation(minimumInterval: 1.0 / 30.0)) { ctx in
-            let pose = computePose(at: ctx.date)
-            balloonVisual
-                .offset(x: pose.offset.width, y: pose.offset.height)
-                .rotationEffect(.degrees(pose.angle))
-                .scaleEffect(pose.scale)
-                .opacity(pose.opacity)
-                .animation(nil, value: ctx.date)
+        Button(action: onPop) {
+            TimelineView(.animation(minimumInterval: 1.0 / 30.0)) { ctx in
+                let pose = computePose(at: ctx.date)
+                balloonVisual
+                    .offset(x: pose.offset.width, y: pose.offset.height)
+                    .rotationEffect(.degrees(pose.angle))
+                    .scaleEffect(pose.scale)
+                    .opacity(pose.opacity)
+                    .animation(nil, value: ctx.date)
+            }
         }
+        .buttonStyle(.plain)
         // Just the bubble + a little breathing room for its shadow —
         // the frame used to reserve space below for a knot + dangling
         // string that the redesign to a plain floating bubble dropped
@@ -235,7 +241,10 @@ struct TutorialBalloon: View {
             }
             .frame(width: 1, height: 1)
         }
-        .allowsHitTesting(false)
+        .contentShape(Circle())
+        .allowsHitTesting(exit == .alive)
+        .accessibilityLabel("\(text) balloon")
+        .accessibilityHint("pop")
         // Initialise appearAt once at mount so computePose has a
         // stable birth date without scheduling async state mutations
         // from inside the TimelineView body (which can cause "modifying
@@ -372,7 +381,7 @@ struct TutorialBalloon: View {
         let swayAmp: Double = {
             switch exit {
             case .alive:    return 1.0
-            case .released: return 0
+            case .released, .popped: return 0
             }
         }()
         let swayX = swayAmp * sin(age * 0.65) * 9.0
@@ -405,6 +414,26 @@ struct TutorialBalloon: View {
                         self.onFinished()
                     }
                 }
+            case .popped:
+                // A soft soap-bubble pop: a tiny pressure swell, then a
+                // quick collapse without debris over the puzzle.
+                let progress = min(max(dt / 0.34, 0), 1)
+                let eased = 1 - pow(1 - progress, 3)
+                let swell = progress < 0.22 ? progress / 0.22 * 0.06 : 0.06
+                let collapse = progress < 0.22 ? 0 : (progress - 0.22) / 0.78
+                if dt >= 0.34 && !finishedFired {
+                    DispatchQueue.main.async {
+                        guard !self.finishedFired else { return }
+                        self.finishedFired = true
+                        self.onFinished()
+                    }
+                }
+                return BalloonPose(
+                    offset: .zero,
+                    angle: 0,
+                    scale: max(0.01, 1 + swell - collapse),
+                    opacity: 1 - eased
+                )
             case .alive:
                 break
             }

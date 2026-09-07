@@ -579,17 +579,19 @@ final class CampaignAuditTests: XCTestCase {
                        "the banner must not install a full-screen hit target")
     }
 
-    func testTutorialBalloonDoesNotInterceptGameplay() throws {
+    func testTutorialBalloonIsOnlyInteractiveInsideItsBubble() throws {
         let source = try source("ChromaticOrder/Views/TutorialOverlay.swift")
         let start = try XCTUnwrap(source.range(of: "struct TutorialBalloon: View"))
         let end = try XCTUnwrap(source.range(of: "struct BalloonStringToTargetShape"))
         let balloon = String(source[start.lowerBound..<end.lowerBound])
 
-        XCTAssertTrue(balloon.contains(".allowsHitTesting(false)"))
+        XCTAssertTrue(balloon.contains("Button(action: onPop)"))
+        XCTAssertTrue(balloon.contains(".contentShape(Circle())"))
+        XCTAssertTrue(balloon.contains(".accessibilityHint(\"pop\")"))
         XCTAssertFalse(balloon.contains(".simultaneousGesture("),
-                       "non-decision guidance must not own gameplay drags")
+                       "the balloon must not compete with gameplay drags")
         XCTAssertFalse(balloon.contains(".onTapGesture"),
-                       "non-decision guidance must not own gameplay taps")
+                       "only the bubble button should own the pop press")
     }
 
     func testGameplayDismissalGracefullyReleasesTutorial() throws {
@@ -605,6 +607,10 @@ final class CampaignAuditTests: XCTestCase {
             ".onChange(of: game.gameplayGuidanceDismissalID) { _, _ in"
         ))
         XCTAssertTrue(content.contains("releaseTutorial()"))
+        XCTAssertTrue(content.contains("private func popTutorial()"))
+        XCTAssertTrue(content.contains("tutorialExit = .popped"))
+        XCTAssertFalse(content.contains("releaseTutorial(earnsAchievement:"),
+                       "ordinary dismissal must not earn the pop achievement")
         XCTAssertFalse(content.contains("dismissTutorialImmediately"),
                        "the abrupt hard-cut path should no longer exist")
         XCTAssertTrue(content.contains("tutorialPresentationID == presentationID"),

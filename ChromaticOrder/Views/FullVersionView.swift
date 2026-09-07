@@ -42,6 +42,9 @@ struct FullVersionView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(FullVersionStore.self) private var store
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @State private var scheduledReminders: Set<FullVersionTrial> = []
+    @State private var requestingReminders: Set<FullVersionTrial> = []
+    @State private var failedReminders: Set<FullVersionTrial> = []
     let focus: FullVersionFeature?
 
     init(focus: FullVersionFeature? = nil) {
@@ -205,26 +208,65 @@ struct FullVersionView: View {
         let name = trial == .zen ? Strings.Menu.zen : Strings.Menu.challenge
         let status = "in \(Self.countdown(from: now, until: availableAt))"
 
-        return Group {
-            if dynamicTypeSize.isAccessibilitySize {
-                VStack(alignment: .leading, spacing: Kroma.Space.xs) {
-                    trialName(name)
-                    trialStatus(status)
-                        .padding(.leading, 22 + Kroma.Space.m)
-                }
-            } else {
-                HStack(alignment: .center, spacing: Kroma.Space.m) {
-                    trialName(name)
-                    Spacer(minLength: Kroma.Space.m)
-                    trialStatus(status)
-                        .multilineTextAlignment(.trailing)
+        return VStack(alignment: .leading, spacing: Kroma.Space.s) {
+            Group {
+                if dynamicTypeSize.isAccessibilitySize {
+                    VStack(alignment: .leading, spacing: Kroma.Space.xs) {
+                        trialName(name)
+                        trialStatus(status)
+                            .padding(.leading, 22 + Kroma.Space.m)
+                    }
+                } else {
+                    HStack(alignment: .center, spacing: Kroma.Space.m) {
+                        trialName(name)
+                        Spacer(minLength: Kroma.Space.m)
+                        trialStatus(status)
+                            .multilineTextAlignment(.trailing)
+                    }
                 }
             }
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(name)
+            .accessibilityValue("available \(status)")
+
+            Button {
+                requestReminder(for: trial)
+            } label: {
+                HStack(spacing: Kroma.Space.s) {
+                    if requestingReminders.contains(trial) { ProgressView() }
+                    Image(systemName: scheduledReminders.contains(trial)
+                          ? "bell.fill" : "bell")
+                    Text(scheduledReminders.contains(trial)
+                         ? "reminder set"
+                         : "remind me in \(Self.countdown(from: now, until: availableAt))")
+                }
+                .font(Kroma.font(.subheadline, .semibold))
+                .frame(maxWidth: .infinity, minHeight: Kroma.Metrics.minTarget)
+            }
+            .buttonStyle(.bordered)
+            .disabled(requestingReminders.contains(trial) || scheduledReminders.contains(trial))
+
+            if failedReminders.contains(trial) {
+                Text("notifications are off")
+                    .font(Kroma.font(.caption, .regular))
+                    .foregroundStyle(.secondary)
+                    .accessibilityLabel("notifications are off; enable them in Settings")
+            }
         }
-        .frame(minHeight: Kroma.Metrics.minTarget)
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel(name)
-        .accessibilityValue("available \(status)")
+    }
+
+    private func requestReminder(for trial: FullVersionTrial) {
+        requestingReminders.insert(trial)
+        failedReminders.remove(trial)
+        Task { @MainActor in
+            let scheduled = await store.scheduleReminder(trial)
+            requestingReminders.remove(trial)
+            if scheduled {
+                scheduledReminders.insert(trial)
+            } else {
+                failedReminders.insert(trial)
+            }
+        }
     }
 
     private func trialName(_ name: String) -> some View {

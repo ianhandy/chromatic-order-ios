@@ -66,28 +66,66 @@ final class PlayerSupportFeatureTests: XCTestCase {
     }
 
     @MainActor
-    func testRecurringTrialsUseEarlierOfTwelveHoursOrNextRollingBoundary() throws {
+    func testRecurringTrialsUseEarlierOfThreeHoursOrNextRollingBoundary() throws {
         let defaults = isolatedDefaults()
         let calendar = utcCalendar()
         let store = FullVersionStore(defaults: defaults, calendar: calendar)
         let formatter = ISO8601DateFormatter()
         let oneAM = try XCTUnwrap(formatter.date(from: "2026-09-01T01:00:00Z"))
-        let noon = try XCTUnwrap(formatter.date(from: "2026-09-01T12:00:00Z"))
+        let fourAM = try XCTUnwrap(formatter.date(from: "2026-09-01T04:00:00Z"))
 
         XCTAssertTrue(store.canTry(.zen, now: oneAM))
         XCTAssertTrue(store.canTry(.challenge, now: oneAM))
         XCTAssertTrue(store.beginTrial(.zen, now: oneAM))
-        XCTAssertFalse(store.canTry(.zen, now: oneAM.addingTimeInterval(10 * 60 * 60)))
-        XCTAssertEqual(store.nextTrialAvailability(.zen), noon)
-        XCTAssertTrue(store.canTry(.zen, now: noon))
+        XCTAssertFalse(store.canTry(.zen, now: oneAM.addingTimeInterval(2 * 60 * 60)))
+        XCTAssertEqual(store.nextTrialAvailability(.zen), fourAM)
+        XCTAssertTrue(store.canTry(.zen, now: fourAM))
+
+        let elevenAM = try XCTUnwrap(formatter.date(from: "2026-09-01T11:00:00Z"))
+        let noon = try XCTUnwrap(formatter.date(from: "2026-09-01T12:00:00Z"))
+        XCTAssertTrue(store.beginTrial(.challenge, now: elevenAM))
+        XCTAssertEqual(store.nextTrialAvailability(.challenge), noon)
         XCTAssertTrue(store.canTry(.challenge, now: noon))
 
         let onePM = try XCTUnwrap(formatter.date(from: "2026-09-01T13:00:00Z"))
-        let midnight = try XCTUnwrap(formatter.date(from: "2026-09-02T00:00:00Z"))
         XCTAssertTrue(store.beginTrial(.challenge, now: onePM))
-        XCTAssertEqual(store.nextTrialAvailability(.challenge), midnight)
-        XCTAssertFalse(store.canTry(.challenge, now: onePM.addingTimeInterval(10 * 60 * 60)))
+        let fourPM = try XCTUnwrap(formatter.date(from: "2026-09-01T16:00:00Z"))
+        XCTAssertEqual(store.nextTrialAvailability(.challenge), fourPM)
+
+        let elevenPM = try XCTUnwrap(formatter.date(from: "2026-09-01T23:00:00Z"))
+        let midnight = try XCTUnwrap(formatter.date(from: "2026-09-02T00:00:00Z"))
+        XCTAssertTrue(store.beginTrial(.zen, now: elevenPM))
+        XCTAssertEqual(store.nextTrialAvailability(.zen), midnight)
         XCTAssertTrue(store.canTry(.challenge, now: midnight))
+    }
+
+    @MainActor
+    func testReminderAppearsOnlyDuringAnActivatedFreeCooldown() throws {
+        let defaults = isolatedDefaults()
+        let store = FullVersionStore(defaults: defaults, calendar: utcCalendar())
+        let now = try XCTUnwrap(
+            ISO8601DateFormatter().date(from: "2026-09-01T08:00:00Z")
+        )
+
+        XCTAssertFalse(store.canOfferReminder(.zen, now: now))
+        XCTAssertFalse(store.canOfferReminder(.creator, now: now))
+        XCTAssertTrue(store.beginTrial(.zen, now: now))
+        XCTAssertTrue(store.canOfferReminder(.zen, now: now.addingTimeInterval(1)))
+        XCTAssertFalse(store.canOfferReminder(.challenge, now: now.addingTimeInterval(1)))
+        XCTAssertFalse(store.canOfferReminder(.zen, now: now.addingTimeInterval(3 * 60 * 60)))
+    }
+
+    func testTrialReminderCopyIsCuteAndModeSpecific() {
+        XCTAssertEqual(TrialReminderStore.notificationCopy(for: .zen).title, "wanna play?")
+        XCTAssertEqual(TrialReminderStore.notificationCopy(for: .zen).body, "zen is ready again")
+        XCTAssertEqual(
+            TrialReminderStore.notificationCopy(for: .challenge).body,
+            "challenge is ready again"
+        )
+        XCTAssertNotEqual(
+            TrialReminderStore.identifier(for: .zen),
+            TrialReminderStore.identifier(for: .challenge)
+        )
     }
 
     @MainActor
