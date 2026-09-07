@@ -2,7 +2,7 @@
 SHAPES = [
     ("Screwdriver", "\n.......f.e\n.....+c+.e\naaaaa+.f.e\n.....b.f.e\n....d+d+.e\n", "Place the longest run first, then work outward from the cells it fixes."),
 
-    ("Try Square", "\nd+........\n.a.b......\n.a.b......\n.a.+ffffff\n.a.b......\n.a.+cccccc\ne+.b......\n.a.b......\n", None),
+    ("Try Square", "\nd+d.......\n.a.b......\n.a.b......\n.a.+ffffff\n.a.b......\n.a.+cccccc\ne+eb......\n.a.b......\n", None),
 
     ("Oil Can", "\n..+eeeeee\n..f......\nb.f......\n+a+a+a...\nb.f.c....\n+d+d+d...\n....c....\n", None),
 
@@ -24,7 +24,7 @@ SHAPES = [
 
     ("Pipe Clamp", "\n.+cc..+ee\n.b....d..\n.b....d.f\na+aaaa+a+\n.b....d.f\n......+g+\n", None),
 
-    ("Hacksaw", "\n..+aaaaa+a\n..b.....e.\n..b.....e.\ng.b.....e.\ng.+ccccc+c\n..b.....e.\n..+ff...e.\n..........\n..hhh.....\n", None),
+    ("Hacksaw", "\n..+aaaaa+a\n..b.....e.\ng.b.....e.\ng.b.....e.\ng.+ccccc+c\n..b.....e.\n..+ff...e.\n..........\n..hhh.....\n", None),
 
     ("Caliper", "\nh+hhh+...\n.b...d...\na+aaa+aaa\n.b...d...\n.b...+f+f\n.b...d.g.\n.b...d.g.\n.+cc.+e+e\n", "Eight ramps is a lot to hold at once, so finish one corner of the board completely before moving on."),
 

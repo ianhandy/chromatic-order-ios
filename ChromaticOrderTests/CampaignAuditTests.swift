@@ -72,6 +72,9 @@ final class CampaignAuditTests: XCTestCase {
 
             // Colours: inside the palette band the renderer is tuned for.
             for grad in puzzle.gradients {
+                XCTAssertGreaterThanOrEqual(
+                    grad.cells.count, 3,
+                    "level \(entry.index) gradient \(grad.id) has only two colors")
                 for spec in grad.cells {
                     XCTAssertTrue(OK.inUsableBand(spec.color),
                                   "level \(entry.index) cell \(spec.r),\(spec.c) "

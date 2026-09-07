@@ -375,6 +375,7 @@ b..e..c
 ....d....
 ....+eee.
 b...d...c
+b...d...c
 +aaa+aaa+
 """, None),
 
@@ -489,6 +490,7 @@ bbbbbbb
 ...a...
 ...a...
 .d.a.e.
+.d.a.e.
 .+c+c+.
 """, None),
 
@@ -556,7 +558,7 @@ f.ddddd.
     ("Crab", """
 a.....b
 +ccccc+
-.......
+a.....b
 d+ddd+d
 .e...f.
 .e...f.
@@ -564,13 +566,13 @@ d+ddd+d
 
     ("Snail", """
 +aaa+..
-b...c..
+b...c.e
 b...c.e
 +ddd+d+
 """, None),
 
     ("Bird", """
-..aa...
+..aaa..
 .......
 .bbbb..
 .......
@@ -597,6 +599,7 @@ a...b
 .....
 .e.f.
 .e.f.
+.e.f.
 """, None),
 
     ("Dog", """
@@ -605,7 +608,7 @@ aaa....
 bbbbbbb
 .......
 ccccccc
-.......
+.d.e.f.
 .d.e.f.
 .d.e.f.
 """, None),
@@ -624,6 +627,7 @@ ee+e+ee
 
     ("Frog", """
 a...b
+a...b
 +ccc+
 .....
 +ddd+
@@ -636,13 +640,13 @@ e...f
 ..........
 .bbbbbbb..
 ..........
-..+ccc+.ff
+..+ccc+.fff
 ..d...e...
 ..d...e...
 """, None),
 
     ("Whale", """
-.....aa..
+.....aaa.
 .........
 f.bbbbbbb
 f........
@@ -664,9 +668,9 @@ ddddddd
 """, None),
 
     ("Ant", """
-a+.+bb.+cc
-.d.e...f..
-.d.e...f..
+aa+.+bb.+cc
+..d.e...f..
+..d.e...f..
 """, None),
 
     ("Spider", """
@@ -760,7 +764,7 @@ eeeeeee
     ("Castle", """
 a.b.c.d
 +e+e+e+
-.......
+a.b.c.d
 fff+fff
 ...g...
 ...g...
@@ -989,7 +993,7 @@ hhhhhhhhh
     ("Citadel", """
 .a..b..c.
 ++dd+dd++
-e.......f
+ea..b..cf
 e.......f
 e...g...f
 e...g...f
@@ -1008,7 +1012,7 @@ d.fffff.e
 ..ggggg..
 .........
 ..hhhhh..
-.........
+...i.j...
 ...i.j...
 ...i.j...
 """, None),

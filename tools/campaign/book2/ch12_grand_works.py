@@ -101,7 +101,7 @@ gggg+...h
 """, None),
 
     ("Shipyard", """
-..+aa......
+..+aa...d..
 ..c..bbb+..
 ..c.....d..
 ...j.k.l...
@@ -122,6 +122,7 @@ eee+e+e+e..
 .f+f+f+f+
 k.d.g.e.l
 +h+h+h+h+
+k........
 """, None),
 
     ("Terminal", """
@@ -148,6 +149,7 @@ hg..e..b
     ("Smelter", """
 .a........
 b+bb......
+.a..k....h
 .a..k....h
 .+cc++c+c+
 .a...e.f.h

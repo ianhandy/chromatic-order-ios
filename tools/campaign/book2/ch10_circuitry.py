@@ -114,11 +114,11 @@ g.a.b.c.d..
 """, None),
 
     ("Satellite", """
-....+gg.+j...
+....+gg.+jj..
 ....e...f....
 aaaa+.i.+cccc
 ....e.i.f....
-bbbb+...+dddd
+bbbb+.i.+dddd
 ....e...f....
 ..kk+...+hh..
 """, None),
@@ -138,7 +138,7 @@ b...d...c
     ("Junction Box", """
 ....e......
 ..+a+a+a+..
-..c...h.d..
+..c.e.h.d..
 ff+.ii+i+..
 ..c...h.+gg
 ..c...h.d..
@@ -177,14 +177,14 @@ bb+.i.j.+cc
 """, "Leave the short runs for last, once the long ones have pinned their neighbors."),
 
     ("Power Strip", """
-.....f........
-...+a+a+......
-...c.f.g.h.i.d
-ee.c.f.g.h.i.d
-.........h.i.d
-...bbbbb++b+b+
-........j.....
-........j.....
+......f........
+....+a+a+......
+....c.f.g.h.i.d
+eee.c.f.g.h.i.d
+..........h.i.d
+....bbbbb++b+b+
+.........j.....
+.........j.....
 """, None),
 
     ("Oscilloscope", """
@@ -199,12 +199,12 @@ c......d..
 """, None),
 
     ("Motherboard", """
-ee......jjjj.
+eee.....jjjj.
 .............
 .............
 .a.b.c.g.i.h.
 .a.b.c.+f+f+f
-.a.b.c...i.h.
+.a.b.c.g.i.h.
 d+d+d+ddd+d+d
 """, None),
 ]
