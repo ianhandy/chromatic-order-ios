@@ -1,0 +1,72 @@
+{
+  "schema_version": 1,
+  "app": {
+    "bundle_id": "com.ianhandy.kroma",
+    "app_store_version": "1.0",
+    "locale": "en-US"
+  },
+  "facts": {
+    "campaign_level_count": 220,
+    "free_campaign_chapter_count": 4,
+    "challenge_starting_hearts": 3,
+    "daily_name": "daily",
+    "zen_name": "zen",
+    "challenge_name": "challenge",
+    "creator_name": "creator",
+    "gallery_name": "gallery",
+    "purchase_name": "full version"
+  },
+  "features": {
+    "daily": "a new daily puzzle is available every day",
+    "zen": "in zen, you can relax with a never-ending stream of generated puzzles at the difficulty you choose",
+    "challenge": "challenge lets you find out how far you can get with {challenge_starting_hearts} hearts",
+    "creator": "creator is where you can make and share something of your own",
+    "gallery": "the gallery is where your solved and shared puzzles live",
+    "accessibility": "color-vision settings help the board communicate differences using more than just hue",
+    "sync": "progress syncs across devices through icloud",
+    "game_center": "daily time, moves, streaks, and achievements use game center"
+  },
+  "listing": {
+    "description_paragraphs": [
+      "i created kromatika for those few seconds of satisfaction when a row of mixed-up color tiles clicks together as a lovely gradient.",
+      "at the beginning of each puzzle, you start with a small number of fixed tiles and several that are waiting outside their gaps. drag these loose tiles into the empty spaces until each line contains an uninterrupted gradient. the first few levels are small and relatively simple. as you progress through the game, however, the lines begin to intersect and fork off in different directions; some tile placements can settle two gradients at the same time.",
+      "there are {campaign_level_count} puzzles in the campaign, and i designed every one by hand. there are plenty of other ways to keep playing. {feature_daily}. {feature_zen}. {feature_challenge}. {feature_creator}.",
+      "{feature_gallery}. {feature_accessibility}. {feature_sync}. {feature_game_center}.",
+      "the {daily_name}, {gallery_name}, and first {free_campaign_chapter_count} campaign chapters are free. the {purchase_name} is a single purchase with no recurring subscription. it opens the rest of the campaign, infinite {zen_name}, {challenge_name} runs, and the puzzle {creator_name}."
+    ],
+    "keywords": [
+      "color",
+      "puzzle",
+      "gradient",
+      "logic",
+      "daily",
+      "relaxing",
+      "brain",
+      "zen",
+      "chromatic",
+      "perception"
+    ],
+    "support_url": "https://kroma.ianhandy.com",
+    "copyright": "2026 ian handy"
+  },
+  "review": {
+    "sign_in_required": false,
+    "contact": {
+      "first_name": "ian",
+      "last_name": "handy",
+      "email_env": "ASC_REVIEW_EMAIL",
+      "phone_env": "ASC_REVIEW_PHONE"
+    },
+    "notes_paragraphs": [
+      "kromatika has no app-specific account or sign-in. game center is optional and uses the reviewer’s device account.",
+      "the daily, gallery, and first {free_campaign_chapter_count} campaign chapters are free. the {purchase_name} is a one-time, non-consumable purchase with no subscription. it unlocks the remaining campaign levels, infinite zen, challenge runs, and the puzzle creator."
+    ]
+  },
+  "quality": {
+    "walter_checked_on": "2026-09-08",
+    "walter_verdict": "likely_human",
+    "walter_score": 17,
+    "walter_request_id": "fb818be7-95ee-4bef-ac77-b03ccd83e7db",
+    "walter_note": "factual lowercase revision checked at document granularity"
+  }
+}

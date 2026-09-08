@@ -1,6 +1,10 @@
 import importlib.util
+import json
+import os
 from pathlib import Path
+import tempfile
 import unittest
+from unittest.mock import patch
 
 
 SCRIPT = Path(__file__).with_name("app_store_connect.py")
@@ -49,6 +53,51 @@ class AppStoreConnectTests(unittest.TestCase):
             data["relationships"]["app"],
             {"data": {"type": "apps", "id": "app-123"}},
         )
+
+    def test_repo_metadata_renders_lowercase_copy_and_app_store_limits(self):
+        metadata = asc.load_metadata(asc.DEFAULT_METADATA_PATH)
+        listing = metadata["listing"]
+        self.assertIn("220", listing["description"])
+        self.assertIn("3 hearts", listing["description"])
+        self.assertIn("first 4 campaign chapters", listing["description"])
+        self.assertEqual(listing["description"], listing["description"].lower())
+        self.assertLessEqual(len(listing["description"]), 4000)
+        self.assertLessEqual(len(listing["keywords"]), 100)
+
+        campaign_path = asc.DEFAULT_METADATA_PATH.parent.parent / "ChromaticOrder" / "Resources" / "campaign.json"
+        campaign = json.loads(campaign_path.read_text())
+        self.assertEqual(metadata["facts"]["campaign_level_count"], len(campaign["levels"]))
+
+    def test_metadata_templates_fail_on_unknown_variables(self):
+        source = json.loads(asc.DEFAULT_METADATA_PATH.read_text())
+        source["listing"]["description_paragraphs"] = ["{not_a_real_fact}"]
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "metadata.json"
+            path.write_text(json.dumps(source))
+            with self.assertRaisesRegex(asc.AppStoreConnectError, "not_a_real_fact"):
+                asc.load_metadata(path)
+
+    def test_metadata_sync_requests_use_environment_contact_and_expected_resources(self):
+        metadata = asc.load_metadata(asc.DEFAULT_METADATA_PATH)
+        with patch.dict(
+            os.environ,
+            {"ASC_REVIEW_EMAIL": "review@example.com", "ASC_REVIEW_PHONE": "+15555550123"},
+        ):
+            requests = asc.metadata_sync_requests(
+                metadata, "version-1", "localization-1", "review-1"
+            )
+        self.assertEqual(
+            [request["body"]["data"]["type"] for request in requests],
+            [
+                "appStoreVersionLocalizations",
+                "appStoreVersions",
+                "appStoreReviewDetails",
+            ],
+        )
+        review = requests[-1]["body"]["data"]["attributes"]
+        self.assertEqual(review["contactEmail"], "review@example.com")
+        self.assertEqual(review["contactPhone"], "+15555550123")
+        self.assertFalse(review["demoAccountRequired"])
 
 
 if __name__ == "__main__":

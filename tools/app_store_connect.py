@@ -28,6 +28,9 @@ from urllib.request import Request, urlopen
 
 API_BASE = "https://api.appstoreconnect.apple.com"
 DEFAULT_BUNDLE_ID = "com.ianhandy.kroma"
+DEFAULT_METADATA_PATH = (
+    Path(__file__).resolve().parents[1] / "store-assets" / "app-store-metadata.json"
+)
 STREAK_LEADERBOARD_ID = "com.ianhandy.kroma.daily_streak"
 FULL_VERSION_PRODUCT_ID = "com.ianhandy.kroma.full_version"
 FULL_VERSION_NAME = "Kromatika Full Version"
@@ -225,6 +228,224 @@ def find_build(client: ASCClient, app_id: str, build_number: str) -> dict[str, A
 
 def print_json(value: Any) -> None:
     print(json.dumps(value, indent=2, sort_keys=True))
+
+
+def _render_text(value: str, variables: dict[str, Any]) -> str:
+    try:
+        return value.format_map(variables)
+    except KeyError as error:
+        raise AppStoreConnectError(f"Unknown metadata variable: {error.args[0]}")
+
+
+def load_metadata(path: Path) -> dict[str, Any]:
+    try:
+        raw = json.loads(path.read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        raise AppStoreConnectError(f"Metadata file not found: {path}")
+    except json.JSONDecodeError as error:
+        raise AppStoreConnectError(f"Invalid metadata JSON at {path}: {error}")
+
+    if raw.get("schema_version") != 1:
+        raise AppStoreConnectError("Unsupported app-store metadata schema")
+    variables = dict(raw.get("facts", {}))
+    rendered_features = {
+        name: _render_text(value, variables)
+        for name, value in raw.get("features", {}).items()
+    }
+    variables.update(
+        {f"feature_{name}": value for name, value in rendered_features.items()}
+    )
+    listing = raw.get("listing", {})
+    review = raw.get("review", {})
+    description = "\n\n".join(
+        _render_text(paragraph, variables)
+        for paragraph in listing.get("description_paragraphs", [])
+    )
+    notes = "\n\n".join(
+        _render_text(paragraph, variables)
+        for paragraph in review.get("notes_paragraphs", [])
+    )
+    rendered = {
+        "app": raw.get("app", {}),
+        "facts": variables,
+        "features": rendered_features,
+        "listing": {
+            "description": description,
+            "keywords": ",".join(listing.get("keywords", [])),
+            "supportUrl": listing.get("support_url", ""),
+            "copyright": listing.get("copyright", ""),
+        },
+        "review": {
+            "signInRequired": bool(review.get("sign_in_required", False)),
+            "notes": notes,
+            "contact": review.get("contact", {}),
+        },
+        "quality": raw.get("quality", {}),
+    }
+    validate_metadata(rendered)
+    return rendered
+
+
+def validate_metadata(metadata: dict[str, Any]) -> None:
+    listing = metadata["listing"]
+    required = ("description", "keywords", "supportUrl", "copyright")
+    missing = [name for name in required if not listing.get(name)]
+    if missing:
+        raise AppStoreConnectError("Missing listing metadata: " + ", ".join(missing))
+    if len(listing["description"]) > 4000:
+        raise AppStoreConnectError("Description exceeds App Store limit of 4000 characters")
+    if len(listing["keywords"]) > 100:
+        raise AppStoreConnectError("Keywords exceed App Store limit of 100 characters")
+    for name in ("description", "keywords", "supportUrl", "copyright"):
+        value = listing[name]
+        if value != value.lower():
+            raise AppStoreConnectError(f"{name} must stay lowercase")
+    if metadata["review"]["notes"] != metadata["review"]["notes"].lower():
+        raise AppStoreConnectError("review notes must stay lowercase")
+    for name, value in metadata["features"].items():
+        if value != value.lower():
+            raise AppStoreConnectError(f"feature {name} must stay lowercase")
+
+
+def _metadata_path(args: argparse.Namespace) -> Path:
+    return Path(args.metadata).expanduser().resolve()
+
+
+def command_render_metadata(_: ASCClient | None, args: argparse.Namespace) -> None:
+    print_json(load_metadata(_metadata_path(args)))
+
+
+def _version_localization(
+    client: ASCClient, version_id: str, locale: str
+) -> dict[str, Any]:
+    result = client.request(
+        "GET",
+        f"/v1/appStoreVersions/{version_id}/appStoreVersionLocalizations",
+        query={"filter[locale]": locale, "limit": 2},
+    )
+    return one(result.get("data", []), f"{locale} App Store version localization")
+
+
+def _review_detail(client: ASCClient, version_id: str) -> dict[str, Any]:
+    result = client.request(
+        "GET", f"/v1/appStoreVersions/{version_id}/appStoreReviewDetail"
+    )
+    data = result.get("data")
+    if not data:
+        raise AppStoreConnectError("App Store review detail is missing")
+    return data
+
+
+def metadata_sync_requests(
+    metadata: dict[str, Any],
+    version_id: str,
+    localization_id: str,
+    review_detail_id: str,
+    *,
+    require_contact: bool = True,
+) -> list[dict[str, Any]]:
+    listing = metadata["listing"]
+    review = metadata["review"]
+    contact = review["contact"]
+    email_env = contact.get("email_env", "ASC_REVIEW_EMAIL")
+    phone_env = contact.get("phone_env", "ASC_REVIEW_PHONE")
+    email = os.environ.get(email_env)
+    phone = os.environ.get(phone_env)
+    missing = [
+        name
+        for name, value in ((email_env, email), (phone_env, phone))
+        if not value
+    ]
+    if missing and require_contact:
+        raise AppStoreConnectError(
+            "Set review contact environment variable(s): " + ", ".join(missing)
+        )
+    email = email or f"<{email_env}>"
+    phone = phone or f"<{phone_env}>"
+
+    return [
+        {
+            "method": "PATCH",
+            "path": f"/v1/appStoreVersionLocalizations/{localization_id}",
+            "body": {
+                "data": {
+                    "type": "appStoreVersionLocalizations",
+                    "id": localization_id,
+                    "attributes": {
+                        "description": listing["description"],
+                        "keywords": listing["keywords"],
+                        "supportUrl": listing["supportUrl"],
+                    },
+                }
+            },
+        },
+        {
+            "method": "PATCH",
+            "path": f"/v1/appStoreVersions/{version_id}",
+            "body": {
+                "data": {
+                    "type": "appStoreVersions",
+                    "id": version_id,
+                    "attributes": {"copyright": listing["copyright"]},
+                }
+            },
+        },
+        {
+            "method": "PATCH",
+            "path": f"/v1/appStoreReviewDetails/{review_detail_id}",
+            "body": {
+                "data": {
+                    "type": "appStoreReviewDetails",
+                    "id": review_detail_id,
+                    "attributes": {
+                        "contactFirstName": contact["first_name"],
+                        "contactLastName": contact["last_name"],
+                        "contactEmail": email,
+                        "contactPhone": phone,
+                        "demoAccountRequired": review["signInRequired"],
+                        "notes": review["notes"],
+                    },
+                }
+            },
+        },
+    ]
+
+
+def _redacted_requests(
+    requests: list[dict[str, Any]], metadata: dict[str, Any]
+) -> list[dict[str, Any]]:
+    redacted = json.loads(json.dumps(requests))
+    contact = metadata["review"]["contact"]
+    attributes = redacted[-1]["body"]["data"]["attributes"]
+    attributes["contactEmail"] = f"<{contact.get('email_env', 'ASC_REVIEW_EMAIL')}>"
+    attributes["contactPhone"] = f"<{contact.get('phone_env', 'ASC_REVIEW_PHONE')}>"
+    return redacted
+
+
+def command_sync_metadata(client: ASCClient, args: argparse.Namespace) -> None:
+    metadata = load_metadata(_metadata_path(args))
+    bundle_id = args.bundle_id or metadata["app"].get("bundle_id") or DEFAULT_BUNDLE_ID
+    version_string = args.version or metadata["app"].get("app_store_version")
+    locale = args.locale or metadata["app"].get("locale", "en-US")
+    if not version_string:
+        raise AppStoreConnectError("Set app.app_store_version in metadata or pass --version")
+    app = resolve_app(client, bundle_id)
+    version = find_version(client, app["id"], version_string)
+    localization = _version_localization(client, version["id"], locale)
+    review_detail = _review_detail(client, version["id"])
+    requests = metadata_sync_requests(
+        metadata,
+        version["id"],
+        localization["id"],
+        review_detail["id"],
+        require_contact=args.apply,
+    )
+    if not args.apply:
+        print_json({"dryRun": True, "requests": _redacted_requests(requests, metadata)})
+        return
+    for request in requests:
+        client.request(request["method"], request["path"], body=request["body"])
+    print(f"Synced {locale} metadata for App Store version {version_string}.")
 
 
 def command_status(client: ASCClient, args: argparse.Namespace) -> None:
@@ -580,6 +801,21 @@ def parser() -> argparse.ArgumentParser:
     root.add_argument("--bundle-id", default=DEFAULT_BUNDLE_ID)
     commands = root.add_subparsers(dest="command", required=True)
 
+    render_metadata = commands.add_parser(
+        "render-metadata", help="Render and validate the repo-owned App Store metadata"
+    )
+    render_metadata.add_argument("--metadata", default=str(DEFAULT_METADATA_PATH))
+    render_metadata.set_defaults(handler=command_render_metadata, needs_client=False)
+
+    sync_metadata = commands.add_parser(
+        "sync-metadata", help="Sync repo-owned listing and review metadata"
+    )
+    sync_metadata.add_argument("--metadata", default=str(DEFAULT_METADATA_PATH))
+    sync_metadata.add_argument("--version")
+    sync_metadata.add_argument("--locale")
+    sync_metadata.add_argument("--apply", action="store_true")
+    sync_metadata.set_defaults(handler=command_sync_metadata, needs_client=True)
+
     status = commands.add_parser("status", help="Show versions, builds, and review state")
     status.set_defaults(handler=command_status)
 
@@ -630,7 +866,7 @@ def parser() -> argparse.ArgumentParser:
 def main() -> int:
     args = parser().parse_args()
     try:
-        client = ASCClient.from_environment()
+        client = ASCClient.from_environment() if getattr(args, "needs_client", True) else None
         args.handler(client, args)
         return 0
     except (AppStoreConnectError, subprocess.CalledProcessError) as error:
