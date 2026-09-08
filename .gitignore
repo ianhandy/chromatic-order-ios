@@ -35,3 +35,9 @@ documents/
 # App-icon concept work (11M of PNG/SVG explorations). Kept local —
 # the shipped icon lives in Assets.xcassets/AppIcon.appiconset.
 Design/
+
+# Agent worktrees. These are linked git worktrees of this same repo, so
+# `git add -A` stages each one as an embedded-repo gitlink — a broken
+# commit whose contents no clone can fetch. Ignored so release commits
+# can't pick them up; the checkouts themselves stay on disk.
+.claude/worktrees/
