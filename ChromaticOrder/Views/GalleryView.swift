@@ -440,7 +440,9 @@ struct GalleryView: View {
                         GalleryRowWithActions(
                             puzzle: puzzle,
                             onPlay: { play(puzzle) },
-                            onEdit: { openCreator(editing: puzzle) }
+                            onEdit: { openCreator(editing: puzzle) },
+                            onPublish: { submitToCommunity(puzzle) },
+                            isPublishing: submittingPuzzleId == puzzle.id
                         )
                         .id(puzzle.id)
                         .listRowBackground(
@@ -510,7 +512,9 @@ struct GalleryView: View {
                             // they're stored .kroma snapshots, not
                             // gallery entries. Hide the Edit button
                             // so the row reflects available actions.
-                            onEdit: nil
+                            onEdit: nil,
+                            onPublish: nil,
+                            isPublishing: false
                         )
                         .id(puzzle.id)
                         .listRowBackground(
@@ -945,16 +949,17 @@ struct GalleryRow: View {
     }
 }
 
-/// Gallery row with inline Play (+ optional Edit) action buttons on
-/// the right side. Replaces the whole-row tap-to-play gesture that
-/// used to be the only way in. Tapping the row's title area still
-/// plays; the buttons give an unambiguous affordance + separate the
-/// Edit path without needing swipe or long-press.
+/// Gallery row with visible Play, Edit, and Publish actions on the
+/// right side. Publishing is intentionally spelled out rather than
+/// hidden in a context menu so the path into the community is evident.
 struct GalleryRowWithActions: View {
     let puzzle: GalleryPuzzle
     let onPlay: () -> Void
     /// nil = row is read-only (favorites don't edit in place).
     let onEdit: (() -> Void)?
+    /// nil = this row isn't player-authored and can't be published.
+    let onPublish: (() -> Void)?
+    let isPublishing: Bool
 
     var body: some View {
         HStack(spacing: 10) {
@@ -968,14 +973,41 @@ struct GalleryRowWithActions: View {
             }
             .buttonStyle(.plain)
 
-            HStack(spacing: 6) {
-                GalleryActionButton(system: "play.fill",
-                                    accessibilityLabel: "Play",
-                                    tone: .green) { onPlay() }
-                if let onEdit {
-                    GalleryActionButton(system: "pencil",
-                                        accessibilityLabel: "Edit",
-                                        tone: .blue) { onEdit() }
+            VStack(spacing: 6) {
+                HStack(spacing: 6) {
+                    GalleryActionButton(system: "play.fill",
+                                        accessibilityLabel: "Play",
+                                        tone: .green) { onPlay() }
+                    if let onEdit {
+                        GalleryActionButton(system: "pencil",
+                                            accessibilityLabel: "Edit",
+                                            tone: .blue) { onEdit() }
+                    }
+                }
+                if let onPublish {
+                    Button(action: onPublish) {
+                        HStack(spacing: 5) {
+                            if isPublishing {
+                                ProgressView()
+                                    .controlSize(.small)
+                                    .tint(.white)
+                            } else {
+                                Image(systemName: "paperplane.fill")
+                            }
+                            Text(isPublishing ? "Publishing" : "Publish")
+                        }
+                        .font(Kroma.font(.caption, .bold))
+                        .foregroundStyle(.white)
+                        .frame(minWidth: 82, minHeight: 38)
+                        .padding(.horizontal, 6)
+                        .background(Color.indigo, in: Capsule())
+                        .kromaHitTarget()
+                    }
+                    .buttonStyle(.kromaControl)
+                    .disabled(isPublishing)
+                    .accessibilityLabel(isPublishing
+                                        ? "Publishing to community"
+                                        : "Publish to community")
                 }
             }
         }
@@ -984,12 +1016,10 @@ struct GalleryRowWithActions: View {
 
 /// Inline community row inside the Gallery list. Two states share
 /// the same row:
-///   • Compact: palette strip + submitter name + small vote summary.
-///     A chevron hints that the row expands. The whole row is one
-///     tap target — tap toggles expansion, never plays.
-///   • Expanded: full-size up/down vote buttons (with optimistic
-///     flip + server reconciliation) + a Play button. Play is the
-///     only path into the actual puzzle.
+///   • Compact: palette strip + submitter name + vote summary and a
+///     labeled Rate button that makes the interaction explicit.
+///   • Expanded: labeled Like / Dislike buttons (with optimistic
+///     server reconciliation) plus a Play button.
 struct CommunityGalleryRow: View {
     @Binding var entry: CommunityPuzzleEntry
     let expanded: Bool
@@ -1014,8 +1044,6 @@ struct CommunityGalleryRow: View {
             }
         }
         .padding(.vertical, 6)
-        .contentShape(Rectangle())
-        .onTapGesture { onToggleExpand() }
         // Long-press is the iOS-conventional home for per-item
         // moderation, and it keeps the row itself uncluttered. Also
         // mirrored as accessibility actions below so it isn't a
@@ -1063,19 +1091,29 @@ struct CommunityGalleryRow: View {
             }
             Spacer(minLength: 0)
             HStack(spacing: Kroma.Space.s) {
-                Label("\(entry.upCount)", systemImage: "arrowtriangle.up.fill")
+                Label("\(entry.upCount)", systemImage: "hand.thumbsup.fill")
                     .labelStyle(.titleAndIcon)
                     .foregroundStyle(entry.myVote == 1
                                      ? Self.likeGreen : Color.secondary)
-                Label("\(entry.downCount)", systemImage: "arrowtriangle.down.fill")
+                Label("\(entry.downCount)", systemImage: "hand.thumbsdown.fill")
                     .labelStyle(.titleAndIcon)
                     .foregroundStyle(entry.myVote == -1
                                      ? Self.dislikeRed : Color.secondary)
             }
             .font(Kroma.font(.caption2, .bold))
-            Image(systemName: expanded ? "chevron.up" : "chevron.down")
-                .font(Kroma.font(.caption2, .bold))
-                .foregroundStyle(.tertiary)
+            Button(action: onToggleExpand) {
+                HStack(spacing: 4) {
+                    Text(expanded ? "Close" : "Rate")
+                    Image(systemName: expanded ? "chevron.up" : "chevron.down")
+                }
+                .font(Kroma.font(.caption, .bold))
+                .padding(.horizontal, 9)
+                .padding(.vertical, 6)
+                .background(Color.primary.opacity(0.10), in: Capsule())
+                .kromaHitTarget()
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(expanded ? "Close rating controls" : "Rate puzzle")
         }
     }
 
@@ -1083,10 +1121,10 @@ struct CommunityGalleryRow: View {
     private var expandedDetail: some View {
         HStack(alignment: .center, spacing: Kroma.Space.m) {
             voteArrow(direction: +1, color: Self.likeGreen,
-                      system: "arrowtriangle.up.fill",
+                      system: "hand.thumbsup.fill",
                       count: entry.upCount)
             voteArrow(direction: -1, color: Self.dislikeRed,
-                      system: "arrowtriangle.down.fill",
+                      system: "hand.thumbsdown.fill",
                       count: entry.downCount)
             Spacer(minLength: 0)
             Button {
@@ -1122,6 +1160,9 @@ struct CommunityGalleryRow: View {
                 Image(systemName: system)
                     .font(Kroma.font(.callout, .heavy))
                     .foregroundStyle(active ? color : Color.secondary)
+                Text(direction > 0 ? "Like" : "Dislike")
+                    .font(Kroma.font(.caption, .bold))
+                    .foregroundStyle(active ? color : Color.secondary)
                 Text("\(count)")
                     .font(Kroma.font(.caption, .bold))
                     .foregroundStyle(active ? color : Color.secondary)
@@ -1144,7 +1185,7 @@ struct CommunityGalleryRow: View {
         .buttonStyle(.plain)
         .disabled(voting)
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(direction > 0 ? "upvote" : "downvote")
+        .accessibilityLabel(direction > 0 ? "like" : "dislike")
         .accessibilityValue("\(count)")
         .accessibilityAddTraits(active ? [.isButton, .isSelected] : .isButton)
     }

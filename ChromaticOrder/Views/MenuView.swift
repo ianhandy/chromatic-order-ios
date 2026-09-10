@@ -125,59 +125,64 @@ struct MenuView: View {
                                 pick(mode: .daily)
                             }
                         }
-                        // Gallery is primary navigation, not an app-level
-                        // aside: it sits with the things you can go play,
-                        // directly under the daily puzzle.
-                        primaryRow(Strings.Menu.gallery) {
-                            galleryOpen = true
-                        }
                         // Keep these affordances live if the menu stays open
-                        // across a noon, midnight, or cooldown boundary.
+                        // across a noon, midnight, or cooldown boundary. The
+                        // explicit trailing stack keeps both timed rows on the
+                        // same right edge even when their labels differ in width.
                         TimelineView(.periodic(from: .now, by: 1)) { context in
-                            let zenCooldown = trialCooldown(.zen, at: context.date)
-                            primaryRow(Strings.Menu.zen,
-                                       detail: zenCooldown,
-                                       locked: zenCooldown != nil,
-                                       accessibilityValue: zenCooldown.map { "available in \($0)" }) {
-                                requireFullVersion(if: zenCooldown != nil, focus: .zen) {
-                                    pick(mode: .zen, asTrial: !fullVersion.isUnlocked)
+                            VStack(alignment: .trailing, spacing: Kroma.Space.xs) {
+                                let zenCooldown = trialCooldown(.zen, at: context.date)
+                                primaryRow(Strings.Menu.zen,
+                                           detail: zenCooldown,
+                                           locked: zenCooldown != nil,
+                                           accessibilityValue: zenCooldown.map { "available in \($0)" }) {
+                                    requireFullVersion(if: zenCooldown != nil, focus: .zen) {
+                                        pick(mode: .zen, asTrial: !fullVersion.isUnlocked)
+                                    }
                                 }
-                            }
 
-                            let challengeCooldown = hasActiveChallengeTrial
-                                ? nil
-                                : trialCooldown(.challenge, at: context.date)
-                            primaryRow(Strings.Menu.challenge,
-                                       detail: challengeCooldown,
-                                       locked: challengeCooldown != nil,
-                                       accessibilityValue: challengeCooldown.map { "available in \($0)" }) {
-                                requireFullVersion(if: challengeCooldown != nil, focus: .challenge) {
-                                    // A saved run is the only thing that makes this
-                                    // ambiguous, so that's the only time we ask. It
-                                    // outranks starting a fresh free run.
-                                    if game.hasSavedChallengeRun {
-                                        challengeResumeOpen = true
-                                    } else {
-                                        pick(mode: .challenge,
-                                             asTrial: !fullVersion.isUnlocked)
+                                let challengeCooldown = hasActiveChallengeTrial
+                                    ? nil
+                                    : trialCooldown(.challenge, at: context.date)
+                                primaryRow(Strings.Menu.challenge,
+                                           detail: challengeCooldown,
+                                           locked: challengeCooldown != nil,
+                                           accessibilityValue: challengeCooldown.map { "available in \($0)" }) {
+                                    requireFullVersion(if: challengeCooldown != nil, focus: .challenge) {
+                                        // A saved run is the only thing that makes this
+                                        // ambiguous, so that's the only time we ask. It
+                                        // outranks starting a fresh free run.
+                                        if game.hasSavedChallengeRun {
+                                            challengeResumeOpen = true
+                                        } else {
+                                            pick(mode: .challenge,
+                                                 asTrial: !fullVersion.isUnlocked)
+                                        }
                                     }
                                 }
                             }
+                            .frame(maxWidth: .infinity, alignment: .trailing)
+                        }
+                        // Gallery follows the two open-ended play modes so the
+                        // play hierarchy reads campaign, daily, zen, challenge,
+                        // then saved puzzles.
+                        primaryRow(Strings.Menu.gallery) {
+                            galleryOpen = true
                         }
                     }
 
                     VStack(alignment: .trailing, spacing: Kroma.Space.xs) {
+                        secondaryRow(Strings.Menu.settings) {
+                            accessibilityOpen = true
+                        }
+                        secondaryRow(Strings.Menu.leaderboard) {
+                            leaderboardOpen = true
+                        }
                         secondaryRow(Strings.Menu.stats) {
                             statsOpen = true
                             GameCenter.shared.reportAchievement(
                                 GameCenter.Achievement.openedStats
                             )
-                        }
-                        secondaryRow(Strings.Menu.leaderboard) {
-                            leaderboardOpen = true
-                        }
-                        secondaryRow(Strings.Menu.settings) {
-                            accessibilityOpen = true
                         }
                         secondaryRow(Strings.Menu.feedback,
                                      highlighted: engagement.activeMenuNudge == .feedback) {

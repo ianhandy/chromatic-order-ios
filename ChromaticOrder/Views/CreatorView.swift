@@ -692,7 +692,7 @@ struct CreatorView: View {
 
                 bottomBarButton(
                     system: "paperplane.fill",
-                    label: submitState.isInFlight ? "…" : "Submit",
+                    label: submitState.isInFlight ? "Publishing…" : "Publish\nCommunity",
                     disabled: !(built?.validation.playable ?? false)
                              || submitState.isInFlight
                              || showSubmitConfirm,

@@ -282,33 +282,38 @@ struct TopBarView: View {
     private var heartsRow: some View {
         let heartRed = Color(red: 1.0, green: 0.4, blue: 0.4)
         HStack(spacing: 3) {
-            Image(systemName: "heart.fill")
-                .font(Kroma.font(.body, .regular))
-                .foregroundStyle(heartRed)
-                .phaseAnimator([1.0, 1.35, 1.0],
-                               trigger: heartWaveTick) { content, scale in
-                    content.scaleEffect(scale)
-                } animation: { _ in
-                    .spring(response: 0.30, dampingFraction: 0.55)
+            // The reward heart lands on the existing counter icon rather
+            // than joining the HStack as a third child. Keeping both hearts
+            // in one fixed-size ZStack prevents the count from sliding
+            // sideways when the flight starts and snapping back when it ends.
+            ZStack {
+                Image(systemName: "heart.fill")
+                    .font(Kroma.font(.body, .regular))
+                    .foregroundStyle(heartRed)
+                    .phaseAnimator([1.0, 1.35, 1.0],
+                                   trigger: heartWaveTick) { content, scale in
+                        content.scaleEffect(scale)
+                    } animation: { _ in
+                        .spring(response: 0.30, dampingFraction: 0.55)
+                    }
+                if perfectHeartStage == .flying {
+                    Image(systemName: "heart.fill")
+                        .font(Kroma.font(.body, .regular))
+                        .foregroundStyle(heartRed)
+                        .matchedGeometryEffect(
+                            id: "perfectHeart",
+                            in: perfectHeartNS,
+                            isSource: false
+                        )
+                        .accessibilityHidden(true)
                 }
+            }
             Text("\(max(0, game.checks))")
                 .font(Kroma.font(.body, .heavy))
                 .foregroundStyle(heartRed)
                 .monospacedDigit()
                 .contentTransition(.numericText(value: Double(max(0, game.checks))))
                 .fixedSize()
-            // Flying-in heart from the "perfect" banner. Sits at the
-            // end of the compact counter only during the reward animation.
-            if perfectHeartStage == .flying {
-                Image(systemName: "heart.fill")
-                    .font(.body)
-                    .foregroundStyle(heartRed)
-                    .matchedGeometryEffect(
-                        id: "perfectHeart",
-                        in: perfectHeartNS,
-                        isSource: false
-                    )
-            }
         }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("\(max(0, game.checks)) hearts")
