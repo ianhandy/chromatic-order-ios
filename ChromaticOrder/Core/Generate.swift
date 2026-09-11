@@ -654,15 +654,27 @@ private func planColors(
 private func tryStructuredBuild(level: Int, cfg: LevelConfig,
                                  dev: GenConfig) -> Puzzle? {
     let gridW = 20, gridH = 20
-    let targetN = dev.gradientCountOverride ?? defaultGradientCount(level)
-    let (minLen, maxLen) = wordLenFor(level)
+    let monochrome = dev.cbMode == .achromatopsia
+    let requestedN = dev.gradientCountOverride ?? defaultGradientCount(level)
+    // Achromatopsia reduces the palette to one brightness axis. Seven
+    // long runs cannot fit the existing separation floor in that band.
+    // Keep up to three short intersecting runs (at most ten unique
+    // cells), retaining the requested progression level and the floor.
+    let targetN = monochrome ? min(requestedN, 3) : requestedN
+    let (minLen, maxLen) = monochrome ? (3, 4) : wordLenFor(level)
+    let colorCfg = monochrome ? LevelConfig(
+        channelCount: 1,
+        ranges: LevelRanges(L: 0.055...0.16, c: cfg.ranges.c, h: cfg.ranges.h),
+        anchorEndpoints: cfg.anchorEndpoints
+    ) : cfg
 
     // Level-4-6 endpoint bias tweak from tryGrow stays relevant for
     // branch-seed selection diversity; structured builder uses its own
     // random inside-slot positioning, so it's a moot knob here.
     let bias = dev.huePrimaryBias ?? levelHuePrimaryBias(level)
-    let assign = pickChannelsAndRoles(count: cfg.channelCount,
-                                        huePrimaryBias: bias)
+    let assign = monochrome
+        ? ChannelAssignment(active: [.L], roleFor: [.L: .primary])
+        : pickChannelsAndRoles(count: cfg.channelCount, huePrimaryBias: bias)
 
     guard let skel = placeSkeleton(targetN: targetN,
                                      minLen: minLen, maxLen: maxLen,
@@ -670,12 +682,12 @@ private func tryStructuredBuild(level: Int, cfg: LevelConfig,
         return nil
     }
     guard let (cells, gradients) = planColors(
-        skeleton: skel, cfg: cfg, dev: dev, assign: assign, mode: dev.cbMode
+        skeleton: skel, cfg: colorCfg, dev: dev, assign: assign, mode: dev.cbMode
     ) else {
         return nil
     }
     return finalize(cells: cells, gradients: gradients,
-                     level: level, cfg: cfg, assign: assign, mode: dev.cbMode,
+                     level: level, cfg: colorCfg, assign: assign, mode: dev.cbMode,
                      minCellDeltaE: dev.minCellDeltaE)
 }
 
@@ -1293,7 +1305,7 @@ func generatePuzzle(level: Int, config: GenConfig = GenConfig()) -> Puzzle {
     // puzzle scores ~3 because the step+primaryChannel components
     // baseline that high. Rather than re-torture the formula, map
     // level to what it actually produces.
-    let target: Int
+    var target: Int
     switch level {
     case ...3:    target = 3
     case 4...6:   target = 4
@@ -1301,11 +1313,19 @@ func generatePuzzle(level: Int, config: GenConfig = GenConfig()) -> Puzzle {
     case 10...12: target = 9
     default:      target = 10
     }
+    // Smaller monochrome boards have a lower attainable score. Do not
+    // spend every retry chasing the score of a full-color expert board.
+    if config.cbMode == .achromatopsia { target = min(target, 6) }
+
+    // Stashed documents carry no vision-mode metadata. A full-color
+    // board may collapse to indistinguishable shades in another mode,
+    // so only normal-vision generation may read or populate that cache.
+    let useStash = !config.deterministic && config.cbMode == .none
 
     // Below-target buckets are now stale — purge before anything else
     // so the ledger stays bounded and we don't accidentally pop an
     // easier puzzle back out. Reproducible runs touch none of it.
-    if !config.deterministic {
+    if useStash {
         StashedPuzzleStore.purgeBelow(difficulty: target)
     }
 
@@ -1328,7 +1348,7 @@ func generatePuzzle(level: Int, config: GenConfig = GenConfig()) -> Puzzle {
     // the decode cost instead of the full regeneration. Skip the pop
     // when the cached fingerprint matches a recently-used or already-
     // solved puzzle.
-    if !config.deterministic,
+    if useStash,
        let cachedJSON = StashedPuzzleStore.pop(difficulty: target),
        let data = cachedJSON.data(using: .utf8),
        let doc = try? CreatorCodec.decode(data),
@@ -1377,7 +1397,7 @@ func generatePuzzle(level: Int, config: GenConfig = GenConfig()) -> Puzzle {
         // stashed at its actual difficulty so a later, harder level
         // can pop it. Anything easier is discarded — retrying is a
         // better bet than shipping a too-easy puzzle now.
-        if candidate.difficulty > acceptWindow.upperBound, !config.deterministic {
+        if candidate.difficulty > acceptWindow.upperBound, useStash {
             if let json = try? CreatorCodec.encodePuzzle(candidate) {
                 StashedPuzzleStore.stash(
                     puzzleJSON: json,
@@ -1421,7 +1441,7 @@ func generatePuzzle(level: Int, config: GenConfig = GenConfig()) -> Puzzle {
     // Still honour dedup at this tier — if the only stashed candidate
     // matches a recent or solved fingerprint, fall through to the
     // emergency loop.
-    for d in target...min(10, target + 3) where !config.deterministic {
+    for d in target...min(10, target + 3) where useStash {
         if let cachedJSON = StashedPuzzleStore.pop(difficulty: d),
            let data = cachedJSON.data(using: .utf8),
            let doc = try? CreatorCodec.decode(data),

@@ -10,6 +10,92 @@
 
 import XCTest
 
+final class AchromatopsiaGenerationTests: XCTestCase {
+    private func generate(level: Int, seed: UInt64, deterministic: Bool = true) -> Puzzle {
+        var config = GenConfig()
+        config.cbMode = .achromatopsia
+        config.deterministic = deterministic
+        return GenRNG.$current.withValue(SeededRNGRef(seed: seed)) {
+            generatePuzzle(level: level, config: config)
+        }
+    }
+
+    private func assertPlayable(_ puzzle: Puzzle, level: Int,
+                                file: StaticString = #filePath, line: UInt = #line) {
+        XCTAssertEqual(puzzle.level, level, file: file, line: line)
+        let cells = puzzle.board.flatMap { $0 }.filter { $0.kind == .cell }
+        let colors = cells.compactMap { $0.solution }
+        XCTAssertFalse(colors.isEmpty, file: file, line: line)
+        for i in colors.indices {
+            for j in colors.indices where j > i {
+                XCTAssertGreaterThanOrEqual(
+                    OK.dist(colors[i], colors[j], mode: .achromatopsia),
+                    GenConfig().minCellDeltaE,
+                    "level \(level) contains indistinguishable shades",
+                    file: file, line: line)
+            }
+        }
+        XCTAssertEqual(PuzzleSolver.countValidPlacements(puzzle, mode: .achromatopsia),
+                       1, "level \(level) must have exactly one solution",
+                       file: file, line: line)
+        let freeCells = cells.filter { !$0.locked }.count
+        XCTAssertGreaterThan(freeCells, 0, file: file, line: line)
+        XCTAssertEqual(puzzle.bank.compactMap { $0 }.count,
+                       freeCells + puzzle.decoys.count, file: file, line: line)
+        XCTAssertFalse(hasPalindromicGradient(puzzle.gradients, mode: .achromatopsia),
+                       file: file, line: line)
+    }
+
+    /// This exact input exhausted every builder attempt and terminated
+    /// the process in build 41. Exercise the production entry point.
+    func testPreviouslyCrashingExpertSeed() {
+        assertPlayable(generate(level: 21, seed: 42), level: 21)
+    }
+
+    func testPlayableAcrossProgressionAndExpertPlateau() {
+        for level in Array(1...30) + [50, 100] {
+            for seed in UInt64(0)..<12 {
+                assertPlayable(generate(level: level, seed: seed), level: level)
+            }
+        }
+    }
+
+    func testSeededMonochromeBoardsStayReproducibleAndVaried() throws {
+        var documents: Set<String> = []
+        for seed in UInt64(0)..<8 {
+            let first = try CreatorCodec.encodePuzzle(generate(level: 21, seed: seed))
+            let second = try CreatorCodec.encodePuzzle(generate(level: 21, seed: seed))
+            XCTAssertEqual(first, second)
+            documents.insert(first)
+        }
+        XCTAssertEqual(documents.count, 8)
+    }
+
+    func testVisionModeDoesNotConsumeOrPopulateFullColorStash() throws {
+        let key = "kromaStashedPuzzles_v1"
+        let saved = UserDefaults.standard.object(forKey: key)
+        defer {
+            if let saved { UserDefaults.standard.set(saved, forKey: key) }
+            else { UserDefaults.standard.removeObject(forKey: key) }
+        }
+        UserDefaults.standard.removeObject(forKey: key)
+        var normalConfig = GenConfig()
+        normalConfig.deterministic = true
+        let normal = GenRNG.$current.withValue(SeededRNGRef(seed: 42)) {
+            generatePuzzle(level: 9, config: normalConfig)
+        }
+        let fullColorDoc = try CreatorCodec.encodePuzzle(normal)
+        StashedPuzzleStore.stash(puzzleJSON: fullColorDoc, difficulty: 6)
+        StashedPuzzleStore.stash(puzzleJSON: "lower-bucket-marker", difficulty: 3)
+        let before = UserDefaults.standard.dictionary(forKey: key)! as NSDictionary
+
+        assertPlayable(generate(level: 9, seed: 42, deterministic: false), level: 9)
+
+        XCTAssertEqual(UserDefaults.standard.dictionary(forKey: key)! as NSDictionary,
+                       before, "vision-mode generation must leave the full-color stash alone")
+    }
+}
+
 
 final class GeneratorDeterminismTests: XCTestCase {
 
