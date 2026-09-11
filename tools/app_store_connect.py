@@ -220,8 +220,8 @@ def find_version(client: ASCClient, app_id: str, version: str) -> dict[str, Any]
 def find_build(client: ASCClient, app_id: str, build_number: str) -> dict[str, Any]:
     result = client.request(
         "GET",
-        f"/v1/apps/{app_id}/builds",
-        query={"filter[version]": build_number, "limit": 20},
+        "/v1/builds",
+        query={"filter[app]": app_id, "filter[version]": build_number, "limit": 20},
     )
     return one(result.get("data", []), f"build {build_number}")
 
@@ -453,7 +453,8 @@ def command_status(client: ASCClient, args: argparse.Namespace) -> None:
     app_id = app["id"]
     versions = get_versions(client, app_id)
     builds = client.request(
-        "GET", f"/v1/apps/{app_id}/builds", query={"limit": 10, "sort": "-uploadedDate"}
+        "GET", "/v1/builds",
+        query={"filter[app]": app_id, "limit": 10, "sort": "-uploadedDate"},
     ).get("data", [])
     reviews = client.request(
         "GET", f"/v1/apps/{app_id}/reviewSubmissions", query={"limit": 10}
